@@ -9,6 +9,7 @@ import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
 import { createFinishRepo } from "./src/db/finishRepo";
+import { createGoalRepo } from "./src/db/goalRepo";
 import { createGymRepo } from "./src/db/gymRepo";
 import { createOnboardingRepo } from "./src/db/onboardingRepo";
 import { createImportRepo } from "./src/db/importRepo";
@@ -24,6 +25,7 @@ import type { Lang, RtlOverride } from "./src/i18n/format";
 import type { Unit } from "./src/logic/units";
 import { ImportScreen } from "./src/screens/ImportScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { GoalsScreen } from "./src/screens/GoalsScreen";
 import { GymEditScreen } from "./src/screens/GymEditScreen";
 import { GymScreen } from "./src/screens/GymScreen";
 import { ProgrammeEditScreen } from "./src/screens/ProgrammeEditScreen";
@@ -74,6 +76,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="GymEdit" component={GymEditScreen} options={{ title: t("gym.edit.title") }} />
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
+          <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
         </Stack.Navigator>
       </NavigationContainer>
@@ -98,8 +101,9 @@ export default function App() {
       const programmes = createProgrammeRepo(db, deps, repos, finish);
       const onboarding = createOnboardingRepo(db, deps, repos, gyms, programmes);
       const imports = createImportRepo(db, deps, repos, workout, programmes, finish);
+      const goals = createGoalRepo(db, deps, repos);
       await onboarding.markExistingInstall();
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch(() => setBoot("error"));
   }, []);
 

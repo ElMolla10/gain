@@ -1,6 +1,8 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
+import { describePace } from "../logic/paceText";
+import type { StringKey } from "../i18n/strings";
 import { useServices } from "../AppContext";
 import { estimateMinutes, exerciseLabels, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
@@ -18,11 +20,12 @@ interface TodayData {
 }
 
 export function TodayScreen() {
-  const { repos } = useServices();
-  const { t, lang } = useI18n();
+  const { repos, goals, programmes } = useServices();
+  const { t, lang, fmt } = useI18n();
   const p = usePalette();
-  const navigation = useNavigation<{ navigate: (name: "Workout", params: { dayId: string }) => void }>();
+  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals", params?: { dayId: string }) => void }>();
   const [data, setData] = useState<TodayData | null | undefined>(undefined);
+  const [paceLine, setPaceLine] = useState<string>("");
 
   useFocusEffect(
     useCallback(() => {
@@ -32,12 +35,16 @@ export function TodayScreen() {
         if (!next) return alive && setData(null);
         const exercises = await repos.listDayExercises(next.day.id);
         const active = await repos.getLatestProgrammeVersion();
+        const pace = await goals.getPace(Date.now());
+        const lib = pace.kind === "lift" ? await programmes.listExercises() : [];
+        const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
+        if (alive) setPaceLine(describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
         if (alive) setData({ dayId: next.day.id, programmeName: next.programmeName, isSample: active?.isSample ?? false, dayName: next.day.name, exercises });
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
       };
-    }, [repos]),
+    }, [repos, goals, programmes, t, fmt, lang]),
   );
 
   if (data === undefined) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
@@ -71,7 +78,8 @@ export function TodayScreen() {
         ) : (
           goalLifts.map((e) => <AppText key={e.id}>{exerciseLabels(e, lang).primary}</AppText>)
         )}
-        <AppText style={{ color: p.muted }}>{t("today.pace")}</AppText>
+        <AppText style={{ color: p.muted }}>{paceLine}</AppText>
+        <BigButton label={t("goals.entry")} selected={false} onPress={() => navigation.navigate("Goals")} />
       </Card>
 
       <Card>

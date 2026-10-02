@@ -1,13 +1,17 @@
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { findSpec, renderReason, type GymFingerprint } from "@gain/engine";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import type { SessionSummary, TargetRow } from "../db/finishRepo";
-import { formatLoad, isolateLtr } from "../i18n/format";
+import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { stepLoad } from "../logic/draft";
+import { buildCardModel, cardHtml, cardPaceLine } from "../logic/coachCard";
 import { jumpKindText } from "../logic/jumpText";
+import type { StringKey } from "../i18n/strings";
 import { localizeReason, weightText } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card } from "../ui";
@@ -21,7 +25,7 @@ interface Next {
 }
 
 export function FinishScreen() {
-  const { repos, workout, finish } = useServices();
+  const { repos, workout, finish, goals, programmes } = useServices();
   const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (n: string, params?: object) => void; popToTop: () => void }>();
@@ -31,6 +35,7 @@ export function FinishScreen() {
   const [editing, setEditing] = useState<{ targetId: string; load: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notices, setNotices] = useState<Record<string, string>>({});
+  const [sharing, setSharing] = useState(false);
   const started = useRef(false);
 
   const reload = useCallback(
@@ -65,6 +70,33 @@ export function FinishScreen() {
       if (next !== "none") await reload(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  // Coach card: one PDF page (session, next targets, pace line, no bodyweight), shared through the system share sheet.
+  const shareCard = async () => {
+    setError(null);
+    setSharing(true);
+    try {
+      const session = await workout.getSession(sessionId);
+      const ms = Number(session?.finished_at ?? Date.now());
+      const date = new Date(ms - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10); // local calendar day
+      const pace = await goals.getPace();
+      let paceLine: string | null = null;
+      if (pace.kind === "lift") {
+        const ex = (await programmes.listExercises()).find((e) => e.id === pace.goal.exerciseId);
+        paceLine = cardPaceLine(pace, { t, fmt: (kg) => formatLoad(kg, lang, unit), exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) });
+      } else if (pace.kind === "muscle") {
+        paceLine = cardPaceLine(pace, { t, fmt: (kg) => formatLoad(kg, lang, unit), exerciseName: "", muscleName: (m) => t(`muscle.${m}` as StringKey) });
+      }
+      const model = buildCardModel({ lang, unit, date, summary, next: next === "none" ? null : { dayName: next.dayName, targets: next.targets }, paceLine });
+      if (!(await Sharing.isAvailableAsync())) throw new Error(t("card.noSharing"));
+      const { uri } = await Print.printToFileAsync({ html: cardHtml(model) });
+      await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: model.title });
+    } catch (e) {
+      setError(t("card.failed", { detail: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -168,6 +200,7 @@ export function FinishScreen() {
           })}
         </>
       )}
+      <BigButton label={sharing ? t("card.sharing") : t("card.share")} selected={false} disabled={sharing} onPress={shareCard} />
       <BigButton label={t("finish.done")} onPress={() => navigation.popToTop()} />
     </ScrollView>
   );

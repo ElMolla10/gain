@@ -1,0 +1,9 @@
+"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"
+"Push","Sep 1, 2026, 6:00 PM","Sep 1, 2026, 7:00 PM","SYNTHETIC test data, not a real workout","Bench Press (Barbell)",,"",0,"normal",60,10,,,
+"Push","Sep 1, 2026, 6:00 PM","Sep 1, 2026, 7:00 PM","SYNTHETIC test data, not a real workout","Bench Press (Barbell)",,"",1,"normal",60,9,,,8
+"Push","Sep 1, 2026, 6:00 PM","Sep 1, 2026, 7:00 PM","SYNTHETIC test data, not a real workout","Bench Press (Barbell)",,"note, with a comma and ""quotes""",2,"dropset",40,12,,,
+"Push","Sep 1, 2026, 6:00 PM","Sep 1, 2026, 7:00 PM","SYNTHETIC test data, not a real workout","Lateral Raise (Dumbbell)",,"",0,"normal",10,12,,,
+"Push","Sep 4, 2026, 6:00 PM","Sep 4, 2026, 7:00 PM","","Bench Press (Barbell)",,"",0,"normal",60,11,,,
+"Push","Sep 4, 2026, 6:00 PM","Sep 4, 2026, 7:00 PM","","Bench Press (Barbell)",,"",1,"normal",60,10,,,
+"Push","Sep 4, 2026, 6:00 PM","Sep 4, 2026, 7:00 PM","","Dead Hang",,"",0,"normal",,,,45,
+"Pull","Sep 6, 2026, 12:05 AM","Sep 6, 2026, 1:00 AM","","Pull Up",,"",0,"normal",,8,,,

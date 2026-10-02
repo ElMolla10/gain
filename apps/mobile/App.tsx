@@ -2,7 +2,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from "@react-navigation/native";
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text, useColorScheme, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
@@ -15,6 +15,9 @@ import { createOnboardingRepo } from "./src/db/onboardingRepo";
 import { createImportRepo } from "./src/db/importRepo";
 import { createProgrammeRepo } from "./src/db/programmeRepo";
 import { createRepos } from "./src/db/repos";
+import { createDataRepo } from "./src/db/dataRepo";
+import { DataScreen } from "./src/screens/DataScreen";
+import type { Db } from "./src/db/driver";
 import { createDecisionRepo } from "./src/db/decisionRepo";
 import { DecisionLogScreen } from "./src/screens/DecisionLogScreen";
 import { createHistoryRepo } from "./src/db/historyRepo";
@@ -89,6 +92,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
+          <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
           <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} />
           <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: t("history.session.title") }} />
           <Stack.Screen name="LiftTrend" component={LiftTrendScreen} options={{ title: t("trend.title") }} />
@@ -105,9 +109,16 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
 export default function App() {
   const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; unit: Unit; needsOnboarding: boolean } | "error" | null>(null);
 
+  const [epoch, setEpoch] = useState(0);
+  const dbRef = useRef<Db | null>(null);
+  const restart = useCallback(() => {
+    setBoot(null);
+    setEpoch((e) => e + 1);
+  }, []);
+
   useEffect(() => {
     (async () => {
-      const db = await openExpoDb();
+      const db = dbRef.current ?? (dbRef.current = await openExpoDb());
       await migrate(db);
       const deps = { newId: () => Crypto.randomUUID(), now: () => Date.now() };
       const repos = createRepos(db, deps);
@@ -125,9 +136,10 @@ export default function App() {
       const rejections = createRejectionRepo(db, deps);
       const history = createHistoryRepo(db, deps, repos, finish);
       const decisions = createDecisionRepo(db);
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      const data = createDataRepo(db, deps);
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch(() => setBoot("error"));
-  }, []);
+  }, [epoch]);
 
   const onChange = useMemo(
     () => (key: "language" | "rtl_override" | "units", value: string) => {

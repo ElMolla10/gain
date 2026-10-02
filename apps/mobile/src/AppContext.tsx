@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from "react";
 import type { Repos } from "./db/repos";
 import type { Db } from "./db/driver";
+import type { DataRepo } from "./db/dataRepo";
 import type { DecisionRepo } from "./db/decisionRepo";
 import type { FinishRepo } from "./db/finishRepo";
 import type { GoalRepo } from "./db/goalRepo";
@@ -29,6 +30,9 @@ export interface AppServices {
   rejections: RejectionRepo;
   history: HistoryRepo;
   decisions: DecisionRepo;
+  data: DataRepo;
+  /** Reload everything from the database (after a restore or delete-all) without restarting the process. */
+  restart: () => void;
 }
 const Ctx = createContext<AppServices | null>(null);
 export const ServicesProvider = Ctx.Provider;

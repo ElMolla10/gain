@@ -1,5 +1,7 @@
 # Plan: first thin vertical slice
 
+> Historical: this was the plan for the first thin slice (PR1-PR5). The current plan is [MASTER-PLAN.md](MASTER-PLAN.md).
+
 ## Stack
 - Platform: **Android first**. iOS is out of scope for now (no iOS work, builds or tests).
 - Name: GAIN.

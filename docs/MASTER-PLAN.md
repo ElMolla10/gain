@@ -9,8 +9,8 @@ Conventions: `[ ]` open, `[x]` done. Sizes are S (days), M (1-2 weeks), L (sever
 ## 0. Next 5 steps (follow these first)
 
 1. [~] **Step 1: put the current release on a real Android phone and an emulator** and walk the whole loop (onboard, import, log, finish, accept/reject, why). Write down everything that breaks. Fix only those bugs, ship v0.4.1. **Status 2026-10-02: PARTLY DONE, NOT device-verified.** The app (x86_64 build of v0.4.0) was launched on an Android 14 emulator and rendered onboarding steps 1-3, then the emulator became unusable (no hardware acceleration on this box; see [DEVICE-TEST-0.4.md](DEVICE-TEST-0.4.md)). The full loop has NOT been run on any device. Still needs a real phone (Mohamed).
-2. [x] **Step 2: goals + pace (two clocks)** (shipped in v0.5.0, unit-tested only). Goals screen, weigh-ins, pace from the lifter's logs, one line on Today. Rules: [PACE-RULES.md](PACE-RULES.md).
-3. [ ] **Step 3: weekly one-decision review**, and **Step 4: short-week rebuild**. These are the two paid promises that do not exist yet.
+2. [x] **Step 2: goals + pace (two clocks)** (in v0.5.0, unit-tested only, NOT device-verified; PR #25). Goals screen, weigh-ins, pace from the lifter's logs, one line on Today. Rules: [PACE-RULES.md](PACE-RULES.md).
+3. [x] **Step 3: weekly one-decision review** (PR #27, rules in [WEEKLY-RULES.md](WEEKLY-RULES.md)) and **Step 4: short-week rebuild** (PR #28, rules in [SHORT-WEEK-RULES.md](SHORT-WEEK-RULES.md)). Both in v0.5.0, unit-tested only, NOT device-verified.
 4. [ ] **Steps 5-7: make the trust surfaces visible**: outlier confirm kept honest, rejection memory shown and undoable, history + trend per lift, decision-log screen.
 5. [ ] **Step 12 early: export and delete my data.** Needed before any other person installs the app (Step 20 pilot).
 
@@ -20,7 +20,7 @@ Rule for all steps: no step is "done" until it was run on a device (or is explic
 
 ## 1. Where we are today
 
-Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say the APK was not launched; nothing in the repo records a device run of 0.3.0; Mohamed to correct me if he has run it). CI runs `typecheck` + `test` on every PR. Tests passing locally today: engine 254, mobile 215 (logic and SQLite, run on Node, not on a phone).
+Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say the APK was not launched; nothing in the repo records a device run of 0.3.0; Mohamed to correct me if he has run it). CI runs `typecheck` + `test` on every PR. Tests passing locally today: engine 290, mobile 280 (logic and SQLite, run on Node, not on a phone).
 
 | Area | Status | What is really there |
 | --- | --- | --- |
@@ -31,9 +31,9 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Programme editor | Done (unit-tested) | Days, exercises, versions, weekly exposure effect, exercise picker, custom exercises, 7 draft templates. |
 | Onboarding | Done (unit-tested) | Language, units (kg preselected, lb offered), basics, goal, template or own programme, review. **No gym step (v0.4.0):** a default gym with standard loads in the chosen unit is created silently and refined later in the Gym tab. Re-runnable from Settings (keeps your own gym; only adds a programme). |
 | Hevy/Strong import | Done (unit-tested) | Parser (Hevy kg/lb, Strong), preview, exercise mapping, dedupe, undo, hidden history programme. Tested on Mohamed's export and a synthetic file. Strong is covered by tests only: no real Strong export seen (**unknown**). |
-| Goals / pace | Not started (data only) | `goal` table written at onboarding (lift, bodyweight, muscle input). Nothing computes or shows pace. Bodyweight entries only saved once at onboarding. |
-| Weekly decision | Not started | |
-| Short-week rebuild | Not started | Onboarding drops exercises that don't fit time/equipment when instantiating a template; no "I only have 3 days / 35 min" flow. |
+| Goals / pace | Done (unit-tested only, v0.5.0) | Goals screen (lift, bodyweight, muscle), weigh-ins, Theil-Sen trend, pace from logs, one line on Today. Thresholds are my defaults, **Mohamed to confirm** ([PACE-RULES.md](PACE-RULES.md)). Not run on a device. |
+| Weekly decision | Done (unit-tested only, v0.5.0) | Card on Today, rule `weekly-v1`, accept / edit date / skip, past reviews in Goals. Only a date move changes anything; other proposals are recorded and the card says the programme is not edited. Week start day (default Monday) and card-vs-notification are **Mohamed's call**. Not run on a device. |
+| Short-week rebuild | Done (unit-tested only, v0.5.0) | Days + minutes entry on Today, preview with the cut list, applies as a new programme version, undo, auto-return after the week, goal lifts protected ([SHORT-WEEK-RULES.md](SHORT-WEEK-RULES.md)). Rules are my defaults pending trainer review. Not run on a device. |
 | Rejection memory UI | Partly | Engine + DB done (3 rejections stop a jump). Shown only as lines in the Why screen. No place to see or undo it. |
 | Outlier confirm UI | Done (unit-tested) | Logger asks confirm/reject for a set far from the line; unconfirmed sets are ignored by the engine and tagged. Not yet tested with real fat-finger cases. |
 | Exercise library + Arabic aliases | Partly | 20 sample exercises with **draft** Arabic names and aliases (never reviewed by a native Egyptian lifter), picker search by English or Arabic alias, custom exercises. No cues, setup text, demos. Library is far smaller than needed (**size of target library: decision**). |
@@ -73,7 +73,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** first launch ever on a device may surface blocking bugs (SQLite open, import file picker, RTL restart). Release builds differ from dev builds, so test the signed APK, not only Expo dev.
 
 ### Step 2. Goals + pace (two clocks)
-- [ ] **Goal:** "Come back knowing if the goal is still on pace."
+- [x] (unit-tested only, NOT device-verified; device check still owed) **Goal:** "Come back knowing if the goal is still on pace."
 - **Deliver:** Goals screen (lift goal, bodyweight goal with rolling average, muscle-exposure goal); bodyweight logging; pure pace functions in `packages/engine` (exposures-based, not calendar-only); Today one-line pace; a missed week moves the expected date or required rate; written pace rules added to docs.
 - **Done means:** with a seeded history, pace says on pace / behind / ahead with the numbers it used; one heavy bodyweight day does not move the trend; "No goal set yet" appears only when there is none.
 - **Test:** engine unit tests with hand-computed cases; replay Mohamed's Hevy history; device check.
@@ -82,7 +82,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** a pace formula can look scientific while being a guess. Say plainly it is an estimate and show inputs. No physique or rate promises (PRODUCT.md boundary).
 
 ### Step 3. Weekly one-decision review
-- [ ] **Goal:** once a week, one screen: exposures done, goal lifts up/flat, pace, and one proposed change (keep / small change / easier week).
+- [x] (unit-tested only, NOT device-verified; device check still owed) **Goal:** once a week, one screen: exposures done, goal lifts up/flat, pace, and one proposed change (keep / small change / easier week).
 - **Deliver:** weekly review screen; rule that picks one change (extra exposure, 2-week variation, or later date); observed numbers and interpretation visually separate; accept/edit/skip stored in the decision log.
 - **Done means:** the review appears once per training week, never changes the plan without a tap, and says plainly when data is too thin.
 - **Test:** engine tests across behind / on pace / short week; device walk-through.
@@ -91,7 +91,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** it must not claim to measure fatigue or recovery.
 
 ### Step 4. Short-week rebuild
-- [ ] **Goal:** "I can train 3 days" or "I have 35 minutes" rebuilds the week around goal lifts and priority muscles.
+- [x] (unit-tested only, NOT device-verified; device check still owed) **Goal:** "I can train 3 days" or "I have 35 minutes" rebuilds the week around goal lifts and priority muscles.
 - **Deliver:** entry on Today/Programme; rebuild logic (accessories drop first, priority-muscle weekly floor, rest not crushed); preview showing what was cut before starting; undo; programme version recorded.
 - **Done means:** goal lifts are never cut before accessories; the user sees the cut list; the original programme returns next week.
 - **Test:** engine/logic tests over all 7 templates; device check.

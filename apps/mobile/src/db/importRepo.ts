@@ -1,4 +1,4 @@
-import { classifyTitle, guessPattern, matchLibrary, type EquipmentType, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type SetupType } from "@gain/engine";
+import { classifyTitle, findSpec, guessPattern, matchLibrary, roundToGymLoad, type EquipmentType, type GymFingerprint, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { ProgrammeRepo } from "./programmeRepo";
@@ -72,6 +72,18 @@ export function localToEpoch(iso: string): number {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/.exec(iso);
   if (!m) throw new Error(`Unrecognised time ${iso}`);
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6])).getTime();
+}
+
+/**
+ * Converted weights carry rounding noise (135 lb is 61.23 kg in the file's conversion, 61.236 kg on a 5 lb barbell). A load within
+ * this many kg of one that exists in the gym is that load; anything further away is kept exactly as written.
+ */
+export const IMPORT_SNAP_KG = 0.015;
+export function snapImportedLoad(gym: GymFingerprint, equipment: EquipmentType, setup: SetupType, load: number): number {
+  const spec = findSpec(gym, equipment);
+  if (!spec) return load;
+  const r = roundToGymLoad(spec, load, { zero: setup !== "free" });
+  return r.load !== null && Math.abs(r.load - load) <= IMPORT_SNAP_KG ? r.load : load;
 }
 
 const usable = (s: { load: number; reps: number }) => Number.isFinite(s.load) && s.load >= 0 && Number.isInteger(s.reps) && s.reps >= 1;
@@ -212,7 +224,8 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     if (fresh.length === 0) return { batchId: null, workouts: 0, sets: 0, duplicates, empty, skippedSets: 0, newExercises: 0 };
 
     return db.transaction(async () => {
-      const exerciseOf = new Map<string, { id: string; setup: SetupType }>();
+      const exerciseOf = new Map<string, { id: string; setup: SetupType; equipment: EquipmentType }>();
+      const gymLoads = await repos.loadGymFingerprint(gymId);
       let newExercises = 0;
       for (const title of need) {
         const c = mappings[title]!;
@@ -225,7 +238,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
           const after = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM exercise");
           if (Number(after?.n) > Number(before?.n)) newExercises++;
         }
-        const ex = await db.get<{ id: string; setup: SetupType }>("SELECT id, setup FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+        const ex = await db.get<{ id: string; setup: SetupType; equipment: EquipmentType }>("SELECT id, setup, equipment FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
         if (!ex) throw new Error(`Unknown exercise for "${title}"`);
         exerciseOf.set(title, ex);
       }
@@ -260,7 +273,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
             await db.run(
               `INSERT INTO workout_set (id, session_id, exercise_id, line_id, position, load, reps, rir, is_warmup, tags_json, outlier_status, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'none', ?, ?)`,
-              [newId(), sessionId, ex.id, lineId, pos, s.load, s.reps, s.rir ?? null, s.warmup ? 1 : 0, JSON.stringify(s.tags ?? []), t0, t0],
+              [newId(), sessionId, ex.id, lineId, pos, snapImportedLoad(gymLoads, ex.equipment, ex.setup, s.load), s.reps, s.rir ?? null, s.warmup ? 1 : 0, JSON.stringify(s.tags ?? []), t0, t0],
             );
             sets++;
           }

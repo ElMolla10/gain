@@ -3,10 +3,13 @@ import type { MuscleGroup } from "./exposure";
 import { normalizeDigits } from "./gymInput";
 import { optionalNumber, validateProfile, type GoalInput, type Profile, type ProfileProblemCode } from "./onboarding";
 import { parseNumber } from "./gymInput";
+import { unitToKg, type Unit } from "./units";
 
 /** What the onboarding screens hold while the lifter answers. Text stays text until `buildProfile`. */
 export interface OnboardingForm {
   language: "en" | "ar";
+  /** Weight unit the lifter types in. kg unless they choose lb; the profile and everything stored is kg. */
+  units: Unit;
   days: number | null;
   minutes: number | null;
   equipment: EquipmentType[];
@@ -21,8 +24,9 @@ export interface OnboardingForm {
   bodyweightText: string;
 }
 
-export const emptyOnboardingForm = (language: "en" | "ar"): OnboardingForm => ({
+export const emptyOnboardingForm = (language: "en" | "ar", units: Unit = "kg"): OnboardingForm => ({
   language,
+  units,
   days: null,
   minutes: null,
   equipment: [],
@@ -53,19 +57,25 @@ const int = (s: string): number => {
 export function buildProfile(f: OnboardingForm, nowMs: number): BuildResult {
   const problems: FormProblemCode[] = [];
   let goal: GoalInput | null = null;
+  // Typed weights are read in the chosen unit and stored in kilograms; ranges are validated on the kilograms.
+  const kg = (text: string): number => {
+    const n = parseNumber(text);
+    return n === null ? Number.NaN : unitToKg(n, f.units);
+  };
   if (f.goalKind === null) problems.push("goal_missing");
   else if (f.goalKind === "lift")
-    goal = { kind: "lift", exerciseId: f.goalExerciseId ?? "", targetLoad: parseNumber(f.goalLoadText) ?? Number.NaN, targetReps: int(f.goalRepsText), targetDate: f.goalDateText.trim() === "" ? null : normalizeDigits(f.goalDateText).trim() };
+    goal = { kind: "lift", exerciseId: f.goalExerciseId ?? "", targetLoad: kg(f.goalLoadText), targetReps: int(f.goalRepsText), targetDate: f.goalDateText.trim() === "" ? null : normalizeDigits(f.goalDateText).trim() };
   else if (f.goalKind === "bodyweight")
-    goal = { kind: "bodyweight", targetWeightKg: parseNumber(f.goalWeightText) ?? Number.NaN, targetDate: f.goalDateText.trim() === "" ? null : normalizeDigits(f.goalDateText).trim() };
+    goal = { kind: "bodyweight", targetWeightKg: kg(f.goalWeightText), targetDate: f.goalDateText.trim() === "" ? null : normalizeDigits(f.goalDateText).trim() };
   else if (f.goalMuscle === null) problems.push("goal_muscle_missing");
   else goal = { kind: "muscle", muscle: f.goalMuscle };
 
   const height = optionalNumber(f.heightText);
-  const bw = optionalNumber(f.bodyweightText);
+  const bwN = optionalNumber(f.bodyweightText);
+  const bw = bwN === null || Number.isNaN(bwN) ? bwN : unitToKg(bwN, f.units);
   const profile: Profile = {
     language: f.language,
-    units: "kg",
+    units: f.units,
     daysPerWeek: f.days ?? 0,
     sessionMinutes: f.minutes ?? 0,
     equipment: f.equipment,
@@ -77,8 +87,9 @@ export function buildProfile(f: OnboardingForm, nowMs: number): BuildResult {
   return { profile: problems.length === 0 ? profile : null, problems };
 }
 
-export type Step = "language" | "units" | "basics" | "goal" | "programme" | "gym" | "review";
-export const STEPS: Step[] = ["language", "units", "basics", "goal", "programme", "gym", "review"];
+/** No gym step: onboarding creates a default gym silently (standard loads in the chosen unit); the lifter refines it in the Gym tab. */
+export type Step = "language" | "units" | "basics" | "goal" | "programme" | "review";
+export const STEPS: Step[] = ["language", "units", "basics", "goal", "programme", "review"];
 
 /** Problems that block leaving a step (later steps are checked when they are reached, and all again at the end). */
 export function stepProblems(step: Step, f: OnboardingForm, nowMs: number): FormProblemCode[] {

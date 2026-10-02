@@ -1,4 +1,5 @@
 import type { EquipmentType, GymLoadSpec } from "@gain/engine";
+import { defaultGymLoads, defaultGymName } from "../logic/defaultGym";
 import { validateGym } from "../logic/gymInput";
 import { validateDraft } from "../logic/programmeDraft";
 import { validateProfile, type GoalInput, type Profile, type ProfileProblem } from "../logic/onboarding";
@@ -20,12 +21,15 @@ export interface CompleteInput {
   profile: Profile;
   /** The first programme, already shaped (from a template or built by the lifter). */
   programme: ProgrammeDraft;
-  /** The lifter's real rack: new loads, or a copy of a gym they already saved. */
-  gym: { name: string; loads: GymLoadSpec[] };
+  /**
+   * Optional. Leave it out (what onboarding does) and a default gym is created silently from the profile's unit, unless the lifter
+   * already has a real (non-sample) gym in use, which is kept. Give it to create exactly this rack instead.
+   */
+  gym?: { name: string; loads: GymLoadSpec[] };
 }
 
 /**
- * Onboarding data layer. `complete` is one step: it saves the answers, the real gym and the first programme, retires the
+ * Onboarding data layer. `complete` is one step: it saves the answers, a default gym (made silently; refined later in the Gym tab) and the first programme, retires the
  * sample gym and sample programme when nothing was logged on them, and plans the first session, so there is no half-done state
  * that shows a mix of sample and real data.
  */
@@ -64,7 +68,7 @@ export function createOnboardingRepo(db: Db, deps: Deps, repos: Repos, gyms: Gym
     const eq = await repos.getSetting("equipment_json");
     return {
       language: await repos.getLanguage(),
-      units: "kg",
+      units: await repos.getUnits(),
       daysPerWeek: (await num("days_per_week")) ?? undefined,
       sessionMinutes: (await num("session_minutes")) ?? undefined,
       equipment: eq ? (JSON.parse(eq) as EquipmentType[]) : undefined,
@@ -120,17 +124,27 @@ export function createOnboardingRepo(db: Db, deps: Deps, repos: Repos, gyms: Gym
     }
   }
 
+  /** The gym the first session uses: the one asked for, else the lifter's own gym already in use, else a new default gym. */
+  async function resolveGym(asked: CompleteInput["gym"], p: Profile): Promise<string> {
+    if (asked) return gyms.createGym({ name: asked.name, loads: asked.loads, activate: true });
+    const active = await repos.getActiveGymId();
+    if (active && (await db.get("SELECT id FROM gym WHERE id = ? AND is_sample = 0 AND deleted_at IS NULL", [active]))) return active;
+    return gyms.createGym({ name: defaultGymName(p.language), loads: defaultGymLoads(p.units), activate: true });
+  }
+
   async function complete(input: CompleteInput): Promise<{ gymId: string; programmeId: string }> {
     const problems = validateProfile(input.profile, now());
     if (problems.length > 0) throw new ProfileInvalid(problems);
     const p = input.profile;
     // Validate everything before writing anything, so a bad answer never leaves a half-set-up app.
-    const gymProblems = validateGym(input.gym.name, input.gym.loads);
-    if (gymProblems.length > 0) throw new GymInvalid(gymProblems);
+    if (input.gym) {
+      const gymProblems = validateGym(input.gym.name, input.gym.loads);
+      if (gymProblems.length > 0) throw new GymInvalid(gymProblems);
+    }
     const draftProblems = validateDraft(input.programme);
     if (draftProblems.length > 0) throw new DraftInvalid(draftProblems);
     if (await db.get("SELECT id FROM session WHERE status = 'in_progress' AND deleted_at IS NULL LIMIT 1")) throw new SessionInProgress();
-    const gymId = await gyms.createGym({ name: input.gym.name, loads: input.gym.loads, activate: true });
+    const gymId = await resolveGym(input.gym, p);
     const { programmeId } = await programmes.createProgramme(input.programme, { activate: true });
     await db.transaction(async () => {
       await repos.setSetting("language", p.language);

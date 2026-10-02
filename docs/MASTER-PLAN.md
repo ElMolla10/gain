@@ -1,6 +1,6 @@
 # GAIN master plan (A to Z)
 
-Written 2026-10-02 from the code on `main` (v0.3.0, rule-v0.3), not from intent. Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Update the status table whenever a step ships.
+Written 2026-10-02 from the code on `main` (v0.3.0, rule-v0.3); status rows updated for v0.4.0 (units + silent default gym), not from intent. Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Update the status table whenever a step ships.
 
 Conventions: `[ ]` open, `[x]` done. Sizes are S (days), M (1-2 weeks), L (several weeks) of focused work; no calendar dates. Nothing here is a forecast. Anything marked **unknown** has not been checked.
 
@@ -29,7 +29,7 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Targets + reasons | Done (unit-tested) | rule-v0.3 (ACSM 2009 + rep ceilings 10/12/15), currency order, confidence, Why screen. |
 | Gym fingerprint | Done (unit-tested) | Several gyms, real load lists, copy, switch; planned sessions follow the rack. |
 | Programme editor | Done (unit-tested) | Days, exercises, versions, weekly exposure effect, exercise picker, custom exercises, 7 draft templates. |
-| Onboarding | Done (unit-tested) | Language, units (kg only), basics, goal, template or own programme, gym. Re-runnable from Settings. |
+| Onboarding | Done (unit-tested) | Language, units (kg preselected, lb offered), basics, goal, template or own programme, review. **No gym step (v0.4.0):** a default gym with standard loads in the chosen unit is created silently and refined later in the Gym tab. Re-runnable from Settings (keeps your own gym; only adds a programme). |
 | Hevy/Strong import | Done (unit-tested) | Parser (Hevy kg/lb, Strong), preview, exercise mapping, dedupe, undo, hidden history programme. Tested on Mohamed's export and a synthetic file. Strong is covered by tests only: no real Strong export seen (**unknown**). |
 | Goals / pace | Not started (data only) | `goal` table written at onboarding (lift, bodyweight, muscle input). Nothing computes or shows pace. Bodyweight entries only saved once at onboarding. |
 | Weekly decision | Not started | |
@@ -42,7 +42,7 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Warm-ups | Engine only | `generateWarmups` exists and is tested; no UI calls it. |
 | Notifications | Not started | No notification package installed. |
 | Export / delete | Not started | No export, no delete-all. Settings says "Everything is saved on this phone." |
-| Settings | Partly | Language, RTL override, rep ceilings, import, set-up-again, version. No unit switch (kg only), no rest-time setting, no privacy page, no theme choice (follows system). |
+| Settings | Partly | Language, RTL override, rep ceilings, import, set-up-again, version. Unit switch kg/lb (v0.4.0, unit-tested only), no rest-time setting, no privacy page, no theme choice (follows system). |
 | Dark mode / RTL | Partly | Dark palette follows system; RTL flips via `direction`. Arabic strings are drafts. Not checked on device. |
 | Coach card | Not started | |
 | Decision log screen | Partly | `decision_log` stored for every target; only per-target Why screen. No list of past decisions. |
@@ -154,7 +154,8 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** aggressive battery managers (OEM-specific) kill timers; may need a "keep GAIN unrestricted" tip.
 
 ### Step 11. Pounds (lb) display support
-- [ ] **Goal:** show and enter lb for users who want it; storage stays kg.
+- [x] **Status (v0.4.0, unit-tested only, NOT device-verified):** shipped early. kg is the default; lb is offered in onboarding (kg preselected) and Settings. Storage and engine stay kg; `logic/units.ts` is the display/input layer (lb shown to 0.1 lb, typed lb stored at 3-decimal kg so a 5 lb step stays a 5 lb step across a bar). Logger, targets, finish, Why, engine reason sentences, gym editor (native lb entry, "fill in standard loads") and import preview use it. The silent default gym is lb-friendly in lb mode (45 lb bar, 5 lb barbell/dumbbell/cable steps, 2.5 lb plates, 10 lb machine/assist). Imported lb loads within 15 g of a gym load snap to it. Known limits: a kg gym viewed in lb shows honest but ugly decimals (22.5 kg = 49.6 lb) until the lifter fills in standard lb loads in the Gym tab; switching unit does not rewrite saved gyms.
+- **Original goal:** show and enter lb for users who want it; storage stays kg.
 - **Deliver:** units setting (onboarding + Settings); conversion in logger, targets, gym editor, history; gym loads in lb plates (e.g. 2.5 lb jumps) handled; import unit stays separate.
 - **Done means:** a lb user's targets are loadable in lb (not ugly decimals like 22.68).
 - **Test:** unit tests for round-trip and snapping; device.

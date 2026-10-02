@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseImport, toKilograms, type ImportParse } from "@gain/engine";
+import { isGymLoad, parseImport, toKilograms, type ImportParse } from "@gain/engine";
 import { describe, expect, it } from "vitest";
-import { ImportIncomplete, localToEpoch, type MappingChoice, type TitlePreview } from "../src/db/importRepo";
+import { defaultGymLoads } from "../src/logic/defaultGym";
+import { kgToUnit } from "../src/logic/units";
+import { ImportIncomplete, localToEpoch, snapImportedLoad, type MappingChoice, type TitlePreview } from "../src/db/importRepo";
 import { freshDb } from "./helpers";
 
 const fx = (n: string) => readFileSync(join(__dirname, "../../../fixtures", n), "utf8");
@@ -215,5 +217,27 @@ describe("local time", () => {
   it("reads wall-clock times in the phone's own time zone", () => {
     expect(localToEpoch("2026-09-29T15:15:00")).toBe(new Date(2026, 8, 29, 15, 15, 0).getTime());
     expect(() => localToEpoch("29 Sep 2026")).toThrow();
+  });
+});
+
+describe("converted loads land on loads that exist", () => {
+  it("snaps conversion noise (135 lb = 61.23 kg) to the lb barbell's rung, and leaves a real off-grid load alone", async () => {
+    const { db, imports, gyms } = await setup();
+    const lbGym = await gyms.createGym({ name: "Lb gym", loads: defaultGymLoads("lb") });
+    const raw = parseImport(fx("strong-synthetic.csv"));
+    const kg = toKilograms(raw, "lb");
+    const p = await imports.preview(kg);
+    await imports.importHistory({ parse: kg, gymId: lbGym, mappings: acceptAll(p.titles) });
+    const loads = (await db.all<{ load: number }>("SELECT load FROM workout_set ws JOIN exercise e ON e.id = ws.exercise_id WHERE e.name_en LIKE '%Bench%' AND is_warmup = 0 ORDER BY ws.position")).map((r) => r.load);
+    expect(loads.map((l) => kgToUnit(l, "lb"))).toEqual([100, 100, 80]);
+    const gym = await gyms.getGym(lbGym);
+    const bar = gym!.loads.find((l) => l.equipment === "barbell")!;
+    for (const l of loads) expect(isGymLoad(bar, l)).toBe(true);
+  });
+  it("snapImportedLoad keeps anything further than conversion noise from a rung exactly as written", () => {
+    const gym = { gymId: "g", loads: [{ equipment: "barbell" as const, increment: 2.5, min: 20 }] };
+    expect(snapImportedLoad(gym, "barbell", "free", 60.01)).toBe(60);
+    expect(snapImportedLoad(gym, "barbell", "free", 61.25)).toBe(61.25);
+    expect(snapImportedLoad(gym, "cable", "free", 33.3)).toBe(33.3);
   });
 });

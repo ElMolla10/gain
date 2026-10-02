@@ -49,11 +49,15 @@ Arabic, local equipment, and a visible reason are the reasons a lifter in Cairo 
 
 ## Onboarding
 
-Language, units, then the minimum needed to write a first session: days per week, session length, equipment, and one goal. Height and bodyweight are optional unless a bodyweight goal is on.
+Language, units (kilograms preselected, pounds offered), then the minimum needed to write a first session: days per week, session length, equipment, and one goal. Height and bodyweight are optional unless a bodyweight goal is on.
 
 The user can bring a programme they already run, pick a reviewed template, or import a Hevy or Strong export. Exercises they dislike, muscles they want more of, and movements they have been told to avoid are optional. A restriction is a constraint, not a diagnosis. The app does not invent rehab.
 
-Before the first workout they set the gym, not a generic “dumbbells: yes”. Available pairs, plate increments, and stack jumps. This can be copied from a gym others have already defined.
+Onboarding does not ask about the gym. It creates a default gym silently with standard loads in the chosen unit (2.5 kg barbell steps from a 20 kg bar, a typical dumbbell rack, 5 kg cable and machine jumps; in pounds, a 45 lb bar with 5 lb steps, 5 lb dumbbell steps and 5/10 lb stack jumps). The gym is still a list of loads that exist, not a generic “dumbbells: yes”: the lifter refines the available pairs, plate increments and stack jumps in the Gym tab whenever they like (and can copy a gym others have already defined). Until they do, targets only use the standard loads.
+
+### Units
+
+Kilograms are the default; pounds are a choice in onboarding and Settings. Everything stored, and everything the progression engine reads, is kilograms. Pounds are a display and input layer: weights are shown to 0.1 lb, typed pound values (goals, bodyweight, gym loads) are converted to kilograms, and the logger still steps along loads that exist in the gym. A pounds gym is edited natively in pounds (45 lb bar, 5 lb steps), so its loads read as clean pound numbers. A gym saved in kilograms and viewed in pounds shows honest conversions (22.5 kg is 49.6 lb) until the lifter fills in standard pound loads in the Gym tab. Switching unit never rewrites saved loads or history.
 
 They see the first session and can edit it. Optional questions can be skipped.
 

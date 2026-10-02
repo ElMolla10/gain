@@ -1,4 +1,4 @@
-import { isGymLoad, findSpec, roundToGymLoad } from "@gain/engine";
+import { isGymLoad, findSpec, roundToGymLoad, type GymLoadSpec } from "@gain/engine";
 import { describe, expect, it } from "vitest";
 import { cleanSpec, listJumps, parseNumber, parseNumberList, rangeLoads, validateGym } from "../src/logic/gymInput";
 import { GymInvalid } from "../src/db/gymRepo";
@@ -228,3 +228,49 @@ describe("gym form", () => {
     expect(loadsFromForm("Club", f).problems).toContainEqual({ code: "range_bad", equipment: "cable" });
   });
 });
+
+import { defaultGymLoads } from "../src/logic/defaultGym";
+import { kgToUnit } from "../src/logic/units";
+
+describe("gym editor in pounds (loads stay kg)", () => {
+  const kgRack = defaultGymLoads("kg");
+  it("shows a kg gym in lb and saves it back to the exact same kilograms when nothing was changed", () => {
+    const form = formFromLoads(kgRack, "lb");
+    expect(form.barbell.minText).toBe("44.1");
+    expect(form.barbell.incrementText).toBe("5.5");
+    const r = loadsFromForm("Home", form, "lb", kgRack);
+    expect(r.problems).toEqual([]);
+    expect(r.loads).toEqual(cleanAll(kgRack));
+  });
+  it("without the original, lb numbers convert (45 lb bar, 5 lb steps)", () => {
+    const f = formFromLoads(defaultGymLoads("lb"), "lb");
+    expect(f.barbell).toMatchObject({ minText: "45", incrementText: "5", maxText: "600" });
+    const r = loadsFromForm("Home", f, "lb");
+    expect(r.problems).toEqual([]);
+    const bar = r.loads.find((l) => l.equipment === "barbell")!;
+    expect(bar.min).toBe(20.412);
+    expect(bar.increment).toBe(2.268);
+  });
+  it("an edited lb number converts, the others keep their exact kg", () => {
+    const f = formFromLoads(kgRack, "lb");
+    f.barbell.incrementText = "5";
+    const r = loadsFromForm("Home", f, "lb", kgRack);
+    const bar = r.loads.find((l) => l.equipment === "barbell")!;
+    expect(bar.increment).toBe(2.268);
+    expect(bar.min).toBe(20);
+  });
+  it("dumbbell lists round trip in either unit", () => {
+    const lbForm = formFromLoads(defaultGymLoads("lb"), "lb");
+    expect(lbForm.dumbbell.listText.startsWith("5, 10, 15")).toBe(true);
+    const saved = loadsFromForm("Home", lbForm, "lb").loads.find((l) => l.equipment === "dumbbell")!.loads!;
+    expect(saved.map((x) => kgToUnit(x, "lb")).slice(0, 3)).toEqual([5, 10, 15]);
+  });
+  it("the kg path is unchanged", () => {
+    const r = loadsFromForm("Home", formFromLoads(kgRack));
+    expect(r.loads).toEqual(cleanAll(kgRack));
+  });
+});
+
+function cleanAll(specs: GymLoadSpec[]): GymLoadSpec[] {
+  return specs.map(cleanSpec);
+}

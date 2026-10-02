@@ -6,6 +6,7 @@ Milestones in one line each (details and exit criteria in the master plan):
 
 - **v0.1-v0.3 (shipped, not yet verified on a device):** engine + gym fingerprint, thin slice (logger, finish flow, Why), onboarding + gym/programme editors, Hevy/Strong import.
 - **v0.3.1:** real-device testing and fixes.
+- **v0.4.0 (shipped as a pre-release, not yet verified on a device):** kg/lb units (kg default), onboarding without a gym step (silent default gym). The goals + pace work listed under v0.4 below is still open.
 - **v0.4:** goals + pace, weekly decision, short-week rebuild.
 - **v0.5:** outlier/rejection surfaces, history + trends, decision-log screen, warm-ups.
 - **v0.6:** reviewed library + Arabic aliases, native rest timer, lb, export/delete, local coach card.

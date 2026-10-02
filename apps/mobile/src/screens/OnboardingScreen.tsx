@@ -3,9 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
-import { GymFormView } from "../components/GymFormView";
 import { ProgrammeEditorView } from "../components/ProgrammeEditorView";
-import { GymInvalid } from "../db/gymRepo";
 import { ProfileInvalid } from "../db/onboardingRepo";
 import { DraftInvalid, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
@@ -13,7 +11,6 @@ import { exerciseLabels, isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { ceilingForName } from "../logic/ceilings";
 import { MUSCLE_GROUPS } from "../logic/exposure";
-import { emptyForm, formFromLoads, loadsFromForm, type GymForm } from "../logic/gymForm";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { draftHasExercise, markGoalLift, DAYS_OPTIONS, MINUTES_OPTIONS } from "../logic/onboarding";
 import { buildProfile, emptyOnboardingForm, STEPS, stepProblems, type OnboardingForm, type Step } from "../logic/onboardingForm";
@@ -30,11 +27,11 @@ type ProgrammeMode = "template" | "own" | null;
  * gap is shown as a problem. Finishing saves everything in one step and Today then shows the first session.
  */
 export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean }) {
-  const { repos, programmes, gyms, onboarding } = useServices();
-  const { t, lang, setLang } = useI18n();
+  const { repos, programmes, onboarding } = useServices();
+  const { t, lang, setLang, unit, setUnit, unitText, fmt } = useI18n();
   const p = usePalette();
   const [step, setStep] = useState<Step>("language");
-  const [form, setForm] = useState<OnboardingForm>(() => emptyOnboardingForm(lang));
+  const [form, setForm] = useState<OnboardingForm>(() => emptyOnboardingForm(lang, unit));
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const [seedKeys, setSeedKeys] = useState<Map<string, { exerciseId: string; equipment: EquipmentType }>>(new Map());
   const [ceilings, setCeilings] = useState<Awaited<ReturnType<typeof repos.getRepCeilingDefaults>> | null>(null);
@@ -42,9 +39,6 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
   const [offer, setOffer] = useState<TemplateOffer | null>(null);
   const [dropped, setDropped] = useState<Instantiated["dropped"]>([]);
   const [draft, setDraft] = useState<ProgrammeDraft | null>(null);
-  const [gymName, setGymName] = useState("");
-  const [gymForm, setGymForm] = useState<GymForm>(emptyForm());
-  const [savedGyms, setSavedGyms] = useState<{ id: string; name: string }[]>([]);
   const [picker, setPicker] = useState(false);
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,8 +52,7 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
     refreshLibrary();
     programmes.seedKeyMap().then(setSeedKeys);
     repos.getRepCeilingDefaults().then(setCeilings);
-    gyms.listGyms().then((g) => setSavedGyms(g.filter((x) => !x.isSample).map((x) => ({ id: x.id, name: x.name }))));
-  }, [programmes, repos, gyms, refreshLibrary]);
+  }, [programmes, repos, refreshLibrary]);
 
   const byId = useMemo(() => new Map(library.map((e) => [e.id, e])), [library]);
   const keyById = useMemo(() => new Map(library.filter((e) => e.seedKey).map((e) => [e.id, e.seedKey!])), [library]);
@@ -78,10 +71,6 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
     if (step === "programme") {
       if (!draft || validateDraft(draft).length > 0) return setTouched(true);
     }
-    if (step === "gym") {
-      if (loadsFromForm(gymName, gymForm).problems.length > 0) return setTouched(true);
-    }
-    if (step === "basics") setGymForm((g) => ({ ...g, ...Object.fromEntries(GYM_EQUIPMENT.map((e) => [e, { ...g[e], enabled: g[e].enabled || form.equipment.includes(e) }])) } as GymForm));
     goTo(STEPS[idx + 1]!);
   };
 
@@ -111,21 +100,20 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
     setTouched(true);
     const built = buildProfile(form, Date.now());
     if (!built.profile || !draft) return setError(t("ob.error"));
-    const g = loadsFromForm(gymName, gymForm);
-    if (g.problems.length > 0) return setError(t("ob.error"));
     setSaving(true);
     try {
-      await onboarding.complete({ profile: built.profile, programme: draft, gym: { name: gymName, loads: g.loads } });
+      // No gym is asked for: a default one (standard loads in the chosen unit) is created silently.
+      await onboarding.complete({ profile: built.profile, programme: draft });
       props.onDone();
     } catch (e) {
       setSaving(false);
       if (e instanceof SessionInProgress) setError(t("ob.openWorkout"));
-      else if (e instanceof ProfileInvalid || e instanceof GymInvalid || e instanceof DraftInvalid) setError(t("ob.error"));
+      else if (e instanceof ProfileInvalid || e instanceof DraftInvalid) setError(t("ob.error"));
       else throw e;
     }
   }
 
-  const problemLines = (codes: string[]) => (touched ? codes.map((c, i) => <AppText key={i} style={{ fontWeight: "600" }}>⚠ {t(`ob.problem.${c}` as StringKey)}</AppText>) : null);
+  const problemLines = (codes: string[]) => (touched ? codes.map((c, i) => <AppText key={i} style={{ fontWeight: "600" }}>⚠ {t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })}</AppText>) : null);
   const chipRow = (children: React.ReactNode) => <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>{children}</View>;
   const goalName = form.goalExerciseId ? (byId.get(form.goalExerciseId) ? exerciseLabels(byId.get(form.goalExerciseId)!, lang).primary : "") : "";
 
@@ -146,8 +134,8 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
         return (
           <>
             <AppText style={{ fontSize: 22, fontWeight: "800" }}>{t("ob.units")}</AppText>
-            <BigButton label={t("ob.units.kg")} selected />
-            <BigButton label={t("ob.units.lb")} disabled />
+            <BigButton label={t("ob.units.kg")} selected={form.units === "kg"} onPress={() => { setUnit("kg"); set({ units: "kg" }); }} />
+            <BigButton label={t("ob.units.lb")} selected={form.units === "lb"} onPress={() => { setUnit("lb"); set({ units: "lb" }); }} />
             <AppText style={{ color: p.muted }}>{t("ob.units.note")}</AppText>
           </>
         );
@@ -174,14 +162,14 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
             {form.goalKind === "lift" ? (
               <>
                 <BigButton label={goalName || t("ob.goal.chooseExercise")} selected={false} onPress={() => setPicker(true)} />
-                <Field label={t("ob.goal.load")} value={form.goalLoadText} onChangeText={(s) => set({ goalLoadText: s })} numeric />
+                <Field label={t("ob.goal.load", { unit: unitText })} value={form.goalLoadText} onChangeText={(s) => set({ goalLoadText: s })} numeric />
                 <Field label={t("ob.goal.reps")} value={form.goalRepsText} onChangeText={(s) => set({ goalRepsText: s })} numeric />
                 <Field label={t("ob.goal.date")} value={form.goalDateText} onChangeText={(s) => set({ goalDateText: s })} keyboardType="numbers-and-punctuation" numeric />
               </>
             ) : null}
             {form.goalKind === "bodyweight" ? (
               <>
-                <Field label={t("ob.goal.weight")} value={form.goalWeightText} onChangeText={(s) => set({ goalWeightText: s })} numeric />
+                <Field label={t("ob.goal.weight", { unit: unitText })} value={form.goalWeightText} onChangeText={(s) => set({ goalWeightText: s })} numeric />
                 <Field label={t("ob.goal.date")} value={form.goalDateText} onChangeText={(s) => set({ goalDateText: s })} keyboardType="numbers-and-punctuation" numeric />
               </>
             ) : null}
@@ -193,7 +181,7 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
             ) : null}
             <AppText style={{ fontWeight: "700", marginTop: space.md }}>{t("ob.body")}</AppText>
             <Field label={t("ob.body.height")} value={form.heightText} onChangeText={(s) => set({ heightText: s })} numeric />
-            <Field label={t("ob.body.weight")} hint={form.goalKind === "bodyweight" ? t("ob.body.weightRequired") : undefined} value={form.bodyweightText} onChangeText={(s) => set({ bodyweightText: s })} numeric />
+            <Field label={t("ob.body.weight", { unit: unitText })} hint={form.goalKind === "bodyweight" ? t("ob.body.weightRequired") : undefined} value={form.bodyweightText} onChangeText={(s) => set({ bodyweightText: s })} numeric />
             {problemLines(problems)}
             <ExercisePicker
               visible={picker}
@@ -261,51 +249,16 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
           </>
         );
       }
-      case "gym": {
-        const r = loadsFromForm(gymName, gymForm);
-        return (
-          <>
-            <AppText style={{ fontSize: 22, fontWeight: "800" }}>{t("ob.gym")}</AppText>
-            <AppText style={{ color: p.muted }}>{t("ob.gym.note")}</AppText>
-            {savedGyms.length > 0 ? (
-              <>
-                <AppText style={{ fontWeight: "700" }}>{t("ob.gym.copy")}</AppText>
-                {chipRow(
-                  savedGyms.map((g) => (
-                    <Chip
-                      key={g.id}
-                      label={g.name}
-                      onPress={async () => {
-                        const src = await gyms.getGym(g.id);
-                        if (src) setGymForm(formFromLoads(src.loads));
-                      }}
-                    />
-                  )),
-                )}
-              </>
-            ) : null}
-            <Field label={t("gym.name")} value={gymName} onChangeText={setGymName} placeholder={t("gym.name.placeholder")} />
-            <GymFormView form={gymForm} onChange={setGymForm} only={form.equipment} />
-            {touched
-              ? r.problems.map((pr, i) => (
-                  <AppText key={i} style={{ fontWeight: "600" }}>
-                    ⚠ {t(`gym.problem.${pr.code}` as StringKey, { equipment: pr.equipment ? t(`equipment.${pr.equipment}` as StringKey) : "", detail: (pr.detail ?? []).join(" ") })}
-                  </AppText>
-                ))
-              : null}
-          </>
-        );
-      }
       case "review": {
         const built = buildProfile(form, now);
-        const g = form.goalKind === "lift" ? t("ob.review.goal.lift", { name: goalName, load: form.goalLoadText, reps: form.goalRepsText }) : form.goalKind === "bodyweight" ? t("ob.review.goal.bodyweight", { kg: form.goalWeightText }) : form.goalMuscle ? t("ob.review.goal.muscle", { muscle: t(`muscle.${form.goalMuscle}` as StringKey) }) : "";
+        const g = form.goalKind === "lift" ? t("ob.review.goal.lift", { name: goalName, load: `${form.goalLoadText} ${unitText}`, reps: form.goalRepsText }) : form.goalKind === "bodyweight" ? t("ob.review.goal.bodyweight", { weight: `${form.goalWeightText} ${unitText}` }) : form.goalMuscle ? t("ob.review.goal.muscle", { muscle: t(`muscle.${form.goalMuscle}` as StringKey) }) : "";
         return (
           <>
             <AppText style={{ fontSize: 22, fontWeight: "800" }}>{t("ob.review")}</AppText>
             <Card>
               <AppText>{t("ob.review.line.days", { n: form.days ?? 0, min: form.minutes ?? 0 })}</AppText>
               <AppText>{t("ob.review.line.programme", { name: draft?.name ?? "" })}</AppText>
-              <AppText>{t("ob.review.line.gym", { name: gymName })}</AppText>
+              <AppText>{t("ob.review.line.gym", { unit: unitText })}</AppText>
               <AppText>{t("ob.review.line.goal", { goal: isolateLtr(g) })}</AppText>
             </Card>
             <AppText style={{ color: p.muted }}>{t("ob.review.note")}</AppText>

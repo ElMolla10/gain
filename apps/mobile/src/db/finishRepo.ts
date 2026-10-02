@@ -162,6 +162,11 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   async function writeNextSessionTargets(finishedSessionId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
     const finished = await workout.getSession(finishedSessionId);
     if (!finished) throw new Error("Unknown session");
+    return planNextSession(finished.gym_id);
+  }
+
+  /** Plans the next programme day at this gym: a planned session plus a target per exercise. Same rules as writeNextSessionTargets. */
+  async function planNextSession(gymId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
     const next = await repos.getNextDay();
     if (!next) return null;
     const open = await db.get<{ id: string; status: string }>(
@@ -169,7 +174,6 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
       [next.day.id],
     );
     if (open?.status === "in_progress") return null;
-    const gymId = finished.gym_id;
     return db.transaction(async () => {
       const t = now();
       let sessionId = open?.id;
@@ -346,6 +350,6 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return db.get<{ id: string }>("SELECT id FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL", [dayId]);
   }
 
-  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
+  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
 }
 export type FinishRepo = ReturnType<typeof createFinishRepo>;

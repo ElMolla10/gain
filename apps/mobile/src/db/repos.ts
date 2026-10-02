@@ -123,6 +123,7 @@ export function createRepos(db: Db, deps: Deps) {
         }
       }
       await setSetting("active_gym_id", gymId);
+      await setSetting("active_programme_id", progId);
       await setSetting("seed_version", String(SEED_VERSION));
     });
     return { seeded: true };
@@ -154,12 +155,20 @@ export function createRepos(db: Db, deps: Deps) {
   }
 
   // ---- programme / Today ----------------------------------------------------------------------------------
-  async function getLatestProgrammeVersion(): Promise<{ versionId: string; programmeName: string } | null> {
-    const r = await db.get<{ id: string; name: string }>(
-      `SELECT pv.id AS id, p.name AS name FROM programme_version pv JOIN programme p ON p.id = pv.programme_id
-       WHERE pv.deleted_at IS NULL AND p.deleted_at IS NULL ORDER BY p.created_at, pv.version DESC LIMIT 1`,
+  /**
+   * The current version of the active programme (setting `active_programme_id`; before one is set, the oldest programme).
+   * Older versions stay in the database so the sessions logged on them remain readable.
+   */
+  async function getLatestProgrammeVersion(): Promise<{ versionId: string; programmeId: string; programmeName: string; version: number; isSample: boolean } | null> {
+    const activeId = await getSetting("active_programme_id");
+    const r = await db.get<{ id: string; pid: string; name: string; version: number; is_sample: number }>(
+      `SELECT pv.id AS id, p.id AS pid, p.name AS name, pv.version AS version, p.is_sample AS is_sample
+       FROM programme_version pv JOIN programme p ON p.id = pv.programme_id
+       WHERE pv.deleted_at IS NULL AND p.deleted_at IS NULL ${activeId ? "AND p.id = ?" : ""}
+       ORDER BY p.created_at, pv.version DESC LIMIT 1`,
+      activeId ? [activeId] : [],
     );
-    return r ? { versionId: r.id, programmeName: r.name } : null;
+    return r ? { versionId: r.id, programmeId: r.pid, programmeName: r.name, version: r.version, isSample: r.is_sample === 1 } : null;
   }
 
   async function listDays(versionId: string): Promise<{ id: string; name: string; position: number }[]> {
@@ -226,13 +235,16 @@ export function createRepos(db: Db, deps: Deps) {
     if (!v) return null;
     const days = await listDays(v.versionId);
     if (days.length === 0) return null;
+    // Rotation continues across programme versions: the day after the last finished day's POSITION (any version of this programme).
     const last = await db.get<{ position: number }>(
-      `SELECT pd.position AS position FROM session s JOIN programme_day pd ON pd.id = s.programme_day_id
-       WHERE s.status = 'finished' AND s.deleted_at IS NULL AND pd.programme_version_id = ?
+      `SELECT pd.position AS position FROM session s
+       JOIN programme_day pd ON pd.id = s.programme_day_id
+       JOIN programme_version pv ON pv.id = pd.programme_version_id
+       WHERE s.status = 'finished' AND s.deleted_at IS NULL AND pv.programme_id = ?
        ORDER BY s.finished_at DESC LIMIT 1`,
-      [v.versionId],
+      [v.programmeId],
     );
-    const idx = last ? (days.findIndex((d) => d.position === last.position) + 1) % days.length : 0;
+    const idx = last ? (last.position + 1) % days.length : 0;
     return { versionId: v.versionId, programmeName: v.programmeName, day: days[idx]!, dayCount: days.length };
   }
 

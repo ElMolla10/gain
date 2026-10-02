@@ -20,7 +20,7 @@ Rule for all steps: no step is "done" until it was run on a device (or is explic
 
 ## 1. Where we are today
 
-Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say the APK was not launched; nothing in the repo records a device run of 0.3.0; Mohamed to correct me if he has run it). CI runs `typecheck` + `test` on every PR. Tests passing locally today: engine 308, mobile 316 (logic and SQLite, run on Node, not on a phone).
+Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say the APK was not launched; nothing in the repo records a device run of 0.3.0; Mohamed to correct me if he has run it). CI runs `typecheck` + `test` on every PR. Tests passing locally today: engine 308, mobile 347 (logic and SQLite, run on Node, not on a phone).
 
 | Area | Status | What is really there |
 | --- | --- | --- |
@@ -336,7 +336,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 | **v0.4.1** | 1 | Device test file committed; the full loop passes on one real phone and the emulator; no data loss. |
 | **v0.5** | 2, 3, 4 | Goal pace, weekly decision and short-week rebuild work on device and have hand-checked tests. |
 | **v0.6** | 5, 6, 7, 9 | Outlier/rejection surfaces, History + trend per lift, decision-log screen, warm-ups on device. |
-| **v0.7** | 8, 10, 12, 13 (11 shipped in v0.4.0) | Reviewed library and aliases, native timer, export/delete round-trip, local coach card. |
+| **v0.7** | 8, 10, 12, 13 (11 shipped in v0.4.0) | Reviewed library and aliases, native timer, export/delete round-trip, local coach card. **Shipped as v0.7.0 pre-release, partly:** export/delete (12) built; rest alert (10) and coach card PDF (13) built; library (8) grown but all Arabic still DRAFT and unreviewed; nothing device-verified. The milestone's own bar (reviewed library, timer working screen-off on a phone) is **not met**. |
 | **v0.8** | 14, 15, 16, 17, 18, 19 | A11y/RTL checklist passed, offline/perf tests passed, trainer feedback in, policy and consent live, signed APK process written. |
 | **v0.9 (pilot)** | 20 | Pilot report with agreement, week 1/2/6 retention and bug list; go/no-go on paying. |
 | **v0.10** | 21, 22, (23), 24, 25 | Sync, shared gyms, coach links, paywall test purchase, closed testing on Play. Model layer only if the pilot shows it is needed. |

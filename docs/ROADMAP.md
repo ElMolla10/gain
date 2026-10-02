@@ -9,7 +9,7 @@ Milestones in one line each (details and exit criteria in the master plan):
 - **v0.4.1:** real-device testing and fixes (Step 1; started on an emulator, not finished: see DEVICE-TEST-0.4.md).
 - **v0.5:** goals + pace, weekly decision, short-week rebuild.
 - **v0.6:** outlier/rejection surfaces, history + trends, decision-log screen, warm-ups.
-- **v0.7:** reviewed library + Arabic aliases, native rest timer, export/delete, local coach card.
+- **v0.7:** reviewed library + Arabic aliases, native rest timer, export/delete, local coach card. *Shipped 2026-10-03 as a pre-release with the review and the on-phone checks still open: library is draft, rest alert and card untested on a phone.*
 - **v0.8:** accessibility/RTL/performance/offline QA, trainer review, privacy + consent, crash reporting, beta APK process.
 - **v0.9:** pilot with about 10 lifters at one gym.
 - **v0.10:** backend sync (Cloudflare Workers + D1), shared gyms, coach links, subscription test, Play closed testing; model layer only if the pilot shows a need.

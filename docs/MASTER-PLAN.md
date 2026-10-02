@@ -11,7 +11,7 @@ Conventions: `[ ]` open, `[x]` done. Sizes are S (days), M (1-2 weeks), L (sever
 1. [~] **Step 1: put the current release on a real Android phone and an emulator** and walk the whole loop (onboard, import, log, finish, accept/reject, why). Write down everything that breaks. Fix only those bugs, ship v0.4.1. **Status 2026-10-02: PARTLY DONE, NOT device-verified.** The app (x86_64 build of v0.4.0) was launched on an Android 14 emulator and rendered onboarding steps 1-3, then the emulator became unusable (no hardware acceleration on this box; see [DEVICE-TEST-0.4.md](DEVICE-TEST-0.4.md)). The full loop has NOT been run on any device. Still needs a real phone (Mohamed).
 2. [x] **Step 2: goals + pace (two clocks)** (in v0.5.0, unit-tested only, NOT device-verified; PR #25). Goals screen, weigh-ins, pace from the lifter's logs, one line on Today. Rules: [PACE-RULES.md](PACE-RULES.md).
 3. [x] **Step 3: weekly one-decision review** (PR #27, rules in [WEEKLY-RULES.md](WEEKLY-RULES.md)) and **Step 4: short-week rebuild** (PR #28, rules in [SHORT-WEEK-RULES.md](SHORT-WEEK-RULES.md)). Both in v0.5.0, unit-tested only, NOT device-verified.
-4. [ ] **Steps 5-7: make the trust surfaces visible**: outlier confirm kept honest, rejection memory shown and undoable, history + trend per lift, decision-log screen.
+4. [x] **Steps 5-7: make the trust surfaces visible** (PRs #30, #31, #32; Step 9 warm-ups #33 in the same release v0.6.0): outlier confirm kept honest, rejection memory shown and undoable, history + trend per lift, decision-log screen. Unit-tested only, NOT device-verified.
 5. [ ] **Step 12 early: export and delete my data.** Needed before any other person installs the app (Step 20 pilot).
 
 Rule for all steps: no step is "done" until it was run on a device (or is explicitly marked "unit-tested only").
@@ -20,7 +20,7 @@ Rule for all steps: no step is "done" until it was run on a device (or is explic
 
 ## 1. Where we are today
 
-Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say the APK was not launched; nothing in the repo records a device run of 0.3.0; Mohamed to correct me if he has run it). CI runs `typecheck` + `test` on every PR. Tests passing locally today: engine 290, mobile 280 (logic and SQLite, run on Node, not on a phone).
+Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say the APK was not launched; nothing in the repo records a device run of 0.3.0; Mohamed to correct me if he has run it). CI runs `typecheck` + `test` on every PR. Tests passing locally today: engine 308, mobile 316 (logic and SQLite, run on Node, not on a phone).
 
 | Area | Status | What is really there |
 | --- | --- | --- |

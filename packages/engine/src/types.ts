@@ -58,7 +58,16 @@ export interface RepRange {
 }
 
 export type BodyRegion = "upper" | "lower";
-export type PresetName = "double_progression" | "acsm_2009" | "two_for_two";
+/**
+ * Presets. `acsm_2009` is the DEFAULT (ACSM 2009 position stand, 2-10% when the target is reached; target = the lift's rep ceiling).
+ * The others are alternatives; `coaching_conventions` bundles the extra conventions of the earlier rule-v0.2 draft (opt-in).
+ */
+export type PresetName = "acsm_2009" | "acsm_2009_strict" | "double_progression" | "two_for_two" | "coaching_conventions";
+
+/** What kind of lift decides the default rep ceiling. */
+export type CeilingClass = "upper" | "lower" | "lateral_raise";
+/** Reps at which the load goes up, per kind of lift. Editable as app-wide defaults and overridable per lift (`LiftProgressionConfig.repCeiling`). */
+export type RepCeilings = Record<CeilingClass, number>;
 
 /** When is a lift "ready" for more load? See docs/PROGRESSION-RULES.md for which parts are evidence and which are convention. */
 export interface TriggerConfig {
@@ -90,26 +99,40 @@ export interface LiftProgressionConfig {
   preset?: PresetName;
   trigger?: Partial<TriggerConfig>;
   increment?: Partial<IncrementConfig>;
-  /** Sessions in a row below the bottom of the range, at the same load, before stepping the load down one real step. */
-  stepDownAfterMisses?: number;
-  /** Partial overrides, or null to switch stall handling off for this lift. */
+  /** Sessions in a row below the bottom of the range, at the same load, before stepping the load down one real step. null = off (default). */
+  stepDownAfterMisses?: number | null;
+  /** Partial overrides, or null to switch stall handling off for this lift (default: off). */
   stall?: Partial<StallConfig> | null;
+  /**
+   * THE REP CEILING for this lift: the reps the weakest working set must reach before load goes up. Replaces the top of `repRange`.
+   * Omitted = the default for the kind of lift (upper 10, legs 12, lateral raises 15; see `DEFAULT_REP_CEILINGS`).
+   */
+  repCeiling?: number;
 }
 
 export interface LiftProgression {
+  preset: PresetName;
   bodyRegion: BodyRegion;
+  /** Which default ceiling applies (lateral raises are an upper-body exception). */
+  ceilingClass: CeilingClass;
+  /** The resolved rep ceiling: reps the weakest working set must reach to earn more load. */
+  repCeiling: number;
+  /** "lift" = set on this lift; "default" = the default for its kind of lift. */
+  ceilingSource: "lift" | "default";
   trigger: TriggerConfig;
   increment: IncrementConfig;
-  stepDownAfterMisses: number;
+  stepDownAfterMisses: number | null;
   stall: StallConfig | null;
 }
 
 export interface ExerciseSpec {
   exerciseId: string;
+  /** Display name (e.g. "Lateral Raise (Cable)"). Used to classify the lift for its default rep ceiling; falls back to exerciseId. */
+  name?: string;
   equipment: EquipmentType;
   setup: SetupType;
   repRange: RepRange;
-  /** Chooses the default load-step band (upper 2-5%, lower 5-10%). Defaults to upper. */
+  /** Upper or lower body. Chooses the default rep ceiling (10 / 12). Defaults to a guess from the name, else upper. */
   bodyRegion?: BodyRegion;
   /** Per-lift progression policy overrides. */
   progression?: LiftProgressionConfig;

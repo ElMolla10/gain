@@ -2,7 +2,7 @@ import { RULE_VERSION } from "./version";
 import { effectiveLoad, epley, lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
 import { findSpec, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad, allowsZero } from "./loads";
-import { resolveProgression } from "./policy";
+import { classifyLift, resolveProgression } from "./policy";
 import { isJumpBlocked, recordsForLine, REJECTION_THRESHOLD, rejectionCount, emptyRejectionMemory } from "./rejection";
 import type {
   Confidence,
@@ -17,6 +17,7 @@ import type {
   QualityChange,
   ReasonText,
   RejectionMemory,
+  RepCeilings,
   SessionSummary,
 } from "./types";
 
@@ -27,8 +28,10 @@ export interface ProgressionOptions {
   staleDays: number;
   /** Never ask for fewer reps in reserve than this (recommendations do not require failure). */
   rirFloor: number;
-  /** Optional global override of the per-lift step-down evidence (default 3 sessions, see policy.ts). */
-  stepDownAfterMisses?: number;
+  /** Optional global override of the per-lift step-down evidence (default: off, see policy.ts). */
+  stepDownAfterMisses?: number | null;
+  /** Edited app-wide default rep ceilings (upper / lower / lateral_raise). A per-lift `progression.repCeiling` still wins. */
+  repCeilings?: Partial<RepCeilings>;
   rejectionThreshold: number;
   /** Coefficient of variation of recent top-set strength estimates above which confidence drops. */
   highVarianceCv: number;
@@ -104,8 +107,7 @@ function lower(c: Confidence): Confidence {
 export function proposeNext(ctx: ProposeContext): Proposal {
   const opt: ProgressionOptions = { ...DEFAULT_OPTIONS, ...ctx.options };
   const { exercise, gym } = ctx;
-  const { min: lo, max: hi } = exercise.repRange;
-  if (!(lo >= 1) || hi < lo) throw new Error("repRange must satisfy 1 <= min <= max");
+  if (!(exercise.repRange.min >= 1) || exercise.repRange.max < exercise.repRange.min) throw new Error("repRange must satisfy 1 <= min <= max");
   const rejections = ctx.rejections ?? emptyRejectionMemory();
   const setup = exercise.setup;
   const zero = allowsZero(setup);
@@ -113,7 +115,13 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const key = lineKey(line);
   const bw = ctx.bodyweightKg ?? null;
   const harderDir: "above" | "below" = setup === "assisted" ? "below" : "above";
-  const cfg = resolveProgression(exercise.bodyRegion ?? "upper", exercise.progression);
+  const nameForClass = exercise.name ?? exercise.exerciseId;
+  const region = exercise.bodyRegion ?? classifyLift(nameForClass).bodyRegion;
+  const cfg = resolveProgression(region, exercise.progression, { name: nameForClass, ceilings: opt.repCeilings });
+  // The rep ceiling replaces the top of the programme's rep range: it is the reps that earn more load. The bottom is kept (never above the ceiling).
+  const hi = cfg.repCeiling;
+  const lo = Math.min(exercise.repRange.min, hi);
+  const repRange = { min: lo, max: hi };
   const maxRatio = opt.maxJumpRatio ?? cfg.increment.maxPct;
   const minRatio = Math.min(cfg.increment.minPct, maxRatio);
   const stepDownAfter = opt.stepDownAfterMisses ?? cfg.stepDownAfterMisses;
@@ -147,7 +155,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     lineKey: key,
     line,
     asOf: ctx.asOf,
-    repRange: exercise.repRange,
+    repRange,
     isGoalLift: !!exercise.isGoalLift,
     trackEffort: !!exercise.trackEffort,
     bodyweightKg: bw,
@@ -349,7 +357,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     if (Math.abs(s.topLoad - last.topLoad) < 1e-6 && s.repsAtTop < lo) misses++;
     else break;
   }
-  if (misses >= stepDownAfter && nextEasier !== null) {
+  if (stepDownAfter !== null && misses >= stepDownAfter && nextEasier !== null) {
     return make({
       load: nextEasier,
       reps: lo,

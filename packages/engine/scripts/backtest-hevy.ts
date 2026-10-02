@@ -2,6 +2,7 @@
  * Runs the rule walk-forward over a Hevy export and prints a markdown report. Local, offline, no network. */
 import { readFileSync, writeFileSync } from "node:fs";
 import { backtest, summarize, type Outcome } from "../src/backtest";
+import { classifyLift } from "../src/policy";
 import { parseHevyCsv } from "../src/hevy";
 import { RULE_VERSION } from "../src/version";
 
@@ -22,52 +23,97 @@ out(`Rows: ${rowCount}, workouts: ${workouts.length}, ${dates[0]?.slice(0, 10)} 
 out();
 out("**What this measures:** for each session of a lift, the rule proposes from everything *before* that session; we compare with what the lifter actually did. This is agreement with the lifter, not proof that the rule is right.");
 out();
-out("**Assumptions (a Hevy export has neither):** the load grid per equipment class is inferred as the greatest common divisor of every logged load in that class; the rep range is a single default per run (sensitivity below); no effort data (RPE is empty), so the effort currency never fires; no rejection history. Compared on the hardest working load of the session and the minimum reps at it; warm-ups are not in the export, drop sets are excluded.");
+out("**Assumptions (a Hevy export has neither):** the load grid per equipment class is inferred as the greatest common divisor of every logged load in that class; the top of the rep range is each lift's rep ceiling (10 / 12 / 15, sensitivity below) and the bottom is assumed 6; no effort data (RPE is empty), so the effort currency never fires; no rejection history. Compared on the hardest working load of the session and the minimum reps at it; warm-ups are not in the export, drop sets are excluded.");
 out();
 
-const ranges = [
-  { min: 4, max: 8 },
-  { min: 6, max: 10 },
-  { min: 8, max: 12 },
-  { min: 10, max: 15 },
-];
-out("## Sensitivity to the assumed rep range");
+const BOTTOM = { min: 6, max: 10 }; // bottom of the range is assumed; the top is replaced by each lift's rep ceiling
+const base = backtest(workouts, { repRange: BOTTOM, minSessions: 4 });
+const sb = summarize(base.outcomes);
+const conv = summarize(backtest(workouts, { repRange: BOTTOM, minSessions: 4, progression: { preset: "coaching_conventions" } }).outcomes);
+
+out(`## Headline: default rule (${RULE_VERSION}) vs "repeat the last load"`);
 out();
-out("| Range | Proposals | Same load as lifter | Same load and reps | Lifter met or beat it | Proposed heavier than lifter did | Proposed lighter | Baseline: repeat last load |");
+out("Default = ACSM 2009 (2-10% load step, snapped to real loads) with the lifter's rep ceilings: **10 reps upper body, 12 reps legs, 15 reps lateral raises** (classified from the exercise name). Load goes up only when the weakest working set at the current load reaches the ceiling, once. Until then: one more rep.");
+out();
+out("| | Same load as lifter | Same load and reps | Lifter met or beat it | Rule proposed heavier | Lifter went heavier | Rule held/lowered while he went up | Rule went up while he held/lowered |");
 out("|---|---|---|---|---|---|---|---|");
-const results = ranges.map((r) => ({ r, res: backtest(workouts, { repRange: r, minSessions: 4 }) }));
-for (const { r, res } of results) {
-  const s = summarize(res.outcomes);
-  out(`| ${r.min}-${r.max} | ${s.n} | ${pct(s.loadMatch, s.n)} | ${pct(s.exact, s.n)} | ${pct(s.metOrBeat, s.n)} | ${pct(s.proposedAbove, s.n)} | ${pct(s.proposedBelow, s.n)} | ${pct(s.repeatLoadBaseline, s.n)} |`);
-}
+const row = (label: string, s: ReturnType<typeof summarize>) =>
+  `| ${label} | ${pct(s.loadMatch, s.n)} (${s.loadMatch}/${s.n}) | ${pct(s.exact, s.n)} | ${pct(s.metOrBeat, s.n)} | ${pct(s.proposedUp, s.n)} (${s.proposedUp}) | ${pct(s.actualUp, s.n)} (${s.actualUp}) | ${pct(s.ruleConservative, s.n)} | ${pct(s.ruleAggressive, s.n)} |`;
+out(row("**Default: ACSM 2009 + ceilings 10 / 12 / 15**", sb));
+out(`| **Baseline: repeat last load** | ${pct(sb.repeatLoadBaseline, sb.n)} (${sb.repeatLoadBaseline}/${sb.n}) | n/a | n/a | 0% | ${pct(sb.actualUp, sb.n)} (${sb.actualUp}) | ${pct(sb.actualUp, sb.n)} | 0% |`);
+out(row("Reference: opt-in `coaching_conventions` (the earlier rule-v0.2 draft), range 6-10", conv));
+out();
+out(`Verdict on the one number that matters most: same load as the lifter ${pct(sb.loadMatch, sb.n)} vs ${pct(sb.repeatLoadBaseline, sb.n)} for repeating the last load. ${sb.loadMatch > sb.repeatLoadBaseline ? "The rule beats the baseline." : sb.loadMatch === sb.repeatLoadBaseline ? "A tie." : "The rule does NOT beat the baseline."}`);
 out();
 
-out("## Does the load advance as often as the lifter's? (sanity check, not a tuning target)");
+const ceilingOf = (title: string) => {
+  const c = classifyLift(title);
+  return c.lateralRaise ? 15 : c.bodyRegion === "lower" ? 12 : 10;
+};
+const kindOf = (title: string) => (classifyLift(title).lateralRaise ? "lateral raise (15)" : classifyLift(title).bodyRegion === "lower" ? "legs (12)" : "upper body (10)");
+out("## By kind of lift");
 out();
-out("His history is one lifter's behaviour, not a standard; he may under- or over-progress. This only shows where the evidence-based rule is more conservative or more aggressive than he was.");
-out();
-out("| Range | Rule proposed a heavier load | Lifter actually went heavier | Rule held/lowered while he went up (rule more conservative) | Rule went up while he held/lowered (rule more aggressive) | Rule proposed lighter | Lifter went lighter |");
+out("| Kind (ceiling) | Lifts | Next sessions | Same load as lifter | Baseline: repeat last load | Rule proposed heavier | Lifter went heavier |");
 out("|---|---|---|---|---|---|---|");
-for (const { r, res } of results) {
-  const s = summarize(res.outcomes);
-  out(`| ${r.min}-${r.max} | ${pct(s.proposedUp, s.n)} | ${pct(s.actualUp, s.n)} | ${pct(s.ruleConservative, s.n)} | ${pct(s.ruleAggressive, s.n)} | ${pct(s.proposedDown, s.n)} | ${pct(s.actualDown, s.n)} |`);
+for (const k of ["upper body (10)", "legs (12)", "lateral raise (15)"]) {
+  const os = base.outcomes.filter((o) => kindOf(o.title) === k);
+  const t = summarize(os);
+  out(`| ${k} | ${new Set(os.map((o) => o.title)).size} | ${t.n} | ${pct(t.loadMatch, t.n)} | ${pct(t.repeatLoadBaseline, t.n)} | ${pct(t.proposedUp, t.n)} (${t.proposedUp}) | ${pct(t.actualUp, t.n)} (${t.actualUp}) |`);
 }
 out();
-out("Reference, rule-v0.1 on the same data (recomputed on main before this change). Same load as lifter: 54% (4-8), 54% (6-10), 42% (8-12), 32% (10-15). Rule proposed a heavier load: 6%, 1%, 0%, 0%. Rule proposed lighter: 3%, 8%, 29%, 48%. Repeat-last-load baseline: 60%.");
+out("Classification used (by name): " + [...new Set(base.outcomes.map((o) => o.title))].sort().map((t) => `${t} -> ${ceilingOf(t)}`).join("; ") + ".");
 out();
-out("### Which published trigger? (all use the same policy code; only the trigger differs)");
-out();
-out("| Preset | Range | Same load as lifter | Rule proposed heavier | Lifter went heavier | Baseline: repeat last load |");
-out("|---|---|---|---|---|---|");
-for (const preset of [undefined, "double_progression", "acsm_2009", "two_for_two"] as const) {
-  for (const r of [ranges[0]!, ranges[1]!, ranges[2]!]) {
-    const res = backtest(workouts, { repRange: r, minSessions: 4, progression: preset ? { preset } : undefined });
-    const s = summarize(res.outcomes);
-    out(`| ${preset ?? "default (2 sessions at top)"} | ${r.min}-${r.max} | ${pct(s.loadMatch, s.n)} | ${pct(s.proposedUp, s.n)} | ${pct(s.actualUp, s.n)} | ${pct(s.repeatLoadBaseline, s.n)} |`);
+
+{
+  const reached = base.outcomes.filter((o) => o.lastReps !== null && o.lastReps >= ceilingOf(o.title));
+  const rUp = reached.filter((o) => o.direction === "up").length;
+  const aUp = reached.filter((o) => o.actualDirection === "up").length;
+  const notReachedUp = base.outcomes.filter((o) => o.lastReps !== null && o.lastReps < ceilingOf(o.title) && o.actualDirection === "up");
+  out("## Did he raise the load when he reached the ceiling?");
+  out();
+  out(`In ${reached.length} of ${base.outcomes.length} next-sessions his previous session's weakest set had already reached the ceiling. In ${aUp} of those he went heavier next time (${pct(aUp, reached.length)}); the rule proposed heavier in ${rUp} (${pct(rUp, reached.length)}). Where the ceiling had NOT been reached he still went heavier ${notReachedUp.length} times, which is where the rule (correctly, by this instruction) says "one more rep" instead.`);
+  {
+    const by = (f: (o: Outcome) => boolean) => reached.filter(f).length;
+    const heavier = by((o) => o.direction === "up");
+    const lowConf = by((o) => o.direction !== "up" && o.confidence === "low");
+    const tooBig = by((o) => o.direction !== "up" && o.confidence !== "low" && o.currency === "quality");
+    out();
+    out(`Why the rule did not propose heavier in the other ${reached.length - heavier}: ${lowConf} had too little history (low confidence repeats, never jumps), ${tooBig} had a smallest real load step bigger than the 10% ACSM ceiling (light loads on the inferred grid), so the rule spent a quality change (pause / slow eccentric) first, as the currency order requires. ${reached.length - heavier - lowConf - tooBig} other.`);
   }
+  const up = base.outcomes.filter((o) => o.actualDirection === "up" && o.lastReps !== null);
+  const meets = up.filter((o) => o.lastReps! >= ceilingOf(o.title)).length;
+  out();
+  out(`Of his ${up.length} load increases, ${meets} (${pct(meets, up.length)}) came right after a session at or above the ceiling for that lift; ${up.length - meets} came earlier. Median reps before an increase: ${up.map((o) => o.lastReps as number).sort((x, y) => x - y)[Math.floor((up.length - 1) / 2)]}.`);
+  out();
+}
+
+out("## Sensitivity: what if the ceilings were different? (app-wide defaults edited)");
+out();
+out("| Ceilings upper / legs / lateral | Same load as lifter | Rule proposed heavier | Lifter went heavier | Baseline: repeat last load |");
+out("|---|---|---|---|---|");
+for (const c of [
+  { upper: 6, lower: 8, lateral_raise: 10 },
+  { upper: 8, lower: 10, lateral_raise: 12 },
+  { upper: 10, lower: 12, lateral_raise: 15 },
+  { upper: 12, lower: 15, lateral_raise: 20 },
+]) {
+  const t = summarize(backtest(workouts, { repRange: BOTTOM, minSessions: 4, repCeilings: c }).outcomes);
+  out(`| ${c.upper} / ${c.lower} / ${c.lateral_raise}${c.upper === 10 ? " (default)" : ""} | ${pct(t.loadMatch, t.n)} | ${pct(t.proposedUp, t.n)} | ${pct(t.actualUp, t.n)} | ${pct(t.repeatLoadBaseline, t.n)} |`);
+}
+out();
+out("This table is a sanity check on how much the ceilings matter, not a search for better numbers: the ceilings are Mohamed's instruction, not tuned.");
+out();
+out("### Other triggers on the same ceilings (all use the same policy code; only the trigger differs)");
+out();
+out("| Preset | Same load as lifter | Rule proposed heavier | Lifter went heavier | Baseline: repeat last load |");
+out("|---|---|---|---|---|");
+for (const preset of [undefined, "acsm_2009_strict", "two_for_two", "coaching_conventions"] as const) {
+  const t = summarize(backtest(workouts, { repRange: BOTTOM, minSessions: 4, progression: preset ? { preset } : undefined }).outcomes);
+  out(`| ${preset ?? "acsm_2009 (default)"} | ${pct(t.loadMatch, t.n)} | ${pct(t.proposedUp, t.n)} | ${pct(t.actualUp, t.n)} | ${pct(t.repeatLoadBaseline, t.n)} |`);
 }
 out();
 
+const results = [{ r: BOTTOM, res: base }];
 const main = results.find((x) => x.r.min === 6)!.res;
 {
   const up = main.outcomes.filter((o) => o.actualDirection === "up" && o.lastReps !== null).map((o) => o.lastReps as number).sort((a, b) => a - b);
@@ -89,7 +135,7 @@ for (const g of main.grids) out(`- ${g.key}: step ${g.increment} kg (from ${g.ba
 out();
 if (main.skipped.length) out(`Skipped (no reps logged): ${main.skipped.map((s) => s.title).join(", ")}.\n`);
 
-out("## By currency spent (range 6-10)");
+out("## By currency spent (default rule)");
 out();
 out("| Currency | Proposals | Same load as lifter | Lifter met or beat it |");
 out("|---|---|---|---|");
@@ -99,7 +145,7 @@ for (const c of ["reps", "quality", "load", "effort"] as const) {
   out(`| ${c} | ${s.n} | ${pct(s.loadMatch, s.n)} | ${pct(s.metOrBeat, s.n)} |`);
 }
 out();
-out("## By confidence (range 6-10)");
+out("## By confidence (default rule)");
 out();
 out("| Confidence | Proposals | Same load | Met or beat |");
 out("|---|---|---|---|");
@@ -109,7 +155,7 @@ for (const c of ["low", "medium", "high"]) {
 }
 out();
 
-out("## Per exercise (range 6-10, lifts with 4+ sessions)");
+out("## Per exercise (default rule, lifts with 4+ sessions)");
 out();
 out("| Exercise | Next sessions checked | Same load | Same load and reps | Met or beat | Proposed heavier | Repeat-last baseline | Last proposal vs what was done |");
 out("|---|---|---|---|---|---|---|---|");

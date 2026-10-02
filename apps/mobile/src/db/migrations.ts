@@ -188,6 +188,12 @@ CREATE TABLE rejection_memory (
 CREATE UNIQUE INDEX rejection_memory_unique ON rejection_memory(line_id, jump_kind) WHERE deleted_at IS NULL;
 `,
   },
+  {
+    version: 2,
+    name: "per-lift rep ceiling",
+    // NULL = use the default for the kind of lift (10 upper, 12 legs, 15 lateral raises, or the lifter's edited defaults).
+    sql: `ALTER TABLE programme_day_exercise ADD COLUMN rep_ceiling INTEGER CHECK (rep_ceiling IS NULL OR (rep_ceiling >= 1 AND rep_ceiling <= 100));`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

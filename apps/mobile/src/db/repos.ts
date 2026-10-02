@@ -1,4 +1,4 @@
-import type { GymFingerprint, GymLoadSpec } from "@gain/engine";
+import { classifyLift, DEFAULT_REP_CEILINGS, mergeRepCeilings, resolveProgression, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import { SAMPLE_EXERCISES, SAMPLE_GYM, SAMPLE_PROGRAMME, SEED_VERSION } from "./seedData";
 
@@ -28,6 +28,44 @@ export function createRepos(db: Db, deps: Deps) {
   async function getRtlOverride(): Promise<RtlOverride> {
     const v = await getSetting("rtl_override");
     return v === "on" || v === "off" ? v : "auto";
+  }
+
+  // ---- rep ceilings (reps at which load goes up) ----------------------------------------------------------
+  /** App-wide defaults per kind of lift: the lifter's edits over 10 upper / 12 legs / 15 lateral raises. */
+  async function getRepCeilingDefaults(): Promise<RepCeilings> {
+    const raw = await getSetting("rep_ceilings");
+    if (!raw) return { ...DEFAULT_REP_CEILINGS };
+    try {
+      return mergeRepCeilings(JSON.parse(raw) as Partial<RepCeilings>);
+    } catch {
+      return { ...DEFAULT_REP_CEILINGS }; // a damaged setting never blocks a workout
+    }
+  }
+  /** Edit one or more defaults. Only the edited kinds are stored, so untouched kinds keep following the built-in defaults. */
+  async function setRepCeilingDefaults(edit: Partial<RepCeilings>): Promise<RepCeilings> {
+    for (const [k, v] of Object.entries(edit)) validateRepCeiling(v as number, `repCeilings.${k}`);
+    const raw = await getSetting("rep_ceilings");
+    let stored: Partial<RepCeilings> = {};
+    try {
+      stored = raw ? (JSON.parse(raw) as Partial<RepCeilings>) : {};
+    } catch {
+      stored = {};
+    }
+    const next = { ...stored, ...edit };
+    await setSetting("rep_ceilings", JSON.stringify(next));
+    return mergeRepCeilings(next);
+  }
+  async function resetRepCeilingDefaults(kind: CeilingClass): Promise<RepCeilings> {
+    const raw = await getSetting("rep_ceilings");
+    const stored = raw ? (JSON.parse(raw) as Partial<RepCeilings>) : {};
+    delete stored[kind];
+    await setSetting("rep_ceilings", JSON.stringify(stored));
+    return mergeRepCeilings(stored);
+  }
+  /** Set (or clear with null) the rep ceiling of ONE lift in the programme. Null falls back to the default for its kind. */
+  async function setLiftRepCeiling(programmeDayExerciseId: string, ceiling: number | null): Promise<void> {
+    if (ceiling !== null) validateRepCeiling(ceiling);
+    await db.run("UPDATE programme_day_exercise SET rep_ceiling = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [ceiling, now(), programmeDayExerciseId]);
   }
 
   // ---- seed (sample data, clearly labelled) ---------------------------------------------------------------
@@ -142,17 +180,22 @@ export function createRepos(db: Db, deps: Deps) {
       sets: number;
       rep_min: number;
       rep_max: number;
+      rep_ceiling: number | null;
       is_goal_lift: number;
       track_effort: number;
       position: number;
     }>(
       `SELECT pde.id, pde.exercise_id, e.name_en, e.name_ar, e.aliases_ar_json, e.equipment, e.setup,
-              pde.sets, pde.rep_min, pde.rep_max, pde.is_goal_lift, pde.track_effort, pde.position
+              pde.sets, pde.rep_min, pde.rep_max, pde.rep_ceiling, pde.is_goal_lift, pde.track_effort, pde.position
        FROM programme_day_exercise pde JOIN exercise e ON e.id = pde.exercise_id
        WHERE pde.programme_day_id = ? AND pde.deleted_at IS NULL ORDER BY pde.position`,
       [dayId],
     );
-    return rows.map((r) => ({
+    const ceilings = await getRepCeilingDefaults();
+    return rows.map((r) => {
+      // The ceiling (per-lift edit, else the default for this kind of lift) is the top of the range that decides when load goes up.
+      const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, r.rep_ceiling !== null ? { repCeiling: r.rep_ceiling } : {}, { name: r.name_en, ceilings });
+      return {
       id: r.id,
       exerciseId: r.exercise_id,
       nameEn: r.name_en,
@@ -161,11 +204,17 @@ export function createRepos(db: Db, deps: Deps) {
       equipment: r.equipment,
       setup: r.setup,
       sets: r.sets,
-      repMin: r.rep_min,
-      repMax: r.rep_max,
+      /** Bottom of the programme range, never above the ceiling. */
+      repMin: Math.min(r.rep_min, policy.repCeiling),
+      /** Top of the range = the rep ceiling (what the Today screen shows). */
+      repMax: policy.repCeiling,
+      repCeiling: policy.repCeiling,
+      /** True when this lift has its own ceiling; false when it follows the default for its kind. */
+      repCeilingIsCustom: r.rep_ceiling !== null,
       isGoalLift: r.is_goal_lift === 1,
       trackEffort: r.track_effort === 1,
-    }));
+      };
+    });
   }
 
   /**
@@ -192,6 +241,10 @@ export function createRepos(db: Db, deps: Deps) {
     setSetting,
     getLanguage,
     getRtlOverride,
+    getRepCeilingDefaults,
+    setRepCeilingDefaults,
+    resetRepCeilingDefaults,
+    setLiftRepCeiling,
     seedIfNeeded,
     getActiveGymId,
     loadGymFingerprint,

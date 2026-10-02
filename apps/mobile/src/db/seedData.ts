@@ -70,7 +70,11 @@ export interface SeedDayExercise {
   goalLift?: boolean;
 }
 
-/** SAMPLE programme: a generic 4-day upper/lower example, not a recommendation. */
+/**
+ * SAMPLE programme: a generic 4-day upper/lower example, not a recommendation.
+ * The top of each range is the lift's default REP CEILING (the reps that earn more load): 10 upper body, 12 legs,
+ * 15 lateral raises. The ceiling actually used is resolved from the exercise name and any per-lift edit, not from repMax.
+ */
 export const SAMPLE_PROGRAMME = {
   name: "Upper/Lower (sample)",
   days: [
@@ -78,33 +82,33 @@ export const SAMPLE_PROGRAMME = {
       name: "Upper A",
       exercises: [
         { key: "bench_press", sets: 3, repMin: 6, repMax: 10, goalLift: true },
-        { key: "lat_pulldown", sets: 3, repMin: 8, repMax: 12 },
-        { key: "incline_db_press", sets: 3, repMin: 8, repMax: 12 },
-        { key: "seated_cable_row", sets: 3, repMin: 8, repMax: 12 },
+        { key: "lat_pulldown", sets: 3, repMin: 8, repMax: 10 },
+        { key: "incline_db_press", sets: 3, repMin: 8, repMax: 10 },
+        { key: "seated_cable_row", sets: 3, repMin: 8, repMax: 10 },
         { key: "lateral_raise_db", sets: 3, repMin: 10, repMax: 15 },
-        { key: "triceps_pushdown", sets: 3, repMin: 10, repMax: 15 },
+        { key: "triceps_pushdown", sets: 3, repMin: 8, repMax: 10 },
       ],
     },
     {
       name: "Lower A",
       exercises: [
-        { key: "back_squat", sets: 3, repMin: 6, repMax: 10, goalLift: true },
+        { key: "back_squat", sets: 3, repMin: 8, repMax: 12, goalLift: true },
         { key: "romanian_deadlift", sets: 3, repMin: 8, repMax: 12 },
-        { key: "leg_press", sets: 3, repMin: 10, repMax: 15 },
-        { key: "leg_curl", sets: 3, repMin: 10, repMax: 15 },
-        { key: "calf_raise", sets: 3, repMin: 10, repMax: 15 },
+        { key: "leg_press", sets: 3, repMin: 8, repMax: 12 },
+        { key: "leg_curl", sets: 3, repMin: 8, repMax: 12 },
+        { key: "calf_raise", sets: 3, repMin: 8, repMax: 12 },
       ],
     },
     {
       name: "Upper B",
       exercises: [
-        { key: "shoulder_press_db", sets: 3, repMin: 8, repMax: 12 },
+        { key: "shoulder_press_db", sets: 3, repMin: 8, repMax: 10 },
         { key: "assisted_pullup", sets: 3, repMin: 6, repMax: 10 },
-        { key: "chest_press_machine", sets: 3, repMin: 8, repMax: 12 },
-        { key: "db_row", sets: 3, repMin: 8, repMax: 12 },
-        { key: "db_curl", sets: 3, repMin: 8, repMax: 12 },
-        { key: "hammer_curl", sets: 2, repMin: 8, repMax: 12 },
-        { key: "face_pull", sets: 3, repMin: 12, repMax: 15 },
+        { key: "chest_press_machine", sets: 3, repMin: 8, repMax: 10 },
+        { key: "db_row", sets: 3, repMin: 8, repMax: 10 },
+        { key: "db_curl", sets: 3, repMin: 8, repMax: 10 },
+        { key: "hammer_curl", sets: 2, repMin: 8, repMax: 10 },
+        { key: "face_pull", sets: 3, repMin: 8, repMax: 10 },
       ],
     },
     {
@@ -112,9 +116,9 @@ export const SAMPLE_PROGRAMME = {
       exercises: [
         { key: "leg_press", sets: 3, repMin: 8, repMax: 12 },
         { key: "romanian_deadlift", sets: 3, repMin: 8, repMax: 12 },
-        { key: "leg_extension", sets: 3, repMin: 10, repMax: 15 },
-        { key: "leg_curl", sets: 3, repMin: 10, repMax: 15 },
-        { key: "dip", sets: 3, repMin: 6, repMax: 12 },
+        { key: "leg_extension", sets: 3, repMin: 8, repMax: 12 },
+        { key: "leg_curl", sets: 3, repMin: 8, repMax: 12 },
+        { key: "dip", sets: 3, repMin: 6, repMax: 10 },
       ],
     },
   ] satisfies { name: string; exercises: SeedDayExercise[] }[],

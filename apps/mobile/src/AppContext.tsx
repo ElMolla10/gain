@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from "react";
 import type { Repos } from "./db/repos";
 import type { Db } from "./db/driver";
+import type { DecisionRepo } from "./db/decisionRepo";
 import type { FinishRepo } from "./db/finishRepo";
 import type { GoalRepo } from "./db/goalRepo";
 import type { GymRepo } from "./db/gymRepo";
@@ -27,6 +28,7 @@ export interface AppServices {
   shortWeek: ShortWeekRepo;
   rejections: RejectionRepo;
   history: HistoryRepo;
+  decisions: DecisionRepo;
 }
 const Ctx = createContext<AppServices | null>(null);
 export const ServicesProvider = Ctx.Provider;

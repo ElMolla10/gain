@@ -45,6 +45,8 @@ export function HistoryScreen() {
         <Chip label={t("history.lifts")} selected={mode === "lifts"} onPress={() => setMode("lifts")} />
       </View>
 
+      <BigButton label={t("dec.entry")} selected={false} onPress={() => nav.navigate("DecisionLog", {})} />
+
       {mode === "sessions" ? (
         <>
           {sessions.length === 0 ? <AppText>{t("history.empty")}</AppText> : null}

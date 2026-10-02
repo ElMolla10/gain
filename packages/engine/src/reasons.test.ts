@@ -27,3 +27,12 @@ describe("renderReason", () => {
     expect(renderReason({ key: "no_history", params: {} }, "ar")).toMatch(/[\u0600-\u06FF]/);
   });
 });
+
+describe("old or unknown reason keys (Step 7)", () => {
+  it("a key this build does not know is shown as stored, never a crash", () => {
+    const r = { key: "from_rule_v0_1_only", params: { load: 60, reps: 8 } } as unknown as Parameters<typeof renderReason>[0];
+    expect(renderReason(r, "en")).toBe("from_rule_v0_1_only (load=60, reps=8)");
+    expect(renderReason(r, "ar")).toBe("from_rule_v0_1_only (load=60, reps=8)");
+    expect(renderReason({ key: "gone", params: {} } as unknown as Parameters<typeof renderReason>[0])).toBe("gone");
+  });
+});

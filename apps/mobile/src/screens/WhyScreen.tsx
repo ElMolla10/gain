@@ -4,7 +4,7 @@ import { ScrollView } from "react-native";
 import { useServices } from "../AppContext";
 import type { StringKey } from "../i18n/strings";
 import { useI18n } from "../i18n";
-import { describeDecision, type WhySection } from "../logic/why";
+import { describeDecisionSafe, type WhySection } from "../logic/why";
 import { space, usePalette } from "../theme";
 import { AppText, Card } from "../ui";
 
@@ -19,7 +19,9 @@ export function WhyScreen() {
     (async () => {
       const d = await finish.getDecision(targetId);
       if (!d) return setSections("missing");
-      setSections(describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, (k, params) => t(k as StringKey, params), lang, unit));
+      const tg = await finish.getTarget(targetId);
+      const reason = tg?.reason ?? d.payload?.proposal?.reason ?? { key: "unknown", params: {} };
+      setSections(describeDecisionSafe(d.payload, { ruleVersion: d.ruleVersion, path: d.path, reason }, (k, params) => t(k as StringKey, params), lang, unit));
     })().catch(() => setSections("missing"));
   }, [finish, targetId, t, lang, unit]);
 

@@ -5,7 +5,6 @@
 export const enWarmup = {
   "warm.add": "Add warm-ups",
   "warm.title": "Warm-ups for {load}",
-  "warm.line": "{load} × {reps}",
   "warm.note": "Built from today's target on loads your gym has. They are logged as warm-ups and never change your next target.",
   "warm.confirm": "Add these warm-ups",
   "warm.cancel": "Not now",
@@ -20,7 +19,6 @@ export const enWarmup = {
 export const arWarmup: Record<keyof typeof enWarmup, string> = {
   "warm.add": "ضيف إحماء",
   "warm.title": "إحماء لـ {load}",
-  "warm.line": "{load} × {reps}",
   "warm.note": "متحسوب من هدف النهارده على أوزان موجودة في الجيم بتاعك. بيتسجل كإحماء ومبيغيّرش هدفك الجاي.",
   "warm.confirm": "ضيف الإحماء ده",
   "warm.cancel": "مش دلوقتي",

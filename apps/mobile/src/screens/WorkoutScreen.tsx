@@ -259,7 +259,7 @@ export function WorkoutScreen() {
             <View style={{ gap: space.sm }}>
               <AppText style={{ fontWeight: "700" }}>{t("warm.title", { load: fmt(offer.workingLoad) })}</AppText>
               {offer.sets.map((w, i) => (
-                <AppText key={i} style={{ fontSize: 18 }}>{t("warm.line", { load: fmt(w.load), reps: isolateLtr(String(w.reps)) })}</AppText>
+                <AppText key={i} style={{ fontSize: 18 }}>{fmt(w.load)} × {isolateLtr(String(w.reps))}</AppText>
               ))}
               <AppText style={{ color: p.muted, fontSize: 13 }}>{t("warm.note")}</AppText>
               <BigButton

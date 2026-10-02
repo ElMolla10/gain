@@ -165,3 +165,38 @@ describe("onboarding complete", () => {
     expect((await onboarding.getGoal())).toEqual({ kind: "muscle", muscle: "back" });
   });
 });
+
+import { buildProfile, emptyOnboardingForm, stepProblems } from "../src/logic/onboardingForm";
+
+describe("onboarding form", () => {
+  const filled = () => ({ ...emptyOnboardingForm("ar"), days: 4, minutes: 60, equipment: ["barbell" as const], goalKind: "lift" as const, goalExerciseId: "x", goalLoadText: "١٠٠", goalRepsText: "5", goalDateText: "2027-06-30" });
+  it("builds a profile from typed text, including Arabic digits", () => {
+    const r = buildProfile(filled(), NOW);
+    expect(r.problems).toEqual([]);
+    expect(r.profile).toMatchObject({ language: "ar", daysPerWeek: 4, sessionMinutes: 60, goal: { kind: "lift", targetLoad: 100, targetReps: 5, targetDate: "2027-06-30" }, heightCm: null, bodyweightKg: null });
+  });
+  it("an empty form is all gaps, never defaults", () => {
+    const r = buildProfile(emptyOnboardingForm("en"), NOW);
+    expect(r.profile).toBeNull();
+    expect(r.problems).toEqual(expect.arrayContaining(["days_bad", "minutes_bad", "no_equipment", "goal_missing"]));
+  });
+  it("junk in a number field is a problem, not zero", () => {
+    expect(buildProfile({ ...filled(), goalLoadText: "abc" }, NOW).problems).toContain("goal_load_bad");
+    expect(buildProfile({ ...filled(), goalRepsText: "5.5" }, NOW).problems).toContain("goal_reps_bad");
+    expect(buildProfile({ ...filled(), heightText: "tall" }, NOW).problems).toContain("height_bad");
+  });
+  it("a bodyweight goal needs the current bodyweight, a muscle goal needs a muscle", () => {
+    const bwGoal = { ...filled(), goalKind: "bodyweight" as const, goalWeightText: "78" };
+    expect(buildProfile(bwGoal, NOW).problems).toEqual(["bodyweight_required"]);
+    expect(buildProfile({ ...bwGoal, bodyweightText: "82" }, NOW).problems).toEqual([]);
+    expect(buildProfile({ ...filled(), goalKind: "muscle" }, NOW).problems).toContain("goal_muscle_missing");
+    expect(buildProfile({ ...filled(), goalKind: "muscle", goalMuscle: "back" }, NOW).profile!.goal).toEqual({ kind: "muscle", muscle: "back" });
+  });
+  it("only the current step's problems block it", () => {
+    const f = emptyOnboardingForm("en");
+    expect(stepProblems("language", f, NOW)).toEqual([]);
+    expect(stepProblems("basics", f, NOW).sort()).toEqual(["days_bad", "minutes_bad", "no_equipment"]);
+    expect(stepProblems("goal", f, NOW)).toEqual(["goal_missing"]);
+    expect(stepProblems("basics", { ...f, days: 3, minutes: 45, equipment: ["cable"] }, NOW)).toEqual([]);
+  });
+});

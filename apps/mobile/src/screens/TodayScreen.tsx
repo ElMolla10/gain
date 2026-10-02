@@ -12,6 +12,7 @@ type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["
 interface TodayData {
   dayId: string;
   programmeName: string;
+  isSample: boolean;
   dayName: string;
   exercises: DayExercises;
 }
@@ -30,7 +31,8 @@ export function TodayScreen() {
         const next = await repos.getNextDay();
         if (!next) return alive && setData(null);
         const exercises = await repos.listDayExercises(next.day.id);
-        if (alive) setData({ dayId: next.day.id, programmeName: next.programmeName, dayName: next.day.name, exercises });
+        const active = await repos.getLatestProgrammeVersion();
+        if (alive) setData({ dayId: next.day.id, programmeName: next.programmeName, isSample: active?.isSample ?? false, dayName: next.day.name, exercises });
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
@@ -93,7 +95,7 @@ export function TodayScreen() {
       </Card>
 
       <BigButton label={t("today.start")} onPress={() => navigation.navigate("Workout", { dayId: data.dayId })} />
-      <AppText style={{ color: p.muted, fontSize: 13 }}>{t("today.sampleNote")}</AppText>
+      {data.isSample ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("today.sampleNote")}</AppText> : null}
     </ScrollView>
   );
 }

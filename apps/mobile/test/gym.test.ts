@@ -74,8 +74,9 @@ describe("gym repo", () => {
     expect(await db.get("SELECT id FROM gym")).toBeNull();
   });
   it("keeps several gyms apart; only one is active", async () => {
-    const { gyms, repos } = await freshDb();
+    const { gyms, repos, deps } = await freshDb();
     const home = await gyms.createGym({ name: "Home", loads: rack });
+    deps.tick();
     const club = await gyms.createGym({ name: "Club", loads: [{ equipment: "dumbbell", loads: [5, 10, 40] }] });
     expect(await repos.getActiveGymId()).toBe(club);
     await gyms.setActiveGym(home);

@@ -4,6 +4,7 @@ import { arGym, enGym } from "./strings.gym";
 import { arImport, enImport } from "./strings.import";
 import { arOnboarding, enOnboarding } from "./strings.onboarding";
 import { arProgramme, enProgramme } from "./strings.programme";
+import { arWeekly, enWeekly } from "./strings.weekly";
 
 export const en = {
   "app.name": "GAIN",
@@ -157,6 +158,7 @@ export const en = {
   "why.missing": "No logged inputs were found for this target.",
   ...enGym,
   ...enGoals,
+  ...enWeekly,
   ...enProgramme,
   ...enOnboarding,
   ...enImport,
@@ -316,6 +318,7 @@ export const ar: Record<StringKey, string> = {
   "why.missing": "مفيش أرقام مسجلة للهدف ده.",
   ...arGym,
   ...arGoals,
+  ...arWeekly,
   ...arProgramme,
   ...arOnboarding,
   ...arImport,

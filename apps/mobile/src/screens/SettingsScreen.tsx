@@ -5,7 +5,8 @@ import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card } from "../ui";
+import { AppText, BigButton, Card, Chip } from "../ui";
+import type { StringKey } from "../i18n/strings";
 import Constants from "expo-constants";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
@@ -42,6 +43,27 @@ function CeilingsCard() {
   );
 }
 
+/** Which day the training week starts on (Monday by default). Decides the week the weekly review covers. */
+function WeekStartCard() {
+  const { t } = useI18n();
+  const { weekly } = useServices();
+  const [day, setDay] = useState<number | null>(null);
+  useEffect(() => {
+    void weekly.weekStartsOn().then(setDay);
+  }, [weekly]);
+  if (day === null) return null;
+  return (
+    <Card>
+      <AppText style={{ fontWeight: "700" }}>{t("weekly.settings.weekStart")}</AppText>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+        {[6, 0, 1, 2, 3, 4, 5].map((d) => (
+          <Chip key={d} label={t(`weekly.day.${d}` as StringKey)} selected={day === d} onPress={() => void weekly.setWeekStartsOn(d).then(() => setDay(d))} />
+        ))}
+      </View>
+    </Card>
+  );
+}
+
 export function SettingsScreen() {
   const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart, unit, setUnit } = useI18n();
   const p = usePalette();
@@ -68,6 +90,7 @@ export function SettingsScreen() {
         <BigButton label={t("settings.units.lb")} selected={unit === "lb"} onPress={() => setUnit("lb")} />
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("settings.units.note")}</AppText>
       </Card>
+      <WeekStartCard />
       <Card>
         <BigButton label={t("goals.entry")} selected={false} onPress={() => nav.navigate("Goals")} />
       </Card>

@@ -3,6 +3,7 @@ import React, { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
+import { WeeklyReviewCard } from "../components/WeeklyReviewCard";
 import { useServices } from "../AppContext";
 import { estimateMinutes, exerciseLabels, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
@@ -61,6 +62,7 @@ export function TodayScreen() {
           {t("app.name")}
         </AppText>
       </View>
+      <WeeklyReviewCard />
       <Card>
         <AppText style={{ color: p.muted }}>{t("today.next")}</AppText>
         <AppText style={{ fontSize: 30, fontWeight: "800" }}>{data.dayName}</AppText>

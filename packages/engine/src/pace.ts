@@ -14,6 +14,7 @@ import { epley, median } from "./line";
 
 const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
+export const DAY_MS_EXPORT = DAY_MS;
 
 /** rate / required rate at or above this is "ahead". */
 export const AHEAD_RATIO = 1.25;

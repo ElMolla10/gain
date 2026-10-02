@@ -268,6 +268,24 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     return { id, created: true, outlier };
   }
 
+  /**
+   * Log a planned warm-up ladder as warm-up sets. Ids are fixed per session, exercise and step, so a double tap or a
+   * retry after a crash adds nothing twice. Warm-ups skip the outlier check and never drive progression.
+   */
+  async function addWarmups(
+    sessionId: string,
+    exerciseId: string,
+    steps: { load: number; reps: number }[],
+    ctx: { gym: GymFingerprint; equipment: ExerciseSpec["equipment"]; setup: SetupType },
+  ): Promise<number> {
+    let added = 0;
+    for (const [i, s] of steps.entries()) {
+      const r = await logSet({ id: `${sessionId}:${exerciseId}:wu${i}`, sessionId, exerciseId, load: s.load, reps: s.reps, warmup: true }, ctx);
+      if (r.created) added++;
+    }
+    return added;
+  }
+
   async function setOutlierStatus(setId: string, status: Exclude<OutlierStatus, "none">): Promise<void> {
     const t = now();
     // "rejected" means: not right (typo / wrong plate). It is excluded from every calculation and hidden.
@@ -291,6 +309,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     loadRejectionMemory,
     liveProposal,
     logSet,
+    addWarmups,
     setOutlierStatus,
     deleteSet,
   };

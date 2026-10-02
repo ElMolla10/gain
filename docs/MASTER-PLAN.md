@@ -39,7 +39,7 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Exercise library + Arabic aliases | Partly | 20 sample exercises with **draft** Arabic names and aliases (never reviewed by a native Egyptian lifter), picker search by English or Arabic alias, custom exercises. No cues, setup text, demos. Library is far smaller than needed (**size of target library: decision**). |
 | History / trends | Done (unit-tested only) | History tab: sessions (imported labelled), lifts, session detail with edit / delete a set, trend per lift (top working set, plain bars, direction in words). Rules: [HISTORY-TREND.md](HISTORY-TREND.md). The measure is my default (**Mohamed to choose**). No chart library, no phone timing yet. |
 | Rest timer | Partly | In-app timer (end-time based, vibrates at zero). Not native: no lock-screen/notification timer, no sound. |
-| Warm-ups | Engine only | `generateWarmups` exists and is tested; no UI calls it. |
+| Warm-ups | Done (unit-tested only) | "Add warm-ups" in the logger: preview of the engine's ladder on gym-real loads, logged as warm-ups, once, never change the next target. Scheme is the engine default, **Mohamed to confirm** ([WARMUPS.md](WARMUPS.md)). Not run on a device. |
 | Notifications | Not started | No notification package installed. |
 | Export / delete | Not started | No export, no delete-all. Settings says "Everything is saved on this phone." |
 | Settings | Partly | Language, RTL override, rep ceilings, import, set-up-again, version. Unit switch kg/lb (v0.4.0, unit-tested only), no rest-time setting, no privacy page, no theme choice (follows system). |
@@ -136,7 +136,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** copyright on images/videos; slang varies by city.
 
 ### Step 9. Warm-ups UI
-- [ ] **Goal:** warm-up sets calculated from today's target on gym-real loads.
+- [x] (unit-tested only, NOT device-verified) **Goal:** warm-up sets calculated from today's target on gym-real loads.
 - **Deliver:** "Add warm-ups" in the logger using `generateWarmups`; logged as warm-ups; excluded from progression (already so).
 - **Done means:** 100 kg target with this rack gives loads that exist here; warm-ups never change the next target.
 - **Test:** existing engine tests + device.

@@ -9,6 +9,7 @@ import type { SetRow } from "../db/workoutRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
+import { warmupOffer } from "../logic/warmups";
 import { canLog, initialDraft, repeatLast, RIR_CHOICES, stepLoad, stepReps, type SetDraft } from "../logic/draft";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { space, usePalette } from "../theme";
@@ -75,6 +76,8 @@ export function WorkoutScreen() {
   const [draft, setDraft] = useState<SetDraft>({ load: null, reps: null, rir: null, warmup: false });
   const [draftId, setDraftId] = useState(() => Crypto.randomUUID());
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [warmOpen, setWarmOpen] = useState(false);
+  const [warmDone, setWarmDone] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
   const [timer, setTimer] = useState<RestTimer>(() => newTimer());
@@ -143,6 +146,7 @@ export function WorkoutScreen() {
       }),
     );
     setDraftId(Crypto.randomUUID());
+    setWarmOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ex?.exerciseId, lastSetKey, info]);
 
@@ -180,6 +184,8 @@ export function WorkoutScreen() {
     : null;
   const stepSetup = ex.setup;
   const loadStep = (dir: 1 | -1) => setDraft((d) => ({ ...d, load: stepLoad(spec, d.load, dir, stepSetup, unit).load }));
+  const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
+  const offer = warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length });
   const timerRunning = timer.endsAt !== null;
   const last = repeatLast(exSets.map((s) => ({ load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup })));
 
@@ -248,6 +254,38 @@ export function WorkoutScreen() {
       ) : null}
 
       <Card>
+        {offer.kind === "offer" ? (
+          warmOpen ? (
+            <View style={{ gap: space.sm }}>
+              <AppText style={{ fontWeight: "700" }}>{t("warm.title", { load: fmt(offer.workingLoad) })}</AppText>
+              {offer.sets.map((w, i) => (
+                <AppText key={i} style={{ fontSize: 18 }}>{t("warm.line", { load: fmt(w.load), reps: isolateLtr(String(w.reps)) })}</AppText>
+              ))}
+              <AppText style={{ color: p.muted, fontSize: 13 }}>{t("warm.note")}</AppText>
+              <BigButton
+                label={t("warm.confirm")}
+                disabled={saving}
+                onPress={async () => {
+                  setSaving(true);
+                  try {
+                    await workout.addWarmups(loaded.sessionId, ex.exerciseId, offer.sets, { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup });
+                    setSets(await workout.listSessionSets(loaded.sessionId));
+                    setWarmOpen(false);
+                    setWarmDone(ex.exerciseId);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              />
+              <BigButton label={t("warm.cancel")} selected={false} onPress={() => setWarmOpen(false)} />
+            </View>
+          ) : (
+            <BigButton label={t("warm.add")} selected={false} onPress={() => setWarmOpen(true)} />
+          )
+        ) : warmDone === ex.exerciseId ? null : exSets.length === 0 && offer.reason !== "already_started" ? (
+          <AppText style={{ color: p.muted, fontSize: 13 }}>{t(`warm.none.${offer.reason}` as never)}</AppText>
+        ) : null}
+        {warmDone === ex.exerciseId ? <AppText style={{ color: p.muted }}>✓ {t("warm.added")}</AppText> : null}
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 1 }}>
             <BigButton label={t("workout.working")} selected={!draft.warmup} onPress={() => setDraft((d) => ({ ...d, warmup: false }))} />

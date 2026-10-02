@@ -1,4 +1,5 @@
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
+import { arDecisions, enDecisions } from "./strings.decisions";
 import { arGoals, enGoals } from "./strings.goals";
 import { arGym, enGym } from "./strings.gym";
 import { arHistory, enHistory } from "./strings.history";
@@ -159,12 +160,14 @@ export const en = {
   "why.blocked": "will not be proposed",
   "why.notBlocked": "still allowed",
   "why.missing": "No logged inputs were found for this target.",
+  "why.oldFormat": "The stored inputs are in a format this version cannot show in full. The sentence and rule version above are what was stored.",
   ...enGym,
   ...enGoals,
   ...enWeekly,
   ...enShortWeek,
   ...enStop,
   ...enHistory,
+  ...enDecisions,
   ...enProgramme,
   ...enOnboarding,
   ...enImport,
@@ -322,12 +325,14 @@ export const ar: Record<StringKey, string> = {
   "why.blocked": "مش هتتقترح تاني",
   "why.notBlocked": "لسه مسموحة",
   "why.missing": "مفيش أرقام مسجلة للهدف ده.",
+  "why.oldFormat": "الأرقام المخزنة بصيغة النسخة دي مش قادرة تعرضها كاملة. الجملة ونسخة القاعدة فوق هما اللي اتخزنوا.",
   ...arGym,
   ...arGoals,
   ...arWeekly,
   ...arShortWeek,
   ...arStop,
   ...arHistory,
+  ...arDecisions,
   ...arProgramme,
   ...arOnboarding,
   ...arImport,

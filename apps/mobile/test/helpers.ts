@@ -8,6 +8,7 @@ import { createOnboardingRepo } from "../src/db/onboardingRepo";
 import { createProgrammeRepo } from "../src/db/programmeRepo";
 import { createRepos } from "../src/db/repos";
 import { createFinishRepo } from "../src/db/finishRepo";
+import { createDecisionRepo } from "../src/db/decisionRepo";
 import { createHistoryRepo } from "../src/db/historyRepo";
 import { createRejectionRepo } from "../src/db/rejectionRepo";
 import { createShortWeekRepo } from "../src/db/shortWeekRepo";
@@ -36,5 +37,6 @@ export async function freshDb() {
   const shortWeek = createShortWeekRepo(db, deps, repos, programmes, goals);
   const rejections = createRejectionRepo(db, deps);
   const history = createHistoryRepo(db, deps, repos, finish);
-  return { db, deps, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history };
+  const decisions = createDecisionRepo(db);
+  return { db, deps, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions };
 }

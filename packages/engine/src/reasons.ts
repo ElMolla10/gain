@@ -83,6 +83,8 @@ export const qualityNames: Record<Locale, Record<string, string>> = {
 /** Turn a reason key + params into a sentence. Unknown params are left visible as {name} rather than hidden. */
 export function renderReason(reason: ReasonText, locale: Locale = "en"): string {
   let tpl = templates[locale][reason.key];
+  // A decision stored under an older (or newer) rule version may use a key this build does not know: show it, never crash.
+  if (tpl === undefined) return `${reason.key}${Object.keys(reason.params).length ? ` (${Object.entries(reason.params).map(([k, v]) => `${k}=${String(v)}`).join(", ")})` : ""}`;
   if (reason.key === "reps_in_range" && reason.params.nextLoad === undefined) tpl = withoutNext[locale];
   return tpl.replace(/\{(\w+)\}/g, (m, name: string) => {
     const v = reason.params[name];

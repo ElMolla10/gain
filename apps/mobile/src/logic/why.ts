@@ -90,3 +90,31 @@ export function describeDecision(
   }
   return out;
 }
+
+/**
+ * Like `describeDecision`, but a stored decision from an older (or newer) rule version whose inputs this build cannot
+ * read still shows something true: the stored sentence, the rule version and path, and a note. It never throws.
+ */
+export function describeDecisionSafe(
+  payload: DecisionPayload | null | undefined,
+  meta: { ruleVersion: string; path: string; reason: ReasonText },
+  L: (k: string, params?: Record<string, string | number>) => string,
+  locale: Locale,
+  unit: Unit = "kg",
+): WhySection[] {
+  try {
+    if (payload) return describeDecision(payload, { ruleVersion: meta.ruleVersion, path: meta.path }, L, locale, unit);
+  } catch {
+    // fall through to the stored-sentence view
+  }
+  let sentence: string;
+  try {
+    sentence = renderReason(localizeReason(meta.reason, unit, locale), locale);
+  } catch {
+    sentence = meta.reason.key;
+  }
+  return [
+    { title: L("why.sentence"), lines: [sentence] },
+    { title: L("why.rule"), lines: [L("why.ruleVersion", { version: meta.ruleVersion, path: meta.path }), L("why.oldFormat")] },
+  ];
+}

@@ -45,7 +45,7 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Settings | Partly | Language, RTL override, rep ceilings, import, set-up-again, version. Unit switch kg/lb (v0.4.0, unit-tested only), no rest-time setting, no privacy page, no theme choice (follows system). |
 | Dark mode / RTL | Partly | Dark palette follows system; RTL flips via `direction`. Arabic strings are drafts. Not checked on device. |
 | Coach card | Not started | |
-| Decision log screen | Partly | `decision_log` stored for every target; only per-target Why screen. No list of past decisions. |
+| Decision log screen | Done (unit-tested only) | Settings > Decision log (and a button in History): every stored decision with lift, gym, suggested number, what you did, sentence, rule version, path; filter by lift; tap for the stored inputs. Old/unknown rule formats fall back to the stored sentence. [DECISION-LOG.md](DECISION-LOG.md). Not run on a device. |
 | Backend / sync | Not started | No server. Rows already have UUIDs, `updated_at`, `deleted_at`. |
 | Shared gyms | Not started | |
 | Subscription / paywall | Not started | Nothing is gated. |
@@ -118,7 +118,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** chart library weight on low-end phones; RTL axis labels.
 
 ### Step 7. Decision log screen
-- [ ] **Goal:** "Why this weight?" for any past decision.
+- [x] (unit-tested only, NOT device-verified) **Goal:** "Why this weight?" for any past decision.
 - **Deliver:** list of decisions per lift/date with inputs, rule version, path (rule or model), user action; filter by lift.
 - **Done means:** any shown target traces to its stored inputs.
 - **Test:** logic tests; device.

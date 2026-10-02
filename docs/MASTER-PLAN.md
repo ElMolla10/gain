@@ -12,7 +12,7 @@ Conventions: `[ ]` open, `[x]` done. Sizes are S (days), M (1-2 weeks), L (sever
 2. [x] **Step 2: goals + pace (two clocks)** (in v0.5.0, unit-tested only, NOT device-verified; PR #25). Goals screen, weigh-ins, pace from the lifter's logs, one line on Today. Rules: [PACE-RULES.md](PACE-RULES.md).
 3. [x] **Step 3: weekly one-decision review** (PR #27, rules in [WEEKLY-RULES.md](WEEKLY-RULES.md)) and **Step 4: short-week rebuild** (PR #28, rules in [SHORT-WEEK-RULES.md](SHORT-WEEK-RULES.md)). Both in v0.5.0, unit-tested only, NOT device-verified.
 4. [x] **Steps 5-7: make the trust surfaces visible** (PRs #30, #31, #32; Step 9 warm-ups #33 in the same release v0.6.0): outlier confirm kept honest, rejection memory shown and undoable, history + trend per lift, decision-log screen. Unit-tested only, NOT device-verified.
-5. [ ] **Step 12 early: export and delete my data.** Needed before any other person installs the app (Step 20 pilot).
+5. [x] **Step 12 early: export and delete my data** (done, unit-tested only; docs/DATA-EXPORT.md). Needed before any other person installs the app (Step 20 pilot).
 
 Rule for all steps: no step is "done" until it was run on a device (or is explicitly marked "unit-tested only").
 
@@ -41,7 +41,7 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Rest timer | Partly | In-app timer (end-time based, vibrates at zero). Not native: no lock-screen/notification timer, no sound. |
 | Warm-ups | Done (unit-tested only) | "Add warm-ups" in the logger: preview of the engine's ladder on gym-real loads, logged as warm-ups, once, never change the next target. Scheme is the engine default, **Mohamed to confirm** ([WARMUPS.md](WARMUPS.md)). Not run on a device. |
 | Notifications | Not started | No notification package installed. |
-| Export / delete | Not started | No export, no delete-all. Settings says "Everything is saved on this phone." |
+| Export / delete | Done (unit-tested only) | Settings > Your data: JSON backup, CSV of sets in Hevy columns (re-imports), restore (checked, all-or-nothing, replaces), delete everything (back to first run). Share sheet / picker not run on a phone. Android auto-backup still on: **Mohamed to decide** ([DATA-EXPORT.md](DATA-EXPORT.md)). |
 | Settings | Partly | Language, RTL override, rep ceilings, import, set-up-again, version. Unit switch kg/lb (v0.4.0, unit-tested only), no rest-time setting, no privacy page, no theme choice (follows system). |
 | Dark mode / RTL | Partly | Dark palette follows system; RTL flips via `direction`. Arabic strings are drafts. Not checked on device. |
 | Coach card | Not started | |
@@ -164,7 +164,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** snapping in lb vs kg can produce loads that don't exist; this is the hard part.
 
 ### Step 12. Export and delete my data
-- [ ] **Goal:** the user owns the data.
+- [x] (unit-tested only, NOT device-verified; share sheet and file picker never run on a phone) **Goal:** the user owns the data.
 - **Deliver:** export all data (JSON + CSV of sets, readable by Excel and re-importable), share sheet; delete-everything with confirm; Settings copy updated; wipes local DB (and server data once Step 21 exists).
 - **Done means:** export then wipe then re-import restores sessions and targets; after delete, the app returns to first run.
 - **Test:** round-trip tests; device test on a large history.
@@ -360,6 +360,7 @@ Pilot (v0.9) deliberately comes before backend and paywall: it tests the promise
 | D8 | Who can edit a shared gym? | Creator edits; others copy. |
 | D9 | Billing library? | Decide at Step 24 after checking Egypt payment options. |
 | D10 | Do the rep ceilings 10/12/15 and one-session trigger stay default after the trainer review? | Keep until the trainer and pilot say otherwise. |
+| D11 | Android auto-backup of the app database (currently on, the Expo default): leave on or turn off? | Default: leave on until the privacy policy (Step 17); the delete screen says it exists. |
 
 ---
 

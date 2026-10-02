@@ -68,7 +68,7 @@ export function SettingsScreen() {
   const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart, unit, setUnit } = useI18n();
   const p = usePalette();
   const version = Constants.expoConfig?.version ?? "0";
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data") => void }>();
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <Card>
@@ -93,6 +93,7 @@ export function SettingsScreen() {
       <WeekStartCard />
       <Card>
         <BigButton label={t("goals.entry")} selected={false} onPress={() => nav.navigate("Goals")} />
+        <BigButton label={t("data.entry")} selected={false} onPress={() => nav.navigate("Data")} />
         <BigButton label={t("dec.entry")} selected={false} onPress={() => nav.navigate("DecisionLog")} />
         <BigButton label={t("stop.entry")} selected={false} onPress={() => nav.navigate("StoppedSuggestions")} />
       </Card>

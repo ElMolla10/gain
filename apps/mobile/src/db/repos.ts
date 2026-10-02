@@ -164,7 +164,7 @@ export function createRepos(db: Db, deps: Deps) {
     const r = await db.get<{ id: string; pid: string; name: string; version: number; is_sample: number }>(
       `SELECT pv.id AS id, p.id AS pid, p.name AS name, pv.version AS version, p.is_sample AS is_sample
        FROM programme_version pv JOIN programme p ON p.id = pv.programme_id
-       WHERE pv.deleted_at IS NULL AND p.deleted_at IS NULL ${activeId ? "AND p.id = ?" : ""}
+       WHERE pv.deleted_at IS NULL AND p.deleted_at IS NULL AND p.kind = 'user' ${activeId ? "AND p.id = ?" : ""}
        ORDER BY p.created_at, pv.version DESC LIMIT 1`,
       activeId ? [activeId] : [],
     );

@@ -50,7 +50,7 @@ export function createOnboardingRepo(db: Db, deps: Deps, repos: Repos, gyms: Gym
     if ((await getState()) !== null) return false;
     const s = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM session WHERE status = 'finished' AND deleted_at IS NULL");
     const g = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM gym WHERE is_sample = 0 AND deleted_at IS NULL");
-    const p = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM programme WHERE is_sample = 0 AND deleted_at IS NULL");
+    const p = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM programme WHERE is_sample = 0 AND kind = 'user' AND deleted_at IS NULL");
     if (Number(s?.n) + Number(g?.n) + Number(p?.n) === 0) return false;
     await skip();
     return true;

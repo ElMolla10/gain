@@ -194,6 +194,40 @@ CREATE UNIQUE INDEX rejection_memory_unique ON rejection_memory(line_id, jump_ki
     // NULL = use the default for the kind of lift (10 upper, 12 legs, 15 lateral raises, or the lifter's edited defaults).
     sql: `ALTER TABLE programme_day_exercise ADD COLUMN rep_ceiling INTEGER CHECK (rep_ceiling IS NULL OR (rep_ceiling >= 1 AND rep_ceiling <= 100));`,
   },
+  {
+    version: 3,
+    name: "history import",
+    sql: `
+-- 'import_history' is a hidden programme that only holds imported sessions (sessions need a programme day). It is never listed,
+-- never active and never planned from.
+ALTER TABLE programme ADD COLUMN kind TEXT NOT NULL DEFAULT 'user' CHECK (kind IN ('user','import_history'));
+
+CREATE TABLE import_batch (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL CHECK (source IN ('hevy','strong')),
+  file_name TEXT,
+  gym_id TEXT NOT NULL REFERENCES gym(id),
+  workouts INTEGER NOT NULL,
+  sets INTEGER NOT NULL,
+  ${TS}
+);
+
+-- The lifter's answer to "which exercise is this title?", remembered per source so a second file does not ask again.
+CREATE TABLE import_mapping (
+  id TEXT PRIMARY KEY,
+  source TEXT NOT NULL CHECK (source IN ('hevy','strong')),
+  source_title TEXT NOT NULL,
+  exercise_id TEXT NOT NULL REFERENCES exercise(id),
+  ${TS}
+);
+CREATE UNIQUE INDEX import_mapping_unique ON import_mapping(source, source_title) WHERE deleted_at IS NULL;
+
+-- source|start|title of the workout: importing the same file twice finds the key and adds nothing.
+ALTER TABLE session ADD COLUMN import_key TEXT;
+ALTER TABLE session ADD COLUMN import_batch_id TEXT REFERENCES import_batch(id);
+CREATE UNIQUE INDEX session_import_key ON session(import_key) WHERE import_key IS NOT NULL AND deleted_at IS NULL;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

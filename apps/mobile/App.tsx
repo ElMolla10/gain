@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { DarkTheme, DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from "@react-navigation/native";
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo, useState } from "react";
@@ -20,6 +20,7 @@ import { WorkoutScreen } from "./src/screens/WorkoutScreen";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { I18nProvider, useI18n } from "./src/i18n";
 import type { Lang, RtlOverride } from "./src/i18n/format";
+import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { GymEditScreen } from "./src/screens/GymEditScreen";
 import { GymScreen } from "./src/screens/GymScreen";
 import { ProgrammeEditScreen } from "./src/screens/ProgrammeEditScreen";
@@ -42,9 +43,22 @@ function Tabs() {
   );
 }
 
-function Shell() {
+function SetupRoute() {
+  const nav = useNavigation<{ goBack: () => void }>();
+  return <OnboardingScreen rerun onDone={() => nav.goBack()} />;
+}
+
+function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   const { t, direction } = useI18n();
   const scheme = useColorScheme();
+  if (props.needsOnboarding) {
+    return (
+      <View style={{ flex: 1, direction }}>
+        <OnboardingScreen onDone={props.onOnboarded} />
+        <StatusBar style="auto" />
+      </View>
+    );
+  }
   return (
     // `direction` on the root flips every flex row and the navigation chrome at once, without restarting the app.
     <View style={{ flex: 1, direction }}>
@@ -55,6 +69,7 @@ function Shell() {
           <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false }} />
           <Stack.Screen name="ProgrammeEdit" component={ProgrammeEditScreen} options={{ title: t("prog.edit.title") }} />
           <Stack.Screen name="GymEdit" component={GymEditScreen} options={{ title: t("gym.edit.title") }} />
+          <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
         </Stack.Navigator>
       </NavigationContainer>
@@ -64,7 +79,7 @@ function Shell() {
 }
 
 export default function App() {
-  const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride } | "error" | null>(null);
+  const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; needsOnboarding: boolean } | "error" | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -79,7 +94,7 @@ export default function App() {
       const programmes = createProgrammeRepo(db, deps, repos, finish);
       const onboarding = createOnboardingRepo(db, deps, repos, gyms, programmes);
       await onboarding.markExistingInstall();
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch(() => setBoot("error"));
   }, []);
 
@@ -97,7 +112,7 @@ export default function App() {
     <SafeAreaProvider>
       <ServicesProvider value={boot.services}>
         <I18nProvider initialLang={boot.lang} initialOverride={boot.override} onChange={onChange}>
-          <Shell />
+          <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" ? { ...b, needsOnboarding: false } : b))} />
         </I18nProvider>
       </ServicesProvider>
     </SafeAreaProvider>

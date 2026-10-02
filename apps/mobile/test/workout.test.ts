@@ -169,8 +169,8 @@ describe("history, last performance and the live target", () => {
   });
   it("three finished sessions give a high-confidence target from real loads", async () => {
     const { finished, workout, spec, gym } = await setup();
-    await finished([[60, 8], [60, 8], [60, 8]]);
     await finished([[60, 9], [60, 9], [60, 9]]);
+    await finished([[60, 10], [60, 10], [60, 10]]);
     await finished([[60, 10], [60, 10], [60, 10]]);
     const { proposal } = await workout.liveProposal(spec, gym);
     expect(proposal.confidence).toBe("high");

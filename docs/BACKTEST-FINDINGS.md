@@ -12,3 +12,5 @@ What it showed (agreement with what he did, not proof of correctness):
 5. The effort currency never fired (no RPE in the export). Quality fired 15 times.
 
 Candidate changes for rule-v0.2 (not done here; rules are versioned and need review): anchor on the best/median set at the top load instead of the minimum, make step-down need a bigger miss or three sessions, and let the user set the rep range per lift (the biggest lever in the table).
+
+> Update: rule-v0.2 replaced the "tune to his behaviour" idea above with published progression models. See docs/PROGRESSION-RULES.md. Numbers for v0.2 are in docs/BACKTEST-HEVY.md.

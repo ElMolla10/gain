@@ -218,16 +218,17 @@ describe("top of the range: effort, then quality, then load", () => {
 });
 
 describe("repeated misses", () => {
-  it("two sessions below the range at the same load step the load down one real step", () => {
-    const p = P({ history: run(dbLine, 30, [10, 6, 6]) });
+  it("three sessions below the range at the same load step the load down one real step", () => {
+    const p = P({ history: run(dbLine, 30, [6, 6, 6]) });
     expect(p.reason.key).toBe("step_down");
     expect(p.load).toBe(27.5);
     expect(p.reps).toBe(8);
     expect(p.currency).toBe("load");
     expect(p.jumpKind).toBe("load:easier:2.5");
   });
-  it("one miss alone is not a step down", () => {
+  it("one or two misses alone are not a step down (v0.2 asks for more evidence)", () => {
     expect(P({ history: run(dbLine, 30, [10, 10, 6]) }).currency).toBe("reps");
+    expect(P({ history: run(dbLine, 30, [10, 6, 6]) }).reason.key).toBe("reps_rebuild");
   });
   it("misses at different loads are not counted together", () => {
     const h = [session(dbLine, "2026-09-26", sets(32.5, 10)), session(dbLine, "2026-09-28", sets(32.5, 6)), session(dbLine, "2026-09-30", sets(30, 6))];
@@ -295,7 +296,7 @@ describe("rejection memory in the proposal", () => {
 });
 
 describe("what does not drive the target", () => {
-  const base = run(dbLine, 30, [10, 10, 10]);
+  const base = run(dbLine, 30, [9, 10, 10]);
   const withNewest = (newest: HistorySession) => [...base, newest];
   it("an unconfirmed outlier does NOT move the next target, and lowers confidence", () => {
     const p = P({ history: withNewest(session(dbLine, "2026-10-01", sets(40, 10, 3, { outlierStatus: "unconfirmed" }))) });
@@ -407,7 +408,7 @@ describe("assisted and bodyweight lines", () => {
 describe("result shape", () => {
   it("carries rule version, inputs, reason key + params and is JSON-safe", () => {
     const p = P({ history: run(dbLine, 30, [10, 10, 11]) });
-    expect(p.ruleVersion).toBe("rule-v0.1");
+    expect(p.ruleVersion).toBe("rule-v0.2");
     expect(p.reason.key).toBe("reps_in_range");
     expect(p.reason.params).toMatchObject({ load: 30, reps: 12, nextLoad: 32.5, equipment: "dumbbell" });
     expect(p.inputs.sessions[0]).toMatchObject({ topLoad: 30, repsAtTop: 11 });

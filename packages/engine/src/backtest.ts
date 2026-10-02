@@ -1,6 +1,7 @@
 import { equipmentFromTitle, toLoggedSets, type HevyWorkout } from "./hevy";
+import { bodyRegionFromTitle } from "./policy";
 import { proposeNext } from "./progression";
-import type { Currency, EquipmentType, ExerciseSpec, GymFingerprint, HistorySession, LineIdentity, RepRange } from "./types";
+import type { Currency, EquipmentType, ExerciseSpec, GymFingerprint, HistorySession, LiftProgressionConfig, LineIdentity, RepRange } from "./types";
 
 /**
  * Walk-forward check of the rule against a lifter's own history: for each session of a lift, propose from everything
@@ -118,6 +119,8 @@ export interface BacktestOptions {
   /** Only lifts with at least this many sessions are evaluated. */
   minSessions: number;
   gymId?: string;
+  /** Policy applied to every lift (preset / trigger / increment / stall). Body region is inferred from the exercise title. */
+  progression?: LiftProgressionConfig;
 }
 
 export function backtest(workouts: HevyWorkout[], opts: BacktestOptions): { outcomes: Outcome[]; grids: InferredGrid[]; skipped: { title: string; reason: string }[] } {
@@ -139,6 +142,8 @@ export function backtest(workouts: HevyWorkout[], opts: BacktestOptions): { outc
       equipment: setup === "bodyweight_plus_added" ? "plate" : equipment,
       setup,
       repRange: opts.repRange,
+      bodyRegion: bodyRegionFromTitle(s.title),
+      progression: opts.progression,
     };
     const line: LineIdentity = { exerciseId: s.title, gymId, setup };
     const hist: HistorySession[] = [];
@@ -187,6 +192,16 @@ export interface Summary {
   proposedBelow: number;
   /** Baseline: "same load as last time" matches the lifter this often. */
   repeatLoadBaseline: number;
+  /** Times the rule proposed a heavier load than last session / times the lifter actually used one. */
+  proposedUp: number;
+  actualUp: number;
+  /** Rule held or lowered the load while the lifter went up (rule more conservative). */
+  ruleConservative: number;
+  /** Rule raised the load while the lifter stayed or went down (rule more aggressive). */
+  ruleAggressive: number;
+  /** Proposed a lower load than last session. */
+  proposedDown: number;
+  actualDown: number;
 }
 
 export function summarize(os: Outcome[]): Summary {
@@ -201,5 +216,11 @@ export function summarize(os: Outcome[]): Summary {
     proposedAbove: c((o) => o.proposedLoad! > o.actualLoad! + 1e-6),
     proposedBelow: c((o) => o.proposedLoad! < o.actualLoad! - 1e-6),
     repeatLoadBaseline: c((o) => o.sameAsLastLoad),
+    proposedUp: c((o) => o.direction === "up"),
+    actualUp: c((o) => o.actualDirection === "up"),
+    ruleConservative: c((o) => o.direction !== "up" && o.actualDirection === "up"),
+    ruleAggressive: c((o) => o.direction === "up" && o.actualDirection !== "up"),
+    proposedDown: c((o) => o.direction === "down"),
+    actualDown: c((o) => o.actualDirection === "down"),
   };
 }

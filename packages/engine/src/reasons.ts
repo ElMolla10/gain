@@ -15,7 +15,11 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
       "Stay at {load} {unit} for {reps}, but aim to leave {rir} in reserve. The next {equipment} is {nextLoad}, a big jump.",
     quality_change: "Stay at {load} {unit} for {reps}, with {quality}. The next {equipment} is {nextLoad}, a big jump.",
     load_up: "Go up to {load} {unit} for {reps}. You hit {lastReps} at {prevLoad} {unit}.",
-    step_down: "Go down to {load} {unit} for {reps}. Two sessions in a row were below {lo} reps at {prevLoad} {unit}.",
+    step_down: "Go down to {load} {unit} for {reps}. {misses} sessions in a row were below {lo} reps at {prevLoad} {unit}.",
+    stall_deload:
+      "Go down to {load} {unit} for {reps}, about {pct}% lighter. {sessions} sessions at {prevLoad} {unit} without more reps: a lighter week, then build again.",
+    confirm_top_of_range:
+      "Stay at {load} {unit} and repeat {reps}. That is {have} of {need} sessions at the top; the next one earns more load.",
     hold_jump_declined:
       "Stay at {load} {unit} for {reps}. You have declined the jump to {nextLoad} {unit} {count} times, so it will not be proposed again.",
     hold_no_heavier_load: "Stay at {load} {unit} for {reps}. There is no heavier {equipment} in this gym.",
@@ -35,7 +39,9 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
       "ابقَ على {load} {unit} لـ{reps}، بس سيب {rir} عدّات في الاحتياطي. الـ{equipment} اللي بعده {nextLoad}، قفزة كبيرة.",
     quality_change: "ابقَ على {load} {unit} لـ{reps}، مع {quality}. الـ{equipment} اللي بعده {nextLoad}، قفزة كبيرة.",
     load_up: "ارفع لـ{load} {unit} لـ{reps}. عملت {lastReps} على {prevLoad} {unit}.",
-    step_down: "انزل لـ{load} {unit} لـ{reps}. آخر جلستين كانوا أقل من {lo} عدّات على {prevLoad} {unit}.",
+    step_down: "انزل لـ{load} {unit} لـ{reps}. آخر {misses} جلسات كانوا أقل من {lo} عدّات على {prevLoad} {unit}.",
+    stall_deload: "انزل لـ{load} {unit} لـ{reps}، أخف بحوالي {pct}%. {sessions} جلسات على {prevLoad} {unit} من غير عدّات زيادة: أسبوع أخف وبعدها نبني تاني.",
+    confirm_top_of_range: "ابقَ على {load} {unit} وكرّر {reps}. دي {have} من {need} جلسات في القمة، والجاية تستاهل وزن أكتر.",
     hold_jump_declined: "ابقَ على {load} {unit} لـ{reps}. رفضت القفزة لـ{nextLoad} {unit} {count} مرات، فمش هقترحها تاني.",
     hold_no_heavier_load: "ابقَ على {load} {unit} لـ{reps}. مفيش {equipment} أتقل في الجيم ده.",
     hold_assisted_floor: "ابقَ على مساعدة {load} {unit} وكمّل حاول تعمل {reps}. دي أقل مساعدة في الجهاز ده.",

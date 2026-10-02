@@ -18,7 +18,7 @@ async function benchDecision() {
       const exs = await ctx.repos.listDayExercises(next.day.id);
       const { id } = await ctx.workout.startOrResumeSession(next.day.id, gymId);
       const ex = exs[0]!;
-      const reps = 8 + r;
+      const reps = r === 0 ? 9 : 10;
       const sets = d === 0 ? [[60, reps], [60, reps], [60, reps]] : [[50, 10]];
       for (const [load, rp] of sets) await ctx.workout.logSet({ sessionId: id, exerciseId: ex.exerciseId, load: load!, reps: rp! }, { gym, equipment: ex.equipment, setup: ex.setup });
       ctx.deps.tick(1000);
@@ -44,7 +44,7 @@ describe("Why this weight? shows the logged inputs", () => {
     expect(sections[1]!.lines).toHaveLength(3);
     expect(clean(sections[2]!.lines.join(" "))).toContain("62.5");
     expect(clean(sections[2]!.lines.join(" "))).toContain("2.5");
-    expect(sections[4]!.lines.join(" ")).toContain("rule-v0.1");
+    expect(sections[4]!.lines.join(" ")).toContain("rule-v0.2");
     expect(sections[4]!.lines.join(" ")).toContain("the next real load");
   });
   it("renders in Arabic too, without leftover placeholders", async () => {

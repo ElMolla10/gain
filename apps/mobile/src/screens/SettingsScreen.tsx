@@ -43,7 +43,7 @@ function CeilingsCard() {
 }
 
 export function SettingsScreen() {
-  const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart } = useI18n();
+  const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart, unit, setUnit } = useI18n();
   const p = usePalette();
   const version = Constants.expoConfig?.version ?? "0";
   const nav = useNavigation<{ navigate: (n: "Setup" | "Import") => void }>();
@@ -64,7 +64,9 @@ export function SettingsScreen() {
       <CeilingsCard />
       <Card>
         <AppText style={{ fontWeight: "700" }}>{t("settings.units")}</AppText>
-        <AppText>{t("settings.units.kg")}</AppText>
+        <BigButton label={t("settings.units.kg")} selected={unit === "kg"} onPress={() => setUnit("kg")} />
+        <BigButton label={t("settings.units.lb")} selected={unit === "lb"} onPress={() => setUnit("lb")} />
+        <AppText style={{ color: p.muted, fontSize: 13 }}>{t("settings.units.note")}</AppText>
       </Card>
       <Card>
         <BigButton label={t("import.entry")} selected={false} onPress={() => nav.navigate("Import")} />

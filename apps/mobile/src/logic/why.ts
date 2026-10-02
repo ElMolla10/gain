@@ -1,4 +1,5 @@
 import { renderReason, type DecisionInputs, type Locale, type ReasonText } from "@gain/engine";
+import { localizeReason, unitLabel, weightText, type Unit } from "./units";
 
 export interface DecisionPayload {
   proposal: {
@@ -27,10 +28,13 @@ export function describeDecision(
   meta: { ruleVersion: string; path: string },
   L: (k: string, params?: Record<string, string | number>) => string,
   locale: Locale,
+  unit: Unit = "kg",
 ): WhySection[] {
+  /** A kilogram weight as "62.5 kg" / "137.8 lb" in the lifter's unit. The engine and the stored decision stay in kilograms. */
+  const W = (kg: number): string => `${weightText(kg, unit)} ${unitLabel(unit, locale)}`;
   const { proposal: p, inputs: i } = payload;
   const out: WhySection[] = [];
-  out.push({ title: L("why.sentence"), lines: [renderReason(p.reason, locale)] });
+  out.push({ title: L("why.sentence"), lines: [renderReason(localizeReason(p.reason, unit, locale), locale)] });
 
   out.push({
     title: L("why.observed"),
@@ -40,7 +44,7 @@ export function describeDecision(
         : i.sessions.map((s) =>
             L("why.session", {
               date: s.performedAt.slice(0, 10),
-              load: s.topLoad,
+              load: W(s.topLoad),
               reps: s.repsAtTop,
               sets: s.setsAtTop,
               effort: s.rir === null ? L("why.effortNone") : String(s.rir),
@@ -50,8 +54,8 @@ export function describeDecision(
 
   const g = i.gym;
   const gymLines: string[] = [];
-  if (g.anchorLoad !== null) gymLines.push(L("why.anchor", { load: g.anchorLoad, onGym: g.anchorOnGymLoads ? L("why.yes") : L("why.no") }));
-  gymLines.push(g.nextHarderLoad !== null ? L("why.nextLoad", { load: g.nextHarderLoad, jump: g.jump ?? 0 }) : L("why.noNextLoad"));
+  if (g.anchorLoad !== null) gymLines.push(L("why.anchor", { load: W(g.anchorLoad), onGym: g.anchorOnGymLoads ? L("why.yes") : L("why.no") }));
+  gymLines.push(g.nextHarderLoad !== null ? L("why.nextLoad", { load: W(g.nextHarderLoad), jump: W(g.jump ?? 0) }) : L("why.noNextLoad"));
   if (g.jumpTooBig !== null) {
     const pct = Math.round((g.jumpRatio ?? 0) * 1000) / 10;
     const max = Math.round(g.maxJumpRatio * 100);

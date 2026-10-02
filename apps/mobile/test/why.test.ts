@@ -92,3 +92,19 @@ describe("Why screen: an oversized step", () => {
     expect(text("quality")).toContain("other ways to progress come first");
   });
 });
+
+describe("Why this weight? in pounds", () => {
+  it("shows the same facts in lb: the sentence, the sessions and the gym's next load", async () => {
+    const { d } = await benchDecision();
+    const sections = describeDecision(d.payload as DecisionPayload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en", "lb");
+    expect(sections[0]!.lines[0]).toContain("Go up to 137.8 lb");
+    expect(clean(sections[1]!.lines[0]!)).toContain("132.3 lb × 10");
+    expect(clean(sections[2]!.lines.join(" "))).toContain("137.8 lb");
+    expect(clean(sections.flatMap((x) => x.lines).join(" "))).not.toMatch(/\bkg\b/);
+  });
+  it("Arabic uses the draft Arabic unit label", async () => {
+    const { d } = await benchDecision();
+    const sections = describeDecision(d.payload as DecisionPayload, { ruleVersion: d.ruleVersion, path: d.path }, L("ar"), "ar", "lb");
+    expect(clean(sections[1]!.lines[0]!)).toContain("132.3 باوند");
+  });
+});

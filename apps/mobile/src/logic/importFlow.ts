@@ -1,4 +1,4 @@
-import type { EquipmentType, SetupType } from "@gain/engine";
+import type { EquipmentType, ImportParse, SetupType } from "@gain/engine";
 import type { MappingChoice, TitlePreview } from "../db/importRepo";
 
 /** What the lifter changed for one exported title, on top of the app's suggestion. */
@@ -64,3 +64,11 @@ export function applyEquipmentToUnresolved(titles: TitlePreview[], overrides: Re
 
 /** "3 Jan 2026" style range without locale surprises: ISO dates as given. */
 export const dateRange = (a: string | null, b: string | null): string => (a && b ? (a === b ? a : `${a} – ${b}`) : "");
+
+/** The heaviest set (kg) in an already-converted import, or null when there is none. */
+export function heaviestLoad(parse: ImportParse | null): number | null {
+  if (!parse) return null;
+  let best: number | null = null;
+  for (const w of parse.workouts) for (const e of w.exercises) for (const s of e.sets) if (best === null || s.load > best) best = s.load;
+  return best;
+}

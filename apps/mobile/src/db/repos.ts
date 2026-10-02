@@ -1,4 +1,5 @@
 import { classifyLift, DEFAULT_REP_CEILINGS, mergeRepCeilings, resolveProgression, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings } from "@gain/engine";
+import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
 import { SAMPLE_EXERCISES, SAMPLE_GYM, SAMPLE_PROGRAMME, SEED_VERSION } from "./seedData";
 
@@ -24,6 +25,13 @@ export function createRepos(db: Db, deps: Deps) {
   }
   async function getLanguage(): Promise<Language> {
     return (await getSetting("language")) === "ar" ? "ar" : "en"; // English is the default for now
+  }
+  /** Weight unit for display and typing. Loads are always stored in kg; kg is the default. */
+  async function getUnits(): Promise<Unit> {
+    return parseUnit(await getSetting("units"));
+  }
+  async function setUnits(unit: Unit): Promise<void> {
+    await setSetting("units", parseUnit(unit));
   }
   async function getRtlOverride(): Promise<RtlOverride> {
     const v = await getSetting("rtl_override");
@@ -252,6 +260,8 @@ export function createRepos(db: Db, deps: Deps) {
     getSetting,
     setSetting,
     getLanguage,
+    getUnits,
+    setUnits,
     getRtlOverride,
     getRepCeilingDefaults,
     setRepCeilingDefaults,

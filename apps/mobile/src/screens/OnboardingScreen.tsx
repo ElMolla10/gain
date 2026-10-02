@@ -136,6 +136,7 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
           <>
             <AppText style={{ fontSize: 28, fontWeight: "800" }}>{t("ob.welcome")}</AppText>
             <AppText style={{ color: p.muted }}>{t("ob.welcomeBody")}</AppText>
+            <AppText style={{ color: p.muted }}>{t("ob.importHint")}</AppText>
             <AppText style={{ fontWeight: "700" }}>{t("ob.language")}</AppText>
             <BigButton label={t("settings.language.en")} selected={lang === "en"} onPress={() => { setLang("en"); set({ language: "en" }); }} />
             <BigButton label={t("settings.language.ar")} selected={lang === "ar"} onPress={() => { setLang("ar"); set({ language: "ar" }); }} />

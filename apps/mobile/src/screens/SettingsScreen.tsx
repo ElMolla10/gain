@@ -46,7 +46,7 @@ export function SettingsScreen() {
   const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart } = useI18n();
   const p = usePalette();
   const version = Constants.expoConfig?.version ?? "0";
-  const nav = useNavigation<{ navigate: (n: "Setup") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Import") => void }>();
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <Card>
@@ -65,6 +65,10 @@ export function SettingsScreen() {
       <Card>
         <AppText style={{ fontWeight: "700" }}>{t("settings.units")}</AppText>
         <AppText>{t("settings.units.kg")}</AppText>
+      </Card>
+      <Card>
+        <BigButton label={t("import.entry")} selected={false} onPress={() => nav.navigate("Import")} />
+        <AppText style={{ color: p.muted, fontSize: 13 }}>{t("import.entryNote")}</AppText>
       </Card>
       <Card>
         <BigButton label={t("settings.setupAgain")} selected={false} onPress={() => nav.navigate("Setup")} />

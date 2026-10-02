@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "GAIN",
+    "slug": "gain",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "gain",
+    "plugins": [
+      "expo-sqlite",
+      ["expo-localization", { "supportsRTL": true }],
+      "expo-status-bar"
+    ],
+    "android": {
+      "package": "app.gain.mobile",
+      "softwareKeyboardLayoutMode": "resize"
+    }
+  }
+}

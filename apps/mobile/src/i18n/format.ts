@@ -60,3 +60,8 @@ export function matchesExercise(query: string, ex: NamedExercise & { aliasesAr: 
 
 /** Rough session length. An ESTIMATE (3 min per set, rest included), shown as such in the UI. */
 export const estimateMinutes = (totalSets: number): number => Math.round(totalSets * 3);
+
+/** "32.5 kg" with the number isolated so it reads correctly in RTL. */
+export const formatLoad = (load: number, lang: Lang): string => `${isolateLtr(String(load))} ${lang === "ar" ? en_unit_ar : en_unit_en}`;
+const en_unit_en = "kg";
+const en_unit_ar = "كجم";

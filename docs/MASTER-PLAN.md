@@ -37,7 +37,7 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Rejection memory UI | Done (unit-tested only) | Settings > "Things I've stopped suggesting": every declined jump per lift and gym with count and stopped state, bring it back, undo. Finish screen says how many declines so far and when a jump stops. Not run on a device. |
 | Outlier confirm UI | Done (unit-tested only) | Logger asks confirm/reject for a set far from the line; unconfirmed sets never move the next target (tested with a 100-reps typo run against a clean run), and typo cases (100 reps for 10, 100 kg for 10 kg, extra zero) are engine-tested. Edit-in-history comes with Step 6. Not run on a device. |
 | Exercise library + Arabic aliases | Partly | 20 sample exercises with **draft** Arabic names and aliases (never reviewed by a native Egyptian lifter), picker search by English or Arabic alias, custom exercises. No cues, setup text, demos. Library is far smaller than needed (**size of target library: decision**). |
-| History / trends | Not started | History is read by the engine only. No History tab, no chart. |
+| History / trends | Done (unit-tested only) | History tab: sessions (imported labelled), lifts, session detail with edit / delete a set, trend per lift (top working set, plain bars, direction in words). Rules: [HISTORY-TREND.md](HISTORY-TREND.md). The measure is my default (**Mohamed to choose**). No chart library, no phone timing yet. |
 | Rest timer | Partly | In-app timer (end-time based, vibrates at zero). Not native: no lock-screen/notification timer, no sound. |
 | Warm-ups | Engine only | `generateWarmups` exists and is tested; no UI calls it. |
 | Notifications | Not started | No notification package installed. |
@@ -109,7 +109,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** too many prompts feel naggy; check the threshold against the pilot.
 
 ### Step 6. History and trend per lift
-- [ ] **Goal:** see sessions and one trend per lift.
+- [x] (unit-tested only, NOT device-verified; phone performance check still owed) **Goal:** see sessions and one trend per lift.
 - **Deliver:** History tab (sessions, sets, edit/delete a set), per-lift trend (best set / estimated trend; choose one measure and say which), gym/setup kept separate, imported history labelled.
 - **Done means:** a lift with 20+ sessions draws a trend in under a second on the test phone; assisted/bodyweight lines never mixed with free weights.
 - **Test:** unit tests for the measure; device performance check (Step 15 thresholds).

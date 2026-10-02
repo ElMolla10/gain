@@ -9,6 +9,7 @@ import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
 import { createFinishRepo } from "./src/db/finishRepo";
+import { createGymRepo } from "./src/db/gymRepo";
 import { createRepos } from "./src/db/repos";
 import { createWorkoutRepo } from "./src/db/workoutRepo";
 import { FinishScreen } from "./src/screens/FinishScreen";
@@ -63,7 +64,8 @@ export default function App() {
       const repos = createRepos(db, deps);
       await repos.seedIfNeeded();
       const workout = createWorkoutRepo(db, deps);
-      setBoot({ services: { db, repos, workout, finish: createFinishRepo(db, deps, repos, workout) }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
+      const finish = createFinishRepo(db, deps, repos, workout);
+      setBoot({ services: { db, repos, workout, finish, gyms: createGymRepo(db, deps, repos, finish) }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
     })().catch(() => setBoot("error"));
   }, []);
 

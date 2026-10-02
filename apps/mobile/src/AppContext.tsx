@@ -7,6 +7,7 @@ import type { GymRepo } from "./db/gymRepo";
 import type { ImportRepo } from "./db/importRepo";
 import type { OnboardingRepo } from "./db/onboardingRepo";
 import type { ProgrammeRepo } from "./db/programmeRepo";
+import type { WeeklyRepo } from "./db/weeklyRepo";
 import type { WorkoutRepo } from "./db/workoutRepo";
 
 export interface AppServices {
@@ -19,6 +20,7 @@ export interface AppServices {
   onboarding: OnboardingRepo;
   imports: ImportRepo;
   goals: GoalRepo;
+  weekly: WeeklyRepo;
 }
 const Ctx = createContext<AppServices | null>(null);
 export const ServicesProvider = Ctx.Provider;

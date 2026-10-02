@@ -4,6 +4,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
 import type { LibraryExercise } from "../db/programmeRepo";
 import type { PaceResult, WeighIn } from "../db/goalRepo";
+import type { StoredReview } from "../db/weeklyRepo";
+import { changeText } from "../components/WeeklyReviewCard";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
@@ -18,7 +20,7 @@ import { AppText, BigButton, Card, Chip, Field } from "../ui";
 
 /** Goals and pace: the one goal, how it stands, and weigh-ins. Pace is an estimate from the lifter's logs and says so. */
 export function GoalsScreen() {
-  const { goals, programmes } = useServices();
+  const { goals, programmes, weekly } = useServices();
   const { t, lang, fmt, unit, unitText } = useI18n();
   const p = usePalette();
   const [pace, setPace] = useState<PaceResult | null>(null);
@@ -31,12 +33,14 @@ export function GoalsScreen() {
   const [weighText, setWeighText] = useState("");
   const [weighBad, setWeighBad] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [decided, setDecided] = useState<StoredReview[]>([]);
 
   const refresh = useCallback(async () => {
     setPace(await goals.getPace(Date.now()));
     setWeighIns(await goals.listWeighIns(10));
     setLibrary(await programmes.listExercises());
-  }, [goals, programmes]);
+    setDecided(await weekly.listDecided(10));
+  }, [goals, programmes, weekly]);
   useFocusEffect(
     useCallback(() => {
       void refresh();
@@ -149,6 +153,18 @@ export function GoalsScreen() {
             <AppText ltr>{new Date(w.at).toISOString().slice(0, 10)}</AppText>
             <AppText ltr style={{ fontWeight: "700" }}>{fmt(w.kg)}</AppText>
             <Chip label={t("goals.weighIn.delete")} onPress={() => void goals.deleteWeighIn(w.id).then(refresh)} />
+          </View>
+        ))}
+      </Card>
+      <Card>
+        <AppText style={{ fontWeight: "700" }}>{t("weekly.history")}</AppText>
+        {decided.length === 0 ? <AppText style={{ color: p.muted }}>{t("weekly.history.none")}</AppText> : null}
+        {decided.map((d) => (
+          <View key={d.id} style={{ gap: 2 }}>
+            <AppText style={{ fontWeight: "600" }}>
+              {t("weekly.week", { date: d.weekStart })} · {t(`weekly.status.${d.status}` as StringKey)}
+            </AppText>
+            <AppText style={{ color: p.muted }}>{d.applied ? changeText({ kind: "move_date", newDate: d.applied.newDate }, t) : changeText(d.review.change, t)}</AppText>
           </View>
         ))}
       </Card>

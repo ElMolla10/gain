@@ -228,6 +228,25 @@ ALTER TABLE session ADD COLUMN import_batch_id TEXT REFERENCES import_batch(id);
 CREATE UNIQUE INDEX session_import_key ON session(import_key) WHERE import_key IS NOT NULL AND deleted_at IS NULL;
 `,
   },
+  {
+    version: 4,
+    name: "weekly review",
+    sql: `
+-- One review per training week. inputs_json = what the rule saw, review_json = what it proposed, applied_json = what the lifter's tap changed (null if nothing).
+CREATE TABLE weekly_review (
+  id TEXT PRIMARY KEY,
+  week_start TEXT NOT NULL,
+  rule_version TEXT NOT NULL,
+  inputs_json TEXT NOT NULL,
+  review_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','accepted','edited','skipped')),
+  applied_json TEXT,
+  decided_at INTEGER,
+  ${TS}
+);
+CREATE UNIQUE INDEX weekly_review_week ON weekly_review(week_start) WHERE deleted_at IS NULL;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

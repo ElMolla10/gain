@@ -1,13 +1,13 @@
 {
-  "name": "next-set",
+  "name": "gain",
   "private": true,
   "version": "0.0.0",
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "typecheck:engine": "npm run typecheck -w @next-set/engine",
-    "test:engine": "npm run test -w @next-set/engine"
+    "typecheck:engine": "npm run typecheck -w @gain/engine",
+    "test:engine": "npm run test -w @gain/engine"
   },
   "engines": { "node": ">=20" }
 }

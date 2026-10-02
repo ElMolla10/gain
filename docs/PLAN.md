@@ -1,6 +1,8 @@
 # Plan: first thin vertical slice
 
 ## Stack
+- Platform: **Android first**. iOS is out of scope for now (no iOS work, builds or tests).
+- Name: GAIN.
 - npm workspaces monorepo.
 - `packages/engine`: pure TypeScript, no UI/DB, vitest.
 - `apps/mobile`: Expo + React Native + TypeScript, `expo-sqlite` local source of truth, i18n with real RTL (Arabic + English, English default for now).

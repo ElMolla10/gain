@@ -1,9 +1,9 @@
-# Next Set
+# GAIN
 
-Working name. An Arabic + English lifting app that ends every workout by deciding the next one.
+An Arabic + English lifting app that ends every workout by deciding the next one.
 Product spec: [docs/PRODUCT.md](docs/PRODUCT.md). Build plan: [docs/PLAN.md](docs/PLAN.md).
 
-Status: first thin vertical slice, built as small stacked draft PRs. Private repo. Nothing is published.
+Status: first thin vertical slice (Android first), built as small stacked draft PRs. Private repo. Nothing is published.
 
 ## Layout (after PR1)
 

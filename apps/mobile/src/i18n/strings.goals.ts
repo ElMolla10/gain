@@ -110,8 +110,8 @@ export const arGoals: Record<keyof typeof enGoals, string> = {
   "pace.muscle.now": "{perWeek} تمارين في الأسبوع دربتها، في آخر 4 أسابيع. الحد الأدنى: {floor} في الأسبوع (افتراضي، مش نتيجة).",
   "pace.muscle.thin": "بدري: محتاج أسبوع تمرين للمقارنة.",
 
-  "pace.today.lift": "{name}: {status}",
+  "pace.today.lift": "هدف {name}: {status}",
   "pace.today.bodyweight": "هدف وزن الجسم: {status}",
-  "pace.today.muscle": "{muscle}: {status}",
+  "pace.today.muscle": "هدف {muscle}: {status}",
   "pace.today.open": "التفاصيل في الأهداف",
 };

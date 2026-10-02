@@ -29,4 +29,4 @@ npm run backtest:hevy -w @gain/engine        # runs the rule over fixtures/hevy-
 
 Platform: Android first. Node 22+ is required (tests use `node:sqlite`).
 
-`fixtures/hevy-export.csv` is the owner's real workout export, committed with his approval. Keep this repo private, or remove that file first.
+This repo is public. `fixtures/hevy-export.csv` is Mohamed's own real Hevy export, committed with his permission.

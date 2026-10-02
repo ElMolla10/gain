@@ -4,16 +4,39 @@
     "slug": "gain",
     "version": "0.0.1",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#000000",
     "userInterfaceStyle": "automatic",
     "scheme": "gain",
     "plugins": [
       "expo-sqlite",
       ["expo-localization", { "supportsRTL": true }],
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ]
     ],
+    "ios": {
+      "bundleIdentifier": "app.gain.mobile",
+      "icon": "./assets/icon.png"
+    },
     "android": {
       "package": "app.gain.mobile",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#000000"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     }
   }
 }

@@ -5,6 +5,7 @@ import { useServices } from "../AppContext";
 import { estimateMinutes, exerciseLabels, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { space, usePalette } from "../theme";
+import { BrandLogo } from "../BrandLogo";
 import { AppText, BigButton, Card } from "../ui";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
@@ -45,6 +46,12 @@ export function TodayScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+        <BrandLogo size={40} />
+        <AppText ltr style={{ fontSize: 22, fontWeight: "800", letterSpacing: 2 }}>
+          {t("app.name")}
+        </AppText>
+      </View>
       <Card>
         <AppText style={{ color: p.muted }}>{t("today.next")}</AppText>
         <AppText style={{ fontSize: 30, fontWeight: "800" }}>{data.dayName}</AppText>

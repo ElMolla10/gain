@@ -44,7 +44,7 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Export / delete | Done (unit-tested only) | Settings > Your data: JSON backup, CSV of sets in Hevy columns (re-imports), restore (checked, all-or-nothing, replaces), delete everything (back to first run). Share sheet / picker not run on a phone. Android auto-backup still on: **Mohamed to decide** ([DATA-EXPORT.md](DATA-EXPORT.md)). |
 | Settings | Partly | Language, RTL override, rep ceilings, import, set-up-again, version. Unit switch kg/lb (v0.4.0, unit-tested only), no rest-time setting, no privacy page, no theme choice (follows system). |
 | Dark mode / RTL | Partly | Dark palette follows system; RTL flips via `direction`. Arabic strings are drafts. Not checked on device. |
-| Coach card | Not started | |
+| Coach card | Partly (unit-tested only) | Finish screen: share a one-page PDF (session, next targets, pace line for lift/muscle goals, no bodyweight, not-a-doctor line) in English or Arabic. No image version, no links. PDF layout, Arabic rendering and share sheet never run on a phone ([COACH-CARD.md](COACH-CARD.md)). |
 | Decision log screen | Done (unit-tested only) | Settings > Decision log (and a button in History): every stored decision with lift, gym, suggested number, what you did, sentence, rule version, path; filter by lift; tap for the stored inputs. Old/unknown rule formats fall back to the stored sentence. [DECISION-LOG.md](DECISION-LOG.md). Not run on a device. |
 | Backend / sync | Not started | No server. Rows already have UUIDs, `updated_at`, `deleted_at`. |
 | Shared gyms | Not started | |
@@ -174,7 +174,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** deleting must also cover backups the OS makes (Android auto backup setting: decide to allow or disable).
 
 ### Step 13. Coach card (local first)
-- [ ] **Goal:** share what was done, next targets, and goal pace as an image the lifter sends in WhatsApp.
+- [~] **Status: built as a PDF, unit-tested only, NOT device-verified** ([COACH-CARD.md](COACH-CARD.md)). Finish screen button, English/Arabic, shared through the share sheet; no image version. The "renders correctly in RTL and LTR on two screen sizes" check is **still open**. **Goal:** share what was done, next targets, and goal pace as an image the lifter sends in WhatsApp.
 - **Deliver:** card image/PDF from the Finish screen; Arabic + English; no account for the coach. (Private links come with Step 22.)
 - **Done means:** a card renders correctly in RTL and LTR and shares through the system share sheet.
 - **Test:** device; visual check on two screen sizes.

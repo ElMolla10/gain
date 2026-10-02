@@ -20,7 +20,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#000000"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "ios": {
       "bundleIdentifier": "app.gain.mobile",

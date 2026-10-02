@@ -87,6 +87,12 @@ export interface IncrementConfig {
   maxPct: number;
 }
 
+/**
+ * What to do at the ceiling when even the smallest real load step is bigger than the band's max (e.g. a 2.5 kg dumbbell jump at light loads).
+ * `load` (default): propose the load increase anyway; the lifter earned it and nothing smaller exists. `spend_first`: spend effort / quality first (opt-in convention).
+ */
+export type OversizedStep = "load" | "spend_first";
+
 export interface StallConfig {
   /** Sessions at one load with no rep gain before a deload is proposed. */
   sessions: number;
@@ -99,6 +105,8 @@ export interface LiftProgressionConfig {
   preset?: PresetName;
   trigger?: Partial<TriggerConfig>;
   increment?: Partial<IncrementConfig>;
+  /** Oversized real step at the ceiling (bigger than `increment.maxPct`). Omitted = the preset's choice; default `load`. */
+  oversizedStep?: OversizedStep;
   /** Sessions in a row below the bottom of the range, at the same load, before stepping the load down one real step. null = off (default). */
   stepDownAfterMisses?: number | null;
   /** Partial overrides, or null to switch stall handling off for this lift (default: off). */
@@ -121,6 +129,7 @@ export interface LiftProgression {
   ceilingSource: "lift" | "default";
   trigger: TriggerConfig;
   increment: IncrementConfig;
+  oversizedStep: OversizedStep;
   stepDownAfterMisses: number | null;
   stall: StallConfig | null;
 }

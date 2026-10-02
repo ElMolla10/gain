@@ -91,7 +91,7 @@ A gym fingerprint can be shared inside that gym, so the second user does not reb
 
 ### 3. Progression currency
 
-Progress is not always “add 2.5 kg”. When the next real increment is too big, the app spends a different currency, in this order:
+Progress is not always “add 2.5 kg”. Below the rep ceiling the app asks for one more rep. At the ceiling the load goes up, even if the smallest real step is bigger than the usual 2-10% band (e.g. 2.5 kg dumbbells). Where the load jump is unavailable, declined repeatedly, or the lifter opted into `oversizedStep: spend_first` (the `coaching_conventions` preset), the app spends a different currency, in this order:
 
 1. More reps inside the range.
 2. The same reps at a harder effort target, if they track effort.

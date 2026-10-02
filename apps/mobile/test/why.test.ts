@@ -73,3 +73,22 @@ describe("Why this weight? shows the logged inputs", () => {
     expect(sections[0]!.lines[0]).toMatch(/nothing is proposed/);
   });
 });
+
+describe("Why screen: an oversized step", () => {
+  it("proposed anyway (load currency) is explained as the smallest weight available, not 'other ways come first'", async () => {
+    const { d } = await benchDecision();
+    const payload = structuredClone(d.payload) as DecisionPayload;
+    payload.inputs.gym.jumpTooBig = true;
+    payload.inputs.gym.jumpRatio = 0.25;
+    payload.inputs.gym.maxJumpRatio = 0.1;
+    const text = (cur: "load" | "quality") => {
+      payload.proposal.currency = cur;
+      return describeDecision(payload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en")
+        .flatMap((s) => s.lines)
+        .map(clean)
+        .join("\n");
+    };
+    expect(text("load")).toContain("smallest weight available here");
+    expect(text("quality")).toContain("other ways to progress come first");
+  });
+});

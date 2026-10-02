@@ -2,6 +2,7 @@ import type {
   BodyRegion,
   CeilingClass,
   IncrementConfig,
+  OversizedStep,
   LiftProgression,
   LiftProgressionConfig,
   PresetName,
@@ -50,6 +51,8 @@ export interface Preset {
   increment?: Partial<IncrementConfig>;
   /** Use the upper 2-5% / lower 5-10% bands instead of one band for everyone. */
   regionBands?: boolean;
+  /** Default `load`: at the ceiling an oversized real step is still proposed. */
+  oversizedStep?: OversizedStep;
   stepDownAfterMisses?: number | null;
   stall?: Partial<StallConfig> | null;
 }
@@ -73,6 +76,7 @@ export const PRESETS: Record<PresetName, Preset> = {
   coaching_conventions: {
     trigger: { extraReps: 0, sessions: 2, repsBasis: "all_sets", fastTrackRir: 3 },
     regionBands: true,
+    oversizedStep: "spend_first",
     stepDownAfterMisses: DEFAULT_STEP_DOWN_AFTER_MISSES,
     stall: DEFAULT_STALL,
   },
@@ -151,6 +155,8 @@ export function resolveProgression(region: BodyRegion = "upper", cfg: LiftProgre
   const trigger: TriggerConfig = { ...DEFAULT_TRIGGER, ...preset.trigger, ...cfg.trigger };
   const base = preset.regionBands ? INCREMENT_BY_REGION[region] : ACSM_INCREMENT;
   const increment: IncrementConfig = { ...base, ...preset.increment, ...cfg.increment };
+  const oversizedStep: OversizedStep = cfg.oversizedStep ?? preset.oversizedStep ?? "load";
+  if (oversizedStep !== "load" && oversizedStep !== "spend_first") throw new Error("oversizedStep must be load or spend_first");
   const stallCfg = cfg.stall === undefined ? preset.stall : cfg.stall;
   const stall: StallConfig | null = stallCfg === null || stallCfg === undefined ? null : { ...DEFAULT_STALL, ...stallCfg };
   const stepDownAfterMisses = cfg.stepDownAfterMisses === undefined ? (preset.stepDownAfterMisses ?? null) : cfg.stepDownAfterMisses;
@@ -176,6 +182,7 @@ export function resolveProgression(region: BodyRegion = "upper", cfg: LiftProgre
     ceilingSource: cfg.repCeiling !== undefined ? "lift" : "default",
     trigger,
     increment,
+    oversizedStep,
     stepDownAfterMisses,
     stall,
   };

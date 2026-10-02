@@ -78,7 +78,7 @@ out();
     const lowConf = by((o) => o.direction !== "up" && o.confidence === "low");
     const tooBig = by((o) => o.direction !== "up" && o.confidence !== "low" && o.currency === "quality");
     out();
-    out(`Why the rule did not propose heavier in the other ${reached.length - heavier}: ${lowConf} had too little history (low confidence repeats, never jumps), ${tooBig} had a smallest real load step bigger than the 10% ACSM ceiling (light loads on the inferred grid), so the rule spent a quality change (pause / slow eccentric) first, as the currency order requires. ${reached.length - heavier - lowConf - tooBig} other.`);
+    out(`Why the rule did not propose heavier in the other ${reached.length - heavier}: ${lowConf} had too little history (low confidence repeats, never jumps), ${tooBig} spent a quality change instead (a declined jump or a bodyweight line with no bodyweight; a smallest real step above 10% no longer blocks the load). ${reached.length - heavier - lowConf - tooBig} other.`);
   }
   const up = base.outcomes.filter((o) => o.actualDirection === "up" && o.lastReps !== null);
   const meets = up.filter((o) => o.lastReps! >= ceilingOf(o.title)).length;

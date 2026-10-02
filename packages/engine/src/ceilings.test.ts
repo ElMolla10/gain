@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { classifyLift, ceilingClassOf, isLateralRaise } from "./policy";
 import { proposeNext, type ProposeContext } from "./progression";
+import { lineKey } from "./line";
+import { emptyRejectionMemory, recordRejection } from "./rejection";
 import { ASOF, lineOf, run, S, session } from "./testkit";
 import type { ExerciseSpec, GymFingerprint } from "./types";
 
@@ -242,5 +244,58 @@ describe("the rest of the default rule is ACSM 2009 and nothing else", () => {
     const p = P({ ...bench, trackEffort: true }, h);
     expect(p.load).toBe(100);
     expect(p.inputs.readiness.fastTracked).toBe(false);
+  });
+});
+
+describe("an oversized real step at the ceiling is still proposed (default `oversizedStep: load`)", () => {
+  // Dumbbells in 2.5 kg jumps: 10 -> 12.5 is 25%, far outside ACSM's 2-10%, but nothing smaller exists.
+  const dbGym: GymFingerprint = { gymId: "gymA", loads: [{ equipment: "dumbbell", increment: 2.5, min: 2.5, max: 50 }] };
+  const latDb: ExerciseSpec = { exerciseId: "Lateral Raise (Dumbbell)", equipment: "dumbbell", setup: "free", repRange: { min: 10, max: 15 } };
+  const PD = (exercise: ExerciseSpec, history: ProposeContext["history"], extra: Partial<ProposeContext> = {}) =>
+    proposeNext({ exercise, gym: dbGym, history, asOf: ASOF, ...extra });
+  const l = lineOf(latDb.exerciseId);
+
+  it("lateral raise, 15 reps at 10 kg: go to 12.5 kg, not pause / tempo first", () => {
+    const p = PD(latDb, run(l, 10, [14, 15]));
+    expect(p.inputs.gym.jumpTooBig).toBe(true);
+    expect(p.inputs.policy.oversizedStep).toBe("load");
+    expect(p.currency).toBe("load");
+    expect(p.load).toBe(12.5);
+    expect(p.reps).toBe(10);
+    expect(p.jumpKind).toBe("load:harder:2.5");
+  });
+  it("below the ceiling nothing changes: 14 reps is still one more rep at the same load", () => {
+    const p = PD(latDb, run(l, 10, [13, 14]));
+    expect(p.currency).toBe("reps");
+    expect(p.load).toBe(10);
+    expect(p.reps).toBe(15);
+  });
+  it("a repeatedly declined oversized jump still falls back to a quality change", () => {
+    let mem = emptyRejectionMemory();
+    for (let i = 0; i < 3; i++) mem = recordRejection(mem, lineKey(l), "load:harder:2.5", "2026-09-30");
+    const p = PD(latDb, run(l, 10, [14, 15]), { rejections: mem });
+    expect(p.currency).toBe("quality");
+    expect(p.load).toBe(10);
+  });
+  it("`oversizedStep: spend_first` keeps the old order (quality, then load)", () => {
+    const ex: ExerciseSpec = { ...latDb, progression: { oversizedStep: "spend_first" } };
+    const p = PD(ex, run(l, 10, [14, 15]));
+    expect(p.currency).toBe("quality");
+    expect(p.load).toBe(10);
+  });
+  it("the coaching_conventions preset spends effort / quality first on an oversized step", () => {
+    const ex: ExerciseSpec = { ...latDb, progression: { preset: "coaching_conventions" } };
+    const p = PD(ex, run(l, 10, [15, 15]));
+    expect(p.inputs.policy.oversizedStep).toBe("spend_first");
+    expect(p.currency).toBe("quality");
+  });
+  it("a bodyweight line with no bodyweight on file stays cautious (the step's share cannot be measured)", () => {
+    const bwGym: GymFingerprint = { gymId: "gymA", loads: [{ equipment: "plate", increment: 2.5 }] };
+    const bw: ExerciseSpec = { exerciseId: "dip", equipment: "plate", setup: "bodyweight_plus_added", repRange: { min: 6, max: 10 } };
+    const line = lineOf("dip", "bodyweight_plus_added");
+    const p = proposeNext({ exercise: bw, gym: bwGym, asOf: ASOF, history: run(line, 0, [10, 10]) });
+    expect(p.currency).toBe("quality");
+    const known = proposeNext({ exercise: bw, gym: bwGym, asOf: ASOF, history: run(line, 0, [10, 10]), bodyweightKg: 80 });
+    expect(known.currency).toBe("load");
   });
 });

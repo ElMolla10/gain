@@ -22,7 +22,7 @@ import type {
 } from "./types";
 
 export interface ProgressionOptions {
-  /** Optional global override of the per-lift increment band (see policy.ts). A step bigger than the band is "too big": spend reps/effort/quality first. */
+  /** Optional global override of the per-lift increment band (see policy.ts). A step bigger than the band is flagged "too big"; whether it is still proposed at the ceiling is the policy's `oversizedStep`. */
   maxJumpRatio?: number;
   /** History older than this many days lowers confidence. */
   staleDays: number;
@@ -230,6 +230,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const nextEasier = harderDir === "above" ? nextLoadBelow(spec, anchor, zero) : nextLoadAbove(spec, anchor, zero);
   const jump = nextHarder === null ? null : norm(Math.abs(nextHarder - anchor));
   const ratio = nextHarder === null ? null : ratioOf(nextHarder);
+  const ratioKnown = setup === "free" || (effectiveLoad(setup, anchor, bw) ?? 0) > 0;
   const tooBig = ratio === null ? null : ratio > maxRatio + 1e-9;
 
   // 3. Confidence.
@@ -467,8 +468,12 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     });
   }
 
-  const order =
-    tooBig === false ? [tryLoad, tryEffort, () => tryQuality(loadBlocked)] : [tryEffort, () => tryQuality(false), tryLoad];
+  // Under the default `oversizedStep: "load"` the load goes up at the ceiling even when the smallest real step is bigger than the band
+  // (e.g. a 2.5 kg dumbbell jump at light loads): the lifter earned it and nothing smaller exists. `jumpTooBig` still flags it for the Why
+  // screen. Effort / quality are then only the fallback (jump declined repeatedly). Not applied when the step's share cannot be measured
+  // (bodyweight unknown): that stays cautious. `oversizedStep: "spend_first"` (conventions preset) keeps effort, quality, then load.
+  const loadFirst = tooBig === false || (cfg.oversizedStep === "load" && ratioKnown);
+  const order = loadFirst ? [tryLoad, tryEffort, () => tryQuality(loadBlocked)] : [tryEffort, () => tryQuality(false), tryLoad];
   for (const t of order) {
     const p = t();
     if (p) return p;

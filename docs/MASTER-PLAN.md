@@ -8,8 +8,8 @@ Conventions: `[ ]` open, `[x]` done. Sizes are S (days), M (1-2 weeks), L (sever
 
 ## 0. Next 5 steps (follow these first)
 
-1. [ ] **Step 1: put v0.3.0 on a real Android phone and an emulator** and walk the whole loop (onboard, import, log, finish, accept/reject, why). Write down everything that breaks. Fix only those bugs, ship v0.3.1.
-2. [ ] **Step 2: goals + pace (two clocks).** Goals are stored at onboarding but nothing reads them. Today always shows the static line "No goal set yet. Goals and pace arrive in a later version."
+1. [~] **Step 1: put the current release on a real Android phone and an emulator** and walk the whole loop (onboard, import, log, finish, accept/reject, why). Write down everything that breaks. Fix only those bugs, ship v0.4.1. **Status 2026-10-02: PARTLY DONE, NOT device-verified.** The app (x86_64 build of v0.4.0) was launched on an Android 14 emulator and rendered onboarding steps 1-3, then the emulator became unusable (no hardware acceleration on this box; see [DEVICE-TEST-0.4.md](DEVICE-TEST-0.4.md)). The full loop has NOT been run on any device. Still needs a real phone (Mohamed).
+2. [x] **Step 2: goals + pace (two clocks)** (shipped in v0.5.0, unit-tested only). Goals screen, weigh-ins, pace from the lifter's logs, one line on Today. Rules: [PACE-RULES.md](PACE-RULES.md).
 3. [ ] **Step 3: weekly one-decision review**, and **Step 4: short-week rebuild**. These are the two paid promises that do not exist yet.
 4. [ ] **Steps 5-7: make the trust surfaces visible**: outlier confirm kept honest, rejection memory shown and undoable, history + trend per lift, decision-log screen.
 5. [ ] **Step 12 early: export and delete my data.** Needed before any other person installs the app (Step 20 pilot).
@@ -65,7 +65,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 
 ### Step 1. Real-device testing and fixes (first)
 - [ ] **Goal:** know what actually works on a phone.
-- **Deliver:** test script (below); emulator run (Android Studio AVD) and a real Android phone; a list of bugs; fix PRs; v0.3.1.
+- **Deliver:** test script (below); emulator run (Android Studio AVD) and a real Android phone; a list of bugs; fix PRs; v0.4.1.
 - **Done means:** a new install and an upgrade-over-0.2.0 install both complete: onboard, import the Hevy export, log a full session with the screen locking mid-session, finish, accept/edit/reject, open Why, switch language to Arabic, restart. No crash, no lost sets. Results recorded in `docs/DEVICE-TEST-0.3.md` (pass/fail per line, phone model, Android version).
 - **Test:** manual script covering every screen; also kill-app mid-set, airplane mode, big import (1,049 rows), RTL flip, dark mode, 200% font size.
 - **Size:** M.
@@ -331,17 +331,18 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 
 | Release | Steps | Exit criteria |
 | --- | --- | --- |
-| **v0.3.1** | 1 | Device test file committed; the full loop passes on one real phone and the emulator; no data loss. |
-| **v0.4** | 2, 3, 4 | Goal pace, weekly decision and short-week rebuild work on device and have hand-checked tests. |
-| **v0.5** | 5, 6, 7, 9 | Outlier/rejection surfaces, History + trend per lift, decision-log screen, warm-ups on device. |
-| **v0.6** | 8, 10, 11, 12, 13 | Reviewed library and aliases, native timer, lb support, export/delete round-trip, local coach card. |
-| **v0.7** | 14, 15, 16, 17, 18, 19 | A11y/RTL checklist passed, offline/perf tests passed, trainer feedback in, policy and consent live, signed APK process written. |
-| **v0.8 (pilot)** | 20 | Pilot report with agreement, week 1/2/6 retention and bug list; go/no-go on paying. |
-| **v0.9** | 21, 22, (23), 24, 25 | Sync, shared gyms, coach links, paywall test purchase, closed testing on Play. Model layer only if the pilot shows it is needed. |
+| **v0.4.0** | (unplanned, shipped early) | kg/lb units, onboarding without a gym step. Used this number before the milestone map reached it, so every later milestone below is one minor higher than the first version of this plan. |
+| **v0.4.1** | 1 | Device test file committed; the full loop passes on one real phone and the emulator; no data loss. |
+| **v0.5** | 2, 3, 4 | Goal pace, weekly decision and short-week rebuild work on device and have hand-checked tests. |
+| **v0.6** | 5, 6, 7, 9 | Outlier/rejection surfaces, History + trend per lift, decision-log screen, warm-ups on device. |
+| **v0.7** | 8, 10, 12, 13 (11 shipped in v0.4.0) | Reviewed library and aliases, native timer, export/delete round-trip, local coach card. |
+| **v0.8** | 14, 15, 16, 17, 18, 19 | A11y/RTL checklist passed, offline/perf tests passed, trainer feedback in, policy and consent live, signed APK process written. |
+| **v0.9 (pilot)** | 20 | Pilot report with agreement, week 1/2/6 retention and bug list; go/no-go on paying. |
+| **v0.10** | 21, 22, (23), 24, 25 | Sync, shared gyms, coach links, paywall test purchase, closed testing on Play. Model layer only if the pilot shows it is needed. |
 | **v1.0** | 26, 27 | Public listing live (AR + EN), data safety form accurate, first hundred users plan running. |
 | **v1.x** | 28, 29 | iOS via TestFlight; metrics reviewed against thresholds. |
 
-Pilot (v0.8) deliberately comes before backend and paywall: it tests the promise with local data only.
+Pilot (v0.9) deliberately comes before backend and paywall: it tests the promise with local data only.
 
 ---
 
@@ -350,7 +351,7 @@ Pilot (v0.8) deliberately comes before backend and paywall: it tests the promise
 | # | Question | Recommended default |
 | --- | --- | --- |
 | D1 | Android first, iOS after v1.0? (PRODUCT.md says both in first release) | Android first; fix PRODUCT.md later. |
-| D2 | Which phone(s) do you test on? | Your own plus one emulator now; add a second brand before v0.7. |
+| D2 | Which phone(s) do you test on? | Your own plus one emulator now; add a second brand before v0.8. |
 | D3 | Auth for sync: anonymous device id + optional email magic link, Google sign-in, or phone number? | Email magic link, optional; the app works without an account. |
 | D4 | Library size at launch? | Cover the exercises in your Hevy history and the 7 templates first, then grow from pilot misses. |
 | D5 | Pilot and launch success thresholds (agreement rate, week-6 retention, paying users)? | You set them before the pilot starts; I will not propose numbers I cannot support. |

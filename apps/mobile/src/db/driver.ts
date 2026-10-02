@@ -22,3 +22,16 @@ export interface Deps {
   newId: IdGen;
   now: () => number;
 }
+
+/**
+ * Runs async jobs one at a time, in order. Drivers use it so two transactions never interleave
+ * (e.g. a double tap on "Start workout"). Transactions must therefore not be nested.
+ */
+export function createMutex() {
+  let tail: Promise<unknown> = Promise.resolve();
+  return function run<T>(job: () => Promise<T>): Promise<T> {
+    const result = tail.then(job, job);
+    tail = result.catch(() => undefined);
+    return result;
+  };
+}

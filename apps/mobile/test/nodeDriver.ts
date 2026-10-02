@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import type { Db, Param } from "../src/db/driver";
+import { createMutex, type Db, type Param } from "../src/db/driver";
 
 // node:sqlite is loaded through require so bundlers/test runners do not try to resolve the builtin.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
@@ -8,7 +8,7 @@ const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof
 export function openNodeDb(path = ":memory:"): Db {
   const raw = new DatabaseSync(path);
   raw.exec("PRAGMA foreign_keys = ON;");
-  let depth = 0;
+  const serial = createMutex();
   const db: Db = {
     exec: async (sql) => {
       raw.exec(sql);
@@ -19,21 +19,18 @@ export function openNodeDb(path = ":memory:"): Db {
     },
     all: async <T>(sql: string, params: Param[] = []) => raw.prepare(sql).all(...params) as T[],
     get: async <T>(sql: string, params: Param[] = []) => (raw.prepare(sql).get(...params) as T | undefined) ?? null,
-    transaction: async (fn) => {
-      const sp = `sp${depth}`;
-      raw.exec(depth === 0 ? "BEGIN" : `SAVEPOINT ${sp}`);
-      depth++;
-      try {
-        const r = await fn();
-        depth--;
-        raw.exec(depth === 0 ? "COMMIT" : `RELEASE ${sp}`);
-        return r;
-      } catch (e) {
-        depth--;
-        raw.exec(depth === 0 ? "ROLLBACK" : `ROLLBACK TO ${sp}`);
-        throw e;
-      }
-    },
+    transaction: (fn) =>
+      serial(async () => {
+        raw.exec("BEGIN");
+        try {
+          const r = await fn();
+          raw.exec("COMMIT");
+          return r;
+        } catch (e) {
+          raw.exec("ROLLBACK");
+          throw e;
+        }
+      }),
   };
   return db;
 }

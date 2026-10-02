@@ -9,12 +9,26 @@ import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
 import { createRepos } from "./src/db/repos";
+import { createWorkoutRepo } from "./src/db/workoutRepo";
+import { WorkoutScreen } from "./src/screens/WorkoutScreen";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { I18nProvider, useI18n } from "./src/i18n";
 import type { Lang, RtlOverride } from "./src/i18n/format";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { TodayScreen } from "./src/screens/TodayScreen";
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
+function Tabs() {
+  const { t } = useI18n();
+  return (
+    <Tab.Navigator screenOptions={{ tabBarLabelStyle: { fontSize: 14 }, tabBarStyle: { minHeight: 64 } }}>
+      <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today") }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: t("tab.settings") }} />
+    </Tab.Navigator>
+  );
+}
 
 function Shell() {
   const { t, direction } = useI18n();
@@ -23,10 +37,10 @@ function Shell() {
     // `direction` on the root flips every flex row and the navigation chrome at once, without restarting the app.
     <View style={{ flex: 1, direction }}>
       <NavigationContainer theme={scheme === "dark" ? DarkTheme : DefaultTheme} direction={direction}>
-        <Tab.Navigator screenOptions={{ tabBarLabelStyle: { fontSize: 14 }, tabBarStyle: { minHeight: 64 } }}>
-          <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today") }} />
-          <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: t("tab.settings") }} />
-        </Tab.Navigator>
+        <Stack.Navigator>
+          <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
+          <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title") }} />
+        </Stack.Navigator>
       </NavigationContainer>
       <StatusBar style="auto" />
     </View>
@@ -40,9 +54,10 @@ export default function App() {
     (async () => {
       const db = await openExpoDb();
       await migrate(db);
-      const repos = createRepos(db, { newId: () => Crypto.randomUUID(), now: () => Date.now() });
+      const deps = { newId: () => Crypto.randomUUID(), now: () => Date.now() };
+      const repos = createRepos(db, deps);
       await repos.seedIfNeeded();
-      setBoot({ services: { db, repos }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
+      setBoot({ services: { db, repos, workout: createWorkoutRepo(db, deps) }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
     })().catch(() => setBoot("error"));
   }, []);
 

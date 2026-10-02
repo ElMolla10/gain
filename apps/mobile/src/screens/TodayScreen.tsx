@@ -1,4 +1,4 @@
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
@@ -9,6 +9,7 @@ import { AppText, BigButton, Card } from "../ui";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
 interface TodayData {
+  dayId: string;
   programmeName: string;
   dayName: string;
   exercises: DayExercises;
@@ -18,6 +19,7 @@ export function TodayScreen() {
   const { repos } = useServices();
   const { t, lang } = useI18n();
   const p = usePalette();
+  const navigation = useNavigation<{ navigate: (name: "Workout", params: { dayId: string }) => void }>();
   const [data, setData] = useState<TodayData | null | undefined>(undefined);
 
   useFocusEffect(
@@ -27,7 +29,7 @@ export function TodayScreen() {
         const next = await repos.getNextDay();
         if (!next) return alive && setData(null);
         const exercises = await repos.listDayExercises(next.day.id);
-        if (alive) setData({ programmeName: next.programmeName, dayName: next.day.name, exercises });
+        if (alive) setData({ dayId: next.day.id, programmeName: next.programmeName, dayName: next.day.name, exercises });
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
@@ -83,8 +85,7 @@ export function TodayScreen() {
         })}
       </Card>
 
-      <BigButton label={t("today.start")} disabled accessibilityHint={t("today.startSoon")} />
-      <AppText style={{ color: p.muted }}>{t("today.startSoon")}</AppText>
+      <BigButton label={t("today.start")} onPress={() => navigation.navigate("Workout", { dayId: data.dayId })} />
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("today.sampleNote")}</AppText>
     </ScrollView>
   );

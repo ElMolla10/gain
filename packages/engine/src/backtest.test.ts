@@ -33,7 +33,7 @@ describe("series from the synthetic export", () => {
   });
 });
 
-describe("walk-forward backtest on the real export (private fixture, committed with the owner's approval)", () => {
+describe("walk-forward backtest on the real export (Mohamed's own real export, committed with his permission)", () => {
   const parsed = parseHevyCsv(read("hevy-export.csv"));
   it("parses the whole export", () => {
     expect(parsed.rowCount).toBe(1049);

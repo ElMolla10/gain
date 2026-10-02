@@ -4,6 +4,7 @@ import type { Db } from "./db/driver";
 import type { FinishRepo } from "./db/finishRepo";
 import type { GoalRepo } from "./db/goalRepo";
 import type { GymRepo } from "./db/gymRepo";
+import type { HistoryRepo } from "./db/historyRepo";
 import type { ImportRepo } from "./db/importRepo";
 import type { OnboardingRepo } from "./db/onboardingRepo";
 import type { RejectionRepo } from "./db/rejectionRepo";
@@ -25,6 +26,7 @@ export interface AppServices {
   weekly: WeeklyRepo;
   shortWeek: ShortWeekRepo;
   rejections: RejectionRepo;
+  history: HistoryRepo;
 }
 const Ctx = createContext<AppServices | null>(null);
 export const ServicesProvider = Ctx.Provider;

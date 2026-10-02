@@ -15,6 +15,7 @@ import { createOnboardingRepo } from "./src/db/onboardingRepo";
 import { createImportRepo } from "./src/db/importRepo";
 import { createProgrammeRepo } from "./src/db/programmeRepo";
 import { createRepos } from "./src/db/repos";
+import { createHistoryRepo } from "./src/db/historyRepo";
 import { createRejectionRepo } from "./src/db/rejectionRepo";
 import { createShortWeekRepo } from "./src/db/shortWeekRepo";
 import { createWeeklyRepo } from "./src/db/weeklyRepo";
@@ -113,7 +114,8 @@ export default function App() {
       const shortWeek = createShortWeekRepo(db, deps, repos, programmes, goals);
       await onboarding.markExistingInstall();
       const rejections = createRejectionRepo(db, deps);
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      const history = createHistoryRepo(db, deps, repos, finish);
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch(() => setBoot("error"));
   }, []);
 

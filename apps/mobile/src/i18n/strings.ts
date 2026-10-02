@@ -1,4 +1,6 @@
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
+import { arGym, enGym } from "./strings.gym";
+
 export const en = {
   "app.name": "GAIN",
   "tab.today": "Today",
@@ -147,6 +149,7 @@ export const en = {
   "why.blocked": "will not be proposed",
   "why.notBlocked": "still allowed",
   "why.missing": "No logged inputs were found for this target.",
+  ...enGym,
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -299,4 +302,5 @@ export const ar: Record<StringKey, string> = {
   "why.blocked": "مش هتتقترح تاني",
   "why.notBlocked": "لسه مسموحة",
   "why.missing": "مفيش أرقام مسجلة للهدف ده.",
+  ...arGym,
 };

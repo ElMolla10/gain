@@ -74,8 +74,9 @@ describe("gym repo", () => {
     expect(await db.get("SELECT id FROM gym")).toBeNull();
   });
   it("keeps several gyms apart; only one is active", async () => {
-    const { gyms, repos } = await freshDb();
+    const { gyms, repos, deps } = await freshDb();
     const home = await gyms.createGym({ name: "Home", loads: rack });
+    deps.tick();
     const club = await gyms.createGym({ name: "Club", loads: [{ equipment: "dumbbell", loads: [5, 10, 40] }] });
     expect(await repos.getActiveGymId()).toBe(club);
     await gyms.setActiveGym(home);
@@ -182,5 +183,48 @@ describe("planned session follows the gym", () => {
     const lines = await db.all<{ gym_id: string }>("SELECT l.gym_id FROM target t JOIN exercise_line l ON l.id = t.line_id WHERE t.session_id = ? AND t.deleted_at IS NULL", [next.sessionId]);
     expect(lines.every((l) => l.gym_id === club)).toBe(true);
     expect(club).not.toBe(gymId);
+  });
+});
+
+import { emptyForm, formFromLoads, loadsFromForm } from "../src/logic/gymForm";
+
+describe("gym form", () => {
+  it("round-trips a saved rack through the form", () => {
+    const form = formFromLoads(rack);
+    const r = loadsFromForm("Home", form);
+    expect(r.problems).toEqual([]);
+    expect(r.loads).toEqual(rack);
+  });
+  it("reads typed text, including Arabic digits", () => {
+    const f = emptyForm(["dumbbell", "cable"]);
+    f.dumbbell.listText = "٢٠ ٢٢٫٥ 25";
+    f.cable.incrementText = "٥";
+    const r = loadsFromForm("نادي", f);
+    expect(r.problems).toEqual([]);
+    expect(r.loads).toEqual([{ equipment: "dumbbell", loads: [20, 22.5, 25] }, { equipment: "cable", increment: 5 }]);
+  });
+  it("never fills in a default: empty fields are problems", () => {
+    const f = emptyForm(["dumbbell", "barbell", "cable"]);
+    const r = loadsFromForm("Club", f);
+    expect(r.problems).toEqual(
+      expect.arrayContaining([{ code: "list_empty", equipment: "dumbbell" }, { code: "increment_bad", equipment: "barbell" }, { code: "min_required", equipment: "barbell" }, { code: "increment_bad", equipment: "cable" }]),
+    );
+  });
+  it("reports junk in a list instead of dropping it", () => {
+    const f = emptyForm(["dumbbell"]);
+    f.dumbbell.listText = "10 abc 20";
+    const r = loadsFromForm("Club", f);
+    expect(r.problems).toContainEqual({ code: "number_invalid", equipment: "dumbbell", detail: ["abc"] });
+  });
+  it("a disabled section is not saved; no equipment at all is a problem", () => {
+    const r = loadsFromForm("Club", emptyForm());
+    expect(r.problems).toEqual([{ code: "no_equipment" }]);
+  });
+  it("engine rules still apply (max below min)", () => {
+    const f = emptyForm(["cable"]);
+    f.cable.incrementText = "5";
+    f.cable.minText = "50";
+    f.cable.maxText = "10";
+    expect(loadsFromForm("Club", f).problems).toContainEqual({ code: "range_bad", equipment: "cable" });
   });
 });

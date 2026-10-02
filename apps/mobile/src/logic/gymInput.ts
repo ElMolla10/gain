@@ -57,10 +57,12 @@ export function rangeLoads(min: number, max: number, step: number): number[] {
 
 export const formatList = (xs: number[]): string => xs.join(", ");
 
-export type GymProblemCode = "name_empty" | "no_equipment" | "list_empty" | "increment_bad" | "range_bad" | "duplicate_equipment" | "too_many_rungs" | "negative_load" | "invalid";
+export type GymProblemCode = "name_empty" | "no_equipment" | "list_empty" | "increment_bad" | "range_bad" | "duplicate_equipment" | "too_many_rungs" | "negative_load" | "invalid" | "min_required" | "number_invalid";
 export interface GymProblem {
   code: GymProblemCode;
   equipment?: EquipmentType;
+  /** Pieces of typed text that were not numbers. */
+  detail?: string[];
 }
 
 /**

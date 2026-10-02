@@ -1,10 +1,13 @@
-import { findSpec } from "@gain/engine";
+import { findSpec, roundToGymLoad } from "@gain/engine";
 import { describe, expect, it } from "vitest";
 import { ProfileInvalid } from "../src/db/onboardingRepo";
 import { GymInvalid } from "../src/db/gymRepo";
 import { DraftInvalid, SessionInProgress } from "../src/db/programmeRepo";
 import { SAMPLE_EXERCISES } from "../src/db/seedData";
 import { draftHasExercise, isTodayOrLater, markGoalLift, optionalNumber, parseDate, validateProfile, type Profile } from "../src/logic/onboarding";
+import { defaultGymLoads } from "../src/logic/defaultGym";
+import { validateGym } from "../src/logic/gymInput";
+import { kgToUnit, unitToKg } from "../src/logic/units";
 import { instantiateTemplate, TEMPLATES } from "../src/logic/templates";
 import { freshDb } from "./helpers";
 
@@ -166,7 +169,7 @@ describe("onboarding complete", () => {
   });
 });
 
-import { buildProfile, emptyOnboardingForm, stepProblems } from "../src/logic/onboardingForm";
+import { buildProfile, emptyOnboardingForm, STEPS, stepProblems } from "../src/logic/onboardingForm";
 
 describe("onboarding form", () => {
   const filled = () => ({ ...emptyOnboardingForm("ar"), days: 4, minutes: 60, equipment: ["barbell" as const], goalKind: "lift" as const, goalExerciseId: "x", goalLoadText: "١٠٠", goalRepsText: "5", goalDateText: "2027-06-30" });
@@ -198,5 +201,81 @@ describe("onboarding form", () => {
     expect(stepProblems("basics", f, NOW).sort()).toEqual(["days_bad", "minutes_bad", "no_equipment"]);
     expect(stepProblems("goal", f, NOW)).toEqual(["goal_missing"]);
     expect(stepProblems("basics", { ...f, days: 3, minutes: 45, equipment: ["cable"] }, NOW)).toEqual([]);
+  });
+});
+
+describe("onboarding without a gym step (silent default gym)", () => {
+  it("has no gym step and offers the unit choice", () => {
+    expect(STEPS).toEqual(["language", "units", "basics", "goal", "programme", "review"]);
+    expect(emptyOnboardingForm("en").units).toBe("kg");
+  });
+
+  it("creates a default gym silently with standard kg loads when none is given", async () => {
+    const { onboarding, repos, gyms, profile, draft, sampleGym } = await setup();
+    const r = await onboarding.complete({ profile, programme: draft });
+    expect(await repos.getActiveGymId()).toBe(r.gymId);
+    const g = (await gyms.getGym(r.gymId))!;
+    expect(g.name).toBe("My gym");
+    expect(g.isSample).toBe(false);
+    const fp = await repos.loadGymFingerprint(r.gymId);
+    expect(fp.loads.map((l) => l.equipment).sort()).toEqual(["assisted", "barbell", "cable", "dumbbell", "machine", "plate"]);
+    expect(findSpec(fp, "barbell")).toMatchObject({ increment: 2.5, min: 20 });
+    expect(findSpec(fp, "dumbbell")!.loads).toEqual(defaultGymLoads("kg").find((l) => l.equipment === "dumbbell")!.loads);
+    expect(findSpec(fp, "cable")!.increment).toBe(5);
+    expect(await gyms.getGym(sampleGym)).toBeNull();
+    expect(await repos.getUnits()).toBe("kg");
+  });
+
+  it("an lb lifter gets a default gym with lb-friendly steps that show as 5 / 2.5 / 10 lb", async () => {
+    const { onboarding, repos, profile, draft } = await setup();
+    const r = await onboarding.complete({ profile: { ...profile, units: "lb", language: "ar" }, programme: draft });
+    expect(await repos.getUnits()).toBe("lb");
+    const fp = await repos.loadGymFingerprint(r.gymId);
+    const lbOf = (x: number | undefined) => kgToUnit(x!, "lb");
+    const bar = findSpec(fp, "barbell")!;
+    expect([lbOf(bar.min), lbOf(bar.increment)]).toEqual([45, 5]);
+    expect(lbOf(findSpec(fp, "plate")!.increment)).toBe(2.5);
+    expect(lbOf(findSpec(fp, "cable")!.increment)).toBe(5);
+    expect(lbOf(findSpec(fp, "machine")!.increment)).toBe(10);
+    expect(findSpec(fp, "dumbbell")!.loads!.map((x) => kgToUnit(x, "lb")).slice(0, 4)).toEqual([5, 10, 15, 20]);
+  });
+
+  it("the default gym passes the editor's validation and the engine can round to it", () => {
+    for (const u of ["kg", "lb"] as const) {
+      expect(validateGym("My gym", defaultGymLoads(u))).toEqual([]);
+      // the engine snaps to loads that exist: 100 lb is within 2 g of the lb barbell's 100 lb rung, 100 kg is a rung of the kg one
+      const bar = defaultGymLoads(u).find((l) => l.equipment === "barbell")!;
+      const wanted = u === "lb" ? unitToKg(100, "lb") : 100;
+      const r = roundToGymLoad(bar, wanted);
+      expect(Math.abs(r.load! - wanted)).toBeLessThan(0.002);
+      expect(kgToUnit(r.load!, u)).toBe(100);
+    }
+  });
+
+  it("running setup again keeps the lifter's own gym instead of adding another", async () => {
+    const { onboarding, gyms, profile, draft, db } = await setup();
+    const first = await onboarding.complete({ profile, programme: draft });
+    const again = await onboarding.complete({ profile, programme: draft });
+    expect(again.gymId).toBe(first.gymId);
+    expect((await gyms.listGyms()).filter((g) => !g.isSample)).toHaveLength(1);
+    expect((await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM gym WHERE is_sample = 0 AND deleted_at IS NULL"))!.n).toBe(1);
+  });
+
+  it("an explicit gym is still honoured", async () => {
+    const { onboarding, gyms, profile, draft, rack } = await setup();
+    const r = await onboarding.complete({ profile, programme: draft, gym: { name: "Club", loads: rack } });
+    expect((await gyms.getGym(r.gymId))!.name).toBe("Club");
+  });
+
+  it("typed weights are read in the chosen unit and stored in kg", () => {
+    const f = { ...emptyOnboardingForm("en", "lb"), days: 4, minutes: 60, equipment: ["barbell" as const], goalKind: "lift" as const, goalExerciseId: "x", goalLoadText: "225", goalRepsText: "5", bodyweightText: "180" };
+    const r = buildProfile(f, NOW);
+    expect(r.problems).toEqual([]);
+    expect(r.profile!.units).toBe("lb");
+    expect(r.profile!.goal).toMatchObject({ kind: "lift", targetLoad: 102.058 });
+    expect(r.profile!.bodyweightKg).toBe(81.647);
+    // 30-300 is checked on the kilograms: 50 lb is under 30 kg
+    expect(buildProfile({ ...f, bodyweightText: "50" }, NOW).problems).toContain("bodyweight_bad");
+    expect(buildProfile({ ...f, bodyweightText: "abc" }, NOW).problems).toContain("bodyweight_bad");
   });
 });

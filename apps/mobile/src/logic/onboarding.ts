@@ -1,10 +1,11 @@
 import type { EquipmentType } from "@gain/engine";
 import { parseNumber } from "./gymInput";
+import type { Unit } from "./units";
 import type { MuscleGroup } from "./exposure";
 import type { ProgrammeDraft } from "./programmeDraft";
 
 /** Everything onboarding asks, in the order it asks. Only what is needed to write a first session; the rest is optional. */
-export type Units = "kg";
+export type Units = Unit;
 
 export type GoalInput =
   | { kind: "lift"; exerciseId: string; targetLoad: number; targetReps: number; targetDate: string | null }

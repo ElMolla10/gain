@@ -18,6 +18,8 @@ import { WorkoutScreen } from "./src/screens/WorkoutScreen";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { I18nProvider, useI18n } from "./src/i18n";
 import type { Lang, RtlOverride } from "./src/i18n/format";
+import { GymEditScreen } from "./src/screens/GymEditScreen";
+import { GymScreen } from "./src/screens/GymScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { TodayScreen } from "./src/screens/TodayScreen";
 
@@ -29,6 +31,7 @@ function Tabs() {
   return (
     <Tab.Navigator screenOptions={{ tabBarLabelStyle: { fontSize: 14 }, tabBarStyle: { minHeight: 64 } }}>
       <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today") }} />
+      <Tab.Screen name="Gym" component={GymScreen} options={{ title: t("gym.title"), tabBarLabel: t("tab.gym") }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: t("tab.settings") }} />
     </Tab.Navigator>
   );
@@ -45,6 +48,7 @@ function Shell() {
           <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title") }} />
           <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false }} />
+          <Stack.Screen name="GymEdit" component={GymEditScreen} options={{ title: t("gym.edit.title") }} />
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
         </Stack.Navigator>
       </NavigationContainer>

@@ -26,7 +26,7 @@ export const HEVY_COLUMNS = [
 export class HevyParseError extends Error {}
 
 /** RFC 4180-ish CSV: quoted fields, "" escapes, CRLF/LF, newlines inside quotes, optional BOM. */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, delimiter = ","): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -42,7 +42,7 @@ export function parseCsv(text: string): string[][] {
         } else inQuotes = false;
       } else field += c;
     } else if (c === '"') inQuotes = true;
-    else if (c === ",") {
+    else if (c === delimiter) {
       row.push(field);
       field = "";
     } else if (c === "\n" || c === "\r") {

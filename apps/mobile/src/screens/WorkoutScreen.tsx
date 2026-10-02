@@ -9,6 +9,7 @@ import type { SetRow } from "../db/workoutRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
+import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { warmupOffer } from "../logic/warmups";
 import { canLog, initialDraft, repeatLast, RIR_CHOICES, stepLoad, stepReps, type SetDraft } from "../logic/draft";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
@@ -63,7 +64,7 @@ function Stepper(props: { label: string; value: string; onLess: () => void; onMo
 }
 
 export function WorkoutScreen() {
-  const { repos, workout, finish } = useServices();
+  const { repos, workout, finish, restAlerts } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
   const route = useRoute();
@@ -81,6 +82,7 @@ export function WorkoutScreen() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [saving, setSaving] = useState(false);
   const [timer, setTimer] = useState<RestTimer>(() => newTimer());
+  const [rest, setRest] = useState<RestSettings>(defaultRestSettings());
   const [now, setNow] = useState(Date.now());
   const [restOver, setRestOver] = useState(false);
   const startedRef = useRef(false);
@@ -108,6 +110,22 @@ export function WorkoutScreen() {
     })().catch(() => setLoaded("nogym"));
   }, [repos, workout, finish, dayId]);
 
+  // Rest settings: the default length (unless a rest is already running) and whether to vibrate / notify.
+  useEffect(() => {
+    void loadRestSettings(repos).then((s) => {
+      setRest(s);
+      setTimer((tm) => (tm.endsAt === null ? newTimer(s.seconds) : tm));
+    });
+  }, [repos]);
+
+  // Keep the end-of-rest notification in step with the timer, so the alert arrives with the screen off.
+  useEffect(() => {
+    void syncRestAlert(restAlerts, timer, rest, { title: t("rest.alert.title"), body: t("rest.alert.body") }, Date.now());
+  }, [timer, rest, restAlerts, t]);
+
+  // Leaving the logger drops the in-app timer, so drop its alert too (no stray buzz after the workout).
+  useEffect(() => () => void restAlerts.cancel().catch(() => undefined), [restAlerts]);
+
   useEffect(() => {
     const h = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(h);
@@ -116,11 +134,11 @@ export function WorkoutScreen() {
   // When the rest timer reaches zero: buzz once, remember it, stop.
   useEffect(() => {
     if (timer.endsAt !== null && isDone(timer, now)) {
-      Vibration.vibrate(400);
+      if (rest.vibrate) Vibration.vibrate(400);
       setRestOver(true);
       setTimer((tm) => stopTimer(tm));
     }
-  }, [now, timer]);
+  }, [now, timer, rest.vibrate]);
 
   const ex = loaded && loaded !== "nogym" ? loaded.exercises[idx] : undefined;
   const info = ex && loaded && loaded !== "nogym" ? loaded.info[ex.exerciseId] : undefined;

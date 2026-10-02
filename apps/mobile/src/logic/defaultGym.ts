@@ -38,3 +38,23 @@ export function defaultGymLoads(unit: Unit): GymLoadSpec[] {
 
 /** Name of the gym onboarding creates. Arabic is a draft. */
 export const defaultGymName = (lang: "en" | "ar"): string => (lang === "ar" ? "الجيم بتاعي" : "My gym");
+
+const same = (a: number | undefined, b: number | undefined) => (a === undefined || b === undefined ? a === b : Math.abs(a - b) < 1e-6);
+
+/**
+ * Is this exactly the untouched standard rack of `unit` (the silent default gym, or "fill in standard loads")?
+ * Only then may the app offer to swap it for the other unit's standard rack: a rack the lifter edited is never rewritten.
+ * Extra equipment or any changed number means "not standard".
+ */
+export function isStandardRack(loads: GymLoadSpec[], unit: Unit): boolean {
+  const std = defaultGymLoads(unit);
+  if (loads.length !== std.length) return false;
+  return std.every((s) => {
+    const l = loads.find((x) => x.equipment === s.equipment);
+    if (!l) return false;
+    const a = l.loads, b = s.loads;
+    if ((a === undefined) !== (b === undefined)) return false;
+    if (a && b && (a.length !== b.length || a.some((v, i) => !same(v, b[i])))) return false;
+    return same(l.increment, s.increment) && same(l.min, s.min) && same(l.max, s.max);
+  });
+}

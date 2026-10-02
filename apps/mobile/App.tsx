@@ -15,6 +15,7 @@ import { createOnboardingRepo } from "./src/db/onboardingRepo";
 import { createImportRepo } from "./src/db/importRepo";
 import { createProgrammeRepo } from "./src/db/programmeRepo";
 import { createRepos } from "./src/db/repos";
+import { createRestAlerts } from "./src/notifications/restAlerts";
 import { createDataRepo } from "./src/db/dataRepo";
 import { DataScreen } from "./src/screens/DataScreen";
 import type { Db } from "./src/db/driver";
@@ -137,7 +138,7 @@ export default function App() {
       const history = createHistoryRepo(db, deps, repos, finish);
       const decisions = createDecisionRepo(db);
       const data = createDataRepo(db, deps);
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch(() => setBoot("error"));
   }, [epoch]);
 

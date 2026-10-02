@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from "react";
 import type { Repos } from "./db/repos";
 import type { Db } from "./db/driver";
+import type { RestAlerts } from "./logic/restAlert";
 import type { DataRepo } from "./db/dataRepo";
 import type { DecisionRepo } from "./db/decisionRepo";
 import type { FinishRepo } from "./db/finishRepo";
@@ -31,6 +32,7 @@ export interface AppServices {
   history: HistoryRepo;
   decisions: DecisionRepo;
   data: DataRepo;
+  restAlerts: RestAlerts;
   /** Reload everything from the database (after a restore or delete-all) without restarting the process. */
   restart: () => void;
 }

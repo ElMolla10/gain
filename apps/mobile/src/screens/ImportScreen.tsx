@@ -11,7 +11,7 @@ import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { PATTERNS } from "../logic/exposure";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
-import { applyEquipmentToUnresolved, dateRange, resolveAll, type Override } from "../logic/importFlow";
+import { applyEquipmentToUnresolved, dateRange, heaviestLoad, resolveAll, type Override } from "../logic/importFlow";
 import { space, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip } from "../ui";
 
@@ -74,7 +74,7 @@ function TitleCard(props: { row: ReturnType<typeof resolveAll>["rows"][number]; 
 }
 
 export function ImportScreen() {
-  const { t, lang } = useI18n();
+  const { t, lang, fmt } = useI18n();
   const p = usePalette();
   const { imports, gyms, programmes } = useServices();
   const [parsed, setParsed] = useState<{ name: string; parse: ImportParse } | null>(null);
@@ -110,6 +110,9 @@ export function ImportScreen() {
       return null;
     }
   }, [parsed, unit]);
+
+  /** Heaviest set in the file, in kg (shown in the lifter's unit, so a converted lb file is easy to sanity-check). */
+  const heaviestKg = useMemo(() => heaviestLoad(kgParse), [kgParse]);
 
   useEffect(() => {
     setPreview(null);
@@ -212,6 +215,7 @@ export function ImportScreen() {
               <>
                 <AppText>{t("import.preview.workouts", { n: preview.newWorkouts, sets: preview.newSets })}</AppText>
                 <AppText style={{ color: p.muted }}>{t("import.preview.range", { range: dateRange(preview.firstDate, preview.lastDate) })}</AppText>
+                {heaviestKg !== null ? <AppText style={{ color: p.muted }}>{t("import.preview.heaviest", { load: fmt(heaviestKg) })}</AppText> : null}
               </>
             ) : (
               <AppText>{t("import.preview.nothing")}</AppText>

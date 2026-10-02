@@ -21,6 +21,7 @@ import { WorkoutScreen } from "./src/screens/WorkoutScreen";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { I18nProvider, useI18n } from "./src/i18n";
 import type { Lang, RtlOverride } from "./src/i18n/format";
+import type { Unit } from "./src/logic/units";
 import { ImportScreen } from "./src/screens/ImportScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { GymEditScreen } from "./src/screens/GymEditScreen";
@@ -82,7 +83,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
 }
 
 export default function App() {
-  const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; needsOnboarding: boolean } | "error" | null>(null);
+  const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; unit: Unit; needsOnboarding: boolean } | "error" | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -98,12 +99,12 @@ export default function App() {
       const onboarding = createOnboardingRepo(db, deps, repos, gyms, programmes);
       const imports = createImportRepo(db, deps, repos, workout, programmes, finish);
       await onboarding.markExistingInstall();
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), needsOnboarding: (await onboarding.getState()) === null });
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch(() => setBoot("error"));
   }, []);
 
   const onChange = useMemo(
-    () => (key: "language" | "rtl_override", value: string) => {
+    () => (key: "language" | "rtl_override" | "units", value: string) => {
       if (boot && boot !== "error") void boot.services.repos.setSetting(key, value);
     },
     [boot],
@@ -115,7 +116,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ServicesProvider value={boot.services}>
-        <I18nProvider initialLang={boot.lang} initialOverride={boot.override} onChange={onChange}>
+        <I18nProvider initialLang={boot.lang} initialOverride={boot.override} initialUnit={boot.unit} onChange={onChange}>
           <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" ? { ...b, needsOnboarding: false } : b))} />
         </I18nProvider>
       </ServicesProvider>

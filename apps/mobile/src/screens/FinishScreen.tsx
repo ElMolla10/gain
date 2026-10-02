@@ -7,6 +7,7 @@ import type { SessionSummary, TargetRow } from "../db/finishRepo";
 import { formatLoad, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { stepLoad } from "../logic/draft";
+import { localizeReason, weightText } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card } from "../ui";
 
@@ -20,7 +21,7 @@ interface Next {
 
 export function FinishScreen() {
   const { repos, workout, finish } = useServices();
-  const { t, lang } = useI18n();
+  const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (n: string, params?: object) => void; popToTop: () => void }>();
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
@@ -82,8 +83,8 @@ export function FinishScreen() {
           const lines: string[] = [];
           if (e.firstTime) lines.push(`${name}: ${t("finish.firstTime")}`);
           for (const r of e.records) {
-            if (r === "load" && e.top) lines.push(`${name}: ${t("finish.record.load", { load: formatLoad(e.top.load, lang) })}`);
-            if (r === "reps_at_load" && e.top) lines.push(`${name}: ${t("finish.record.reps", { load: formatLoad(e.top.load, lang), reps: e.top.reps })}`);
+            if (r === "load" && e.top) lines.push(`${name}: ${t("finish.record.load", { load: formatLoad(e.top.load, lang, unit) })}`);
+            if (r === "reps_at_load" && e.top) lines.push(`${name}: ${t("finish.record.reps", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps })}`);
           }
           return lines.map((l) => <AppText key={`${e.exerciseId}-${l}`}>{l}</AppText>);
         })}
@@ -110,21 +111,21 @@ export function FinishScreen() {
                   <AppText>{t("finish.rejectedNote")}</AppText>
                 ) : (
                   <AppText style={{ fontSize: 22, fontWeight: "800" }}>
-                    {formatLoad(tg.effectiveLoad ?? 0, lang)} × {isolateLtr(String(tg.reps ?? ""))}
+                    {formatLoad(tg.effectiveLoad ?? 0, lang, unit)} × {isolateLtr(String(tg.reps ?? ""))}
                   </AppText>
                 )}
-                <AppText style={{ color: p.muted }}>{renderReason(tg.reason, lang)}</AppText>
+                <AppText style={{ color: p.muted }}>{renderReason(localizeReason(tg.reason, unit, lang), lang)}</AppText>
                 <AppText style={{ color: p.muted }}>{t(`finish.status.${tg.status}` as never)}</AppText>
 
                 {isEditing && editing ? (
                   <View style={{ gap: space.sm }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
                       <View style={{ width: 72 }}>
-                        <BigButton label="−" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free").load })} />
+                        <BigButton label="−" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free", unit).load })} />
                       </View>
-                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: 36, fontWeight: "800" }}>{editing.load}</AppText>
+                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: 36, fontWeight: "800" }}>{weightText(editing.load, unit)} {unitText}</AppText>
                       <View style={{ width: 72 }}>
-                        <BigButton label="+" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, 1, (info?.setup as "free") ?? "free").load })} />
+                        <BigButton label="+" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, 1, (info?.setup as "free") ?? "free", unit).load })} />
                       </View>
                     </View>
                     <BigButton

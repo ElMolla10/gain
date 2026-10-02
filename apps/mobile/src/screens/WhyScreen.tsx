@@ -10,7 +10,7 @@ import { AppText, Card } from "../ui";
 
 export function WhyScreen() {
   const { finish } = useServices();
-  const { t, lang } = useI18n();
+  const { t, lang, unit } = useI18n();
   const p = usePalette();
   const targetId = (useRoute().params as { targetId: string }).targetId;
   const [sections, setSections] = useState<WhySection[] | null | "missing">(null);
@@ -19,9 +19,9 @@ export function WhyScreen() {
     (async () => {
       const d = await finish.getDecision(targetId);
       if (!d) return setSections("missing");
-      setSections(describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, (k, params) => t(k as StringKey, params), lang));
+      setSections(describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, (k, params) => t(k as StringKey, params), lang, unit));
     })().catch(() => setSections("missing"));
-  }, [finish, targetId, t, lang]);
+  }, [finish, targetId, t, lang, unit]);
 
   if (sections === null) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
   if (sections === "missing") return <AppText style={{ padding: space.lg }}>{t("why.missing")}</AppText>;

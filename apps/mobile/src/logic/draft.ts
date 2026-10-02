@@ -1,3 +1,4 @@
+import { kgToUnit, unitToKg, type Unit } from "./units";
 import { nextLoadAbove, nextLoadBelow, type GymLoadSpec, type SetupType } from "@gain/engine";
 
 export interface SetDraft {
@@ -32,16 +33,20 @@ export function repeatLast(today: Prefill["today"]): SetDraft | null {
   return last ? { load: last.load, reps: last.reps, rir: last.rir, warmup: last.warmup } : null;
 }
 
-/** Step the load to the next/previous load that EXISTS in this gym. Without gym loads, fall back to 2.5 kg and say so. */
+/** Step the load to the next/previous load that EXISTS in this gym. Without gym loads, fall back to 2.5 kg (5 lb in lb mode) and say so. Loads are kg. */
 export function stepLoad(
   spec: GymLoadSpec | null,
   current: number | null,
   dir: 1 | -1,
   setup: SetupType = "free",
+  unit: Unit = "kg",
 ): { load: number; exact: boolean } {
   const zero = setup !== "free";
   const from = current ?? 0;
-  if (!spec) return { load: Math.max(0, Math.round((from + dir * 2.5) * 100) / 100), exact: false };
+  if (!spec) {
+    if (unit === "lb") return { load: Math.max(0, unitToKg(Math.round(kgToUnit(from, "lb") + dir * 5), "lb")), exact: false };
+    return { load: Math.max(0, Math.round((from + dir * 2.5) * 100) / 100), exact: false };
+  }
   const next = dir === 1 ? nextLoadAbove(spec, from, zero) : nextLoadBelow(spec, from, zero);
   return { load: next ?? from, exact: true };
 }

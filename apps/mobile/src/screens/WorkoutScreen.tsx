@@ -7,6 +7,7 @@ import { useServices } from "../AppContext";
 import type { TargetRow } from "../db/finishRepo";
 import type { SetRow } from "../db/workoutRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
+import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
 import { canLog, initialDraft, repeatLast, RIR_CHOICES, stepLoad, stepReps, type SetDraft } from "../logic/draft";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
@@ -62,7 +63,7 @@ function Stepper(props: { label: string; value: string; onLess: () => void; onMo
 
 export function WorkoutScreen() {
   const { repos, workout, finish } = useServices();
-  const { t, lang } = useI18n();
+  const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
   const route = useRoute();
   const navigation = useNavigation();
@@ -175,10 +176,10 @@ export function WorkoutScreen() {
   const labels = exerciseLabels(ex, lang);
   const pr = info.proposal;
   const lastText = info.last
-    ? info.last.sets.map((s) => `${isolateLtr(`${s.load}`)} × ${isolateLtr(`${s.reps}`)}`).join("  ·  ")
+    ? info.last.sets.map((s) => `${isolateLtr(weightText(s.load, unit))} × ${isolateLtr(`${s.reps}`)}`).join("  ·  ")
     : null;
   const stepSetup = ex.setup;
-  const loadStep = (dir: 1 | -1) => setDraft((d) => ({ ...d, load: stepLoad(spec, d.load, dir, stepSetup).load }));
+  const loadStep = (dir: 1 | -1) => setDraft((d) => ({ ...d, load: stepLoad(spec, d.load, dir, stepSetup, unit).load }));
   const timerRunning = timer.endsAt !== null;
   const last = repeatLast(exSets.map((s) => ({ load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup })));
 
@@ -198,19 +199,19 @@ export function WorkoutScreen() {
             <AppText>{t("finish.rejectedNote")}</AppText>
           ) : info.stored.effectiveLoad !== null && info.stored.reps !== null ? (
             <AppText style={{ fontSize: 20, fontWeight: "700" }}>
-              {formatLoad(info.stored.effectiveLoad, lang)} × {isolateLtr(String(info.stored.reps))}
+              {formatLoad(info.stored.effectiveLoad, lang, unit)} × {isolateLtr(String(info.stored.reps))}
             </AppText>
           ) : (
             <AppText>{t("workout.targetNone")}</AppText>
           )
         ) : pr.status === "proposed" && pr.load !== null && pr.reps !== null ? (
           <AppText style={{ fontSize: 20, fontWeight: "700" }}>
-            {formatLoad(pr.load, lang)} × {isolateLtr(String(pr.reps))}
+            {formatLoad(pr.load, lang, unit)} × {isolateLtr(String(pr.reps))}
           </AppText>
         ) : (
           <AppText>{t("workout.targetNone")}</AppText>
         )}
-        <AppText style={{ color: p.muted }}>{renderReason(info.stored ? info.stored.reason : pr.reason, lang)}</AppText>
+        <AppText style={{ color: p.muted }}>{renderReason(localizeReason(info.stored ? info.stored.reason : pr.reason, unit, lang), lang)}</AppText>
         {info.stored ? (
           <>
             <AppText style={{ color: p.muted }}>{t(`finish.status.${info.stored.status}` as never)}</AppText>
@@ -223,7 +224,7 @@ export function WorkoutScreen() {
         <Card style={{ borderColor: "#c77700", borderWidth: 2 }}>
           <AppText style={{ fontWeight: "800" }}>⚠ {t("workout.outlier.title")}</AppText>
           <AppText>
-            {t("workout.outlier.body", { load: pending.outlier.expected?.medianLoad ?? "?", reps: pending.outlier.expected?.medianReps ?? "?" })}
+            {t("workout.outlier.body", { load: pending.outlier.expected ? fmt(pending.outlier.expected.medianLoad) : "?", reps: pending.outlier.expected?.medianReps ?? "?" })}
           </AppText>
           <AppText style={{ color: p.muted }}>{t("workout.outlier.note")}</AppText>
           <BigButton
@@ -256,8 +257,8 @@ export function WorkoutScreen() {
           </View>
         </View>
         <Stepper
-          label={`${t("workout.load")} (${t("unit.kg")})`}
-          value={draft.load === null ? "—" : String(draft.load)}
+          label={`${t("workout.load")} (${unitText})`}
+          value={draft.load === null ? "—" : weightText(draft.load, unit)}
           onLess={() => loadStep(-1)}
           onMore={() => loadStep(1)}
           lessLabel={t("workout.less")}
@@ -291,7 +292,7 @@ export function WorkoutScreen() {
         <AppText style={{ fontWeight: "700" }}>{t("workout.setsToday")}</AppText>
         {exSets.map((s) => (
           <AppText key={s.id} ltr={false}>
-            {isolateLtr(`${s.position}.`)} {formatLoad(s.load, lang)} × {isolateLtr(String(s.reps))}
+            {isolateLtr(`${s.position}.`)} {formatLoad(s.load, lang, unit)} × {isolateLtr(String(s.reps))}
             {s.rir !== null ? ` · ${t("workout.effort.n", { n: s.rir })}` : ""}
             {s.warmup ? ` · ${t("workout.warmupTag")}` : ""}
             {s.outlierStatus === "unconfirmed" ? ` · ${t("workout.unconfirmedTag")}` : ""} ✓

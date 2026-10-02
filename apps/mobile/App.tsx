@@ -124,6 +124,7 @@ export default function App() {
       const deps = { newId: () => Crypto.randomUUID(), now: () => Date.now() };
       const repos = createRepos(db, deps);
       await repos.seedIfNeeded();
+      await repos.topUpLibrary();
       const workout = createWorkoutRepo(db, deps);
       const finish = createFinishRepo(db, deps, repos, workout);
       const gyms = createGymRepo(db, deps, repos, finish);

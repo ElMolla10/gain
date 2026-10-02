@@ -8,6 +8,7 @@
     "android": "expo start --android",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "review-sheet": "vite-node scripts/review-sheet.ts",
     "export:android": "expo export --platform android"
   },
   "dependencies": {

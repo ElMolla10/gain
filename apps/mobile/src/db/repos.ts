@@ -1,6 +1,7 @@
 import { classifyLift, DEFAULT_REP_CEILINGS, mergeRepCeilings, resolveProgression, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings } from "@gain/engine";
 import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
+import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
 import { SAMPLE_EXERCISES, SAMPLE_GYM, SAMPLE_PROGRAMME, SEED_VERSION } from "./seedData";
 
 export type Language = "en" | "ar";
@@ -137,6 +138,31 @@ export function createRepos(db: Db, deps: Deps) {
     return { seeded: true };
   }
 
+  /**
+   * Adds the draft library exercises that are missing (matched by seed_key), once per LIBRARY_VERSION.
+   * It never changes or resurrects an exercise the lifter already has, edited, or deleted: a seed_key that exists in any state is left alone.
+   * Rows are NOT sample rows (is_sample = 0): they are library entries with a draft Arabic name.
+   */
+  async function topUpLibrary(): Promise<{ added: number }> {
+    if ((await getSetting("library_version")) === String(LIBRARY_VERSION)) return { added: 0 };
+    let added = 0;
+    await db.transaction(async () => {
+      const t = now();
+      for (const e of DRAFT_LIBRARY) {
+        const have = await db.get<{ id: string }>("SELECT id FROM exercise WHERE seed_key = ?", [e.key]);
+        if (have) continue;
+        await db.run(
+          `INSERT INTO exercise (id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, is_sample, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+          [newId(), e.key, e.en, e.ar, JSON.stringify(e.aliasesAr), e.pattern, e.equipment, e.setup, t, t],
+        );
+        added++;
+      }
+      await setSetting("library_version", String(LIBRARY_VERSION));
+    });
+    return { added };
+  }
+
   // ---- gym ------------------------------------------------------------------------------------------------
   async function getActiveGymId(): Promise<string | null> {
     return getSetting("active_gym_id");
@@ -268,6 +294,7 @@ export function createRepos(db: Db, deps: Deps) {
     resetRepCeilingDefaults,
     setLiftRepCeiling,
     seedIfNeeded,
+    topUpLibrary,
     getActiveGymId,
     loadGymFingerprint,
     getLatestProgrammeVersion,

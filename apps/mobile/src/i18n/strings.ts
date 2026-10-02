@@ -1,4 +1,5 @@
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
+import { arGoals, enGoals } from "./strings.goals";
 import { arGym, enGym } from "./strings.gym";
 import { arImport, enImport } from "./strings.import";
 import { arOnboarding, enOnboarding } from "./strings.onboarding";
@@ -16,7 +17,6 @@ export const en = {
   "today.estimate": "About {min} min (estimate: 3 min per set)",
   "today.goalLifts": "Goal lifts",
   "today.noGoalLifts": "No goal lift marked in this session",
-  "today.pace": "No goal set yet. Goals and pace arrive in a later version.",
   "today.start": "Start workout",
   "today.startSoon": "The workout logger arrives in the next step.",
   "today.empty": "No programme yet.",
@@ -156,6 +156,7 @@ export const en = {
   "why.notBlocked": "still allowed",
   "why.missing": "No logged inputs were found for this target.",
   ...enGym,
+  ...enGoals,
   ...enProgramme,
   ...enOnboarding,
   ...enImport,
@@ -175,7 +176,6 @@ export const ar: Record<StringKey, string> = {
   "today.estimate": "حوالي {min} دقيقة (تقدير: 3 دقايق لكل مجموعة)",
   "today.goalLifts": "تمارين الهدف",
   "today.noGoalLifts": "مفيش تمرين هدف في التمرين ده",
-  "today.pace": "لسه مفيش هدف. الأهداف والسرعة هتيجي في نسخة جاية.",
   "today.start": "ابدأ التمرين",
   "today.startSoon": "شاشة تسجيل التمرين جاية في الخطوة الجاية.",
   "today.empty": "لسه مفيش برنامج.",
@@ -315,6 +315,7 @@ export const ar: Record<StringKey, string> = {
   "why.notBlocked": "لسه مسموحة",
   "why.missing": "مفيش أرقام مسجلة للهدف ده.",
   ...arGym,
+  ...arGoals,
   ...arProgramme,
   ...arOnboarding,
   ...arImport,

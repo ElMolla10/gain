@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Deps } from "../src/db/driver";
 import { migrate } from "../src/db/migrations";
+import { createGoalRepo } from "../src/db/goalRepo";
 import { createGymRepo } from "../src/db/gymRepo";
 import { createImportRepo } from "../src/db/importRepo";
 import { createOnboardingRepo } from "../src/db/onboardingRepo";
@@ -26,5 +27,6 @@ export async function freshDb() {
   const programmes = createProgrammeRepo(db, deps, repos, finish);
   const onboarding = createOnboardingRepo(db, deps, repos, gyms, programmes);
   const imports = createImportRepo(db, deps, repos, workout, programmes, finish);
-  return { db, deps, repos, workout, finish, gyms, programmes, onboarding, imports };
+  const goals = createGoalRepo(db, deps, repos);
+  return { db, deps, repos, workout, finish, gyms, programmes, onboarding, imports, goals };
 }

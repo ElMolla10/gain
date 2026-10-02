@@ -233,3 +233,116 @@ describe("what counted and records", () => {
     expect(s.exercises[0]).toMatchObject({ counted: 1, warmups: 1, unconfirmed: 0 });
   });
 });
+
+describe("rejection memory surfaces (Step 5)", () => {
+  /** Three rotations at 10 reps so bench proposes a load jump on the fourth. */
+  async function toJump() {
+    const c = await setup();
+    await c.rotate(9);
+    await c.rotate(10);
+    const r = await c.rotate(10);
+    return { ...c, r };
+  }
+
+  it("rejecting says how many times and when the jump stops; non-jumps return null", async () => {
+    const c = await toJump();
+    expect(c.r.bench.currency).toBe("load");
+    const o1 = await c.finish.rejectTarget(c.r.bench.id);
+    expect(o1).toEqual({ jumpKind: "load:harder:2.5", count: 1, max: 3, blocked: false });
+    const again = await c.finish.rejectTarget(c.r.bench.id); // same target twice does not count twice
+    expect(again!.count).toBe(1);
+    const r2 = await c.rotate(10);
+    expect((await c.finish.rejectTarget(r2.bench.id))!.count).toBe(2);
+    const r3 = await c.rotate(10);
+    expect(await c.finish.rejectTarget(r3.bench.id)).toMatchObject({ count: 3, blocked: true });
+    const other = await c.finish.getTargets(r3.plannedSessionId);
+    const noJump = other.find((t) => t.jumpKind === null || !isRememberedKind(t.jumpKind));
+    if (noJump && noJump.currency !== "none") expect(await c.finish.rejectTarget(noJump.id)).toBeNull();
+  });
+
+  it("the list shows exercise, gym, jump, count, and blocked state; empty when nothing was declined", async () => {
+    const c = await toJump();
+    expect(await c.rejections.list()).toEqual([]);
+    await c.finish.rejectTarget(c.r.bench.id);
+    const [a] = await c.rejections.list();
+    expect(a).toMatchObject({ nameEn: "Barbell Bench Press", jumpKind: "load:harder:2.5", count: 1, blocked: false });
+    expect(a!.gymName).toBeTruthy();
+    expect(a!.nameAr).toMatch(/[\u0600-\u06FF]/);
+  });
+
+  it("after 3 rejections the jump is stopped, and 'bring it back' lets the engine propose it again", async () => {
+    const c = await toJump();
+    await c.finish.rejectTarget(c.r.bench.id);
+    await c.finish.rejectTarget((await c.rotate(10)).bench.id);
+    await c.finish.rejectTarget((await c.rotate(10)).bench.id);
+    const [stopped] = await c.rejections.list();
+    expect(stopped).toMatchObject({ count: 3, blocked: true });
+    const blocked = await c.rotate(10);
+    expect(blocked.bench.currency).not.toBe("load");
+
+    await c.rejections.bringBack(stopped!.id);
+    expect(await c.rejections.list()).toEqual([]);
+    const back = await c.rotate(10);
+    expect(back.bench.currency).toBe("load");
+    expect(back.bench.load).toBe(62.5);
+  });
+
+  it("undo puts the record back as it was, unless the jump was declined again meanwhile", async () => {
+    const c = await toJump();
+    await c.finish.rejectTarget(c.r.bench.id);
+    const [it1] = await c.rejections.list();
+    await c.rejections.bringBack(it1!.id);
+    expect(await c.rejections.undoBringBack(it1!.id)).toBe(true);
+    expect((await c.rejections.list())[0]).toMatchObject({ id: it1!.id, count: 1 });
+    expect(await c.rejections.undoBringBack(it1!.id)).toBe(false); // already live
+    expect(await c.rejections.undoBringBack("nope")).toBe(false);
+
+    await c.rejections.bringBack(it1!.id);
+    const r2 = await c.rotate(10);
+    await c.finish.rejectTarget(r2.bench.id); // declined again: a new record with count 1
+    expect(await c.rejections.undoBringBack(it1!.id)).toBe(false);
+    expect((await c.rejections.list()).map((x) => x.count)).toEqual([1]);
+  });
+
+  it("accepting a previously declined jump also clears it from the list", async () => {
+    const c = await toJump();
+    await c.finish.rejectTarget(c.r.bench.id);
+    await c.finish.acceptTarget(c.r.bench.id);
+    expect(await c.rejections.list()).toEqual([]);
+  });
+
+  it("blocked records sort first", async () => {
+    const c = await toJump();
+    await c.finish.rejectTarget(c.r.bench.id);
+    await c.finish.rejectTarget((await c.rotate(10)).bench.id);
+    await c.finish.rejectTarget((await c.rotate(10)).bench.id);
+    const l = await c.rejections.list();
+    expect(l[0]!.blocked).toBe(true);
+  });
+});
+
+describe("an unconfirmed outlier never moves the next target (Step 5)", () => {
+  const rotateWith = async (typo: boolean) => {
+    const c = await setup();
+    await c.rotate(9);
+    await c.rotate(10);
+    // Third rotation: bench 3x10 at 60, plus (maybe) a typo set of 100 reps.
+    let last: Awaited<ReturnType<typeof c.trainNext>> | null = null;
+    for (let d = 0; d < 4; d++) {
+      last = await c.trainNext(
+        d === 0 ? (n) => ({ [n[0]!]: [[60, 10], [60, 10], [60, 10], ...(typo ? ([[60, 100]] as [number, number][]) : [])] }) : undefined,
+      );
+    }
+    const targets = await c.finish.getTargets(last!.written!.sessionId);
+    const bench = targets.find((t) => t.nameEn === c.BENCH)!;
+    const typoSets = await c.db.all<{ outlier_status: string }>("SELECT outlier_status FROM workout_set WHERE reps = 100");
+    return { bench, typoSets };
+  };
+
+  it("100 reps typed instead of 10 is stored as unconfirmed and the next bench target equals the no-typo run", async () => {
+    const clean = await rotateWith(false);
+    const typo = await rotateWith(true);
+    expect(typo.typoSets).toEqual([{ outlier_status: "unconfirmed" }]);
+    expect(typo.bench).toMatchObject({ load: clean.bench.load, reps: clean.bench.reps, currency: clean.bench.currency, jumpKind: clean.bench.jumpKind });
+  });
+});

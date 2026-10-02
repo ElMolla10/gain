@@ -84,3 +84,27 @@ describe("checkOutlier", () => {
     expect(checkOutlier(S(10, 40), ctx).verdict).toBe("unconfirmed");
   });
 });
+
+describe("fat-finger typos (Step 5)", () => {
+  it("100 reps instead of 10 at the usual load is unconfirmed", () => {
+    const r = checkOutlier(S(30, 100), { line, history: hist, gymSpec: spec });
+    expect(r.verdict).toBe("unconfirmed");
+    expect(r.outlierStatus).toBe("unconfirmed");
+  });
+  it("100 kg instead of 10 kg on a light lift is unconfirmed", () => {
+    const light = run(line, 10, [10, 10, 10]);
+    const r = checkOutlier(S(100, 10), { line, history: light, gymSpec: spec });
+    expect(r.verdict).toBe("unconfirmed");
+    expect(r.reasons).toContain("load_far_from_line");
+  });
+  it("an extra zero (300 instead of 30) is unconfirmed", () => {
+    expect(checkOutlier(S(300, 10), { line, history: hist, gymSpec: spec }).verdict).toBe("unconfirmed");
+  });
+  it("a comma slip (3 reps typed as 33) is unconfirmed on a heavy line", () => {
+    const heavy = run(line, 30, [3, 3, 3]);
+    expect(checkOutlier(S(30, 33), { line, history: heavy, gymSpec: spec }).verdict).toBe("unconfirmed");
+  });
+  it("a real small jump in reps is not a typo", () => {
+    expect(checkOutlier(S(30, 12), { line, history: hist, gymSpec: spec }).verdict).toBe("ok");
+  });
+});

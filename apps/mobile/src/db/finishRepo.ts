@@ -1,5 +1,6 @@
 import {
   isGymLoad,
+  REJECTION_THRESHOLD,
   findSpec,
   type GymFingerprint,
   type LineIdentity,
@@ -88,6 +89,14 @@ const toTarget = (r: RawTarget): TargetRow => ({
 
 /** Only jumps are remembered (load / effort / quality). Plain "one more rep" or "repeat" is not a jump the lifter can refuse. */
 export const isRememberedKind = (kind: string | null): kind is string => !!kind && /^(load|effort|quality):/.test(kind);
+
+/** What rejecting a target did to the rejection memory, so the screen can say it plainly. Null when the target was not a jump. */
+export interface RejectionOutcome {
+  jumpKind: string;
+  count: number;
+  max: number;
+  blocked: boolean;
+}
 
 export interface SessionSummary {
   sessionId: string;
@@ -329,13 +338,17 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   }
 
   /** Reject: the lifter will set their own number. Remembered per line + jump kind; 3 rejections stop that jump. */
-  async function rejectTarget(targetId: string): Promise<void> {
+  async function rejectTarget(targetId: string): Promise<RejectionOutcome | null> {
     const tr = await mustGet(targetId);
     const t = now();
     await db.transaction(async () => {
       await db.run("UPDATE target SET status = 'rejected', edited_load = NULL, updated_at = ? WHERE id = ?", [t, targetId]);
       if (tr.status !== "rejected" && isRememberedKind(tr.jumpKind)) await bumpRejection(tr.lineId, tr.jumpKind);
     });
+    if (!isRememberedKind(tr.jumpKind)) return null;
+    const row = await db.get<{ count: number }>("SELECT count FROM rejection_memory WHERE line_id = ? AND jump_kind = ? AND deleted_at IS NULL", [tr.lineId, tr.jumpKind]);
+    const count = row?.count ?? 0;
+    return { jumpKind: tr.jumpKind, count, max: REJECTION_THRESHOLD, blocked: count >= REJECTION_THRESHOLD };
   }
 
   async function getDecision(targetId: string): Promise<{ ruleVersion: string; path: string; createdAt: number; payload: DecisionPayload } | null> {

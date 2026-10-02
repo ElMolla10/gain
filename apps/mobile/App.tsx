@@ -15,6 +15,7 @@ import { createOnboardingRepo } from "./src/db/onboardingRepo";
 import { createImportRepo } from "./src/db/importRepo";
 import { createProgrammeRepo } from "./src/db/programmeRepo";
 import { createRepos } from "./src/db/repos";
+import { createRejectionRepo } from "./src/db/rejectionRepo";
 import { createShortWeekRepo } from "./src/db/shortWeekRepo";
 import { createWeeklyRepo } from "./src/db/weeklyRepo";
 import { createWorkoutRepo } from "./src/db/workoutRepo";
@@ -32,6 +33,7 @@ import { GymEditScreen } from "./src/screens/GymEditScreen";
 import { GymScreen } from "./src/screens/GymScreen";
 import { ProgrammeEditScreen } from "./src/screens/ProgrammeEditScreen";
 import { ProgrammeScreen } from "./src/screens/ProgrammeScreen";
+import { StoppedSuggestionsScreen } from "./src/screens/StoppedSuggestionsScreen";
 import { ShortWeekScreen } from "./src/screens/ShortWeekScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { TodayScreen } from "./src/screens/TodayScreen";
@@ -80,6 +82,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
+          <Stack.Screen name="StoppedSuggestions" component={StoppedSuggestionsScreen} options={{ title: t("stop.title") }} />
           <Stack.Screen name="ShortWeek" component={ShortWeekScreen} options={{ title: t("short.title") }} />
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
         </Stack.Navigator>
@@ -109,7 +112,8 @@ export default function App() {
       const weekly = createWeeklyRepo(db, deps, repos, goals);
       const shortWeek = createShortWeekRepo(db, deps, repos, programmes, goals);
       await onboarding.markExistingInstall();
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      const rejections = createRejectionRepo(db, deps);
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch(() => setBoot("error"));
   }, []);
 

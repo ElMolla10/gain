@@ -10,6 +10,7 @@ import { openExpoDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
 import { createFinishRepo } from "./src/db/finishRepo";
 import { createGymRepo } from "./src/db/gymRepo";
+import { createOnboardingRepo } from "./src/db/onboardingRepo";
 import { createProgrammeRepo } from "./src/db/programmeRepo";
 import { createRepos } from "./src/db/repos";
 import { createWorkoutRepo } from "./src/db/workoutRepo";
@@ -74,7 +75,11 @@ export default function App() {
       await repos.seedIfNeeded();
       const workout = createWorkoutRepo(db, deps);
       const finish = createFinishRepo(db, deps, repos, workout);
-      setBoot({ services: { db, repos, workout, finish, gyms: createGymRepo(db, deps, repos, finish), programmes: createProgrammeRepo(db, deps, repos, finish) }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
+      const gyms = createGymRepo(db, deps, repos, finish);
+      const programmes = createProgrammeRepo(db, deps, repos, finish);
+      const onboarding = createOnboardingRepo(db, deps, repos, gyms, programmes);
+      await onboarding.markExistingInstall();
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
     })().catch(() => setBoot("error"));
   }, []);
 

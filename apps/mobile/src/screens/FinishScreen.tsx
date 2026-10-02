@@ -7,6 +7,7 @@ import type { SessionSummary, TargetRow } from "../db/finishRepo";
 import { formatLoad, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { stepLoad } from "../logic/draft";
+import { jumpKindText } from "../logic/jumpText";
 import { localizeReason, weightText } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card } from "../ui";
@@ -29,6 +30,7 @@ export function FinishScreen() {
   const [next, setNext] = useState<Next | null | "none">(null);
   const [editing, setEditing] = useState<{ targetId: string; load: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notices, setNotices] = useState<Record<string, string>>({});
   const started = useRef(false);
 
   const reload = useCallback(
@@ -116,6 +118,7 @@ export function FinishScreen() {
                 )}
                 <AppText style={{ color: p.muted }}>{renderReason(localizeReason(tg.reason, unit, lang), lang)}</AppText>
                 <AppText style={{ color: p.muted }}>{t(`finish.status.${tg.status}` as never)}</AppText>
+                {notices[tg.id] ? <AppText style={{ fontWeight: "700" }}>{notices[tg.id]}</AppText> : null}
 
                 {isEditing && editing ? (
                   <View style={{ gap: space.sm }}>
@@ -146,7 +149,15 @@ export function FinishScreen() {
                       <>
                         <BigButton label={t("finish.accept")} disabled={tg.status === "accepted"} onPress={() => act(() => finish.acceptTarget(tg.id))} />
                         <BigButton label={t("finish.edit")} selected={false} onPress={() => setEditing({ targetId: tg.id, load: tg.effectiveLoad ?? tg.load ?? 0 })} />
-                        <BigButton label={t("finish.reject")} selected={false} disabled={tg.status === "rejected"} onPress={() => act(() => finish.rejectTarget(tg.id))} />
+                        <BigButton label={t("finish.reject")} selected={false} disabled={tg.status === "rejected"} onPress={() =>
+                          act(async () => {
+                            const o = await finish.rejectTarget(tg.id);
+                            if (!o) return;
+                            const jump = jumpKindText(o.jumpKind, unit, t as never);
+                            setNotices((n) => ({ ...n, [tg.id]: o.blocked ? t("stop.notice.stopped", { jump, count: o.count }) : t("stop.notice.counting", { jump, count: o.count, max: o.max }) }));
+                          })
+                        }
+                      />
                       </>
                     ) : null}
                     <BigButton label={t("finish.why")} selected={false} onPress={() => navigation.navigate("Why", { targetId: tg.id })} />

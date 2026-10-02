@@ -34,8 +34,8 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Goals / pace | Done (unit-tested only, v0.5.0) | Goals screen (lift, bodyweight, muscle), weigh-ins, Theil-Sen trend, pace from logs, one line on Today. Thresholds are my defaults, **Mohamed to confirm** ([PACE-RULES.md](PACE-RULES.md)). Not run on a device. |
 | Weekly decision | Done (unit-tested only, v0.5.0) | Card on Today, rule `weekly-v1`, accept / edit date / skip, past reviews in Goals. Only a date move changes anything; other proposals are recorded and the card says the programme is not edited. Week start day (default Monday) and card-vs-notification are **Mohamed's call**. Not run on a device. |
 | Short-week rebuild | Done (unit-tested only, v0.5.0) | Days + minutes entry on Today, preview with the cut list, applies as a new programme version, undo, auto-return after the week, goal lifts protected ([SHORT-WEEK-RULES.md](SHORT-WEEK-RULES.md)). Rules are my defaults pending trainer review. Not run on a device. |
-| Rejection memory UI | Partly | Engine + DB done (3 rejections stop a jump). Shown only as lines in the Why screen. No place to see or undo it. |
-| Outlier confirm UI | Done (unit-tested) | Logger asks confirm/reject for a set far from the line; unconfirmed sets are ignored by the engine and tagged. Not yet tested with real fat-finger cases. |
+| Rejection memory UI | Done (unit-tested only) | Settings > "Things I've stopped suggesting": every declined jump per lift and gym with count and stopped state, bring it back, undo. Finish screen says how many declines so far and when a jump stops. Not run on a device. |
+| Outlier confirm UI | Done (unit-tested only) | Logger asks confirm/reject for a set far from the line; unconfirmed sets never move the next target (tested with a 100-reps typo run against a clean run), and typo cases (100 reps for 10, 100 kg for 10 kg, extra zero) are engine-tested. Edit-in-history comes with Step 6. Not run on a device. |
 | Exercise library + Arabic aliases | Partly | 20 sample exercises with **draft** Arabic names and aliases (never reviewed by a native Egyptian lifter), picker search by English or Arabic alias, custom exercises. No cues, setup text, demos. Library is far smaller than needed (**size of target library: decision**). |
 | History / trends | Not started | History is read by the engine only. No History tab, no chart. |
 | Rest timer | Partly | In-app timer (end-time based, vibrates at zero). Not native: no lock-screen/notification timer, no sound. |
@@ -100,7 +100,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** a rule that drops volume must not be presented as a coaching claim until the trainer review (Step 16).
 
 ### Step 5. Outlier confirm and rejection memory surfaces
-- [ ] **Goal:** the two "the app heard me" behaviours are visible and reversible.
+- [x] (unit-tested only, NOT device-verified; device check with real typos still owed) **Goal:** the two "the app heard me" behaviours are visible and reversible.
 - **Deliver:** outlier prompt tested with real typos and edited in history; "Things I've stopped suggesting" list (per lift, jump kind, count) with undo; plain message at finish when a jump is no longer proposed.
 - **Done means:** after 3 rejections the user sees why the jump stopped and can bring it back; an unconfirmed outlier never moves the next target.
 - **Test:** existing logic tests plus device runs of typo cases (e.g. 100 instead of 10).

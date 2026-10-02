@@ -8,8 +8,11 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
+import { createFinishRepo } from "./src/db/finishRepo";
 import { createRepos } from "./src/db/repos";
 import { createWorkoutRepo } from "./src/db/workoutRepo";
+import { FinishScreen } from "./src/screens/FinishScreen";
+import { WhyScreen } from "./src/screens/WhyScreen";
 import { WorkoutScreen } from "./src/screens/WorkoutScreen";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { I18nProvider, useI18n } from "./src/i18n";
@@ -40,6 +43,8 @@ function Shell() {
         <Stack.Navigator>
           <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title") }} />
+          <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false }} />
+          <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
         </Stack.Navigator>
       </NavigationContainer>
       <StatusBar style="auto" />
@@ -57,7 +62,8 @@ export default function App() {
       const deps = { newId: () => Crypto.randomUUID(), now: () => Date.now() };
       const repos = createRepos(db, deps);
       await repos.seedIfNeeded();
-      setBoot({ services: { db, repos, workout: createWorkoutRepo(db, deps) }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
+      const workout = createWorkoutRepo(db, deps);
+      setBoot({ services: { db, repos, workout, finish: createFinishRepo(db, deps, repos, workout) }, lang: await repos.getLanguage(), override: await repos.getRtlOverride() });
     })().catch(() => setBoot("error"));
   }, []);
 

@@ -1,0 +1,296 @@
+import {
+  isGymLoad,
+  findSpec,
+  type GymFingerprint,
+  type LineIdentity,
+  type LoggedSet,
+  type Proposal,
+  type ReasonText,
+  type SetupType,
+} from "@gain/engine";
+import type { Db, Deps } from "./driver";
+import type { Repos } from "./repos";
+import type { WorkoutRepo } from "./workoutRepo";
+import { summarizeExercise, type ExerciseSummary } from "../logic/summary";
+import type { DecisionPayload } from "../logic/why";
+
+export type TargetStatus = "proposed" | "accepted" | "edited" | "rejected";
+
+export interface TargetRow {
+  id: string;
+  sessionId: string;
+  exerciseId: string;
+  lineId: string;
+  nameEn: string;
+  nameAr: string;
+  load: number | null;
+  reps: number | null;
+  targetRir: number | null;
+  quality: string | null;
+  plannedSets: number | null;
+  currency: "reps" | "effort" | "quality" | "load" | "none";
+  jumpKind: string | null;
+  ruleVersion: string;
+  path: "rule" | "model";
+  status: TargetStatus;
+  reason: ReasonText;
+  confidence: string;
+  editedLoad: number | null;
+  /** What the lifter should load: the edited load if they edited, else the proposed load. Null when rejected or nothing proposed. */
+  effectiveLoad: number | null;
+}
+
+interface RawTarget {
+  id: string;
+  session_id: string;
+  exercise_id: string;
+  line_id: string;
+  name_en: string;
+  name_ar: string;
+  load: number | null;
+  reps: number | null;
+  target_rir: number | null;
+  quality: string | null;
+  planned_sets: number | null;
+  currency: TargetRow["currency"];
+  jump_kind: string | null;
+  rule_version: string;
+  path: "rule" | "model";
+  status: TargetStatus;
+  reason_key: ReasonText["key"];
+  reason_params_json: string;
+  confidence: string;
+  edited_load: number | null;
+}
+
+const toTarget = (r: RawTarget): TargetRow => ({
+  id: r.id,
+  sessionId: r.session_id,
+  exerciseId: r.exercise_id,
+  lineId: r.line_id,
+  nameEn: r.name_en,
+  nameAr: r.name_ar,
+  load: r.load,
+  reps: r.reps,
+  targetRir: r.target_rir,
+  quality: r.quality,
+  plannedSets: r.planned_sets,
+  currency: r.currency,
+  jumpKind: r.jump_kind,
+  ruleVersion: r.rule_version,
+  path: r.path,
+  status: r.status,
+  reason: { key: r.reason_key, params: JSON.parse(r.reason_params_json) as ReasonText["params"] },
+  confidence: r.confidence,
+  editedLoad: r.edited_load,
+  effectiveLoad: r.status === "rejected" ? null : r.status === "edited" ? r.edited_load : r.load,
+});
+
+/** Only jumps are remembered (load / effort / quality). Plain "one more rep" or "repeat" is not a jump the lifter can refuse. */
+export const isRememberedKind = (kind: string | null): kind is string => !!kind && /^(load|effort|quality):/.test(kind);
+
+export interface SessionSummary {
+  sessionId: string;
+  exercises: (ExerciseSummary & { exerciseId: string; nameEn: string; nameAr: string })[];
+  totals: { exercises: number; counted: number; warmups: number; unconfirmed: number; records: number };
+}
+
+export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: WorkoutRepo) {
+  const { newId, now } = deps;
+
+  /** What counted, and what was a record, against each line's earlier FINISHED sessions. */
+  async function summarizeSession(sessionId: string): Promise<SessionSummary> {
+    const session = await workout.getSession(sessionId);
+    if (!session) throw new Error("Unknown session");
+    const rows = await workout.listSessionSets(sessionId);
+    const byEx = new Map<string, typeof rows>();
+    for (const r of rows) byEx.set(r.exerciseId, [...(byEx.get(r.exerciseId) ?? []), r]);
+    const exercises: SessionSummary["exercises"] = [];
+    for (const [exerciseId, sets] of byEx) {
+      const meta = await db.get<{ name_en: string; name_ar: string; setup: SetupType }>("SELECT name_en, name_ar, setup FROM exercise WHERE id = ?", [exerciseId]);
+      if (!meta) continue;
+      const lineId = sets[0]!.lineId;
+      const line: LineIdentity = { exerciseId, gymId: session.gym_id, setup: meta.setup };
+      const prior = (await workout.getHistory(line, lineId)).filter((h) => h.performedAt < new Date(session.finished_at ?? now()).toISOString());
+      const priorSets: LoggedSet[] = prior.flatMap((h) => h.sets);
+      const today: LoggedSet[] = sets.map((s) => ({ load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags, outlierStatus: s.outlierStatus }));
+      exercises.push({ exerciseId, nameEn: meta.name_en, nameAr: meta.name_ar, ...summarizeExercise(meta.setup, today, priorSets) });
+    }
+    return {
+      sessionId,
+      exercises,
+      totals: {
+        exercises: exercises.filter((e) => e.counted > 0).length,
+        counted: exercises.reduce((n, e) => n + e.counted, 0),
+        warmups: exercises.reduce((n, e) => n + e.warmups, 0),
+        unconfirmed: exercises.reduce((n, e) => n + e.unconfirmed, 0),
+        records: exercises.reduce((n, e) => n + e.records.length, 0),
+      },
+    };
+  }
+
+  const TARGET_SELECT = `SELECT t.id, t.session_id, t.exercise_id, t.line_id, e.name_en, e.name_ar, t.load, t.reps, t.target_rir, t.quality,
+      t.planned_sets, t.currency, t.jump_kind, t.rule_version, t.path, t.status, t.reason_key, t.reason_params_json, t.confidence, t.edited_load
+    FROM target t JOIN exercise e ON e.id = t.exercise_id WHERE t.deleted_at IS NULL`;
+
+  async function getTargets(sessionId: string): Promise<TargetRow[]> {
+    // Programme order (the exercise's position in that day), not insertion order.
+    const rows = await db.all<RawTarget>(
+      `${TARGET_SELECT.replace("FROM target t JOIN exercise e ON e.id = t.exercise_id", "FROM target t JOIN exercise e ON e.id = t.exercise_id JOIN session s ON s.id = t.session_id LEFT JOIN programme_day_exercise pde ON pde.programme_day_id = s.programme_day_id AND pde.exercise_id = t.exercise_id AND pde.deleted_at IS NULL")}
+       AND t.session_id = ? ORDER BY pde.position, e.name_en`,
+      [sessionId],
+    );
+    return rows.map(toTarget);
+  }
+
+  async function getTarget(targetId: string): Promise<TargetRow | null> {
+    const r = await db.get<RawTarget>(`${TARGET_SELECT} AND t.id = ?`, [targetId]);
+    return r ? toTarget(r) : null;
+  }
+
+  async function getTargetForExercise(sessionId: string, exerciseId: string): Promise<TargetRow | null> {
+    const r = await db.get<RawTarget>(`${TARGET_SELECT} AND t.session_id = ? AND t.exercise_id = ?`, [sessionId, exerciseId]);
+    return r ? toTarget(r) : null;
+  }
+
+  /**
+   * The next session is written at the door: when a workout finishes, the next programme day gets a planned session
+   * and one target per exercise, each with its reason and logged inputs. Idempotent: existing targets are kept
+   * (so accepted / edited / rejected choices are never overwritten); calling it again changes nothing.
+   * Returns null when there is no next day or that day is already in progress.
+   */
+  async function writeNextSessionTargets(finishedSessionId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
+    const finished = await workout.getSession(finishedSessionId);
+    if (!finished) throw new Error("Unknown session");
+    const next = await repos.getNextDay();
+    if (!next) return null;
+    const open = await db.get<{ id: string; status: string }>(
+      "SELECT id, status FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL",
+      [next.day.id],
+    );
+    if (open?.status === "in_progress") return null;
+    const gym: GymFingerprint = await repos.loadGymFingerprint(finished.gym_id);
+    const exercises = await repos.listDayExercises(next.day.id);
+
+    // Decide first (reads, may create lines), then write everything in one transaction.
+    const decided: { ex: (typeof exercises)[number]; proposal: Proposal; lineId: string }[] = [];
+    for (const ex of exercises) {
+      const { proposal, lineId } = await workout.liveProposal(
+        { exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
+        gym,
+      );
+      decided.push({ ex, proposal, lineId });
+    }
+
+    return db.transaction(async () => {
+      const t = now();
+      let sessionId = open?.id;
+      if (!sessionId) {
+        sessionId = newId();
+        await db.run(
+          `INSERT INTO session (id, programme_version_id, programme_day_id, gym_id, status, planned_for, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'planned', ?, ?, ?)`,
+          [sessionId, next.versionId, next.day.id, finished.gym_id, new Date(t).toISOString().slice(0, 10), t, t],
+        );
+      }
+      let created = 0;
+      for (const { ex, proposal, lineId } of decided) {
+        const exists = await db.get("SELECT id FROM target WHERE session_id = ? AND exercise_id = ? AND deleted_at IS NULL", [sessionId, ex.exerciseId]);
+        if (exists) continue;
+        const targetId = newId();
+        await db.run(
+          `INSERT INTO target (id, session_id, exercise_id, line_id, load, reps, target_rir, quality, planned_sets, currency, jump_kind,
+             rule_version, path, status, reason_key, reason_params_json, confidence, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rule', 'proposed', ?, ?, ?, ?, ?)`,
+          [targetId, sessionId, ex.exerciseId, lineId, proposal.load, proposal.reps, proposal.targetRir, proposal.quality, proposal.sets, proposal.currency, proposal.jumpKind,
+            proposal.ruleVersion, proposal.reason.key, JSON.stringify(proposal.reason.params), proposal.confidence, t, t],
+        );
+        const payload: DecisionPayload = {
+          proposal: {
+            load: proposal.load,
+            reps: proposal.reps,
+            currency: proposal.currency,
+            jumpKind: proposal.jumpKind,
+            confidence: proposal.confidence,
+            reason: proposal.reason,
+            warnings: proposal.warnings,
+            needsModel: proposal.needsModel,
+            targetRir: proposal.targetRir,
+            quality: proposal.quality,
+          },
+          inputs: proposal.inputs,
+        };
+        await db.run(
+          "INSERT INTO decision_log (id, target_id, rule_version, path, inputs_json, created_at, updated_at) VALUES (?, ?, ?, 'rule', ?, ?, ?)",
+          [newId(), targetId, proposal.ruleVersion, JSON.stringify(payload), t, t],
+        );
+        created++;
+      }
+      return { sessionId, dayName: next.day.name, created };
+    });
+  }
+
+  // ---- rejection memory writes ------------------------------------------------------------------------------
+  async function bumpRejection(lineId: string, jumpKind: string): Promise<void> {
+    const t = now();
+    const row = await db.get<{ id: string; count: number }>("SELECT id, count FROM rejection_memory WHERE line_id = ? AND jump_kind = ? AND deleted_at IS NULL", [lineId, jumpKind]);
+    if (row) await db.run("UPDATE rejection_memory SET count = ?, last_rejected_at = ?, updated_at = ? WHERE id = ?", [row.count + 1, t, t, row.id]);
+    else await db.run("INSERT INTO rejection_memory (id, line_id, jump_kind, count, last_rejected_at, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?, ?)", [newId(), lineId, jumpKind, t, t, t]);
+  }
+  async function clearRejection(lineId: string, jumpKind: string): Promise<void> {
+    const t = now();
+    await db.run("UPDATE rejection_memory SET deleted_at = ?, updated_at = ? WHERE line_id = ? AND jump_kind = ? AND deleted_at IS NULL", [t, t, lineId, jumpKind]);
+  }
+
+  async function mustGet(targetId: string): Promise<TargetRow> {
+    const tr = await getTarget(targetId);
+    if (!tr) throw new Error("Unknown target");
+    return tr;
+  }
+
+  /** Accept the target as written. Accepting a jump clears its rejection count (the lifter changed their mind). */
+  async function acceptTarget(targetId: string): Promise<void> {
+    const tr = await mustGet(targetId);
+    if (tr.currency === "none") throw new Error("Nothing was proposed, so there is nothing to accept");
+    const t = now();
+    await db.transaction(async () => {
+      await db.run("UPDATE target SET status = 'accepted', edited_load = NULL, updated_at = ? WHERE id = ?", [t, targetId]);
+      if (tr.status !== "accepted" && isRememberedKind(tr.jumpKind)) await clearRejection(tr.lineId, tr.jumpKind);
+    });
+  }
+
+  /** Edit the load. It must be a load that exists in this gym. Editing is neither a rejection nor an acceptance of the jump. */
+  async function editTargetLoad(targetId: string, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType): Promise<void> {
+    const tr = await mustGet(targetId);
+    const spec = findSpec(gym, equipment);
+    if (spec && !isGymLoad(spec, load, setup !== "free")) throw new Error("That load does not exist in this gym");
+    if (!(load >= 0)) throw new Error("Invalid load");
+    const t = now();
+    await db.run("UPDATE target SET status = 'edited', edited_load = ?, updated_at = ? WHERE id = ?", [load, t, tr.id]);
+  }
+
+  /** Reject: the lifter will set their own number. Remembered per line + jump kind; 3 rejections stop that jump. */
+  async function rejectTarget(targetId: string): Promise<void> {
+    const tr = await mustGet(targetId);
+    const t = now();
+    await db.transaction(async () => {
+      await db.run("UPDATE target SET status = 'rejected', edited_load = NULL, updated_at = ? WHERE id = ?", [t, targetId]);
+      if (tr.status !== "rejected" && isRememberedKind(tr.jumpKind)) await bumpRejection(tr.lineId, tr.jumpKind);
+    });
+  }
+
+  async function getDecision(targetId: string): Promise<{ ruleVersion: string; path: string; createdAt: number; payload: DecisionPayload } | null> {
+    const r = await db.get<{ rule_version: string; path: string; inputs_json: string; created_at: number }>(
+      "SELECT rule_version, path, inputs_json, created_at FROM decision_log WHERE target_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+      [targetId],
+    );
+    return r ? { ruleVersion: r.rule_version, path: r.path, createdAt: r.created_at, payload: JSON.parse(r.inputs_json) as DecisionPayload } : null;
+  }
+
+  async function getPlannedSession(dayId: string): Promise<{ id: string } | null> {
+    return db.get<{ id: string }>("SELECT id FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL", [dayId]);
+  }
+
+  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
+}
+export type FinishRepo = ReturnType<typeof createFinishRepo>;

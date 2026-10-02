@@ -1,9 +1,10 @@
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
 import { findSpec, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Vibration, View } from "react-native";
 import { useServices } from "../AppContext";
+import type { TargetRow } from "../db/finishRepo";
 import type { SetRow } from "../db/workoutRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
@@ -17,6 +18,8 @@ interface ExInfo {
   proposal: Proposal;
   line: LineIdentity;
   last: { performedAt: string; sets: LoggedSet[] } | null;
+  /** The target written when the previous workout was finished, if any. */
+  stored: TargetRow | null;
 }
 interface Loaded {
   sessionId: string;
@@ -58,7 +61,7 @@ function Stepper(props: { label: string; value: string; onLess: () => void; onMo
 }
 
 export function WorkoutScreen() {
-  const { repos, workout } = useServices();
+  const { repos, workout, finish } = useServices();
   const { t, lang } = useI18n();
   const p = usePalette();
   const route = useRoute();
@@ -94,12 +97,12 @@ export function WorkoutScreen() {
           { exerciseId: e.exerciseId, equipment: e.equipment, setup: e.setup, repMin: e.repMin, repMax: e.repMax, isGoalLift: e.isGoalLift, trackEffort: e.trackEffort, sets: e.sets },
           gym,
         );
-        info[e.exerciseId] = { proposal, line, last: await workout.lastPerformance(line, lineId) };
+        info[e.exerciseId] = { proposal, line, last: await workout.lastPerformance(line, lineId), stored: await finish.getTargetForExercise(id, e.exerciseId) };
       }
       setSets(await workout.listSessionSets(id));
       setLoaded({ sessionId: id, resumed, gym, exercises, info });
     })().catch(() => setLoaded("nogym"));
-  }, [repos, workout, dayId]);
+  }, [repos, workout, finish, dayId]);
 
   useEffect(() => {
     const h = setInterval(() => setNow(Date.now()), 250);
@@ -128,7 +131,13 @@ export function WorkoutScreen() {
     setDraft(
       initialDraft({
         today: exSets.map((s) => ({ load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup })),
-        target: info.proposal.status === "proposed" ? { load: info.proposal.load, reps: info.proposal.reps } : null,
+        target: info.stored
+          ? info.stored.effectiveLoad !== null && info.stored.reps !== null
+            ? { load: info.stored.effectiveLoad, reps: info.stored.reps }
+            : null
+          : info.proposal.status === "proposed"
+            ? { load: info.proposal.load, reps: info.proposal.reps }
+            : null,
         last: lastTop ? { load: lastTop.load, reps: lastTop.reps } : null,
       }),
     );
@@ -184,14 +193,30 @@ export function WorkoutScreen() {
         <AppText style={{ fontWeight: "700", marginTop: space.sm }}>{t("workout.last")}</AppText>
         <AppText>{lastText ?? t("workout.lastNone")}</AppText>
         <AppText style={{ fontWeight: "700", marginTop: space.sm }}>{t("workout.target")}</AppText>
-        {pr.status === "proposed" && pr.load !== null && pr.reps !== null ? (
+        {info.stored ? (
+          info.stored.status === "rejected" ? (
+            <AppText>{t("finish.rejectedNote")}</AppText>
+          ) : info.stored.effectiveLoad !== null && info.stored.reps !== null ? (
+            <AppText style={{ fontSize: 20, fontWeight: "700" }}>
+              {formatLoad(info.stored.effectiveLoad, lang)} × {isolateLtr(String(info.stored.reps))}
+            </AppText>
+          ) : (
+            <AppText>{t("workout.targetNone")}</AppText>
+          )
+        ) : pr.status === "proposed" && pr.load !== null && pr.reps !== null ? (
           <AppText style={{ fontSize: 20, fontWeight: "700" }}>
             {formatLoad(pr.load, lang)} × {isolateLtr(String(pr.reps))}
           </AppText>
         ) : (
           <AppText>{t("workout.targetNone")}</AppText>
         )}
-        <AppText style={{ color: p.muted }}>{renderReason(pr.reason, lang)}</AppText>
+        <AppText style={{ color: p.muted }}>{renderReason(info.stored ? info.stored.reason : pr.reason, lang)}</AppText>
+        {info.stored ? (
+          <>
+            <AppText style={{ color: p.muted }}>{t(`finish.status.${info.stored.status}` as never)}</AppText>
+            <BigButton label={t("finish.why")} selected={false} onPress={() => navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id }))} />
+          </>
+        ) : null}
       </Card>
 
       {pending ? (
@@ -321,7 +346,7 @@ export function WorkoutScreen() {
         label={t("workout.finish")}
         onPress={async () => {
           await workout.finishSession(loaded.sessionId);
-          navigation.goBack();
+          navigation.dispatch(StackActions.replace("Finish", { sessionId: loaded.sessionId }));
         }}
       />
     </ScrollView>

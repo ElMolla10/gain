@@ -44,7 +44,7 @@ describe("the next session is written at the door", () => {
     const targets = await finish.getTargets(r.written!.sessionId);
     expect(targets).toHaveLength(5);
     for (const t of targets) {
-      expect(t.ruleVersion).toBe("rule-v0.1");
+      expect(t.ruleVersion).toBe("rule-v0.2");
       expect(t.path).toBe("rule");
       expect(t.status).toBe("proposed");
       expect(t.reason.key).toBeTruthy();
@@ -72,7 +72,7 @@ describe("the next session is written at the door", () => {
     const { rotate, finish } = await setup();
     const { bench } = await rotate(8);
     const d = await finish.getDecision(bench.id);
-    expect(d!.ruleVersion).toBe("rule-v0.1");
+    expect(d!.ruleVersion).toBe("rule-v0.2");
     expect(d!.path).toBe("rule");
     expect(d!.payload.inputs.lineKey).toContain("|free");
     expect(d!.payload.inputs.sessions[0]).toMatchObject({ topLoad: 60, repsAtTop: 8 });
@@ -106,8 +106,8 @@ describe("the next session is written at the door", () => {
   });
   it("after three bench sessions the target is the next real barbell load, with the reason sentence inputs", async () => {
     const { rotate } = await setup();
-    await rotate(8);
     await rotate(9);
+    await rotate(10);
     const { bench } = await rotate(10);
     expect(bench).toMatchObject({ load: 62.5, reps: 6, currency: "load", jumpKind: "load:harder:2.5", confidence: "high" });
     expect(bench.reason.key).toBe("load_up");
@@ -123,8 +123,8 @@ describe("the next session is written at the door", () => {
 describe("accept, edit, reject", () => {
   const upToJump = async () => {
     const c = await setup();
-    await c.rotate(8);
     await c.rotate(9);
+    await c.rotate(10);
     const r = await c.rotate(10);
     return { ...c, bench: r.bench, plannedSessionId: r.plannedSessionId };
   };
@@ -183,8 +183,8 @@ describe("accept, edit, reject", () => {
   });
   it("three rejections of the same jump stop it: the next target spends another currency", async () => {
     const { rotate, finish, benchPlan, trainNext, BENCH } = await setup();
-    await rotate(8);
     await rotate(9);
+    await rotate(10);
     let r = await rotate(10);
     expect(r.bench.currency).toBe("load");
     await finish.rejectTarget(r.bench.id); // 1

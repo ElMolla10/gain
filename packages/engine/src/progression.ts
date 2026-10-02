@@ -2,6 +2,7 @@ import { RULE_VERSION } from "./version";
 import { effectiveLoad, epley, lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
 import { findSpec, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad, allowsZero } from "./loads";
+import { resolveProgression } from "./policy";
 import { isJumpBlocked, recordsForLine, REJECTION_THRESHOLD, rejectionCount, emptyRejectionMemory } from "./rejection";
 import type {
   Confidence,
@@ -20,24 +21,22 @@ import type {
 } from "./types";
 
 export interface ProgressionOptions {
-  /** A load step bigger than this share of the current load is "too big": spend reps/effort/quality first. */
-  maxJumpRatio: number;
+  /** Optional global override of the per-lift increment band (see policy.ts). A step bigger than the band is "too big": spend reps/effort/quality first. */
+  maxJumpRatio?: number;
   /** History older than this many days lowers confidence. */
   staleDays: number;
   /** Never ask for fewer reps in reserve than this (recommendations do not require failure). */
   rirFloor: number;
-  /** Sessions in a row below the bottom of the range, at the same load, before stepping the load down. */
-  stepDownAfterMisses: number;
+  /** Optional global override of the per-lift step-down evidence (default 3 sessions, see policy.ts). */
+  stepDownAfterMisses?: number;
   rejectionThreshold: number;
   /** Coefficient of variation of recent top-set strength estimates above which confidence drops. */
   highVarianceCv: number;
 }
 
 export const DEFAULT_OPTIONS: ProgressionOptions = {
-  maxJumpRatio: 0.05,
   staleDays: 28,
   rirFloor: 1,
-  stepDownAfterMisses: 2,
   rejectionThreshold: REJECTION_THRESHOLD,
   highVarianceCv: 0.15,
 };
@@ -83,6 +82,7 @@ function summarize(
     performedAt: s.performedAt,
     topLoad: top,
     repsAtTop: Math.min(...atTop.map((x) => x.reps)),
+    lastSetReps: atTop[atTop.length - 1]!.reps,
     setsAtTop: atTop.length,
     rir: rirs.length ? Math.min(...rirs) : null,
     tags,
@@ -113,6 +113,10 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const key = lineKey(line);
   const bw = ctx.bodyweightKg ?? null;
   const harderDir: "above" | "below" = setup === "assisted" ? "below" : "above";
+  const cfg = resolveProgression(exercise.bodyRegion ?? "upper", exercise.progression);
+  const maxRatio = opt.maxJumpRatio ?? cfg.increment.maxPct;
+  const minRatio = Math.min(cfg.increment.minPct, maxRatio);
+  const stepDownAfter = opt.stepDownAfterMisses ?? cfg.stepDownAfterMisses;
 
   // 1. Only comparable history: same exercise, gym and setup. Everything else is excluded and counted.
   const { comparable, incomparable } = splitComparable(line, ctx.history);
@@ -136,7 +140,8 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     jump: null,
     jumpRatio: null,
     jumpTooBig: null,
-    maxJumpRatio: opt.maxJumpRatio,
+    maxJumpRatio: maxRatio,
+    minJumpRatio: minRatio,
   };
   const baseInputs = (): DecisionInputs => ({
     lineKey: key,
@@ -154,6 +159,8 @@ export function proposeNext(ctx: ProposeContext): Proposal {
       unconfirmedOutlierSets: counts.outlier,
     },
     gym: emptyGym,
+    policy: cfg,
+    readiness: { targetReps: hi + cfg.trigger.extraReps, qualifyingSessions: 0, requiredSessions: cfg.trigger.sessions, fastTracked: false, stalled: false },
     rejections: recordsForLine(rejections, key).map((r) => ({
       jumpKind: r.jumpKind,
       count: r.count,
@@ -200,11 +207,22 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   if (!snap.exact) warnings.push("anchor_off_gym_loads");
   if (pendingOutlier) warnings.push("pending_outlier");
 
-  const nextHarder = harderDir === "above" ? nextLoadAbove(spec, anchor, zero) : nextLoadBelow(spec, anchor, zero);
+  const stepHarder = (x: number) => (harderDir === "above" ? nextLoadAbove(spec, x, zero) : nextLoadBelow(spec, x, zero));
+  const ratioOf = (c: number) => {
+    const d = norm(Math.abs(c - anchor));
+    return d / jumpBase(setup, anchor, d, bw);
+  };
+  // The next real step, but when it is smaller than the policy's minimum share and a larger real step still fits the band, take that one.
+  let nextHarder = stepHarder(anchor);
+  while (nextHarder !== null && ratioOf(nextHarder) < minRatio - 1e-9) {
+    const bigger = stepHarder(nextHarder);
+    if (bigger === null || ratioOf(bigger) > maxRatio + 1e-9) break;
+    nextHarder = bigger;
+  }
   const nextEasier = harderDir === "above" ? nextLoadBelow(spec, anchor, zero) : nextLoadAbove(spec, anchor, zero);
   const jump = nextHarder === null ? null : norm(Math.abs(nextHarder - anchor));
-  const ratio = jump === null ? null : jump / jumpBase(setup, anchor, jump, bw);
-  const tooBig = ratio === null ? null : ratio > opt.maxJumpRatio;
+  const ratio = nextHarder === null ? null : ratioOf(nextHarder);
+  const tooBig = ratio === null ? null : ratio > maxRatio + 1e-9;
 
   // 3. Confidence.
   let confidence: Confidence = summaries.length >= 3 ? "high" : summaries.length === 2 ? "medium" : "low";
@@ -241,6 +259,31 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   if (confidence === "low") modelReasons.unshift("low_confidence");
   const needsModel = { needed: confidence === "low", reasons: [...new Set(modelReasons)] };
 
+  // Readiness for more load: consecutive qualifying sessions at the SAME load (see TriggerConfig).
+  const trig = cfg.trigger;
+  const targetReps = hi + trig.extraReps;
+  const basisReps = (s: SessionSummary) => (trig.repsBasis === "last_set" ? s.lastSetReps : s.repsAtTop);
+  const qualifies = (s: SessionSummary) => Math.abs(s.topLoad - last.topLoad) < 1e-6 && basisReps(s) >= targetReps;
+  let qualifying = 0;
+  for (const s of summaries) {
+    if (qualifies(s)) qualifying++;
+    else break;
+  }
+  const fastTracked =
+    qualifying >= 1 && qualifying < trig.sessions && exercise.trackEffort === true && trig.fastTrackRir !== null && last.rir !== null && last.rir >= trig.fastTrackRir;
+  const ready = qualifying >= trig.sessions || fastTracked;
+
+  // Stall: a full window of sessions at one load with no rep gain over its oldest session, and not ready for more load.
+  let stalled = false;
+  if (cfg.stall && !ready && summaries.length >= cfg.stall.sessions) {
+    const win = summaries.slice(0, cfg.stall.sessions);
+    const oldest = win[win.length - 1]!;
+    stalled =
+      win.every((s) => Math.abs(s.topLoad - last.topLoad) < 1e-6) &&
+      win.every((s) => basisReps(s) <= basisReps(oldest)) &&
+      !win.some(qualifies);
+  }
+
   const inputs: DecisionInputs = {
     ...baseInputs(),
     gym: {
@@ -252,8 +295,11 @@ export function proposeNext(ctx: ProposeContext): Proposal {
       jump,
       jumpRatio: ratio === null ? null : Math.round(ratio * 10000) / 10000,
       jumpTooBig: tooBig,
-      maxJumpRatio: opt.maxJumpRatio,
+      maxJumpRatio: maxRatio,
+      minJumpRatio: minRatio,
     },
+    policy: cfg,
+    readiness: { targetReps, qualifyingSessions: qualifying, requiredSessions: trig.sessions, fastTracked, stalled },
     confidenceFactors: factors,
   };
 
@@ -303,14 +349,38 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     if (Math.abs(s.topLoad - last.topLoad) < 1e-6 && s.repsAtTop < lo) misses++;
     else break;
   }
-  if (misses >= opt.stepDownAfterMisses && nextEasier !== null) {
+  if (misses >= stepDownAfter && nextEasier !== null) {
     return make({
       load: nextEasier,
       reps: lo,
       currency: "load",
       jumpKind: jumpKindLoad("easier", Math.abs(anchor - nextEasier)),
-      reason: { key: "step_down", params: { ...baseParams, load: nextEasier, prevLoad: anchor, reps: lo } },
+      reason: { key: "step_down", params: { ...baseParams, load: nextEasier, prevLoad: anchor, reps: lo, misses } },
     });
+  }
+
+  // 5b. Stall: several sessions at one load with no rep gain. Deload a little (convention) rather than grind or jump.
+  if (stalled && cfg.stall && nextEasier !== null) {
+    let deload = nextEasier;
+    if (setup !== "assisted") {
+      const wanted = roundToGymLoad(spec, anchor * (1 - cfg.stall.deloadPct), { mode: "nearest", zero }).load;
+      if (wanted !== null && wanted < anchor - 1e-6) deload = wanted;
+    }
+    const kind = jumpKindLoad("easier", Math.abs(anchor - deload));
+    if (!isJumpBlocked(rejections, key, kind, opt.rejectionThreshold)) {
+      const reps = Math.min(hi, lo + Math.floor((hi - lo) / 2));
+      return make({
+        load: deload,
+        reps,
+        currency: "load",
+        jumpKind: kind,
+        targetRir: exercise.trackEffort ? Math.max(opt.rirFloor, 3) : null,
+        reason: {
+          key: "stall_deload",
+          params: { ...baseParams, load: deload, prevLoad: anchor, reps, sessions: cfg.stall.sessions, pct: Math.round(cfg.stall.deloadPct * 100) },
+        },
+      });
+    }
   }
 
   // 6. Currency 1: reps inside the range.
@@ -323,14 +393,14 @@ export function proposeNext(ctx: ProposeContext): Proposal {
       reason: { key: "reps_rebuild", params: { ...baseParams, reps: lo } },
     });
   }
-  if (r < hi) {
+  if (r < hi && !ready) {
     const reps = r + 1;
     const params: ReasonText["params"] = { ...baseParams, reps };
     if (nextHarder !== null) params.nextLoad = nextHarder;
     return make({ load: anchor, reps, currency: "reps", jumpKind: "reps", reason: { key: "reps_in_range", params } });
   }
 
-  // 7. Top of the range: spend effort, then quality, then the next real load (load first when the jump is small).
+  // 7. Top of the range. Until the trigger is met (enough qualifying sessions, or fast-tracked by reps in reserve) load does not move.
   const loadKind = jump === null ? null : jumpKindLoad("harder", jump);
   const loadBlocked = loadKind !== null && isJumpBlocked(rejections, key, loadKind, opt.rejectionThreshold);
   const nextParams: Record<string, number> = nextHarder === null ? {} : { nextLoad: nextHarder };
@@ -376,6 +446,18 @@ export function proposeNext(ctx: ProposeContext): Proposal {
       reason: { key: "load_up", params: { ...baseParams, load: nextHarder, prevLoad: anchor, reps: lo } },
     });
   };
+
+  if (!ready) {
+    const e = tryEffort();
+    if (e) return e;
+    return make({
+      load: anchor,
+      reps: targetReps,
+      currency: "reps",
+      jumpKind: "confirm",
+      reason: { key: "confirm_top_of_range", params: { ...baseParams, reps: targetReps, have: qualifying, need: trig.sessions, extra: trig.extraReps } },
+    });
+  }
 
   const order =
     tooBig === false ? [tryLoad, tryEffort, () => tryQuality(loadBlocked)] : [tryEffort, () => tryQuality(false), tryLoad];

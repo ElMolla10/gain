@@ -57,11 +57,62 @@ export interface RepRange {
   max: number;
 }
 
+export type BodyRegion = "upper" | "lower";
+export type PresetName = "double_progression" | "acsm_2009" | "two_for_two";
+
+/** When is a lift "ready" for more load? See docs/PROGRESSION-RULES.md for which parts are evidence and which are convention. */
+export interface TriggerConfig {
+  /** Reps beyond the TOP of the rep range needed to count a session as qualifying (0 = reached the top; ACSM says 1-2 over; 2-for-2 says 2). */
+  extraReps: number;
+  /** Consecutive qualifying sessions at the same load before load goes up (ACSM and 2-for-2: 2). */
+  sessions: number;
+  /** all_sets: the weakest working set at the top load must qualify. last_set: only the final set (the published 2-for-2 wording). */
+  repsBasis: "all_sets" | "last_set";
+  /** If reps in reserve are logged and the qualifying session left at least this many in reserve, one session is enough. null = off. */
+  fastTrackRir: number | null;
+}
+
+/** Share of the current load a real load step should be, as fractions (0.02 = 2%). */
+export interface IncrementConfig {
+  minPct: number;
+  maxPct: number;
+}
+
+export interface StallConfig {
+  /** Sessions at one load with no rep gain before a deload is proposed. */
+  sessions: number;
+  /** How much lighter the deload load is, as a fraction of the current load (snapped to a load that exists). */
+  deloadPct: number;
+}
+
+/** Per-lift progression policy, resolved from a body-region default, an optional named preset, and explicit overrides (in that order). */
+export interface LiftProgressionConfig {
+  preset?: PresetName;
+  trigger?: Partial<TriggerConfig>;
+  increment?: Partial<IncrementConfig>;
+  /** Sessions in a row below the bottom of the range, at the same load, before stepping the load down one real step. */
+  stepDownAfterMisses?: number;
+  /** Partial overrides, or null to switch stall handling off for this lift. */
+  stall?: Partial<StallConfig> | null;
+}
+
+export interface LiftProgression {
+  bodyRegion: BodyRegion;
+  trigger: TriggerConfig;
+  increment: IncrementConfig;
+  stepDownAfterMisses: number;
+  stall: StallConfig | null;
+}
+
 export interface ExerciseSpec {
   exerciseId: string;
   equipment: EquipmentType;
   setup: SetupType;
   repRange: RepRange;
+  /** Chooses the default load-step band (upper 2-5%, lower 5-10%). Defaults to upper. */
+  bodyRegion?: BodyRegion;
+  /** Per-lift progression policy overrides. */
+  progression?: LiftProgressionConfig;
   /** Goal lifts may get an extra set as a quality change. */
   isGoalLift?: boolean;
   /** The user tracks reps in reserve for this lift. */
@@ -95,6 +146,8 @@ export type ReasonKey =
   | "quality_change"
   | "load_up"
   | "step_down"
+  | "stall_deload"
+  | "confirm_top_of_range"
   | "hold_jump_declined"
   | "hold_no_heavier_load"
   | "hold_assisted_floor"
@@ -124,6 +177,8 @@ export interface SessionSummary {
   topLoad: number;
   /** Minimum reps across working sets at the top load (conservative). */
   repsAtTop: number;
+  /** Reps of the final working set at the top load (the 2-for-2 rule is worded on the last set). */
+  lastSetReps: number;
   setsAtTop: number;
   /** Lowest RIR logged at the top load, if any. */
   rir: number | null;
@@ -156,6 +211,17 @@ export interface DecisionInputs {
     jumpRatio: number | null;
     jumpTooBig: boolean | null;
     maxJumpRatio: number;
+    minJumpRatio: number;
+  };
+  /** The resolved policy and how close the lift is to earning more load. */
+  policy: LiftProgression;
+  readiness: {
+    /** Reps a session must reach at the top load to count (top of range + extraReps). */
+    targetReps: number;
+    qualifyingSessions: number;
+    requiredSessions: number;
+    fastTracked: boolean;
+    stalled: boolean;
   };
   rejections: { jumpKind: string; count: number; blocked: boolean }[];
   confidenceFactors: string[];

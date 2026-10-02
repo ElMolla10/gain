@@ -1,6 +1,7 @@
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
 import { arGoals, enGoals } from "./strings.goals";
 import { arGym, enGym } from "./strings.gym";
+import { arHistory, enHistory } from "./strings.history";
 import { arImport, enImport } from "./strings.import";
 import { arOnboarding, enOnboarding } from "./strings.onboarding";
 import { arProgramme, enProgramme } from "./strings.programme";
@@ -163,6 +164,7 @@ export const en = {
   ...enWeekly,
   ...enShortWeek,
   ...enStop,
+  ...enHistory,
   ...enProgramme,
   ...enOnboarding,
   ...enImport,
@@ -325,6 +327,7 @@ export const ar: Record<StringKey, string> = {
   ...arWeekly,
   ...arShortWeek,
   ...arStop,
+  ...arHistory,
   ...arProgramme,
   ...arOnboarding,
   ...arImport,

@@ -4,7 +4,7 @@ import { renderReason } from "@gain/engine";
 import { formatLoad, LRI, PDI } from "../src/i18n/format";
 import { stepLoad } from "../src/logic/draft";
 import { heaviestLoad } from "../src/logic/importFlow";
-import { kgToUnit, localizeReason, parseUnit, unitLabel, unitToKg, unitToKgKnown, weightText } from "../src/logic/units";
+import { editedKg, kgToUnit, localizeReason, parseUnit, unitLabel, unitToKg, unitToKgKnown, weightText } from "../src/logic/units";
 import { freshDb } from "./helpers";
 
 const clean = (x: string) => x.replace(/[\u2066-\u2069]/g, "");
@@ -108,5 +108,16 @@ describe("import display", () => {
     expect(heaviestLoad(parse)).toBe(100);
     expect(heaviestLoad(null)).toBeNull();
     expect(heaviestLoad({ workouts: [] } as never)).toBeNull();
+  });
+});
+
+describe("history edit keeps an unchanged load (Step 6)", () => {
+  it("60 kg shown in lb and saved untouched stays exactly 60 kg; a real change converts", () => {
+    const shown = kgToUnit(60, "lb");
+    expect(unitToKg(shown, "lb")).not.toBe(60); // the plain round trip drifts by grams
+    expect(editedKg(shown, 60, "lb")).toBe(60);
+    expect(editedKg(135, 60, "lb")).toBe(unitToKg(135, "lb"));
+    expect(editedKg(62.5, 60, "kg")).toBe(62.5);
+    expect(editedKg(60, 60, "kg")).toBe(60);
   });
 });

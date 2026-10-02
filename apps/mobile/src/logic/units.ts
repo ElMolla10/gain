@@ -72,3 +72,6 @@ export function localizeReason(reason: ReasonText, unit: Unit, lang: "en" | "ar"
   if ("unit" in params) params.unit = unitLabel(unit, lang);
   return { ...reason, params };
 }
+
+/** A load typed while editing a stored kilogram value: unchanged display means unchanged value (no drift of a few grams in lb). */
+export const editedKg = (typed: number, origKg: number, unit: Unit): number => (typed === kgToUnit(origKg, unit) ? origKg : unitToKg(typed, unit));

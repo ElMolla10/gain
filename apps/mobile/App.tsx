@@ -15,6 +15,7 @@ import { createOnboardingRepo } from "./src/db/onboardingRepo";
 import { createImportRepo } from "./src/db/importRepo";
 import { createProgrammeRepo } from "./src/db/programmeRepo";
 import { createRepos } from "./src/db/repos";
+import { createHistoryRepo } from "./src/db/historyRepo";
 import { createRejectionRepo } from "./src/db/rejectionRepo";
 import { createShortWeekRepo } from "./src/db/shortWeekRepo";
 import { createWeeklyRepo } from "./src/db/weeklyRepo";
@@ -29,6 +30,9 @@ import type { Unit } from "./src/logic/units";
 import { ImportScreen } from "./src/screens/ImportScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { GoalsScreen } from "./src/screens/GoalsScreen";
+import { HistoryScreen } from "./src/screens/HistoryScreen";
+import { LiftTrendScreen } from "./src/screens/LiftTrendScreen";
+import { SessionDetailScreen } from "./src/screens/SessionDetailScreen";
 import { GymEditScreen } from "./src/screens/GymEditScreen";
 import { GymScreen } from "./src/screens/GymScreen";
 import { ProgrammeEditScreen } from "./src/screens/ProgrammeEditScreen";
@@ -47,6 +51,7 @@ function Tabs() {
     <Tab.Navigator screenOptions={{ tabBarLabelStyle: { fontSize: 14 }, tabBarStyle: { minHeight: 64 } }}>
       <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today") }} />
       <Tab.Screen name="Programme" component={ProgrammeScreen} options={{ title: t("prog.title"), tabBarLabel: t("tab.programme") }} />
+      <Tab.Screen name="History" component={HistoryScreen} options={{ title: t("history.title"), tabBarLabel: t("tab.history") }} />
       <Tab.Screen name="Gym" component={GymScreen} options={{ title: t("gym.title"), tabBarLabel: t("tab.gym") }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: t("tab.settings") }} />
     </Tab.Navigator>
@@ -82,6 +87,8 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
+          <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: t("history.session.title") }} />
+          <Stack.Screen name="LiftTrend" component={LiftTrendScreen} options={{ title: t("trend.title") }} />
           <Stack.Screen name="StoppedSuggestions" component={StoppedSuggestionsScreen} options={{ title: t("stop.title") }} />
           <Stack.Screen name="ShortWeek" component={ShortWeekScreen} options={{ title: t("short.title") }} />
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
@@ -113,7 +120,8 @@ export default function App() {
       const shortWeek = createShortWeekRepo(db, deps, repos, programmes, goals);
       await onboarding.markExistingInstall();
       const rejections = createRejectionRepo(db, deps);
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      const history = createHistoryRepo(db, deps, repos, finish);
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch(() => setBoot("error"));
   }, []);
 

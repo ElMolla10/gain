@@ -1,5 +1,6 @@
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
 import { arGym, enGym } from "./strings.gym";
+import { arImport, enImport } from "./strings.import";
 import { arOnboarding, enOnboarding } from "./strings.onboarding";
 import { arProgramme, enProgramme } from "./strings.programme";
 
@@ -154,6 +155,7 @@ export const en = {
   ...enGym,
   ...enProgramme,
   ...enOnboarding,
+  ...enImport,
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -309,4 +311,5 @@ export const ar: Record<StringKey, string> = {
   ...arGym,
   ...arProgramme,
   ...arOnboarding,
+  ...arImport,
 };

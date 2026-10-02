@@ -21,6 +21,7 @@ import { WorkoutScreen } from "./src/screens/WorkoutScreen";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { I18nProvider, useI18n } from "./src/i18n";
 import type { Lang, RtlOverride } from "./src/i18n/format";
+import { ImportScreen } from "./src/screens/ImportScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { GymEditScreen } from "./src/screens/GymEditScreen";
 import { GymScreen } from "./src/screens/GymScreen";
@@ -71,6 +72,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="ProgrammeEdit" component={ProgrammeEditScreen} options={{ title: t("prog.edit.title") }} />
           <Stack.Screen name="GymEdit" component={GymEditScreen} options={{ title: t("gym.edit.title") }} />
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
+          <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
         </Stack.Navigator>
       </NavigationContainer>

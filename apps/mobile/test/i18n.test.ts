@@ -12,7 +12,7 @@ describe("strings", () => {
     }
   });
   it("slice screens have Arabic text (except brand and language names)", () => {
-    const same = new Set(["app.name", "settings.language.en"]);
+    const same = new Set(["app.name", "settings.language.en", "import.source.hevy", "import.source.strong"]);
     for (const k of Object.keys(en) as (keyof typeof en)[]) {
       if (same.has(k)) continue;
       expect(ar[k], k).toMatch(/[\u0600-\u06FF]/);

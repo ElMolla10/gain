@@ -247,6 +247,29 @@ CREATE TABLE weekly_review (
 CREATE UNIQUE INDEX weekly_review_week ON weekly_review(week_start) WHERE deleted_at IS NULL;
 `,
   },
+  {
+    version: 5,
+    name: "short week",
+    sql: `
+-- A one-week programme rebuild ("I can train 3 days" / "I have 35 minutes"). original_version_id comes back after the week or on undo.
+-- Every change is a new programme version, so old sessions stay readable. cuts_json = the list the lifter saw before saving.
+CREATE TABLE short_week (
+  id TEXT PRIMARY KEY,
+  programme_id TEXT NOT NULL REFERENCES programme(id),
+  original_version_id TEXT NOT NULL REFERENCES programme_version(id),
+  short_version_id TEXT NOT NULL REFERENCES programme_version(id),
+  week_start TEXT NOT NULL,
+  days INTEGER NOT NULL,
+  minutes INTEGER,
+  cuts_json TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','ended','undone','superseded')),
+  restored_version_id TEXT REFERENCES programme_version(id),
+  ended_at INTEGER,
+  ${TS}
+);
+CREATE UNIQUE INDEX short_week_one_active ON short_week(programme_id) WHERE status = 'active' AND deleted_at IS NULL;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

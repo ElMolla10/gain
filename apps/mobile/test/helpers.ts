@@ -8,6 +8,7 @@ import { createOnboardingRepo } from "../src/db/onboardingRepo";
 import { createProgrammeRepo } from "../src/db/programmeRepo";
 import { createRepos } from "../src/db/repos";
 import { createFinishRepo } from "../src/db/finishRepo";
+import { createShortWeekRepo } from "../src/db/shortWeekRepo";
 import { createWeeklyRepo } from "../src/db/weeklyRepo";
 import { createWorkoutRepo } from "../src/db/workoutRepo";
 import { openNodeDb } from "./nodeDriver";
@@ -30,5 +31,6 @@ export async function freshDb() {
   const imports = createImportRepo(db, deps, repos, workout, programmes, finish);
   const goals = createGoalRepo(db, deps, repos);
   const weekly = createWeeklyRepo(db, deps, repos, goals);
-  return { db, deps, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly };
+  const shortWeek = createShortWeekRepo(db, deps, repos, programmes, goals);
+  return { db, deps, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek };
 }

@@ -7,7 +7,7 @@ import { openNodeDb } from "./nodeDriver";
 const TABLES = [
   "setting", "gym", "gym_load", "exercise", "exercise_line", "programme", "programme_version", "programme_day",
   "programme_day_exercise", "session", "workout_set", "goal", "bodyweight_entry", "target", "decision_log", "rejection_memory",
-  "import_batch", "import_mapping", "weekly_review",
+  "import_batch", "import_mapping", "weekly_review", "short_week",
 ];
 
 describe("migrations", () => {

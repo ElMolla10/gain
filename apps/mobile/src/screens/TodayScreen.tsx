@@ -21,17 +21,21 @@ interface TodayData {
 }
 
 export function TodayScreen() {
-  const { repos, goals, programmes } = useServices();
+  const { repos, goals, programmes, shortWeek } = useServices();
   const { t, lang, fmt } = useI18n();
   const p = usePalette();
-  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals", params?: { dayId: string }) => void }>();
+  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek", params?: { dayId: string }) => void }>();
   const [data, setData] = useState<TodayData | null | undefined>(undefined);
   const [paceLine, setPaceLine] = useState<string>("");
+  const [short, setShort] = useState<{ days: number } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       (async () => {
+        // A new training week has begun: the normal programme returns (if the lifter has not already edited it).
+        await shortWeek.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
+        setShort(await shortWeek.getActive());
         const next = await repos.getNextDay();
         if (!next) return alive && setData(null);
         const exercises = await repos.listDayExercises(next.day.id);
@@ -45,7 +49,7 @@ export function TodayScreen() {
       return () => {
         alive = false;
       };
-    }, [repos, goals, programmes, t, fmt, lang]),
+    }, [repos, goals, programmes, shortWeek, t, fmt, lang]),
   );
 
   if (data === undefined) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
@@ -102,6 +106,11 @@ export function TodayScreen() {
             </View>
           );
         })}
+      </Card>
+
+      <Card>
+        {short ? <AppText style={{ fontWeight: "600" }}>{t("short.active", { days: short.days })}</AppText> : null}
+        <BigButton label={t("short.entry")} selected={false} onPress={() => navigation.navigate("ShortWeek")} />
       </Card>
 
       <BigButton label={t("today.start")} onPress={() => navigation.navigate("Workout", { dayId: data.dayId })} />

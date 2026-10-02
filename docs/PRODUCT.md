@@ -1,11 +1,11 @@
-# Next Set — Product Description
+# GAIN — Product Description
 
-Working name: Next Set. Brand is undecided.
+Name: GAIN.
 Status: product to build. Pricing and launch numbers below are decisions to test, not forecasts.
 
 ## Product overview
 
-Next Set is an Arabic and English lifting app that ends every workout by deciding the next one.
+GAIN is an Arabic and English lifting app that ends every workout by deciding the next one.
 
 You finish a session. Before you leave the gym, the app has already written the next targets: the exercise, the exact load that exists in your gym, the reps, and why. Over weeks it tracks whether you are on pace for a goal you actually named — 100 kg bench, a bodyweight target, or a muscle you want to prioritise — and it says so in one line, not a dashboard.
 
@@ -27,7 +27,7 @@ The first hundred users should be reachable in person: one gym, a few coaches, l
 
 Hevy is the notebook people already trust, and its Trainer only progresses programmes it generated. Strong will not tell you the next load. Alpha Progression and MacroFactor Workouts already recommend a weight and a rep target. Fitbod generates sessions that lifters keep editing.
 
-Next Set does not try to be all of them. It wins one job:
+GAIN does not try to be all of them. It wins one job:
 
 **On the programme you already run, the next load is a weight you can actually load, decided from your history, explained, and tied to a dated goal.**
 
@@ -223,4 +223,4 @@ A user can log without fighting the screen, trust the next weight enough to load
 
 ### Short description
 
-Leave knowing the next weight. Next Set writes your next session from the one you just did, using the dumbbells and machines in your gym, and tells you if your goal is still on pace. Arabic and English. Your programme, your history, a number you can check.
+Leave knowing the next weight. GAIN writes your next session from the one you just did, using the dumbbells and machines in your gym, and tells you if your goal is still on pace. Arabic and English. Your programme, your history, a number you can check.

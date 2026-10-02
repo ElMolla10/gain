@@ -38,9 +38,9 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Outlier confirm UI | Done (unit-tested only) | Logger asks confirm/reject for a set far from the line; unconfirmed sets never move the next target (tested with a 100-reps typo run against a clean run), and typo cases (100 reps for 10, 100 kg for 10 kg, extra zero) are engine-tested. Edit-in-history comes with Step 6. Not run on a device. |
 | Exercise library + Arabic aliases | Partly | 20 sample exercises with **draft** Arabic names and aliases (never reviewed by a native Egyptian lifter), picker search by English or Arabic alias, custom exercises. No cues, setup text, demos. Library is far smaller than needed (**size of target library: decision**). |
 | History / trends | Done (unit-tested only) | History tab: sessions (imported labelled), lifts, session detail with edit / delete a set, trend per lift (top working set, plain bars, direction in words). Rules: [HISTORY-TREND.md](HISTORY-TREND.md). The measure is my default (**Mohamed to choose**). No chart library, no phone timing yet. |
-| Rest timer | Partly | In-app timer (end-time based, vibrates at zero). Not native: no lock-screen/notification timer, no sound. |
+| Rest timer | Partly (compiles, unit-tested only) | In-app timer plus Settings: default rest, vibrate, optional end-of-rest notification (permission flow). Screen-off delivery, killed-app delivery and battery-saver behaviour are **untested**; no lock-screen countdown, no reminders ([REST-ALERT.md](REST-ALERT.md)). |
 | Warm-ups | Done (unit-tested only) | "Add warm-ups" in the logger: preview of the engine's ladder on gym-real loads, logged as warm-ups, once, never change the next target. Scheme is the engine default, **Mohamed to confirm** ([WARMUPS.md](WARMUPS.md)). Not run on a device. |
-| Notifications | Not started | No notification package installed. |
+| Notifications | Partly | expo-notifications installed; only the rest-timer alert uses it. No training-day reminders, no weekly-review notification. Not run on a device. |
 | Export / delete | Done (unit-tested only) | Settings > Your data: JSON backup, CSV of sets in Hevy columns (re-imports), restore (checked, all-or-nothing, replaces), delete everything (back to first run). Share sheet / picker not run on a phone. Android auto-backup still on: **Mohamed to decide** ([DATA-EXPORT.md](DATA-EXPORT.md)). |
 | Settings | Partly | Language, RTL override, rep ceilings, import, set-up-again, version. Unit switch kg/lb (v0.4.0, unit-tested only), no rest-time setting, no privacy page, no theme choice (follows system). |
 | Dark mode / RTL | Partly | Dark palette follows system; RTL flips via `direction`. Arabic strings are drafts. Not checked on device. |
@@ -145,7 +145,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** low.
 
 ### Step 10. Native rest timer, lock-screen/notification timer, optional reminders
-- [ ] **Goal:** the timer works with the screen off.
+- [~] **Status: partly done (unit-tested only, NOT device-verified):** rest default / vibrate / notify settings, end-of-rest local notification with permission flow ([REST-ALERT.md](REST-ALERT.md)). Not done: reminders, foreground-service countdown, any real-phone check. **Goal:** the timer works with the screen off.
 - **Deliver:** native module choice (expo-notifications + foreground/ongoing notification, or a dev-client native module; decide after a short spike); sound/vibration setting; default rest time setting; permission flow (Android 13+ notification permission, exact-alarm limits); optional training-day reminders, no streak or shame text.
 - **Done means:** start rest, lock the phone, the alert arrives within a second or two of zero on the test phone; works after the app was swiped away is a stated yes/no.
 - **Test:** real-device only; try at least two phone makers because battery savers differ.
@@ -155,6 +155,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 
 ### Step 11. Pounds (lb) display support
 - [x] **Status (v0.4.0, unit-tested only, NOT device-verified):** shipped early. kg is the default; lb is offered in onboarding (kg preselected) and Settings. Storage and engine stay kg; `logic/units.ts` is the display/input layer (lb shown to 0.1 lb, typed lb stored at 3-decimal kg so a 5 lb step stays a 5 lb step across a bar). Logger, targets, finish, Why, engine reason sentences, gym editor (native lb entry, "fill in standard loads") and import preview use it. The silent default gym is lb-friendly in lb mode (45 lb bar, 5 lb barbell/dumbbell/cable steps, 2.5 lb plates, 10 lb machine/assist). Imported lb loads within 15 g of a gym load snap to it. Known limits: a kg gym viewed in lb shows honest but ugly decimals (22.5 kg = 49.6 lb) until the lifter fills in standard lb loads in the Gym tab; switching unit does not rewrite saved gyms.
+- **Polish (v0.7.0, unit-tested only, NOT device-verified):** after a kg to lb switch, Settings offers to swap an *untouched standard* kg rack for the standard lb rack (45 lb bar, 2.5/5/10/25/35/45 lb plates style steps), so targets land on loadable lb numbers. A customised rack is never touched. History is unchanged (storage stays kg).
 - **Original goal:** show and enter lb for users who want it; storage stays kg.
 - **Deliver:** units setting (onboarding + Settings); conversion in logger, targets, gym editor, history; gym loads in lb plates (e.g. 2.5 lb jumps) handled; import unit stays separate.
 - **Done means:** a lb user's targets are loadable in lb (not ugly decimals like 22.68).

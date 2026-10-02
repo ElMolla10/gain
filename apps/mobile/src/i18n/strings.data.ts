@@ -36,6 +36,10 @@ export const enData = {
   "data.delete.cancel": "Keep my data",
   "data.delete.first": "Delete all my data...",
   "data.deleted": "Everything was erased.",
+  "unit.rack.offer": "Your gym still has the standard {from} loads. Switch it to the standard {to} loads (like a 45 lb bar and 5 lb steps), so targets are loads you can really put on?",
+  "unit.rack.use": "Use standard {to} loads",
+  "unit.rack.done": "Your gym now has the standard {to} loads. Your logged history is unchanged.",
+  "unit.rack.keep": "Keep my loads",
 } as const;
 
 export const arData: Record<keyof typeof enData, string> = {
@@ -72,4 +76,8 @@ export const arData: Record<keyof typeof enData, string> = {
   "data.delete.cancel": "سيب بياناتي",
   "data.delete.first": "امسح كل بياناتي...",
   "data.deleted": "كل حاجة اتمسحت.",
+  "unit.rack.offer": "الجيم بتاعك لسه عليه الأوزان القياسية بال{from}. تحوله للأوزان القياسية بال{to} (زي بار 45 باوند وخطوات 5 باوند)، عشان الأهداف تبقى أوزان تقدر تحطها فعلاً؟",
+  "unit.rack.use": "استخدم الأوزان القياسية بال{to}",
+  "unit.rack.done": "الجيم بتاعك بقى عليه الأوزان القياسية بال{to}. تاريخ تمارينك مفيش فيه تغيير.",
+  "unit.rack.keep": "سيب أوزاني",
 };

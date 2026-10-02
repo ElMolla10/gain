@@ -8,6 +8,9 @@ import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip } from "../ui";
 import type { StringKey } from "../i18n/strings";
 import Constants from "expo-constants";
+import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
+import { unitLabel } from "../logic/units";
+import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
 
@@ -64,6 +67,101 @@ function WeekStartCard() {
   );
 }
 
+/** After a unit switch: offer to swap an untouched standard rack for the new unit's standard rack. Edited racks are never touched. */
+function UnitRackCard() {
+  const { t, unit, unitText, lang } = useI18n();
+  const { repos, gyms } = useServices();
+  const [offer, setOffer] = useState<{ gymId: string; name: string } | null>(null);
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    setDone(false);
+    (async () => {
+      const id = await repos.getActiveGymId();
+      const g = id ? await gyms.getGym(id) : null;
+      const other = unit === "kg" ? "lb" : "kg";
+      setOffer(g && isStandardRack(g.loads, other) && !isStandardRack(g.loads, unit) ? { gymId: g.id, name: g.name } : null);
+    })().catch(() => setOffer(null));
+  }, [repos, gyms, unit]);
+  const unitName = (u: "kg" | "lb") => unitLabel(u, lang);
+  if (done) return <Card><AppText>{t("unit.rack.done", { to: unitText })}</AppText></Card>;
+  if (!offer) return null;
+  const from = unit === "kg" ? "lb" : "kg";
+  return (
+    <Card>
+      <AppText>{t("unit.rack.offer", { from: unitName(from), to: unitText })}</AppText>
+      <BigButton
+        label={t("unit.rack.use", { to: unitText })}
+        onPress={async () => {
+          await gyms.updateGym(offer.gymId, { name: offer.name, loads: defaultGymLoads(unit) });
+          setOffer(null);
+          setDone(true);
+        }}
+      />
+      <BigButton label={t("unit.rack.keep")} selected={false} onPress={() => setOffer(null)} />
+    </Card>
+  );
+}
+
+function RestCard() {
+  const { t } = useI18n();
+  const p = usePalette();
+  const { repos, restAlerts } = useServices();
+  const [s, setS] = useState<RestSettings | null>(null);
+  const [note, setNote] = useState<StringKey | null>(null);
+  useEffect(() => {
+    void loadRestSettings(repos).then(setS);
+  }, [repos]);
+  if (!s) return null;
+  const save = async (key: keyof typeof REST_KEYS, value: string, next: RestSettings) => {
+    await repos.setSetting(REST_KEYS[key], value);
+    setS(next);
+  };
+  return (
+    <Card>
+      <AppText style={{ fontWeight: "700" }}>{t("rest.settings")}</AppText>
+      <AppText style={{ color: p.muted }}>{t("rest.default")}</AppText>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+        {REST_CHOICES.map((n) => (
+          <Chip key={n} label={t("rest.defaultValue", { n })} selected={s.seconds === n} onPress={() => void save("seconds", String(n), { ...s, seconds: n })} />
+        ))}
+      </View>
+      <AppText style={{ color: p.muted }}>{t("rest.vibrate")}</AppText>
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        <Chip label={t("rest.on")} selected={s.vibrate} onPress={() => void save("vibrate", "1", { ...s, vibrate: true })} />
+        <Chip label={t("rest.off")} selected={!s.vibrate} onPress={() => void save("vibrate", "0", { ...s, vibrate: false })} />
+      </View>
+      <AppText style={{ color: p.muted }}>{t("rest.notify")}</AppText>
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        <Chip
+          label={t("rest.on")}
+          selected={s.notify}
+          onPress={async () => {
+            const r = await restAlerts.ensurePermission();
+            if (r === "granted") {
+              setNote(null);
+              await save("notify", "1", { ...s, notify: true });
+            } else {
+              setNote(r === "denied" ? "rest.perm.denied" : "rest.perm.unavailable");
+              await save("notify", "0", { ...s, notify: false });
+            }
+          }}
+        />
+        <Chip
+          label={t("rest.off")}
+          selected={!s.notify}
+          onPress={async () => {
+            setNote(null);
+            await restAlerts.cancel();
+            await save("notify", "0", { ...s, notify: false });
+          }}
+        />
+      </View>
+      {note ? <AppText style={{ color: "#b00020" }}>{t(note)}</AppText> : null}
+      <AppText style={{ color: p.muted, fontSize: 13 }}>{t("rest.notifyNote")}</AppText>
+    </Card>
+  );
+}
+
 export function SettingsScreen() {
   const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart, unit, setUnit } = useI18n();
   const p = usePalette();
@@ -91,6 +189,8 @@ export function SettingsScreen() {
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("settings.units.note")}</AppText>
       </Card>
       <WeekStartCard />
+      <UnitRackCard />
+      <RestCard />
       <Card>
         <BigButton label={t("goals.entry")} selected={false} onPress={() => nav.navigate("Goals")} />
         <BigButton label={t("data.entry")} selected={false} onPress={() => nav.navigate("Data")} />

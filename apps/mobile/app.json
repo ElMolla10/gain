@@ -21,7 +21,8 @@
           "backgroundColor": "#000000"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-notifications"
     ],
     "ios": {
       "bundleIdentifier": "app.gain.mobile",

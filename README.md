@@ -1,7 +1,7 @@
 # GAIN
 
 An Arabic + English lifting app that ends every workout by deciding the next one.
-Product spec: [docs/PRODUCT.md](docs/PRODUCT.md). Build plan: [docs/PLAN.md](docs/PLAN.md).
+Product spec: [docs/PRODUCT.md](docs/PRODUCT.md). Master plan (status + steps to launch): [docs/MASTER-PLAN.md](docs/MASTER-PLAN.md). First-slice plan (historical): [docs/PLAN.md](docs/PLAN.md).
 
 Status: first thin vertical slice (Android first), built as small stacked draft PRs. Public repo.
 

@@ -118,3 +118,29 @@ export function ArDraftNote() {
   if (lang !== "ar") return null;
   return <AppText style={{ color: p.muted, fontSize: 13 }}>{t("common.draftAr")}</AppText>;
 }
+
+/** Whole-number stepper with large − / + buttons. `value` stays readable left-to-right in RTL. */
+export function Stepper(props: { label: string; value: number; onChange: (n: number) => void; min: number; max: number }) {
+  const p = usePalette();
+  const btn = (txt: string, delta: number, disabled: boolean) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${props.label} ${txt}`}
+      disabled={disabled}
+      onPress={() => props.onChange(Math.min(props.max, Math.max(props.min, props.value + delta)))}
+      style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: disabled ? p.disabled : p.accent, alignItems: "center", justifyContent: "center", backgroundColor: p.card }}
+    >
+      <AppText ltr style={{ fontSize: 24, fontWeight: "700", color: disabled ? p.disabled : p.text }}>{txt}</AppText>
+    </Pressable>
+  );
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}>
+      <AppText style={{ fontWeight: "600", flexShrink: 1 }}>{props.label}</AppText>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+        {btn("−", -1, props.value <= props.min)}
+        <AppText ltr style={{ minWidth: 36, textAlign: "center", fontSize: 20, fontWeight: "800" }}>{String(props.value)}</AppText>
+        {btn("+", 1, props.value >= props.max)}
+      </View>
+    </View>
+  );
+}

@@ -42,7 +42,7 @@ export function createGymRepo(db: Db, deps: Deps, repos: Repos, finish: FinishRe
 
   async function listGyms(): Promise<GymSummary[]> {
     const active = await repos.getActiveGymId();
-    const gyms = await db.all<{ id: string; name: string; is_sample: number }>("SELECT id, name, is_sample FROM gym WHERE deleted_at IS NULL ORDER BY created_at, id");
+    const gyms = await db.all<{ id: string; name: string; is_sample: number }>("SELECT id, name, is_sample FROM gym WHERE deleted_at IS NULL ORDER BY created_at, rowid");
     const out: GymSummary[] = [];
     for (const g of gyms) {
       const eq = await db.all<{ equipment: EquipmentType }>("SELECT equipment FROM gym_load WHERE gym_id = ? AND deleted_at IS NULL", [g.id]);

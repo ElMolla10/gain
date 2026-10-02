@@ -2,7 +2,7 @@ import { RULE_VERSION } from "./version";
 import { effectiveLoad, epley, lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
 import { findSpec, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad, allowsZero } from "./loads";
-import { resolveProgression } from "./policy";
+import { classifyLift, resolveProgression } from "./policy";
 import { isJumpBlocked, recordsForLine, REJECTION_THRESHOLD, rejectionCount, emptyRejectionMemory } from "./rejection";
 import type {
   Confidence,
@@ -17,18 +17,21 @@ import type {
   QualityChange,
   ReasonText,
   RejectionMemory,
+  RepCeilings,
   SessionSummary,
 } from "./types";
 
 export interface ProgressionOptions {
-  /** Optional global override of the per-lift increment band (see policy.ts). A step bigger than the band is "too big": spend reps/effort/quality first. */
+  /** Optional global override of the per-lift increment band (see policy.ts). A step bigger than the band is flagged "too big"; whether it is still proposed at the ceiling is the policy's `oversizedStep`. */
   maxJumpRatio?: number;
   /** History older than this many days lowers confidence. */
   staleDays: number;
   /** Never ask for fewer reps in reserve than this (recommendations do not require failure). */
   rirFloor: number;
-  /** Optional global override of the per-lift step-down evidence (default 3 sessions, see policy.ts). */
-  stepDownAfterMisses?: number;
+  /** Optional global override of the per-lift step-down evidence (default: off, see policy.ts). */
+  stepDownAfterMisses?: number | null;
+  /** Edited app-wide default rep ceilings (upper / lower / lateral_raise). A per-lift `progression.repCeiling` still wins. */
+  repCeilings?: Partial<RepCeilings>;
   rejectionThreshold: number;
   /** Coefficient of variation of recent top-set strength estimates above which confidence drops. */
   highVarianceCv: number;
@@ -104,8 +107,7 @@ function lower(c: Confidence): Confidence {
 export function proposeNext(ctx: ProposeContext): Proposal {
   const opt: ProgressionOptions = { ...DEFAULT_OPTIONS, ...ctx.options };
   const { exercise, gym } = ctx;
-  const { min: lo, max: hi } = exercise.repRange;
-  if (!(lo >= 1) || hi < lo) throw new Error("repRange must satisfy 1 <= min <= max");
+  if (!(exercise.repRange.min >= 1) || exercise.repRange.max < exercise.repRange.min) throw new Error("repRange must satisfy 1 <= min <= max");
   const rejections = ctx.rejections ?? emptyRejectionMemory();
   const setup = exercise.setup;
   const zero = allowsZero(setup);
@@ -113,7 +115,13 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const key = lineKey(line);
   const bw = ctx.bodyweightKg ?? null;
   const harderDir: "above" | "below" = setup === "assisted" ? "below" : "above";
-  const cfg = resolveProgression(exercise.bodyRegion ?? "upper", exercise.progression);
+  const nameForClass = exercise.name ?? exercise.exerciseId;
+  const region = exercise.bodyRegion ?? classifyLift(nameForClass).bodyRegion;
+  const cfg = resolveProgression(region, exercise.progression, { name: nameForClass, ceilings: opt.repCeilings });
+  // The rep ceiling replaces the top of the programme's rep range: it is the reps that earn more load. The bottom is kept (never above the ceiling).
+  const hi = cfg.repCeiling;
+  const lo = Math.min(exercise.repRange.min, hi);
+  const repRange = { min: lo, max: hi };
   const maxRatio = opt.maxJumpRatio ?? cfg.increment.maxPct;
   const minRatio = Math.min(cfg.increment.minPct, maxRatio);
   const stepDownAfter = opt.stepDownAfterMisses ?? cfg.stepDownAfterMisses;
@@ -147,7 +155,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     lineKey: key,
     line,
     asOf: ctx.asOf,
-    repRange: exercise.repRange,
+    repRange,
     isGoalLift: !!exercise.isGoalLift,
     trackEffort: !!exercise.trackEffort,
     bodyweightKg: bw,
@@ -222,6 +230,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const nextEasier = harderDir === "above" ? nextLoadBelow(spec, anchor, zero) : nextLoadAbove(spec, anchor, zero);
   const jump = nextHarder === null ? null : norm(Math.abs(nextHarder - anchor));
   const ratio = nextHarder === null ? null : ratioOf(nextHarder);
+  const ratioKnown = setup === "free" || (effectiveLoad(setup, anchor, bw) ?? 0) > 0;
   const tooBig = ratio === null ? null : ratio > maxRatio + 1e-9;
 
   // 3. Confidence.
@@ -349,7 +358,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     if (Math.abs(s.topLoad - last.topLoad) < 1e-6 && s.repsAtTop < lo) misses++;
     else break;
   }
-  if (misses >= stepDownAfter && nextEasier !== null) {
+  if (stepDownAfter !== null && misses >= stepDownAfter && nextEasier !== null) {
     return make({
       load: nextEasier,
       reps: lo,
@@ -459,8 +468,12 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     });
   }
 
-  const order =
-    tooBig === false ? [tryLoad, tryEffort, () => tryQuality(loadBlocked)] : [tryEffort, () => tryQuality(false), tryLoad];
+  // Under the default `oversizedStep: "load"` the load goes up at the ceiling even when the smallest real step is bigger than the band
+  // (e.g. a 2.5 kg dumbbell jump at light loads): the lifter earned it and nothing smaller exists. `jumpTooBig` still flags it for the Why
+  // screen. Effort / quality are then only the fallback (jump declined repeatedly). Not applied when the step's share cannot be measured
+  // (bodyweight unknown): that stays cautious. `oversizedStep: "spend_first"` (conventions preset) keeps effort, quality, then load.
+  const loadFirst = tooBig === false || (cfg.oversizedStep === "load" && ratioKnown);
+  const order = loadFirst ? [tryLoad, tryEffort, () => tryQuality(loadBlocked)] : [tryEffort, () => tryQuality(false), tryLoad];
   for (const t of order) {
     const p = t();
     if (p) return p;

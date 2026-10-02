@@ -1,7 +1,7 @@
 import { equipmentFromTitle, toLoggedSets, type HevyWorkout } from "./hevy";
 import { bodyRegionFromTitle } from "./policy";
 import { proposeNext } from "./progression";
-import type { Currency, EquipmentType, ExerciseSpec, GymFingerprint, HistorySession, LiftProgressionConfig, LineIdentity, RepRange } from "./types";
+import type { Currency, EquipmentType, ExerciseSpec, GymFingerprint, HistorySession, LiftProgressionConfig, LineIdentity, RepCeilings, RepRange } from "./types";
 
 /**
  * Walk-forward check of the rule against a lifter's own history: for each session of a lift, propose from everything
@@ -10,7 +10,8 @@ import type { Currency, EquipmentType, ExerciseSpec, GymFingerprint, HistorySess
  *
  * ASSUMPTIONS (stated, never hidden): a Hevy export does not contain the gym's real loads. The load grid for each
  * equipment class is INFERRED as the greatest common divisor of every load the lifter has logged in that class.
- * The rep range is NOT in the export either; a single default is applied and varied as a sensitivity check.
+ * The rep range is NOT in the export either, but it no longer matters for the top: the load trigger is each lift's REP CEILING
+ * (10 upper, 12 legs, 15 lateral raises, classified by exercise name), so only the bottom of the range is assumed.
  */
 
 const SCALE = 4;
@@ -115,7 +116,10 @@ function actualTop(sets: ExerciseSeries["sessions"][number]["sets"]): { load: nu
 }
 
 export interface BacktestOptions {
+  /** Only the bottom is used; the top is replaced by the rep ceiling. */
   repRange: RepRange;
+  /** Edited app-wide default ceilings (sensitivity checks). */
+  repCeilings?: Partial<RepCeilings>;
   /** Only lifts with at least this many sessions are evaluated. */
   minSessions: number;
   gymId?: string;
@@ -150,7 +154,7 @@ export function backtest(workouts: HevyWorkout[], opts: BacktestOptions): { outc
     for (const [i, sess] of s.sessions.entries()) {
       const actual = actualTop(sess.sets);
       if (i >= 1 && actual) {
-        const p = proposeNext({ exercise, gym, history: hist, asOf: sess.performedAt });
+        const p = proposeNext({ exercise, gym, history: hist, asOf: sess.performedAt, options: opts.repCeilings ? { repCeilings: opts.repCeilings } : undefined });
         const last = actualTop(s.sessions[i - 1]!.sets);
         const pl = p.load;
         const loadMatch = pl !== null && Math.abs(pl - actual.load) < 1e-6;

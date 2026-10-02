@@ -44,7 +44,7 @@ describe("the next session is written at the door", () => {
     const targets = await finish.getTargets(r.written!.sessionId);
     expect(targets).toHaveLength(5);
     for (const t of targets) {
-      expect(t.ruleVersion).toBe("rule-v0.2");
+      expect(t.ruleVersion).toBe("rule-v0.3");
       expect(t.path).toBe("rule");
       expect(t.status).toBe("proposed");
       expect(t.reason.key).toBeTruthy();
@@ -72,7 +72,7 @@ describe("the next session is written at the door", () => {
     const { rotate, finish } = await setup();
     const { bench } = await rotate(8);
     const d = await finish.getDecision(bench.id);
-    expect(d!.ruleVersion).toBe("rule-v0.2");
+    expect(d!.ruleVersion).toBe("rule-v0.3");
     expect(d!.path).toBe("rule");
     expect(d!.payload.inputs.lineKey).toContain("|free");
     expect(d!.payload.inputs.sessions[0]).toMatchObject({ topLoad: 60, repsAtTop: 8 });

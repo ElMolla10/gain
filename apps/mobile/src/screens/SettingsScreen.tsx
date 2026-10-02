@@ -1,9 +1,45 @@
-import React from "react";
-import { ScrollView } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import type { CeilingClass, RepCeilings } from "@gain/engine";
+import { ScrollView, View } from "react-native";
+import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card } from "../ui";
 import Constants from "expo-constants";
+
+const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
+
+/** The default rep ceilings (reps at which load goes up) per kind of lift. Per-lift overrides live on the programme row. */
+function CeilingsCard() {
+  const { t } = useI18n();
+  const { repos } = useServices();
+  const [c, setC] = useState<RepCeilings | null>(null);
+  useEffect(() => {
+    void repos.getRepCeilingDefaults().then(setC);
+  }, [repos]);
+  const bump = useCallback(
+    async (kind: CeilingClass, d: number) => {
+      if (!c) return;
+      setC(await repos.setRepCeilingDefaults({ [kind]: Math.min(100, Math.max(1, c[kind] + d)) }));
+    },
+    [repos, c],
+  );
+  if (!c) return null;
+  return (
+    <Card>
+      <AppText style={{ fontWeight: "700" }}>{t("settings.ceilings")}</AppText>
+      <AppText>{t("settings.ceilings.note")}</AppText>
+      {KINDS.map((k) => (
+        <View key={k} style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+          <AppText style={{ flex: 1 }}>{t(`settings.ceilings.${k}` as const)}</AppText>
+          <BigButton label="-" selected={false} accessibilityHint={t("settings.ceilings.less")} onPress={() => void bump(k, -1)} />
+          <AppText ltr style={{ minWidth: 32, textAlign: "center", fontWeight: "700" }}>{String(c[k])}</AppText>
+          <BigButton label="+" selected={false} accessibilityHint={t("settings.ceilings.more")} onPress={() => void bump(k, 1)} />
+        </View>
+      ))}
+    </Card>
+  );
+}
 
 export function SettingsScreen() {
   const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart } = useI18n();
@@ -23,6 +59,7 @@ export function SettingsScreen() {
         <BigButton label={t("settings.direction.ltr")} selected={rtlOverride === "off"} onPress={() => setRtlOverride("off")} />
         {needsRestart ? <AppText style={{ color: p.muted }}>{t("settings.restartNote")}</AppText> : null}
       </Card>
+      <CeilingsCard />
       <Card>
         <AppText style={{ fontWeight: "700" }}>{t("settings.units")}</AppText>
         <AppText>{t("settings.units.kg")}</AppText>

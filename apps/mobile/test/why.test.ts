@@ -44,7 +44,7 @@ describe("Why this weight? shows the logged inputs", () => {
     expect(sections[1]!.lines).toHaveLength(3);
     expect(clean(sections[2]!.lines.join(" "))).toContain("62.5");
     expect(clean(sections[2]!.lines.join(" "))).toContain("2.5");
-    expect(sections[4]!.lines.join(" ")).toContain("rule-v0.2");
+    expect(sections[4]!.lines.join(" ")).toContain("rule-v0.3");
     expect(sections[4]!.lines.join(" ")).toContain("the next real load");
   });
   it("renders in Arabic too, without leftover placeholders", async () => {
@@ -71,5 +71,24 @@ describe("Why this weight? shows the logged inputs", () => {
     const sections = describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en");
     expect(sections[1]!.lines).toEqual(["No comparable sessions were found."]);
     expect(sections[0]!.lines[0]).toMatch(/nothing is proposed/);
+  });
+});
+
+describe("Why screen: an oversized step", () => {
+  it("proposed anyway (load currency) is explained as the smallest weight available, not 'other ways come first'", async () => {
+    const { d } = await benchDecision();
+    const payload = structuredClone(d.payload) as DecisionPayload;
+    payload.inputs.gym.jumpTooBig = true;
+    payload.inputs.gym.jumpRatio = 0.25;
+    payload.inputs.gym.maxJumpRatio = 0.1;
+    const text = (cur: "load" | "quality") => {
+      payload.proposal.currency = cur;
+      return describeDecision(payload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en")
+        .flatMap((s) => s.lines)
+        .map(clean)
+        .join("\n");
+    };
+    expect(text("load")).toContain("smallest weight available here");
+    expect(text("quality")).toContain("other ways to progress come first");
   });
 });

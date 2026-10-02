@@ -52,7 +52,13 @@ export function describeDecision(
   const gymLines: string[] = [];
   if (g.anchorLoad !== null) gymLines.push(L("why.anchor", { load: g.anchorLoad, onGym: g.anchorOnGymLoads ? L("why.yes") : L("why.no") }));
   gymLines.push(g.nextHarderLoad !== null ? L("why.nextLoad", { load: g.nextHarderLoad, jump: g.jump ?? 0 }) : L("why.noNextLoad"));
-  if (g.jumpTooBig !== null) gymLines.push(g.jumpTooBig ? L("why.jumpBig", { pct: Math.round((g.jumpRatio ?? 0) * 1000) / 10, max: Math.round(g.maxJumpRatio * 100) }) : L("why.jumpSmall", { pct: Math.round((g.jumpRatio ?? 0) * 1000) / 10 }));
+  if (g.jumpTooBig !== null) {
+    const pct = Math.round((g.jumpRatio ?? 0) * 1000) / 10;
+    const max = Math.round(g.maxJumpRatio * 100);
+    // An oversized real step that was proposed anyway (default `oversizedStep: load`) is explained as such, not as "other ways come first".
+    const key = !g.jumpTooBig ? "why.jumpSmall" : p.currency === "load" ? "why.jumpBigTaken" : "why.jumpBig";
+    gymLines.push(L(key, { pct, max }));
+  }
   out.push({ title: L("why.gym"), lines: gymLines });
 
   const x = i.excluded;

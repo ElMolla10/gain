@@ -49,6 +49,10 @@ export interface DayExerciseSpec {
   setup: SetupType;
   repMin: number;
   repMax: number;
+  /** Exercise name (for the default ceiling by name). */
+  name?: string;
+  /** The resolved rep ceiling for this lift (per-lift edit, else the default for its kind). Omitted = the engine's default by name. */
+  repCeiling?: number;
   isGoalLift: boolean;
   trackEffort: boolean;
   sets: number;
@@ -208,9 +212,11 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     const proposal = proposeNext({
       exercise: {
         exerciseId: ex.exerciseId,
+        name: ex.name,
         equipment: ex.equipment,
         setup: ex.setup,
         repRange: { min: ex.repMin, max: ex.repMax },
+        progression: ex.repCeiling !== undefined ? { repCeiling: ex.repCeiling } : undefined,
         isGoalLift: ex.isGoalLift,
         trackEffort: ex.trackEffort,
         plannedSets: ex.sets,

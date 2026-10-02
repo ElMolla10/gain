@@ -94,7 +94,7 @@ export function WorkoutScreen() {
       const info: Record<string, ExInfo> = {};
       for (const e of exercises) {
         const { proposal, lineId, line } = await workout.liveProposal(
-          { exerciseId: e.exerciseId, equipment: e.equipment, setup: e.setup, repMin: e.repMin, repMax: e.repMax, isGoalLift: e.isGoalLift, trackEffort: e.trackEffort, sets: e.sets },
+          { exerciseId: e.exerciseId, name: e.nameEn, equipment: e.equipment, setup: e.setup, repMin: e.repMin, repMax: e.repMax, repCeiling: e.repCeiling, isGoalLift: e.isGoalLift, trackEffort: e.trackEffort, sets: e.sets },
           gym,
         );
         info[e.exerciseId] = { proposal, line, last: await workout.lastPerformance(line, lineId), stored: await finish.getTargetForExercise(id, e.exerciseId) };

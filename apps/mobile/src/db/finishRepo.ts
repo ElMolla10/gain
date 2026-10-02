@@ -169,19 +169,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
       [next.day.id],
     );
     if (open?.status === "in_progress") return null;
-    const gym: GymFingerprint = await repos.loadGymFingerprint(finished.gym_id);
-    const exercises = await repos.listDayExercises(next.day.id);
-
-    // Decide first (reads, may create lines), then write everything in one transaction.
-    const decided: { ex: (typeof exercises)[number]; proposal: Proposal; lineId: string }[] = [];
-    for (const ex of exercises) {
-      const { proposal, lineId } = await workout.liveProposal(
-        { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, repCeiling: ex.repCeiling, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
-        gym,
-      );
-      decided.push({ ex, proposal, lineId });
-    }
-
+    const gymId = finished.gym_id;
     return db.transaction(async () => {
       const t = now();
       let sessionId = open?.id;
@@ -190,9 +178,32 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         await db.run(
           `INSERT INTO session (id, programme_version_id, programme_day_id, gym_id, status, planned_for, created_at, updated_at)
            VALUES (?, ?, ?, ?, 'planned', ?, ?, ?)`,
-          [sessionId, next.versionId, next.day.id, finished.gym_id, new Date(t).toISOString().slice(0, 10), t, t],
+          [sessionId, next.versionId, next.day.id, gymId, new Date(t).toISOString().slice(0, 10), t, t],
         );
       }
+      const created = await fillTargets(sessionId, next.day.id, gymId);
+      return { sessionId, dayName: next.day.name, created };
+    });
+  }
+
+  /**
+   * Writes the missing targets of one planned session (one per exercise of its day) at the given gym.
+   * Existing live targets are kept, so accepted / edited / rejected choices are never overwritten.
+   * Reads first (the engine may create lines), then writes; call it inside or outside a transaction.
+   */
+  async function fillTargets(sessionId: string, dayId: string, gymId: string): Promise<number> {
+    const gym: GymFingerprint = await repos.loadGymFingerprint(gymId);
+    const exercises = await repos.listDayExercises(dayId);
+    const decided: { ex: (typeof exercises)[number]; proposal: Proposal; lineId: string }[] = [];
+    for (const ex of exercises) {
+      const { proposal, lineId } = await workout.liveProposal(
+        { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, repCeiling: ex.repCeiling, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
+        gym,
+      );
+      decided.push({ ex, proposal, lineId });
+    }
+    {
+      const t = now();
       let created = 0;
       for (const { ex, proposal, lineId } of decided) {
         const exists = await db.get("SELECT id FROM target WHERE session_id = ? AND exercise_id = ? AND deleted_at IS NULL", [sessionId, ex.exerciseId]);
@@ -226,8 +237,52 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         );
         created++;
       }
-      return { sessionId, dayName: next.day.name, created };
-    });
+      return created;
+    }
+  }
+
+  /**
+   * After the active gym changes or its rack is edited, planned (not started) sessions must not keep targets that were
+   * written for another rack. Same gym: proposed targets and any accepted / edited load that no longer exists are
+   * dropped and rewritten; kept choices stay. Different gym: the session moves to the active gym and every target is rewritten.
+   * Targets are soft-deleted, never physically removed.
+   */
+  async function refreshPlannedSessions(activeGymId: string): Promise<{ sessions: number; rewritten: number }> {
+    const planned = await db.all<{ id: string; programme_day_id: string; gym_id: string }>(
+      "SELECT id, programme_day_id, gym_id FROM session WHERE status = 'planned' AND deleted_at IS NULL",
+    );
+    const gym = await repos.loadGymFingerprint(activeGymId);
+    let rewritten = 0;
+    for (const s of planned) {
+      const t = now();
+      const targets = await getTargets(s.id);
+      const gymChanged = s.gym_id !== activeGymId;
+      // Proposed targets are always rewritten (cheap, and they follow the current rack). A kept choice (accepted / edited)
+      // is dropped only if the gym changed or its load no longer exists on this rack. A rejected target has no load to check.
+      const stale: typeof targets = [];
+      for (const tg of targets) {
+        if (gymChanged || tg.status === "proposed") {
+          stale.push(tg);
+          continue;
+        }
+        if (tg.effectiveLoad === null) continue;
+        const meta = await db.get<{ equipment: Parameters<typeof findSpec>[1]; setup: SetupType }>("SELECT equipment, setup FROM exercise WHERE id = ?", [tg.exerciseId]);
+        const spec = meta ? findSpec(gym, meta.equipment) : null;
+        if (meta && spec && !isGymLoad(spec, tg.effectiveLoad, meta.setup !== "free")) stale.push(tg);
+      }
+      await db.transaction(async () => {
+        if (gymChanged) await db.run("UPDATE session SET gym_id = ?, updated_at = ? WHERE id = ?", [activeGymId, t, s.id]);
+        for (const tg of stale) {
+          await db.run("UPDATE target SET deleted_at = ?, updated_at = ? WHERE id = ?", [t, t, tg.id]);
+          await db.run("UPDATE decision_log SET deleted_at = ?, updated_at = ? WHERE target_id = ? AND deleted_at IS NULL", [t, t, tg.id]);
+        }
+      });
+      rewritten += stale.length;
+      await db.transaction(async () => {
+        await fillTargets(s.id, s.programme_day_id, activeGymId);
+      });
+    }
+    return { sessions: planned.length, rewritten };
   }
 
   // ---- rejection memory writes ------------------------------------------------------------------------------
@@ -291,6 +346,6 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return db.get<{ id: string }>("SELECT id FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL", [dayId]);
   }
 
-  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
+  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
 }
 export type FinishRepo = ReturnType<typeof createFinishRepo>;

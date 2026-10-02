@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Deps } from "../src/db/driver";
 import { migrate } from "../src/db/migrations";
 import { createRepos } from "../src/db/repos";
+import { createFinishRepo } from "../src/db/finishRepo";
 import { createWorkoutRepo } from "../src/db/workoutRepo";
 import { openNodeDb } from "./nodeDriver";
 
@@ -16,5 +17,6 @@ export async function freshDb() {
   const deps = testDeps();
   const repos = createRepos(db, deps);
   const workout = createWorkoutRepo(db, deps);
-  return { db, deps, repos, workout };
+  const finish = createFinishRepo(db, deps, repos, workout);
+  return { db, deps, repos, workout, finish };
 }

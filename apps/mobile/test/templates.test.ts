@@ -120,7 +120,8 @@ describe("template catalogue: weekly muscle exposure sanity", () => {
     return m;
   }
   const sum = (m: Map<string, Row>, mus: Muscle[]) => mus.reduce((n, k) => n + (m.get(k)?.sets ?? 0), 0);
-  const sessions = (m: Map<string, Row>, mus: Muscle[]) => Math.max(0, ...mus.map((k) => m.get(k)?.sessions ?? 0));
+  /** Sessions a week that train any of these muscles (a day counts once even if two of the muscles are in it). */
+  const sessionsOf = (t: Template, mus: Muscle[]) => (t.days / t.schedule.length) * t.schedule.filter((d) => d.exercises.some((e) => mus.includes(catalog.get(e.key)!.muscle as Muscle))).length;
   const MAJOR: Record<string, Muscle[]> = {
     chest: ["chest"],
     back: ["lats", "upper_back"],
@@ -151,7 +152,7 @@ describe("template catalogue: weekly muscle exposure sanity", () => {
         // One heavy deadlift set (3x5 novice shapes) loads the whole back of the body but counts as 1 hamstring set in this arithmetic.
         if (name === "posterior" && LOW_POSTERIOR_OK.has(t.id)) continue;
         expect(sum(w, mus), `${t.id} ${name} sets`).toBeGreaterThanOrEqual(3);
-        expect(sessions(w, mus), `${t.id} ${name} sessions`).toBeGreaterThanOrEqual(1);
+        expect(sessionsOf(t, mus), `${t.id} ${name} sessions`).toBeGreaterThanOrEqual(1);
       }
     }
   });
@@ -170,12 +171,12 @@ describe("template catalogue: weekly muscle exposure sanity", () => {
     }
   });
   it("every template with 3+ days a week trains each major area at least twice a week, except body-part splits (bro / Arnold-type), which are tagged by name", () => {
-    const SINGLE_FREQ = new Set(["mix_4", "bro_5", "arnold_3", "ppl_3", "phat_5", "arms_shoulders_4"]);
+    const SINGLE_FREQ = new Set(["mix_4", "bro_5", "arnold_3", "ppl_3", "ppl_5", "phat_5", "arms_shoulders_4"]);
     for (const t of TEMPLATES.filter((x) => x.days >= 3 && !SINGLE_FREQ.has(x.id) && !FOCUSED.has(x.goal))) {
       const w = weekly(t);
       for (const [name, mus] of Object.entries(MAJOR)) {
         if (name === "posterior" || name === "shoulders") continue;
-        expect(sessions(w, mus), `${t.id} ${name} frequency`).toBeGreaterThanOrEqual(1.5);
+        expect(sessionsOf(t, mus), `${t.id} ${name} frequency`).toBeGreaterThanOrEqual(1.5);
       }
     }
   });

@@ -23,9 +23,9 @@ describe("brand wiring", () => {
     for (const r of refs) expect(existsSync(join(root, r)), r).toBe(true);
   });
 
-  it("uses black for adaptive background and splash", () => {
-    expect(cfg.android.adaptiveIcon.backgroundColor).toBe("#000000");
-    expect(cfg.plugins.find((p: unknown) => Array.isArray(p) && p[0] === "expo-splash-screen")[1].backgroundColor).toBe("#000000");
+  it("uses the ink colour (#10120E) for adaptive background and splash", () => {
+    expect(cfg.android.adaptiveIcon.backgroundColor).toBe("#10120E");
+    expect(cfg.plugins.find((p: unknown) => Array.isArray(p) && p[0] === "expo-splash-screen")[1].backgroundColor).toBe("#10120E");
   });
 
   it("icon.png is 1024 square with no alpha channel (iOS)", () => {

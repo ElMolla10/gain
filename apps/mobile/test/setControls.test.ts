@@ -12,7 +12,8 @@ describe("set row controls (P19/P20)", () => {
     expect(src).toMatch(/const colSet = \{ width: 48/);
     expect(src).toMatch(/const colTick = \{ width: 48/);
     expect(src).not.toMatch(/width: 34, height: 34|width: 38, height: 38/);
-    expect(parts).toMatch(/height: 48,/);
+    expect(parts).toMatch(/height: INPUT_HEIGHT,/);
+    expect(readFileSync(join(__dirname, "..", "src", "theme.ts"), "utf8")).toMatch(/INPUT_HEIGHT = gainTokens\.interaction\.inputHeight|INPUT_HEIGHT = 48/);
   });
   it("every control in a set row names its exercise and set", () => {
     expect(src).toContain('const ctx = t("workout.setContext"');

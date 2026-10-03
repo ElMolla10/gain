@@ -166,7 +166,7 @@ def main():
     # no groove rings: at themed-icon size (~48 dp) the 2-3 px rings close up (identity spec: small monochrome variants drop the ring strokes)
     mono = svg(1024, 1.9, bg=None, fill="#ffffff", grooves=False, title="GAIN monochrome")
     png(f"{A}/adaptive-icon-monochrome.png", mono, 1024)
-    # 5. splash image (centred mark on ink; app.json also sets backgroundColor #000000)
+    # 5. splash image (centred mark on ink; app.json sets backgroundColor #10120E (ink))
     splash = svg(1024, 1.5)
     png(f"{A}/splash-icon.png", splash, 1024); flatten_ink(f"{A}/splash-icon.png")
     # 6. notification icon: 96px white-on-transparent, mark fills ~88px

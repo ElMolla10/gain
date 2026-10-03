@@ -21,7 +21,7 @@ export function PrivacyScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <Card>
-        <AppText style={{ fontWeight: "700", color: "#b00020" }}>{t("privacy.draft")}</AppText>
+        <AppText style={{ fontWeight: "700", color: p.danger }}>{t("privacy.draft")}</AppText>
       </Card>
       {block("privacy.local.title", ["privacy.local.body"])}
       {block("privacy.leaves.title", ["privacy.leaves.update", "privacy.leaves.share", "privacy.leaves.backup"])}

@@ -59,7 +59,7 @@ export function LiftTrendScreen() {
         <Card>
           <AppText style={{ fontWeight: "700" }}>{t("trend.recent")}</AppText>
           {recent.map((pt) => (
-            <AppText key={pt.at} ltr style={{ textAlign: "left" }}>
+            <AppText key={pt.at} ltr style={{ textAlign: "left" /* a11y-ok: LTR figures stay left-aligned */ }}>
               {localDateText(pt.at)}  {fmt(pt.load)} × {pt.reps}
               {pt.imported ? `  (${t("trend.imported")})` : ""}
             </AppText>

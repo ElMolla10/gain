@@ -50,7 +50,7 @@ export function NumField<T extends number>(props: {
         style={{
           minHeight: MIN_TOUCH,
           borderWidth: 2,
-          borderColor: bad ? "#c77700" : p.border,
+          borderColor: bad ? p.warn : p.edge,
           borderRadius: 12,
           paddingHorizontal: space.sm,
           fontSize: props.fontSize ?? 24,

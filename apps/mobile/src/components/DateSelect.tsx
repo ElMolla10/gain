@@ -39,7 +39,7 @@ export function DateSelect(props: { label: string; value: string; onChange: (iso
       accessibilityRole="button"
       accessibilityLabel={`${props.label}: ${partName(part)}`}
       onPress={() => setOpen(part)}
-      style={{ flex: grow, minHeight: MIN_TOUCH, borderWidth: 2, borderColor: p.border, borderRadius: 12, backgroundColor: p.card, justifyContent: "center", paddingHorizontal: space.sm }}
+      style={{ flex: grow, minHeight: MIN_TOUCH, borderWidth: 2, borderColor: p.edge, borderRadius: 12, backgroundColor: p.card, justifyContent: "center", paddingHorizontal: space.sm }}
     >
       <AppText style={{ color: parts[part] === null ? p.muted : p.text, fontWeight: "700", textAlign: "center" }} numberOfLines={1}>
         {parts[part] === null ? partName(part) : shown(part, parts[part]!)}

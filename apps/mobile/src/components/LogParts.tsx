@@ -139,7 +139,7 @@ export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string
     <View style={{ overflow: "hidden" }}>
       <View style={{ position: "absolute", top: 0, bottom: 0, end: 0, width: W, backgroundColor: p.danger, alignItems: "center", justifyContent: "center" }}>
         <Pressable accessibilityRole="button" accessibilityLabel={props.deleteLabel} onPress={props.onDelete} style={{ flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center" }}>
-          <AppText style={{ color: "#ffffff", fontWeight: "700", fontSize: 14 }}>{props.deleteLabel}</AppText>
+          <AppText style={{ color: p.onDanger, fontWeight: "700", fontSize: 14 }}>{props.deleteLabel}</AppText>
         </Pressable>
       </View>
       <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: x }], backgroundColor: props.background }}>
@@ -156,7 +156,7 @@ export function MenuSheet(props: { visible: boolean; title: string; onClose: () 
   const { height } = useWindowDimensions();
   return (
     <Modal visible={props.visible} transparent animationType="fade" onRequestClose={props.onClose}>
-      <Pressable accessibilityLabel={t("common.close")} onPress={props.onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={props.onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
         <View style={{ backgroundColor: p.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 12, paddingBottom: 28, gap: 4 }}>
           <AppText numberOfLines={1} style={{ color: p.muted, fontSize: 14, paddingHorizontal: 12, paddingVertical: 8 }}>{props.title}</AppText>
           <ScrollView style={{ maxHeight: height * 0.6 }} keyboardShouldPersistTaps="handled">

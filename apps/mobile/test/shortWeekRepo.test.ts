@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SessionInProgress } from "../src/db/programmeRepo";
 import { ShortWeekActive, ShortWeekInvalid } from "../src/db/shortWeekRepo";
+import { newExercise } from "../src/logic/programmeDraft";
 import { instantiateTemplate, TEMPLATES } from "../src/logic/templates";
 import { freshDb } from "./helpers";
 import type { Profile } from "../src/logic/onboarding";
@@ -100,5 +101,52 @@ describe("short week data layer", () => {
     await shortWeek.apply(2, null, NOW);
     const s = await db.get<{ programme_day_id: string }>("SELECT programme_day_id FROM session WHERE id = ?", [id]);
     expect(await db.get("SELECT id FROM programme_day WHERE id = ? AND deleted_at IS NULL", [s!.programme_day_id])).not.toBeNull();
+  });
+});
+
+describe("short week + programme switch (known bug, fixed)", () => {
+  async function otherProgramme(ctx: Awaited<ReturnType<typeof setup>>) {
+    const exs = await ctx.programmes.listExercises();
+    const draft = { name: "Other", days: [{ name: "Day X", exercises: [newExercise(exs[0]!.id, { isGoalLift: true }), newExercise(exs[1]!.id)] }, { name: "Day Y", exercises: [newExercise(exs[2]!.id)] }] };
+    return { draft, made: await ctx.programmes.createProgramme(draft) };
+  }
+
+  it("the short week stays with its programme: not shown, not reused as the original of the new one", async () => {
+    const ctx = await setup();
+    const { shortWeek, programmes, active } = ctx;
+    const a = await shortWeek.apply(2, null, NOW);
+    const { draft, made } = await otherProgramme(ctx);
+    expect((await programmes.getActive())!.programmeId).toBe(made.programmeId);
+    expect(await shortWeek.getActive()).toBeNull();
+    // a preview on the new programme is built from the NEW programme, never from the old programme's original
+    const p = await shortWeek.preview(1, null);
+    expect(p.programmeId).toBe(made.programmeId);
+    expect(p.originalVersionId).toBe(made.versionId);
+    expect(p.original.name).toBe(draft.name);
+    // and a short week can be applied on it while the other one is still recorded
+    const b = await shortWeek.apply(1, null, NOW);
+    expect(b.programmeId).toBe(made.programmeId);
+    expect(b.originalVersionId).toBe(made.versionId);
+    // switching back shows the first one again
+    await shortWeek.undo();
+    await programmes.setActiveProgramme(active.programmeId);
+    expect((await shortWeek.getActive())!.id).toBe(a.id);
+  });
+
+  it("when the week ends, a short week left on another programme is closed without touching the active programme or its plan", async () => {
+    const ctx = await setup();
+    const { shortWeek, programmes, repos, db, active, draft } = ctx;
+    await shortWeek.apply(2, null, NOW);
+    const { made } = await otherProgramme(ctx);
+    const planBefore = await db.all("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL");
+    const r = await shortWeek.endIfExpired(NOW + 3 * DAY + 1000);
+    expect(r).toEqual({ ended: true, restored: true });
+    expect((await programmes.getActive())!.programmeId).toBe(made.programmeId); // still the programme the lifter chose
+    expect(await db.all("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL")).toEqual(planBefore); // plan untouched
+    // the old programme is back to normal for when they return
+    await programmes.setActiveProgramme(active.programmeId);
+    expect(await programmes.loadDraft((await programmes.getActive())!.versionId)).toEqual(draft);
+    expect(await shortWeek.getActive()).toBeNull();
+    expect(await repos.getActiveGymId()).not.toBeNull();
   });
 });

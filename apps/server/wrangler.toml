@@ -1,0 +1,17 @@
+# GAIN sync + coach-link Worker. Free tier only: one Worker, one D1 database, no paid add-ons.
+name = "gain-sync"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gain-sync"
+# Filled in by scripts/deploy.sh after `wrangler d1 create`. An id is not a secret.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[vars]
+# Email sign-in codes are only printed in the API response when this is "1". NEVER set it on a deployed Worker.
+DEV_EMAIL_CODES = "0"
+EMAIL_FROM = ""

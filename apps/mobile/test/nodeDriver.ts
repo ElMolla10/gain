@@ -34,3 +34,33 @@ export function openNodeDb(path = ":memory:"): Db {
   };
   return db;
 }
+
+/**
+ * A second connection to the same file with the maintenance driver's semantics (BEGIN IMMEDIATE), for tests of work that runs on its
+ * own connection. Needs a file path shared with the first connection (WAL).
+ */
+export function openNodeMaintenanceDb(path: string): Db {
+  const raw = new DatabaseSync(path);
+  raw.exec("PRAGMA foreign_keys = ON;");
+  const serial = createMutex();
+  return {
+    exec: async (sql) => {
+      raw.exec(sql);
+    },
+    run: async (sql, params: Param[] = []) => ({ changes: Number(raw.prepare(sql).run(...params).changes) }),
+    all: async <T>(sql: string, params: Param[] = []) => raw.prepare(sql).all(...params) as T[],
+    get: async <T>(sql: string, params: Param[] = []) => (raw.prepare(sql).get(...params) as T | undefined) ?? null,
+    transaction: (fn) =>
+      serial(async () => {
+        raw.exec("BEGIN IMMEDIATE");
+        try {
+          const r = await fn();
+          raw.exec("COMMIT");
+          return r;
+        } catch (e) {
+          raw.exec("ROLLBACK");
+          throw e;
+        }
+      }),
+  };
+}

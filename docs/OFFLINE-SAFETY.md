@@ -16,3 +16,12 @@ Status: **implemented and unit-tested; NOT verified on a real phone** (Node's `n
 - Whole-app crash during a migration on a phone: SQLite's journal should protect it; only Node-simulated here.
 - Android may restore the app's data from its own cloud backup (decision D11 open); this is outside the app's control.
 - Native crashes and killed-in-background processes are not logged (no native module).
+
+
+## Two database connections (fixes release)
+
+expo-sqlite transactions on one connection are not exclusive: a statement issued while a transaction is open (a tap that logs a set, a screen loading) runs inside it, is rolled back with it, and sees half-applied rows. `PRAGMA foreign_keys = OFF` (needed by restore, delete-everything and the sync "take the backup" swap) would also apply to every other statement on that connection.
+
+What changed: the sync engine, restore-from-backup and delete-everything now use a second connection to the same file (`openExpoMaintenanceDb`). SQLite itself isolates the two (WAL: readers see the last committed state, writers take turns for up to the busy timeout), and the maintenance transactions start with `BEGIN IMMEDIATE`. The foreign-key switch is therefore local to that connection.
+
+What did not change, honestly: on the everyday connection a short transaction (starting a workout, saving a programme) can still absorb a statement issued at the very same moment by another screen. Those transactions take milliseconds and the app has one user, and the existing mutex already stops two transactions interleaving. Moving every repo to a transaction-scoped handle would remove it; that is a larger change left for later. The second connection is tested on Linux with two real connections to one file (`test/maintenanceDb.test.ts`); it has NOT been run under real expo-sqlite on a phone.

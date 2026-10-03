@@ -8,7 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { navColors } from "./src/palettes";
 import { parseAppearance, setAppearance, useIsDark, usePalette } from "./src/theme";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
-import { openExpoDb } from "./src/db/expoDriver";
+import { openExpoDb, openExpoMaintenanceDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
 import { backupBeforeMigrate } from "./src/db/preMigrate";
 import { File, Paths } from "expo-file-system";
@@ -178,6 +178,7 @@ export default function App() {
 
   const [epoch, setEpoch] = useState(0);
   const dbRef = useRef<Db | null>(null);
+  const maintRef = useRef<Db | null>(null);
   const restart = useCallback(() => {
     setBoot(null);
     setEpoch((e) => e + 1);
@@ -212,8 +213,9 @@ export default function App() {
       const rejections = createRejectionRepo(db, deps);
       const history = createHistoryRepo(db, deps, repos, finish);
       const decisions = createDecisionRepo(db);
-      const data = createDataRepo(db, deps);
-      const sync = createSyncEngine(db, deps, createFetchTransport());
+      const maint = maintRef.current ?? (maintRef.current = await openExpoMaintenanceDb());
+      const data = createDataRepo(db, deps, maint);
+      const sync = createSyncEngine(maint, deps, createFetchTransport());
       const auto = createAutoSync(sync);
       const autoSync = (force?: boolean) => void auto.run(force);
       const reminders = createReminders();

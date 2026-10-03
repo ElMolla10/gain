@@ -17,7 +17,11 @@ export interface DataCounts {
 }
 
 /** Export everything, restore a backup, delete everything. The user owns the data. Runs on the local database only. */
-export function createDataRepo(db: Db, deps: Deps) {
+/**
+ * `maint` is the connection used for restore and delete-everything (a second connection on a device, so the foreign-key switch and the
+ * big transaction cannot mix with the app's other statements). It defaults to `db` (tests, and anything without a second connection).
+ */
+export function createDataRepo(db: Db, deps: Deps, maint: Db = db) {
   async function userTables(): Promise<string[]> {
     const rows = await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
     return rows.map((r) => r.name);
@@ -106,23 +110,23 @@ export function createDataRepo(db: Db, deps: Deps) {
   async function restoreJson(text: string): Promise<{ sessions: number; sets: number }> {
     const { file, counts: c } = await inspectBackup(text);
     const tables = await userTables();
-    await db.exec("PRAGMA foreign_keys = OFF");
+    await maint.exec("PRAGMA foreign_keys = OFF");
     try {
-      await db.transaction(async () => {
-        for (const t of tables) await db.run(`DELETE FROM ${t}`);
+      await maint.transaction(async () => {
+        for (const t of tables) await maint.run(`DELETE FROM ${t}`);
         for (const [name, rows] of Object.entries(file.tables)) {
           for (const r of rows) {
             const cols = Object.keys(r);
-            await db.run(`INSERT INTO ${name} (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`, cols.map((k) => r[k]!));
+            await maint.run(`INSERT INTO ${name} (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`, cols.map((k) => r[k]!));
           }
         }
-        const bad = await db.all("PRAGMA foreign_key_check");
+        const bad = await maint.all("PRAGMA foreign_key_check");
         if (bad.length > 0) throw new RestoreFailed("the backup refers to rows it does not contain");
       });
     } catch (e) {
       throw e instanceof RestoreFailed ? e : new RestoreFailed(e instanceof Error ? e.message : String(e));
     } finally {
-      await db.exec("PRAGMA foreign_keys = ON");
+      await maint.exec("PRAGMA foreign_keys = ON");
     }
     return c;
   }
@@ -130,16 +134,16 @@ export function createDataRepo(db: Db, deps: Deps) {
   /** Erase everything this app stored on the phone. The schema stays; the app goes back to first run. */
   async function deleteAll(): Promise<void> {
     const tables = await userTables();
-    await db.exec("PRAGMA foreign_keys = OFF");
+    await maint.exec("PRAGMA foreign_keys = OFF");
     try {
-      await db.transaction(async () => {
-        for (const t of tables) await db.run(`DELETE FROM ${t}`);
+      await maint.transaction(async () => {
+        for (const t of tables) await maint.run(`DELETE FROM ${t}`);
       });
     } finally {
-      await db.exec("PRAGMA foreign_keys = ON");
+      await maint.exec("PRAGMA foreign_keys = ON");
     }
     // Rows are gone from the table pages; compact the file so deleted content does not linger on disk.
-    await db.exec("VACUUM").catch(() => undefined);
+    await maint.exec("VACUUM").catch(() => undefined);
   }
 
   return { counts, exportJson, exportCsv, inspectBackup, restoreJson, deleteAll };

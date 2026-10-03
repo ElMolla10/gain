@@ -1,24 +1,34 @@
 # Roadmap
 
-The full A-to-Z plan (honest status, numbered steps to public launch, milestone map v0.4.1 to v1.x, open decisions, risks) lives in **[MASTER-PLAN.md](MASTER-PLAN.md)**. Start with its "Next 5 steps" section.
+The full plan (the "Now" list, the freeze list, the status by screen, numbered steps, gates, decisions, risks) lives in **[MASTER-PLAN.md](MASTER-PLAN.md)**. Start with its "Now" section. What already shipped, release by release (v0.1.0 to v0.18.0), the old milestone map and older test runs are in **[RELEASE-HISTORY.md](RELEASE-HISTORY.md)**.
 
-Milestones in one line each (details and exit criteria in the master plan):
+**Where things stand (2026-10-03, v0.18.0, `main` cd97b06):** GAIN is completely free (see "Free for everyone" in [PRODUCT.md](PRODUCT.md)), Android first, Arabic and English. 18 pre-release APKs exist and **none has a recorded run on a real phone.** So the roadmap is no longer a list of future versions; it is four gates, and no new feature work happens until the first one is passed.
 
-- **v0.1-v0.3 (shipped, not yet verified on a device):** engine + gym fingerprint, thin slice (logger, finish flow, Why), onboarding + gym/programme editors, Hevy/Strong import.
-- **v0.4.0 (shipped as a pre-release, not yet verified on a device):** kg/lb units (kg default), onboarding without a gym step (silent default gym). This used the number the first plan gave to goals + pace, so later milestones are one minor higher than first written.
-- **v0.4.1:** real-device testing and fixes (Step 1; started on an emulator, not finished: see DEVICE-TEST-0.4.md).
-- **v0.5:** goals + pace, weekly decision, short-week rebuild.
-- **v0.6:** outlier/rejection surfaces, history + trends, decision-log screen, warm-ups.
-- **v0.7:** reviewed library + Arabic aliases, native rest timer, export/delete, local coach card. *Shipped 2026-10-03 as a pre-release with the review and the on-phone checks still open: library is draft, rest alert and card untested on a phone.*
-- **v0.8:** accessibility/RTL/performance/offline QA, trainer review, privacy + consent, crash reporting, beta APK process.
-- **v0.9:** pilot with about 10 lifters at one gym. *(v0.9.0 pre-release, 2026-10-03, is the Hevy-style logger redesign, not the pilot; see docs/WORKOUT-LOG.md.)*
-- **v0.10:** (milestone name, not the same as the v0.10.0 pre-release, which is a batch of logger features, safety/a11y QA, privacy drafts, local crash log and beta process docs; see MASTER-PLAN.md) backend sync (Cloudflare Workers + D1; built and deployed in v0.11.0, not device-verified), shared gyms (dropped), coach links (built in v0.11.0), Play closed testing (the planned subscription test was removed 2026-10-03: GAIN is completely free); model layer only if the pilot shows a need.
-- **v0.12.0:** exercise library 50 -> 607 (Hevy-style names, draft Arabic), picker search and muscle/gear filters, stronger import matching. Not device-verified; new Arabic unreviewed. See [EXERCISE-LIBRARY.md](EXERCISE-LIBRARY.md).
-- **v0.14.0:** 47 programme templates (40 new, 18 for home: dumbbells, bands, no equipment), grouped by days per week and filterable by days / Home vs Gym / equipment / goal / level; strength shapes with a per-lift rep ceiling (3x5, 5x5 style); a short-week rebuild fix found by the new template sweep. Unit-tested only, not device-verified, new templates not trainer-reviewed, Arabic names are drafts. See [TEMPLATES.md](TEMPLATES.md).
-- **v0.13.0:** timed exercises (plank, dead hang, carries: seconds / metres, migration 9), opt-in training-day reminders, paywall scaffold (OFF, no billing; **removed again 2026-10-03, GAIN is completely free**), library twin map for import, trainer-review pack, Play listing drafts, pilot retention-metrics doc. All unit-tested only, not device-verified; nothing here is trainer-reviewed. See [TIMED-EXERCISES.md](TIMED-EXERCISES.md), [REMINDERS.md](REMINDERS.md). The scaffold document was deleted with the scaffold.
-- **v0.17.0:** small: a "Send feedback" share-sheet message in Diagnostics and unused library permissions (overlay, shared storage, biometrics) removed from the manifest. Not device-verified. Also in the repo since then (docs/tools, no app change): pilot kit and metrics script, Play data-safety draft, live quota check, kill-switch and D1 restore rehearsal. See [PILOT-KIT.md](PILOT-KIT.md), [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md).
-- **v0.18.0:** GAIN is completely free: no subscriptions, in-app purchases or paid tiers; the v0.13.0 paywall scaffold and its Plans page were removed (PR #121). Unit-tested only, not device-verified.
-- **v1.0:** Play Store public launch (Arabic + English).
-- **v1.x:** iOS, post-launch metrics.
+## Now (in this order)
 
-Not planned for first releases: chatbot, social feed, wearables, nutrition, video scoring, trainer dashboard, photo progress.
+1. Install the current signed APK on a real Android phone and complete onboarding, import, log, finish, next target.
+2. Verify keyboard, screen lock, rest alerts, force-stop recovery and update-over-install without data loss.
+3. Back up the signing key and prove it can be recovered.
+4. Review Arabic, TalkBack, large text and the small set of programmes offered to pilot users (six proposed from the 47 templates).
+5. Run a local-only pilot with retention and usability criteria written first, recording why users override targets.
+
+## Gates
+
+| Gate | Means |
+| --- | --- |
+| **G1. Device verified** | The core loop and the failure cases work on real Android phones; updates keep all data; the signing key is recoverable. |
+| **G2. Pilot ready** | Arabic, TalkBack and large text reviewed; pilot programmes chosen; criteria and consent written down; a non-technical person can install from the guide. |
+| **G3. Pilot validated** | A six-week, local-only pilot of about 10 lifters at one gym produced a written report that meets (or honestly misses) the criteria set beforehand. |
+| **G4. Store ready** | Play account, signed AAB, closed testing, accurate listing and data-safety form, privacy policy at a public URL with legal review. |
+
+Exit criteria and the steps behind each gate: MASTER-PLAN.md section 3. After G4: launch to people Mohamed can reach, then iOS, then post-launch metrics.
+
+## Frozen until the pilot has been validated
+
+New templates, the AI / model layer, billing of any kind (there is none and none is planned), further cosmetic redesigns, library growth beyond 607 exercises, iOS, shared gyms (dropped), email sign-in work (blocked on a provider). Bug fixes found by a device or the pilot, data-safety fixes, accessibility and Arabic corrections, docs and tooling are always allowed.
+
+## Decisions that shape this
+
+- **Sync and sign-in:** optional, off by default, anonymous account + recovery code. Email sign-in is a separate deferred option blocked on an email provider. The pilot does not use sync.
+- **Coach links** are built and deployed; shared gyms were dropped.
+- **Not planned for the first releases:** chatbot, social feed, wearables, nutrition, video scoring, trainer dashboard, photo progress.

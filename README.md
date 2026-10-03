@@ -1,7 +1,7 @@
 # GAIN
 
 An Arabic + English lifting app that ends every workout by deciding the next one.
-Product spec: [docs/PRODUCT.md](docs/PRODUCT.md). Master plan (status + steps to launch): [docs/MASTER-PLAN.md](docs/MASTER-PLAN.md). First-slice plan (historical): [docs/PLAN.md](docs/PLAN.md).
+Product spec: [docs/PRODUCT.md](docs/PRODUCT.md). Master plan (what to do now, gates, status by screen, steps): [docs/MASTER-PLAN.md](docs/MASTER-PLAN.md). Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md). Release history: [docs/RELEASE-HISTORY.md](docs/RELEASE-HISTORY.md). First-slice plan (historical): [docs/PLAN.md](docs/PLAN.md).
 
 Status: Android-first app, sideloaded pre-release APKs only (see the status table in the master plan for what is and is not verified on a device). Public repo.
 

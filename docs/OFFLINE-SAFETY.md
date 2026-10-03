@@ -9,7 +9,7 @@ Status: **implemented and unit-tested; NOT verified on a real phone** (Node's `n
    - Migrations are numbered, each runs in a transaction, and a failing one rolls back and leaves the old database untouched (tested).
    - A database written by a *newer* app than the one running is refused, not "downgraded" (tested).
    - Before an update that changes the database layout (`0 < from < to`), the app writes `gain-before-update.json` (a full JSON backup) into its private folder. If writing it fails (disk full) the update still proceeds and a warning goes to the local crash log. Settings > Your data shows the copy and sends it through the normal, checked restore. "Delete everything" removes it.
-   - Upgrade paths from every historical schema version v1..v6 to the current v7 are tested with real rows (integrity and foreign-key checks, and the app's own reads work afterwards).
+   - Upgrade paths from every historical schema version v1..v8 to the current v9 are tested with a small invented history (integrity and foreign-key checks, and the app's own reads work afterwards). They are not yet tested with a real release's own database or a real user's data: see MASTER-PLAN.md section 5.
 4. **A failed save is visible.** If saving a set throws (for example storage is full), the tick does not stick, an alert says "This set was NOT saved", and the error goes to the local crash log.
 
 ## Known limits (honest)

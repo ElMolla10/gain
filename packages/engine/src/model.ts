@@ -11,9 +11,11 @@ export interface ModelRequest {
 }
 
 export interface ModelAdvice {
+  /** Must be a load that exists in the gym and within one gym step of the rule's anchor; `vetModelAdvice` (modelGuard.ts) re-checks it. */
   load: number | null;
+  /** Must be a whole number inside the lift's rep range. */
   reps: number | null;
-  /** Must be a load that exists in the gym; the caller re-checks before showing it. */
+  /** A key from MODEL_RATIONALE_KEYS. Never free text: the model cannot write anything the lifter reads. */
   rationaleKey: string;
   confidence: "low" | "medium" | "high";
 }

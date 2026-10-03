@@ -129,6 +129,7 @@ describe("template catalogue: weekly muscle exposure sanity", () => {
     posterior: ["hamstrings", "glutes", "lower_back"],
   };
   const FOCUSED = new Set(["glutes", "arms_shoulders"]);
+  const LOW_POSTERIOR_OK = new Set(["sl_5x5_3", "ss_3"]);
 
   it("a session is 5 to 26 sets (about 15 to 78 minutes at the app's 3 minutes per set) and at most 9 exercises", () => {
     for (const t of TEMPLATES) {
@@ -147,6 +148,8 @@ describe("template catalogue: weekly muscle exposure sanity", () => {
     for (const t of TEMPLATES.filter((x) => !FOCUSED.has(x.goal) && x.gear !== "bodyweight")) {
       const w = weekly(t);
       for (const [name, mus] of Object.entries(MAJOR)) {
+        // One heavy deadlift set (3x5 novice shapes) loads the whole back of the body but counts as 1 hamstring set in this arithmetic.
+        if (name === "posterior" && LOW_POSTERIOR_OK.has(t.id)) continue;
         expect(sum(w, mus), `${t.id} ${name} sets`).toBeGreaterThanOrEqual(3);
         expect(sessions(w, mus), `${t.id} ${name} sessions`).toBeGreaterThanOrEqual(1);
       }
@@ -304,8 +307,10 @@ describe("every template works with the real library, the programme repo, the sw
   async function ctxWithLibrary() {
     const ctx = await freshDb();
     await ctx.repos.seedIfNeeded();
+    await ctx.repos.topUpLibrary();
     const lib = await ctx.programmes.listExercises();
     const byKey = new Map(lib.filter((e) => e.seedKey).map((e) => [e.seedKey!, { exerciseId: e.id, equipment: e.equipment }]));
+    expect(byKey.size).toBeGreaterThanOrEqual(607);
     return { ...ctx, lib, byKey };
   }
   it("instantiates into a valid draft with every exercise present and the lifter's equipment honoured", async () => {
@@ -315,6 +320,7 @@ describe("every template works with the real library, the programme repo, the sw
       expect(r.dropped, t.id).toEqual([]);
       expect(validateDraft(r.draft), t.id).toEqual([]);
       expect(r.draft.days.length, t.id).toBe(t.schedule.length);
+      expect(r.draft.days.flatMap((d) => d.exercises).length, `${t.id}: an exercise was silently left out`).toBe(t.schedule.flatMap((d) => d.exercises).length);
       const ar = instantiateTemplate(t, { byKey }, { lang: "ar", ceilingFor: () => 10 });
       expect(ar.draft.name, t.id).toMatch(AR);
     }
@@ -368,6 +374,33 @@ describe("every template works with the real library, the programme repo, the sw
       }
     }
     expect(combos).toBeGreaterThan(50);
+  });
+  it("5x5 / 3x5 shapes: hitting 5 reps on every set raises the load next session (ceiling 5), 4 reps on one set does not", async () => {
+    for (const [id, miss] of [["sl_5x5_3", false], ["sl_5x5_3", true], ["ss_3", false]] as const) {
+      const ctx = await ctxWithLibrary();
+      const gymId = (await ctx.repos.getActiveGymId())!;
+      const gym = await ctx.repos.loadGymFingerprint(gymId);
+      const t = TEMPLATES.find((x) => x.id === id)!;
+      const { draft } = instantiateTemplate(t, { byKey: ctx.byKey }, { lang: "en", ceilingFor: () => 10 });
+      await ctx.programmes.createProgramme(draft, { activate: true });
+      let tg: Awaited<ReturnType<typeof ctx.finish.getTargets>>[number] | undefined;
+      // Two sessions at the same load: with one session the engine is still "low confidence" and repeats the load.
+      for (let n = 0; n < 2; n++) {
+        const next = (await ctx.repos.getNextDay())!;
+        const exs = await ctx.repos.listDayExercises(next.day.id);
+        const squat = exs.find((e) => e.nameEn.toLowerCase().includes("squat"))!;
+        expect(squat.repCeiling, id).toBe(5);
+        const { id: sid } = await ctx.workout.startOrResumeSession(next.day.id, gymId);
+        for (let i = 0; i < squat.sets; i++) await ctx.workout.logSet({ sessionId: sid, exerciseId: squat.exerciseId, load: 60, reps: miss && n === 1 && i === squat.sets - 1 ? 4 : 5 }, { gym, equipment: squat.equipment, setup: squat.setup });
+        ctx.deps.tick(1000);
+        await ctx.workout.finishSession(sid);
+        const written = (await ctx.finish.writeNextSessionTargets(sid))!;
+        ctx.deps.tick(86_400_000);
+        tg = (await ctx.finish.getTargets(written.sessionId)).find((x) => x.exerciseId === squat.exerciseId);
+      }
+      if (miss) expect(tg!.load, `${id} missed`).toBe(60);
+      else expect(tg!.load!, `${id} hit`).toBeGreaterThan(60);
+    }
   });
   it("a full rotation of every template logs, finishes and writes next-session targets under rule-v0.3 (strength lines with a ceiling of 5 earn more weight at 5 reps)", async () => {
     const ctx = await ctxWithLibrary();

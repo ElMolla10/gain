@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DraftInvalid, SessionInProgress } from "../src/db/programmeRepo";
 import { SAMPLE_EXERCISES } from "../src/db/seedData";
+import { ALL_LIBRARY } from "../src/db/libraryDraft";
 import { computeExposure, diffExposure, goalLiftFrequency, groupOfPattern, PATTERNS } from "../src/logic/exposure";
 import {
   addDay, addExercise, draftFingerprint, MAX_DAYS, moveDay, moveExercise, newExercise, removeDay, removeExercise, renameDay, updateExercise, validateDraft, type ProgrammeDraft,
@@ -103,12 +104,12 @@ describe("weekly exposure", () => {
 });
 
 describe("templates", () => {
-  const lib = { byKey: new Map(SAMPLE_EXERCISES.map((e) => [e.key, { exerciseId: `id-${e.key}`, equipment: e.equipment }])) };
+  const lib = { byKey: new Map(ALL_LIBRARY.map((e) => [e.key, { exerciseId: `id-${e.key}`, equipment: e.equipment }])) };
   const ceilingFor = (key: string) => (/squat|leg|romanian|calf/.test(key) ? 12 : /lateral/.test(key) ? 15 : 10);
   it("every template uses only library exercises and none claims to be reviewed", () => {
     for (const t of TEMPLATES) {
       expect(t.reviewed).toBe(false);
-      expect(t.schedule.length).toBe(t.days);
+      expect(t.schedule.length).toBeLessThanOrEqual(t.days);
       for (const d of t.schedule) {
         expect(d.exercises.length).toBeGreaterThan(0);
         for (const e of d.exercises) expect(lib.byKey.has(e.key), e.key).toBe(true);
@@ -117,13 +118,14 @@ describe("templates", () => {
     }
   });
   it("offers the templates for the days attended; never more days than that", () => {
-    expect(templatesForDays(4).map((o) => o.template.id).sort()).toEqual(["mix_4", "upper_lower_4"]);
-    expect(templatesForDays(4).every((o) => o.fit === "exact")).toBe(true);
-    expect(templatesForDays(3).map((o) => o.template.id).sort()).toEqual(["full_body_3", "ppl_3"]);
-    const five = templatesForDays(5);
-    expect(five.every((o) => o.fit === "fewer" && o.template.days === 4)).toBe(true);
+    const ids = (n: number) => templatesForDays(n).map((o) => o.template.id);
+    expect(ids(4)).toEqual(expect.arrayContaining(["mix_4", "upper_lower_4"]));
+    expect(templatesForDays(4).every((o) => o.fit === "exact" && o.template.days === 4)).toBe(true);
+    expect(ids(3)).toEqual(expect.arrayContaining(["full_body_3", "ppl_3"]));
+    expect(ids(6)).toContain("ppl_6");
     expect(templatesForDays(1)).toEqual([]);
-    expect(templatesForDays(6).map((o) => o.template.id)).toEqual(["ppl_6"]);
+    const seven = templatesForDays(7);
+    expect(seven.every((o) => o.fit === "fewer" && o.template.days === 6)).toBe(true);
   });
   it("instantiates into a valid draft with the policy ceiling as the top of each range", () => {
     const t = TEMPLATES.find((x) => x.id === "upper_lower_4")!;

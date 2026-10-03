@@ -21,6 +21,7 @@ import { instantiateTemplate, templatesForDays, type Instantiated, type Template
 import { space, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, Field } from "../ui";
 import { HealthNote } from "../components/HealthNote";
+import { TemplateBrowser } from "../components/TemplateBrowser";
 
 type ProgrammeMode = "template" | "own" | null;
 
@@ -223,14 +224,19 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
               offers.length === 0 ? (
                 <AppText>{t("ob.programme.none", { n: form.days ?? 0 })}</AppText>
               ) : (
-                offers.map((o) => (
-                  <Card key={o.template.id}>
-                    <AppText style={{ fontWeight: "800", fontSize: 18 }}>{lang === "ar" ? o.template.ar : o.template.en}</AppText>
-                    <AppText style={{ color: p.muted }}>{o.fit === "exact" ? t("ob.programme.exact", { n: o.template.days }) : t("ob.programme.fewer")}</AppText>
-                    <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
-                    <BigButton label={lang === "ar" ? o.template.ar : o.template.en} onPress={() => pickTemplate(o)} />
-                  </Card>
-                ))
+                <>
+                  <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
+                  <TemplateBrowser
+                    templates={offers.map((o) => o.template)}
+                    showDaysFilter={false}
+                    actionLabel={(tp) => (lang === "ar" ? tp.ar : tp.en)}
+                    noteFor={(tp) => {
+                      const o = offers.find((x) => x.template.id === tp.id)!;
+                      return o.fit === "exact" ? t("ob.programme.exact", { n: tp.days }) : t("ob.programme.fewer");
+                    }}
+                    onPick={(tp) => pickTemplate(offers.find((x) => x.template.id === tp.id)!)}
+                  />
+                </>
               )
             ) : null}
             {mode === "template" && draft && offer ? (

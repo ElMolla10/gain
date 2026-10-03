@@ -7,6 +7,7 @@ import { useI18n } from "../i18n";
 import { ceilingForName } from "../logic/ceilings";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { markGoalLift } from "../logic/onboarding";
+import { TemplateBrowser } from "../components/TemplateBrowser";
 import { instantiateTemplate, TEMPLATES, type Template } from "../logic/templates";
 import { space, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card } from "../ui";
@@ -72,13 +73,7 @@ export function ProgrammeSwitchScreen() {
       ))}
       <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("prog.switch.templates")}</AppText>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
-      {TEMPLATES.map((tpl) => (
-        <Card key={tpl.id}>
-          <AppText style={{ fontSize: 18, fontWeight: "700" }}>{lang === "ar" ? tpl.ar : tpl.en}</AppText>
-          <AppText style={{ color: p.muted }}>{tpl.schedule.map((d) => (lang === "ar" ? d.ar : d.en)).join(" · ")}</AppText>
-          <BigButton label={t("prog.switch.startTemplate")} selected={false} disabled={busy} onPress={() => void run(() => startTemplate(tpl))} />
-        </Card>
-      ))}
+      <TemplateBrowser templates={TEMPLATES} showDaysFilter actionLabel={() => t("prog.switch.startTemplate")} disabled={busy} onPick={(tpl) => void run(() => startTemplate(tpl))} />
       <BigButton label={t("prog.new")} selected={false} onPress={() => nav.navigate("ProgrammeEdit")} />
       <ArDraftNote />
     </ScrollView>

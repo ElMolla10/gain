@@ -14,6 +14,7 @@ import { arHistory, enHistory } from "./strings.history";
 import { arImport, enImport } from "./strings.import";
 import { arOnboarding, enOnboarding } from "./strings.onboarding";
 import { arProgramme, enProgramme } from "./strings.programme";
+import { arTemplates, enTemplates } from "./strings.templates";
 import { arCard, enCard } from "./strings.card";
 import { arRest, enRest } from "./strings.rest";
 import { arShortWeek, enShortWeek } from "./strings.shortWeek";
@@ -198,6 +199,7 @@ export const en = {
   ...enRest,
   ...enCard,
   ...enProgramme,
+  ...enTemplates,
   ...enOnboarding,
   ...enImport,
 } as const;
@@ -380,6 +382,7 @@ export const ar: Record<StringKey, string> = {
   ...arRest,
   ...arCard,
   ...arProgramme,
+  ...arTemplates,
   ...arOnboarding,
   ...arImport,
 };

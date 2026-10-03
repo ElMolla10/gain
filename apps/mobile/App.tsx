@@ -64,6 +64,7 @@ import { SyncScreen } from "./src/screens/SyncScreen";
 import { createAutoSync } from "./src/sync/auto";
 import { createCoachLinks } from "./src/sync/coachLinks";
 import { createSyncEngine } from "./src/sync/engine";
+import { createSecureStoreSecrets } from "./src/sync/secureStore";
 import { createFetchTransport } from "./src/sync/transport";
 
 // Uncaught JavaScript errors go to the crash log on this phone (never uploaded), then on to the normal handler.
@@ -226,7 +227,7 @@ export default function App() {
       const decisions = createDecisionRepo(db);
       const maint = maintRef.current ?? (maintRef.current = await openExpoMaintenanceDb());
       const data = createDataRepo(db, deps, maint);
-      const sync = createSyncEngine(maint, deps, createFetchTransport());
+      const sync = createSyncEngine(maint, deps, createFetchTransport(), createSecureStoreSecrets());
       const auto = createAutoSync(sync);
       const autoSync = (force?: boolean) => void auto.run(force);
       const reminders = createReminders();

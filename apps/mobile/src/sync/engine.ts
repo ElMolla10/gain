@@ -5,6 +5,7 @@ import {
 import type { Db, Deps } from "../db/driver";
 import { loadTableInfo, type TableInfo } from "./schema";
 import { TransportError, type Transport } from "./transport";
+import type { SecretStore } from "./secretStore";
 
 /**
  * Opt-in backup and sync (Step 21, phone side). Nothing here runs unless the lifter turned it on; with it off no row is read and no request is made.
@@ -47,16 +48,57 @@ const S = { status: "status", account: "account_id", token: "device_token", reco
 type Row = Record<string, string | number | null>;
 const versionOf = (updatedAt: number, deletedAt: number | null) => `${updatedAt}:${deletedAt ?? ""}`;
 
-export function createSyncEngine(db: Db, deps: Deps, transport: Transport) {
+/** The two values that must never sit in the database (it can be backed up, copied and read by anything with file access). */
+const SECRET_KEYS: ReadonlySet<string> = new Set([S.token, S.recovery]);
+
+export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secrets: SecretStore | null = null) {
   let running = false;
+  let secretsMoved = false;
   let infoCache: Map<SyncTable, TableInfo> | null = null;
   const info = async () => (infoCache ??= await loadTableInfo(db));
 
   // ---- state ----------------------------------------------------------------------------------------------------
+  /**
+   * With a secret store (the phone's secure storage) the device token and recovery code live there, not in SQLite. Values an older version
+   * left in sync_state are moved on first use: written to the store, read back, and only then deleted from the database. If the store is
+   * unavailable the value stays where it was (sync still works) rather than being lost.
+   */
+  async function moveSecrets(): Promise<void> {
+    if (!secrets || secretsMoved) return;
+    secretsMoved = true;
+    for (const key of SECRET_KEYS) {
+      const row = await db.get<{ value: string }>("SELECT value FROM sync_state WHERE id = ?", [key]);
+      if (!row) continue;
+      try {
+        await secrets.set(key, row.value);
+        if ((await secrets.get(key)) === row.value) await db.run("DELETE FROM sync_state WHERE id = ?", [key]);
+      } catch {
+        /* keep the database copy; try again next launch */
+      }
+    }
+  }
   async function getState(key: string): Promise<string | null> {
+    if (secrets && SECRET_KEYS.has(key)) {
+      await moveSecrets();
+      try {
+        const v = await secrets.get(key);
+        if (v !== null) return v;
+      } catch {
+        /* fall through to the database copy */
+      }
+    }
     return (await db.get<{ value: string }>("SELECT value FROM sync_state WHERE id = ?", [key]))?.value ?? null;
   }
   async function setState(key: string, value: string): Promise<void> {
+    if (secrets && SECRET_KEYS.has(key)) {
+      try {
+        await secrets.set(key, value);
+        await db.run("DELETE FROM sync_state WHERE id = ?", [key]);
+        return;
+      } catch {
+        /* the secure store failed: keep the value in the database so sync still works, and move it later */
+      }
+    }
     await db.run("INSERT INTO sync_state (id, value) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value", [key, value]);
   }
   async function status(): Promise<SyncStatus> {
@@ -432,6 +474,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport) {
     await db.transaction(async () => {
       for (const t of ["sync_state", "sync_row_state", "sync_outbox", "sync_parked"]) await db.run(`DELETE FROM ${t}`);
     });
+    if (secrets) for (const key of SECRET_KEYS) await secrets.delete(key).catch(() => undefined);
   }
 
   async function getInfo(): Promise<SyncInfo> {

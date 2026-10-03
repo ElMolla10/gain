@@ -59,12 +59,12 @@ export function DiagnosticsScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("diag.title")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("diag.title")}</AppText>
         <AppText style={{ color: p.muted }}>{t("diag.intro")}</AppText>
         <AppText style={{ color: p.muted }}>{t("diag.draft")}</AppText>
       </Card>
       <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("diag.log")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("diag.log")}</AppText>
         <AppText style={{ color: p.muted }}>{t("diag.logNote")}</AppText>
         <AppText>{t("diag.count", { n: count })}</AppText>
         <View style={{ flexDirection: "row", gap: space.sm }}>
@@ -75,7 +75,7 @@ export function DiagnosticsScreen() {
       <Card>
         <BigButton label={t("diag.preview")} selected={false} onPress={() => void build().then(setReport)} />
         {report ? (
-          <AppText ltr selectable style={{ fontSize: 12, color: p.text }}>
+          <AppText ltr selectable style={{ fontSize: 13, color: p.text }}>
             {report}
           </AppText>
         ) : null}

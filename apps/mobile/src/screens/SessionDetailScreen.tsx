@@ -71,15 +71,15 @@ export function SessionDetailScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
-      <AppText ltr style={{ fontWeight: "700" }}>{localDateText(detail.finishedAt)}</AppText>
-      <AppText style={{ fontSize: 20, fontWeight: "800" }}>{detail.imported ? t("history.imported") : detail.dayName}</AppText>
+      <AppText ltr style={{ fontWeight: "600" }}>{localDateText(detail.finishedAt)}</AppText>
+      <AppText style={{ fontSize: 20, fontWeight: "600" }}>{detail.imported ? t("history.imported") : detail.dayName}</AppText>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("history.editNote")}</AppText>
       {detail.exercises.map((ex) => (
         <Card key={ex.exerciseId}>
-          <AppText style={{ fontSize: 18, fontWeight: "800" }}>{exerciseLabels(ex, lang).primary}</AppText>
+          <AppText style={{ fontSize: 16, fontWeight: "600" }}>{exerciseLabels(ex, lang).primary}</AppText>
           {ex.sets.map((s) => (
             <View key={s.id} style={{ gap: space.xs, paddingVertical: space.xs }}>
-              <AppText style={{ fontSize: 18 }}>
+              <AppText style={{ fontSize: 16 }}>
                 {isTimed(ex.measure) ? isolateLtr(targetPhrase(s.load, setQuantity(s, ex.measure), ex.measure, fmt, { s: t("qty.s"), m: t("qty.m") })) : <>{fmt(s.load)} × {isolateLtr(String(s.reps))}</>}
                 {s.rir !== null ? `  ·  ${t("history.rir", { n: s.rir })}` : ""}
               </AppText>

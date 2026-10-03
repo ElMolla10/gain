@@ -49,9 +49,9 @@ export function StoppedSuggestionsScreen() {
       {items.length === 0 ? <AppText>{t("stop.empty")}</AppText> : null}
       {items.map((it) => (
         <Card key={it.id}>
-          <AppText style={{ fontSize: 18, fontWeight: "800" }}>{jumpKindText(it.jumpKind, unit, t as never)}</AppText>
+          <AppText style={{ fontSize: 16, fontWeight: "600" }}>{jumpKindText(it.jumpKind, unit, t as never)}</AppText>
           <AppText>{exerciseLabels(it, lang).primary}</AppText>
-          <AppText style={{ fontWeight: "700", color: it.blocked ? p.danger : p.muted }}>
+          <AppText style={{ fontWeight: "600", color: it.blocked ? p.danger : p.muted }}>
             {it.blocked ? t("stop.stopped") : t("stop.counting", { count: it.count, max: REJECTION_THRESHOLD })}
           </AppText>
           <AppText style={{ color: p.muted }}>{t("stop.last", { date: new Date(it.lastRejectedAt).toISOString().slice(0, 10) })}</AppText>

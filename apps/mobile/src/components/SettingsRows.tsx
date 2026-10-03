@@ -9,7 +9,7 @@ export function Group(props: { title: string; children: React.ReactNode }) {
   const p = usePalette();
   return (
     <View style={{ gap: space.sm }}>
-      <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "800", color: p.accent }}>
+      <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", color: p.accent }}>
         {props.title}
       </AppText>
       <Card style={{ paddingVertical: 0, gap: 0 }}>{props.children}</Card>
@@ -22,7 +22,7 @@ export function Block(props: { title?: string; note?: string; children?: React.R
   const p = usePalette();
   return (
     <View style={{ paddingVertical: space.md, gap: space.sm, borderBottomWidth: 1, borderColor: p.edge }}>
-      {props.title ? <AppText style={{ fontSize: ty.body, fontWeight: "700" }}>{props.title}</AppText> : null}
+      {props.title ? <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{props.title}</AppText> : null}
       {props.note ? <AppText style={{ fontSize: ty.secondary, color: p.muted }}>{props.note}</AppText> : null}
       {props.children}
     </View>

@@ -1,5 +1,6 @@
 import React from "react";
 import { Image, View } from "react-native";
+import { gainTokens } from "./design/tokens";
 
 // PNG fallback for the SVG master (assets/brand/gain-mark.svg): react-native-svg is not a dependency.
 const mark = require("../assets/gain-logo.png") as number;

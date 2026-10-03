@@ -125,22 +125,22 @@ export function SyncScreen() {
   const status = info?.status ?? "off";
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
-      <AppText style={{ color: p.danger, fontWeight: "700" }}>{t("sync.draft")}</AppText>
+      <AppText style={{ color: p.danger, fontWeight: "600" }}>{t("sync.draft")}</AppText>
       <Card>
-        <AppText style={{ fontWeight: "700" }} accessibilityRole="header">{t("sync.privacy.title")}</AppText>
+        <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.privacy.title")}</AppText>
         <AppText>{t("sync.privacy.body")}</AppText>
         <AppText>{t("sync.privacy.body2")}</AppText>
       </Card>
 
-      <AppText style={{ fontWeight: "700" }}>{t(`sync.status.${status}` as StringKey)}</AppText>
+      <AppText style={{ fontWeight: "600" }}>{t(`sync.status.${status}` as StringKey)}</AppText>
       {busy ? <AppText>{t(busy)}</AppText> : null}
-      {msg ? <AppText style={{ fontWeight: "700" }}>✓ {msg}</AppText> : null}
+      {msg ? <AppText style={{ fontWeight: "600" }}>✓ {msg}</AppText> : null}
       {err ? <AppText style={{ color: p.danger }}>{err}</AppText> : null}
 
       {step === "code" && code ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }} accessibilityRole="header">{t("sync.code.title")}</AppText>
-          <AppText ltr selectable style={{ fontSize: 20, fontWeight: "800", letterSpacing: 1 }}>{code}</AppText>
+          <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.code.title")}</AppText>
+          <AppText ltr selectable style={{ fontSize: 20, fontWeight: "600", letterSpacing: 1 }}>{code}</AppText>
           <AppText>{t("sync.code.body")}</AppText>
           <BigButton label={t("sync.code.saved")} onPress={() => setStep("idle")} />
         </Card>
@@ -148,7 +148,7 @@ export function SyncScreen() {
 
       {step === "choice" ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }} accessibilityRole="header">{t("sync.choice.title")}</AppText>
+          <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.choice.title")}</AppText>
           <AppText>{t("sync.choice.body")}</AppText>
           <BigButton label={t("sync.choice.use")} disabled={!!busy} onPress={useBackup} />
           <BigButton label={t("sync.choice.cancel")} selected={false} disabled={!!busy} onPress={cancelChoice} />
@@ -162,7 +162,7 @@ export function SyncScreen() {
             <BigButton label={t("sync.on")} disabled={!!busy} onPress={() => turnOn()} />
           </Card>
           <Card>
-            <AppText style={{ fontWeight: "700" }} accessibilityRole="header">{t("sync.restoreTitle")}</AppText>
+            <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.restoreTitle")}</AppText>
             <AppText style={{ color: p.muted }}>{t("sync.restoreNote")}</AppText>
             <Field label={t("sync.codeField")} hint={t("sync.codeHint")} value={typed} onChangeText={setTyped} />
             <BigButton label={t("sync.restore")} selected={false} disabled={!!busy || typed.trim().length < 10} onPress={() => turnOn(typed)} />

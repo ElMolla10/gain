@@ -5,7 +5,7 @@ import { localizeReason } from "../logic/units";
 import type { TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
 import { WeeklyReviewCard } from "../components/WeeklyReviewCard";
@@ -14,10 +14,10 @@ import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { estimateDayMinutes } from "../logic/duration";
 import { loadRestSettings } from "../logic/restAlert";
 import { useI18n } from "../i18n";
-import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
+import { space, type as ty, usePalette } from "../theme";
 import { BrandLogo } from "../BrandLogo";
 import { markSuggested, initialSelection, type DayChoice } from "../logic/dayChoice";
-import { AppText, BigButton, Card, Chip } from "../ui";
+import { AppText, BigButton, Card, Chip, EmptyState, ErrorState, InlineStatus, ListCard, LoadingState, Screen, SectionTitle, TargetStrip } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { LOADING, runLoad, type Load } from "../logic/loadState";
@@ -40,13 +40,14 @@ export function TodayScreen() {
   const { repos, goals, programmes, shortWeek, finish, workout } = useServices();
   const { t, lang, fmt, unit } = useI18n();
   const p = usePalette();
-  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek", params?: { dayId: string }) => void }>();
+  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup", params?: { dayId: string }) => void }>();
   const [state, setState] = useState<Load<TodayData>>(LOADING);
   const [attempt, setAttempt] = useState(0);
   const [paceLine, setPaceLine] = useState<string>("");
   const [short, setShort] = useState<{ days: number } | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const { fontScale } = useWindowDimensions();
 
   useFocusEffect(
     useCallback(() => {
@@ -81,23 +82,29 @@ export function TodayScreen() {
     }, [repos, goals, programmes, shortWeek, workout, finish, t, fmt, lang, attempt]),
   );
 
-  if (state.kind === "loading") return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
+  if (state.kind === "loading") return <LoadingState />;
   if (state.kind === "error") {
     return (
-      <View style={{ padding: space.lg, gap: space.md }}>
-        <AppText style={{ fontSize: ty.section, fontWeight: "700" }}>{t("today.error.title")}</AppText>
-        <AppText style={{ color: p.muted }}>{t("today.error.body")}</AppText>
-        <BigButton
-          label={t("today.error.retry")}
-          onPress={() => {
+      <Screen tab>
+        <ErrorState
+          title={t("today.error.title")}
+          body={t("today.error.body")}
+          retryLabel={t("today.error.retry")}
+          onRetry={() => {
             setState(LOADING);
             setAttempt((n) => n + 1);
           }}
         />
-      </View>
+      </Screen>
     );
   }
-  if (state.kind === "empty") return <AppText style={{ padding: space.lg }}>{t("today.empty")}</AppText>;
+  if (state.kind === "empty") {
+    return (
+      <Screen tab>
+        <EmptyState icon="plan" title={t("today.empty")} actionLabel={t("today.setupPlan")} onAction={() => navigation.navigate("Setup")} />
+      </Screen>
+    );
+  }
   const data = state.data;
 
   const chosen = data.days.find((d) => d.id === picked) ?? data.days[0]!;
@@ -126,91 +133,93 @@ export function TodayScreen() {
     }
   }
 
+  const stack = fontScale > 1.3;
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
+    <Screen tab>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
         <BrandLogo size={32} />
-        <AppText ltr style={{ fontSize: ty.section, fontWeight: "800", letterSpacing: 2 }}>
+        <AppText ltr style={{ fontSize: ty.section, fontWeight: "600", letterSpacing: 0.4 }}>
           {t("app.name")}
         </AppText>
       </View>
-      <WeeklyReviewCard />
 
-      <Card>
-        <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "800" }}>
-          {t("today.hero", { day: chosen.name, sets: chosen.sets, min: estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds) })}
-        </AppText>
-        {lead && leadEx ? (
-          <View style={{ gap: space.xs }}>
-            <AppText ltr style={{ fontSize: ty.section, fontWeight: "800", color: p.accent }}>
-              {t("today.nextSession", { target: isolateLtr(targetText(lead, loadText, letters)) })}
-            </AppText>
-            <AppText style={{ fontSize: ty.secondary, color: p.muted }}>
-              {exerciseLabels(leadEx, lang).primary} · {shortReason(renderReason(localizeReason(lead.reason, unit, lang), lang))}
-            </AppText>
+      {/* The session: what, how long, and the one action. */}
+      <View style={{ gap: space.md }}>
+        {data.days.length > 1 ? (
+          <View style={{ gap: space.sm }}>
+            <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.choose")} · {data.programmeName}</AppText>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+              {data.days.map((d) => (
+                <Chip
+                  key={d.id}
+                  label={d.suggested ? `${d.name} ★` : d.id === data.openDayId ? `${d.name} · ${t("today.inProgress")}` : d.name}
+                  selected={d.id === chosen.id}
+                  onPress={() => setPicked(d.id)}
+                />
+              ))}
+            </View>
           </View>
         ) : null}
-        {data.openDayId ? <AppText style={{ fontSize: ty.body, fontWeight: "700" }}>{t("today.openWorkout")}</AppText> : null}
-        {openElsewhere ? <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{t("today.finishOpenFirst")}</AppText> : null}
-        <BigButton hero label={data.openDayId ? t("today.resume") : t("today.start")} disabled={starting || openElsewhere} onPress={() => void start()} />
-      </Card>
-
-      {data.days.length > 1 ? (
-        <View style={{ gap: space.sm }}>
-          <AppText style={{ fontSize: ty.secondary, color: p.muted }}>{t("today.choose")} · {data.programmeName}</AppText>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-            {data.days.map((d) => (
-              <Chip
-                key={d.id}
-                label={d.suggested ? `${d.name} ★` : d.id === data.openDayId ? `${d.name} · ${t("today.inProgress")}` : d.name}
-                selected={d.id === chosen.id}
-                onPress={() => setPicked(d.id)}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      <View style={{ gap: space.xs }}>
-        <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "700" }}>{t("today.exercisesHeading")}</AppText>
-        {exercises.map((e) => {
-          const l = exerciseLabels(e, lang);
-          const tg = byExercise.get(e.id);
-          const planned = e.measure === "reps" ? `${e.sets} × ${e.repMin}-${e.repMax}` : `${e.sets} × ${e.repMin}-${quantityText(e.repMax, e.measure, letters)}`;
-          const target = tg && !(tg.status === "rejected") && tg.currency !== "none" && tg.effectiveLoad !== null ? targetText(tg, loadText, letters) : null;
-          return (
-            <View key={e.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space.md, minHeight: MIN_TOUCH, borderBottomWidth: 1, borderColor: p.edge }}>
-              <View style={{ flex: 1 }}>
-                <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{l.primary}</AppText>
-                <AppText ltr style={{ fontSize: ty.secondary, color: p.muted }}>
-                  {isolateLtr(planned)}
-                  {e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}
-                  {l.secondary ? ` · ${l.secondary}` : ""}
-                </AppText>
-              </View>
-              {target ? (
-                <AppText ltr style={{ fontSize: ty.body, fontWeight: "700", color: p.accent }}>
-                  {isolateLtr(target)}
-                </AppText>
-              ) : null}
-            </View>
-          );
-        })}
+        <Card>
+          <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{chosen.name}</AppText>
+          <AppText style={{ color: p.muted }}>{t("today.meta", { sets: chosen.sets, min: estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds) })}</AppText>
+          {data.openDayId ? <InlineStatus kind="info" text={t("today.openWorkout")} /> : null}
+          {openElsewhere ? <InlineStatus kind="warn" text={t("today.finishOpenFirst")} /> : null}
+          <BigButton hero icon={data.openDayId ? undefined : "play"} label={data.openDayId ? t("today.resume") : t("today.start")} disabled={starting} loading={starting} onPress={() => void start()} />
+        </Card>
       </View>
 
-      {paceLine ? (
-        <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Goals")} style={{ minHeight: MIN_TOUCH, justifyContent: "center", gap: space.xs, borderRadius: 14, borderWidth: 1, borderColor: p.edge, padding: space.md }}>
-          <AppText style={{ fontSize: ty.body, fontWeight: "700" }}>{t("goals.entry")}</AppText>
-          <AppText style={{ fontSize: ty.secondary, color: p.muted }}>{paceLine}</AppText>
-        </Pressable>
-      ) : null}
+      <View style={{ gap: space.sm }}>
+        <SectionTitle>{t("today.targets")}</SectionTitle>
+        {lead && leadEx ? (
+          <TargetStrip
+            label={t("target.label")}
+            value={isolateLtr(targetText(lead, loadText, letters))}
+            reason={`${exerciseLabels(leadEx, lang).primary} · ${shortReason(renderReason(localizeReason(lead.reason, unit, lang), lang))}`}
+          />
+        ) : (
+          <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText>
+        )}
+        <Card style={{ paddingVertical: space.xs }}>
+          {exercises.map((e, i) => {
+            const l = exerciseLabels(e, lang);
+            const tg = byExercise.get(e.id);
+            const planned = e.measure === "reps" ? `${e.sets} × ${e.repMin}-${e.repMax}` : `${e.sets} × ${e.repMin}-${quantityText(e.repMax, e.measure, letters)}`;
+            const target = tg && !(tg.status === "rejected") && tg.currency !== "none" && tg.effectiveLoad !== null ? targetText(tg, loadText, letters) : null;
+            return (
+              <View
+                key={e.id}
+                style={{ flexDirection: stack ? "column" : "row", justifyContent: "space-between", alignItems: stack ? "flex-start" : "center", gap: stack ? space.xs : space.md, minHeight: 56, paddingVertical: space.sm, borderBottomWidth: i === exercises.length - 1 ? 0 : 1, borderColor: p.border }}
+              >
+                <View style={{ flex: stack ? 0 : 1, gap: 2 }}>
+                  <AppText style={{ fontWeight: "600" }}>{l.primary}</AppText>
+                  <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>
+                    {isolateLtr(planned)}
+                    {e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}
+                    {l.secondary ? ` · ${l.secondary}` : ""}
+                  </AppText>
+                </View>
+                {target ? (
+                  <AppText ltr style={{ fontSize: ty.section, fontWeight: "600", color: p.accent, flexShrink: 0 }}>
+                    {isolateLtr(target)}
+                  </AppText>
+                ) : null}
+              </View>
+            );
+          })}
+        </Card>
+      </View>
 
-      {short ? <AppText style={{ fontSize: ty.secondary, color: p.muted }}>{t("short.active", { days: short.days })}</AppText> : null}
-      <Pressable accessibilityRole="button" onPress={() => navigation.navigate("ShortWeek")} style={{ minHeight: MIN_TOUCH, justifyContent: "center" }}>
-        <AppText style={{ fontSize: ty.secondary, color: p.accent, fontWeight: "600" }}>{t("short.entry")}</AppText>
-      </Pressable>
-      {data.isSample ? <AppText style={{ fontSize: ty.secondary, color: p.muted }}>{t("today.sampleNote")}</AppText> : null}
+      <WeeklyReviewCard />
+
+      {paceLine ? <ListCard title={t("goals.entry")} note={paceLine} onPress={() => navigation.navigate("Goals")} /> : null}
+
+      <View style={{ gap: space.xs }}>
+        {short ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("short.active", { days: short.days })}</AppText> : null}
+        <BigButton variant="quiet" label={t("short.entry")} onPress={() => navigation.navigate("ShortWeek")} />
+        {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.sampleNote")}</AppText> : null}
+      </View>
       <HealthNote />
-    </ScrollView>
+    </Screen>
   );
 }

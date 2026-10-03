@@ -135,10 +135,10 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
       case "language":
         return (
           <>
-            <AppText style={{ fontSize: 28, fontWeight: "800" }}>{t("ob.welcome")}</AppText>
+            <AppText style={{ fontSize: 28, fontWeight: "600" }}>{t("ob.welcome")}</AppText>
             <AppText style={{ color: p.muted }}>{t("ob.welcomeBody")}</AppText>
             <HealthNote />
-            <AppText style={{ fontWeight: "700" }}>{t("ob.language")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("ob.language")}</AppText>
             <BigButton label={t("settings.language.en")} selected={lang === "en"} onPress={() => { setLang("en"); set({ language: "en" }); }} />
             <BigButton label={t("settings.language.ar")} selected={lang === "ar"} onPress={() => { setLang("ar"); set({ language: "ar" }); }} />
           </>
@@ -146,7 +146,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
       case "units":
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.units")}</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("ob.units")}</AppText>
             <BigButton label={t("ob.units.kg")} selected={form.units === "kg"} onPress={() => { setUnit("kg"); set({ units: "kg" }); }} />
             <BigButton label={t("ob.units.lb")} selected={form.units === "lb"} onPress={() => { setUnit("lb"); set({ units: "lb" }); }} />
             <AppText style={{ color: p.muted }}>{t("ob.units.note")}</AppText>
@@ -155,10 +155,10 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
       case "basics":
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.basics")}</AppText>
-            <AppText style={{ fontWeight: "700" }}>{t("ob.days")}</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("ob.basics")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("ob.days")}</AppText>
             {chipRow(DAYS_OPTIONS.map((d) => <Chip key={d} label={String(d)} selected={form.days === d} onPress={() => set({ days: d })} />))}
-            <AppText style={{ fontWeight: "700" }}>{t("ob.minutes")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("ob.minutes")}</AppText>
             {chipRow(MINUTES_OPTIONS.map((m) => <Chip key={m} label={t("ob.minutesValue", { n: m })} selected={form.minutes === m} onPress={() => set({ minutes: m })} />))}
             {problemLines(problems)}
           </>
@@ -166,7 +166,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
       case "goal":
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.goal")}</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("ob.goal")}</AppText>
             <AppText style={{ color: p.muted }}>{t("ob.goalNote")}</AppText>
             {chipRow((["none", "lift", "bodyweight", "muscle"] as const).map((k) => <Chip key={k} label={t(`ob.goal.${k}` as StringKey)} selected={form.goalKind === k} onPress={() => set({ goalKind: k })} />))}
             {form.goalKind === "lift" ? (
@@ -185,11 +185,11 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
             ) : null}
             {form.goalKind === "muscle" ? (
               <>
-                <AppText style={{ fontWeight: "700" }}>{t("ob.goal.muscle.pick")}</AppText>
+                <AppText style={{ fontWeight: "600" }}>{t("ob.goal.muscle.pick")}</AppText>
                 {chipRow(MUSCLE_GROUPS.filter((m) => m !== "other").map((m) => <Chip key={m} label={t(`muscle.${m}` as StringKey)} selected={form.goalMuscle === m} onPress={() => set({ goalMuscle: m })} />))}
               </>
             ) : null}
-            <AppText style={{ fontWeight: "700", marginTop: space.md }}>{t("ob.body")}</AppText>
+            <AppText style={{ fontWeight: "600", marginTop: space.md }}>{t("ob.body")}</AppText>
             <Field label={t("ob.body.height")} value={form.heightText} onChangeText={(s) => set({ heightText: s })} numeric />
             <DateSelect label={t("ob.body.birth")} value={form.birthDateText} onChange={(s) => set({ birthDateText: s })} years="past" span={100} minAge={10} />
             <Field label={t("ob.body.weight", { unit: unitText })} hint={form.goalKind === "bodyweight" ? t("ob.body.weightRequired") : undefined} value={form.bodyweightText} onChangeText={(s) => set({ bodyweightText: s })} numeric />
@@ -211,7 +211,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
         const offers = form.days ? templatesForDays(form.days) : [];
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.programme")}</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("ob.programme")}</AppText>
             {chipRow(
               <>
                 <Chip label={t("ob.programme.template")} selected={mode === "template"} onPress={() => { setMode("template"); setDraft(null); setOffer(null); setDropped([]); }} />
@@ -246,7 +246,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
             ) : null}
             {dropped.length > 0 ? (
               <Card>
-                <AppText style={{ fontWeight: "700" }}>{t("ob.programme.dropped")}</AppText>
+                <AppText style={{ fontWeight: "600" }}>{t("ob.programme.dropped")}</AppText>
                 {dropped.map((d, i) => {
                   const nm = library.find((e) => e.seedKey === d.key);
                   const lift = nm ? exerciseLabels(nm, lang).primary : d.key;
@@ -260,9 +260,9 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
                 {mode === "template" ? (
                   <>
                     <Card>
-                      <AppText style={{ fontWeight: "700" }}>{t("ob.programme.days", { n: draft.days.length })}</AppText>
+                      <AppText style={{ fontWeight: "600" }}>{t("ob.programme.days", { n: draft.days.length })}</AppText>
                       {dayTitles(draft).map((title, i) => (
-                        <AppText key={i} style={{ fontSize: 18 }}>
+                        <AppText key={i} style={{ fontSize: 16 }}>
                           {i + 1}. {title}
                         </AppText>
                       ))}
@@ -287,14 +287,14 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
         const g = form.goalKind === "none" ? t("ob.review.goal.none") : form.goalKind === "lift" ? t("ob.review.goal.lift", { name: goalName, load: `${form.goalLoadText} ${unitText}`, reps: form.goalRepsText }) : form.goalKind === "bodyweight" ? t("ob.review.goal.bodyweight", { weight: `${form.goalWeightText} ${unitText}` }) : form.goalMuscle ? t("ob.review.goal.muscle", { muscle: t(`muscle.${form.goalMuscle}` as StringKey) }) : "";
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.review")}</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("ob.review")}</AppText>
             <Card>
               <AppText>{t("ob.review.line.days", { n: form.days ?? 0, min: form.minutes ?? 0 })}</AppText>
               <AppText>{t("ob.review.line.programme", { name: draft?.name ?? "" })}</AppText>
               <AppText>{t("ob.review.line.goal", { goal: isolateLtr(g) })}</AppText>
             </Card>
             <AppText style={{ color: p.muted }}>{t("ob.review.note")}</AppText>
-            {error ? <AppText style={{ fontWeight: "700" }}>⚠ {error}</AppText> : null}
+            {error ? <AppText style={{ fontWeight: "600" }}>⚠ {error}</AppText> : null}
             {built.problems.length > 0 ? problemLines(built.problems) : null}
             <BigButton label={saving ? t("ob.saving") : t("ob.finish")} disabled={saving} onPress={() => void finish()} />
           </>

@@ -92,7 +92,7 @@ export function ProgrammeEditScreen() {
             </AppText>
           ))
         : null}
-      {message ? <AppText style={{ fontWeight: "700" }}>{message}</AppText> : null}
+      {message ? <AppText style={{ fontWeight: "600" }}>{message}</AppText> : null}
       <BigButton label={params.programmeId && nextVersion ? t("prog.save", { v: nextVersion }) : t("prog.saveNew")} onPress={() => void save()} />
       <ArDraftNote />
     </ScrollView>

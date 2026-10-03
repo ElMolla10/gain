@@ -29,10 +29,10 @@ export function TemplateBrowser(props: {
 
   return (
     <View style={{ gap: space.md }}>
-      <AppText style={{ fontSize: 18, fontWeight: "800" }}>{t("tpl.filters")}</AppText>
+      <AppText style={{ fontSize: 16, fontWeight: "600" }}>{t("tpl.filters")}</AppText>
       {view.facets.map((f) => (
         <View key={f.facet} style={{ gap: space.xs }}>
-          <AppText style={{ fontWeight: "700" }}>{t(f.titleKey)}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t(f.titleKey)}</AppText>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
             <Chip label={t("tpl.all")} selected={filter[f.facet] === null} onPress={() => setFilter({ ...filter, [f.facet]: null })} />
             {f.options.map((o) => (
@@ -53,12 +53,12 @@ export function TemplateBrowser(props: {
       {view.total === 0 ? <AppText style={{ fontWeight: "600" }}>{t("tpl.none")}</AppText> : null}
       {view.sections.map((g) => (
         <View key={g.days} style={{ gap: space.sm }}>
-          <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("tpl.group", { n: g.days })}</AppText>
+          <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("tpl.group", { n: g.days })}</AppText>
           {g.templates.map((x) => {
             const note = props.noteFor?.(x) ?? null;
             return (
               <Card key={x.id}>
-                <AppText style={{ fontSize: 18, fontWeight: "700" }}>{name(x)}</AppText>
+                <AppText style={{ fontSize: 16, fontWeight: "600" }}>{name(x)}</AppText>
                 {lang === "ar" ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("tpl.arDraft")}</AppText> : null}
                 <AppText style={{ color: p.muted }}>{[t(`tpl.level.${x.level}` as StringKey), t(`tpl.gear.needs.${x.gear}` as StringKey), t(`tpl.goal.${x.goal}` as StringKey)].join(" · ")}</AppText>
                 <AppText style={{ color: p.muted }}>{x.schedule.map((d) => (lang === "ar" ? d.ar : d.en)).join(" · ")}</AppText>

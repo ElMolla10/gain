@@ -31,7 +31,7 @@ export function WhyScreen() {
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
       {sections.map((s) => (
         <Card key={s.title}>
-          <AppText style={{ fontWeight: "800", fontSize: 18 }}>{s.title}</AppText>
+          <AppText style={{ fontWeight: "600", fontSize: 16 }}>{s.title}</AppText>
           {s.lines.map((l, i) => (
             <AppText key={i} style={i === 0 && s.title === t("why.sentence") ? {} : { color: p.text }}>{l}</AppText>
           ))}

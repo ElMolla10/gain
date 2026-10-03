@@ -39,7 +39,7 @@ export const ICONS: Record<IconName, Shape[]> = {
   edit: [p("M4 20h4L19 9l-4-4L4 16Z"), p("m13.5 6.5 4 4")],
 };
 
-export function Icon({ name, color, size = 24, mirror }: { name: IconName; color: string; size?: number; /** Flip in right-to-left (direction arrows only). */ mirror?: boolean }) {
+export function Icon({ name, color, size = 24, mirror, back }: { name: IconName; color: string; size?: number; /** Flip in right-to-left (direction arrows only). */ mirror?: boolean; /** The chevron/arrow pointing to the START edge: flipped in left-to-right, drawn as is in right-to-left. */ back?: boolean }) {
   const { isRTL } = useI18n();
   return (
     <Svg
@@ -51,7 +51,7 @@ export function Icon({ name, color, size = 24, mirror }: { name: IconName; color
       strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={mirror && isRTL ? { transform: [{ scaleX: -1 }] } : undefined}
+      style={(mirror && isRTL) || (back && !isRTL) ? { transform: [{ scaleX: -1 }] } : undefined}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

@@ -86,16 +86,16 @@ export function ShortWeekScreen() {
       <AppText>{t("short.intro")}</AppText>
       {active ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }}>{t("short.active", { days: active.days })}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t("short.active", { days: active.days })}</AppText>
           <BigButton label={t("short.undo")} selected={false} onPress={() => void undo()} />
         </Card>
       ) : null}
       <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("short.days")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("short.days")}</AppText>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
           {dayChips.map((d) => <Chip key={d} label={String(d)} selected={days === d} onPress={() => setDays(d)} />)}
         </View>
-        <AppText style={{ fontWeight: "700" }}>{t("short.minutes")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("short.minutes")}</AppText>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
           <Chip label={t("short.minutes.none")} selected={minutes === null} onPress={() => setMinutes(null)} />
           {MINUTES.map((m) => <Chip key={m} label={t("short.minutesValue", { n: m })} selected={minutes === m} onPress={() => setMinutes(m)} />)}
@@ -105,7 +105,7 @@ export function ShortWeekScreen() {
       {preview ? (
         <>
           <Card>
-            <AppText style={{ fontWeight: "700" }}>{t("short.preview")}: {t("short.keptDays")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("short.preview")}: {t("short.keptDays")}</AppText>
             {preview.rebuild.draft.days.map((d, i) => (
               <AppText key={i}>{t("short.dayLine", { name: d.name, sets: d.exercises.reduce((n, e) => n + e.sets, 0), min: preview.rebuild.minutes[i]! })}</AppText>
             ))}
@@ -114,12 +114,12 @@ export function ShortWeekScreen() {
             <AppText style={{ color: p.muted, fontSize: 13 }}>{t("short.protected", { sets: FLOOR_SETS, sessions: FLOOR_SESSIONS })}</AppText>
           </Card>
           <Card>
-            <AppText style={{ fontWeight: "700" }}>{t("short.cuts")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("short.cuts")}</AppText>
             {preview.rebuild.cuts.length === 0 ? <AppText>{t("short.cuts.none")}</AppText> : preview.rebuild.cuts.map((c, i) => <AppText key={i}>• {cutText(c)}</AppText>)}
           </Card>
           {preview.exposure.length > 0 ? (
             <Card>
-              <AppText style={{ fontWeight: "700" }}>{t("short.exposure")}</AppText>
+              <AppText style={{ fontWeight: "600" }}>{t("short.exposure")}</AppText>
               {preview.exposure.map((c) => (
                 <AppText key={c.group}>
                   {t("short.exposureLine", { muscle: t(`muscle.${c.group}` as StringKey), before: c.before?.setsPerWeek ?? c.before?.setsPerRotation ?? 0, after: c.after?.setsPerWeek ?? c.after?.setsPerRotation ?? 0, sb: c.before?.sessionsPerWeek ?? 0, sa: c.after?.sessionsPerWeek ?? 0 })}

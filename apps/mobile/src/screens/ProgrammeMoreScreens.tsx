@@ -65,7 +65,7 @@ export function ProgrammeVersionsScreen() {
         <Card key={v.versionId} style={{ gap: space.sm }}>
           <AppText style={{ fontSize: ty.body }}>{t("prog.versionLine", { v: v.version, days: v.days, n: v.exercises, sessions: v.sessions })}</AppText>
           {v.isCurrent ? (
-            <AppText style={{ color: p.accent, fontWeight: "700", fontSize: ty.body }}>✓ {t("prog.current")}</AppText>
+            <AppText style={{ color: p.accent, fontWeight: "600", fontSize: ty.body }}>✓ {t("prog.current")}</AppText>
           ) : (
             <BigButton label={t("prog.fromVersion")} selected={false} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: state.programmeId, versionId: v.versionId })} />
           )}

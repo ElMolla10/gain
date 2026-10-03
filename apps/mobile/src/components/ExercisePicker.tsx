@@ -62,7 +62,7 @@ export function ExercisePicker(props: {
     <Modal visible={props.visible} animationType="slide" onRequestClose={props.onClose}>
       <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: space.xl }}>
         <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }} keyboardShouldPersistTaps="handled">
-          <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("pick.title")}</AppText>
+          <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("pick.title")}</AppText>
           {creating ? (
             <Card>
               <Field label={t("pick.name")} value={nameEn} onChangeText={setNameEn} />
@@ -126,7 +126,7 @@ export function ExercisePicker(props: {
                       {l.secondary}
                       {e.isCustom ? ` · ${t("pick.own")}` : ""}
                     </AppText>
-                    <AppText style={{ color: p.muted, fontSize: 12 }}>
+                    <AppText style={{ color: p.muted, fontSize: 13 }}>
                       {m.group ? `${t(`group.${m.group}` as StringKey)} · ` : ""}
                       {t(`gear.${m.gear}` as StringKey)}
                     </AppText>

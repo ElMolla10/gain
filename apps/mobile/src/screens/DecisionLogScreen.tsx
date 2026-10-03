@@ -63,8 +63,8 @@ export function DecisionLogScreen() {
         }
         return (
           <Card key={d.targetId}>
-            <AppText ltr style={{ fontWeight: "700" }}>{localDateText(d.decidedAt)}</AppText>
-            <AppText style={{ fontSize: 18, fontWeight: "800" }}>{exerciseLabels(d, lang).primary}</AppText>
+            <AppText ltr style={{ fontWeight: "600" }}>{localDateText(d.decidedAt)}</AppText>
+            <AppText style={{ fontSize: 16, fontWeight: "600" }}>{exerciseLabels(d, lang).primary}</AppText>
             <AppText style={{ color: p.muted }}>{t("dec.for", { day: d.dayName })}</AppText>
             <AppText style={{ fontSize: 16 }}>
               {hasNumber(d)
@@ -73,7 +73,7 @@ export function DecisionLogScreen() {
                   : t("dec.target", { load: fmt(d.load!), reps: isolateLtr(String(d.reps)) })
                 : t("dec.noTarget")}
             </AppText>
-            <AppText style={{ fontWeight: "700" }}>{t(a.key, a.editedLoad !== null ? { load: fmt(a.editedLoad) } : undefined)}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t(a.key, a.editedLoad !== null ? { load: fmt(a.editedLoad) } : undefined)}</AppText>
             <AppText style={{ color: p.muted }}>{sentence}</AppText>
             <AppText style={{ color: p.muted, fontSize: 13 }}>
               {t("dec.rule", { version: d.ruleVersion, path: t(`dec.path.${d.path === "model" ? "model" : "rule"}` as StringKey) })} · {t("dec.confidence", { c: t(`why.confidence.${d.confidence}` as StringKey) })}

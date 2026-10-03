@@ -106,6 +106,7 @@ export interface LogPalette {
   /** Filled controls (done tick, primary buttons): lime, with ink on it. */
   fill: string;
   onFill: string;
+  fillPressed: string;
   /** Background of a ticked (logged) row. */
   doneBg: string;
   warn: string;
@@ -115,7 +116,7 @@ export interface LogPalette {
   edge: string;
 }
 
-const logOf = (p: Palette, doneBg: string): LogPalette => ({ bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
+const logOf = (p: Palette, doneBg: string): LogPalette => ({ bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, fillPressed: p.fillPressed, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
 export const logDarkPalette: LogPalette = logOf(darkPalette, "#273518");
 export const logLightPalette: LogPalette = logOf(lightPalette, "#E4F2BC");
 

@@ -68,7 +68,7 @@ export function ProgrammeScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
       <View style={{ gap: space.xs }}>
-        <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "800" }}>{data.name}</AppText>
+        <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{data.name}</AppText>
         <AppText style={{ color: p.muted, fontSize: ty.secondary }}>
           {t("prog.version", { v: data.version })}
           {data.isSample ? ` · ${t("prog.sampleTag")}` : ""}
@@ -85,7 +85,7 @@ export function ProgrammeScreen() {
               onPress={() => setOpen(expanded ? null : i)}
               style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}
             >
-              <AppText style={{ fontSize: ty.section, fontWeight: "700", flex: 1 }}>{t("prog.dayCard", { day: day.name, n: day.exercises.length, sets })}</AppText>
+              <AppText style={{ fontSize: ty.section, fontWeight: "600", flex: 1 }}>{t("prog.dayCard", { day: day.name, n: day.exercises.length, sets })}</AppText>
               <AppText style={{ color: p.muted, fontSize: ty.section }}>{expanded ? "▾" : "▸"}</AppText>
             </Pressable>
             {expanded

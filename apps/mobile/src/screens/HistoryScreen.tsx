@@ -63,7 +63,7 @@ export function HistoryScreen() {
                 style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md, borderBottomWidth: 1, borderColor: p.edge, paddingVertical: space.sm }}
               >
                 <View style={{ flex: 1 }}>
-                  <AppText style={{ fontSize: ty.body, fontWeight: "700" }}>{s.imported ? t("history.imported") : s.dayName}</AppText>
+                  <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{s.imported ? t("history.imported") : s.dayName}</AppText>
                   <AppText ltr style={{ fontSize: ty.secondary, color: p.muted }}>{localDateText(s.finishedAt)}</AppText>
                 </View>
                 <AppText style={{ fontSize: ty.secondary, color: p.muted }}>
@@ -85,7 +85,7 @@ export function HistoryScreen() {
               style={{ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md, borderBottomWidth: 1, borderColor: p.edge, paddingVertical: space.sm }}
             >
               <View style={{ flex: 1 }}>
-                <AppText style={{ fontSize: ty.body, fontWeight: "700" }}>{exerciseLabels(l, lang).primary}</AppText>
+                <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{exerciseLabels(l, lang).primary}</AppText>
                 <AppText style={{ fontSize: ty.secondary, color: p.muted }}>{t(`setup.${l.setup}` as never)}{l.hasImported ? ` · ${t("history.imported")}` : ""}</AppText>
               </View>
               <AppText style={{ fontSize: ty.secondary, color: p.muted }}>{t("history.liftLine", { n: l.sessions })}</AppText>

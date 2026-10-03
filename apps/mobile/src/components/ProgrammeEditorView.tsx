@@ -57,7 +57,7 @@ export function ProgrammeEditorView(props: {
           </View>
           {day.exercises.map((e, ei) => (
             <View key={e.exerciseId} style={{ gap: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderColor: p.border }}>
-              <AppText style={{ fontWeight: "700", fontSize: 16 }}>{nameOf(e.exerciseId)}</AppText>
+              <AppText style={{ fontWeight: "600", fontSize: 16 }}>{nameOf(e.exerciseId)}</AppText>
               <Stepper label={t("prog.ex.sets")} value={e.sets} min={1} max={12} onChange={(n) => props.onChange(updateExercise(d, di, ei, { sets: n }))} />
               {measureOf(e.exerciseId) === "reps" ? (
                 <>

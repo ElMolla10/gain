@@ -160,7 +160,7 @@ export function DataScreen() {
       <AppText style={{ color: p.muted }}>{t("data.intro")}</AppText>
       {counts ? <AppText>{t("data.counts", counts as unknown as Record<string, number>)}</AppText> : null}
       {busy ? <AppText>{t(busy)}</AppText> : null}
-      {msg ? <AppText style={{ fontWeight: "700" }}>✓ {msg}</AppText> : null}
+      {msg ? <AppText style={{ fontWeight: "600" }}>✓ {msg}</AppText> : null}
       {err ? <AppText style={{ color: p.danger }}>{err}</AppText> : null}
 
       <Card>
@@ -175,7 +175,7 @@ export function DataScreen() {
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.restoreNote")}</AppText>
         {found ? (
           <>
-            <AppText style={{ fontWeight: "700" }}>{t("data.restore.found", { date: found.file.exportedAt.slice(0, 10), sessions: found.sessions, sets: found.sets })}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("data.restore.found", { date: found.file.exportedAt.slice(0, 10), sessions: found.sessions, sets: found.sets })}</AppText>
             <AppText>{t("data.restore.warn")}</AppText>
             <BigButton label={t("data.restore.confirm")} onPress={restore} />
             <BigButton label={t("data.restore.cancel")} selected={false} onPress={() => setFound(null)} />
@@ -185,7 +185,7 @@ export function DataScreen() {
 
       {restoreCopy ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }}>{t("data.beforeRestore.title")}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t("data.beforeRestore.title")}</AppText>
           <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.beforeRestore.note")}</AppText>
           <BigButton label={t("data.safety.use")} selected={false} disabled={!!busy} onPress={() => void useSafetyCopy(PRE_RESTORE_FILE)} />
         </Card>
@@ -193,7 +193,7 @@ export function DataScreen() {
 
       {safetyCopy ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }}>{t("data.safety.title")}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t("data.safety.title")}</AppText>
           <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.safety.note")}</AppText>
           <BigButton label={t("data.safety.use")} selected={false} disabled={!!busy} onPress={() => void useSafetyCopy()} />
         </Card>
@@ -202,7 +202,7 @@ export function DataScreen() {
       <Card>
         {askDelete ? (
           <>
-            <AppText style={{ fontWeight: "800" }}>{t("data.delete")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("data.delete")}</AppText>
             <AppText>{t("data.delete.warn")}</AppText>
             {hasOnline ? <AppText>{t("data.delete.online")}</AppText> : null}
             {onlineFailed ? <AppText style={{ color: p.danger }}>{t("data.delete.onlineFailed")}</AppText> : null}

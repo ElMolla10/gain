@@ -54,7 +54,7 @@ export function NumField<T extends number>(props: {
           borderRadius: 12,
           paddingHorizontal: space.sm,
           fontSize: props.fontSize ?? 24,
-          fontWeight: "700",
+          fontWeight: "600",
           color: p.text,
           backgroundColor: p.card,
           textAlign: "center",

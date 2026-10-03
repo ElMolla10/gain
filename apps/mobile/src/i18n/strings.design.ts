@@ -10,6 +10,11 @@ export const enDesign = {
   "target.label": "NEXT TARGET",
   "target.none": "No target yet. Finish a workout with this lift and GAIN writes one.",
   "target.notEnough": "Not enough history yet",
+  "today.meta": "{sets} sets · ~{min} min",
+  "today.targets": "Next targets",
+  "today.noTargetsYet": "Targets appear here after your first finished workout.",
+  "today.planned": "Plan {plan}",
+  "today.setupPlan": "Set up a plan",
 } as const;
 
 export const arDesign: Record<keyof typeof enDesign, string> = {
@@ -20,4 +25,9 @@ export const arDesign: Record<keyof typeof enDesign, string> = {
   "target.label": "الهدف الجاي",
   "target.none": "مفيش هدف لسه. خلّص تمرينة فيها التمرين ده وGAIN هيكتب هدف.",
   "target.notEnough": "التاريخ مش كفاية لسه",
+  "today.meta": "{sets} مجموعات · حوالي {min} د",
+  "today.targets": "الأهداف الجاية",
+  "today.noTargetsYet": "الأهداف هتظهر هنا بعد أول تمرينة تخلصها.",
+  "today.planned": "الخطة {plan}",
+  "today.setupPlan": "جهّز خطة",
 };

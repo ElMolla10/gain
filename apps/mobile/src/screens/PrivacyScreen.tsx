@@ -12,7 +12,7 @@ export function PrivacyScreen() {
   const nav = useNavigation<{ navigate: (n: "Data" | "Diagnostics") => void }>();
   const block = (title: Parameters<typeof t>[0], lines: Parameters<typeof t>[0][]) => (
     <Card>
-      <AppText style={{ fontWeight: "700" }} accessibilityRole="header">{t(title)}</AppText>
+      <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t(title)}</AppText>
       {lines.map((k) => (
         <AppText key={k}>{t(k)}</AppText>
       ))}
@@ -21,7 +21,7 @@ export function PrivacyScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <Card>
-        <AppText style={{ fontWeight: "700", color: p.danger }}>{t("privacy.draft")}</AppText>
+        <AppText style={{ fontWeight: "600", color: p.danger }}>{t("privacy.draft")}</AppText>
       </Card>
       {block("privacy.local.title", ["privacy.local.body"])}
       {block("privacy.leaves.title", ["privacy.leaves.update", "privacy.leaves.sync", "privacy.leaves.link", "privacy.leaves.share", "privacy.leaves.backup"])}

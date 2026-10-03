@@ -87,7 +87,7 @@ export function FinishScreen() {
   if (failed && (!summary || next === null)) {
     return (
       <View style={{ padding: space.lg, gap: space.md }}>
-        <AppText style={{ fontSize: 20, fontWeight: "700" }}>{t("finish.error.title")}</AppText>
+        <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("finish.error.title")}</AppText>
         <BigButton
           label={t("finish.error.retry")}
           onPress={() => {
@@ -168,16 +168,16 @@ export function FinishScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
-      <AppText style={{ fontSize: 28, fontWeight: "800" }}>{t("finish.title")}</AppText>
+      <AppText style={{ fontSize: 28, fontWeight: "600" }}>{t("finish.title")}</AppText>
       <AppText style={{ color: p.muted }}>✓ {t("finish.saved")}</AppText>
 
       <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("finish.counted")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("finish.counted")}</AppText>
         <AppText>{t("finish.countedLine", { n: summary.totals.counted })}</AppText>
         {summary.totals.warmups + summary.totals.unconfirmed > 0 ? (
           <AppText style={{ color: p.muted }}>{t("finish.excludedNote", { warmups: summary.totals.warmups, unconfirmed: summary.totals.unconfirmed })}</AppText>
         ) : null}
-        <AppText style={{ fontWeight: "700", marginTop: space.sm }}>{t("finish.records")}</AppText>
+        <AppText style={{ fontWeight: "600", marginTop: space.sm }}>{t("finish.records")}</AppText>
         {summary.exercises.flatMap((e) => {
           const name = lang === "ar" ? e.nameAr : e.nameEn;
           const lines: string[] = [];
@@ -199,7 +199,7 @@ export function FinishScreen() {
         <Card><AppText>{t("finish.noNext")}</AppText></Card>
       ) : (
         <>
-          <AppText accessibilityRole="header" style={{ fontSize: 19, fontWeight: "800" }}>{t("finish.next", { day: next.dayName })}</AppText>
+          <AppText accessibilityRole="header" style={{ fontSize: 20, fontWeight: "600" }}>{t("finish.next", { day: next.dayName })}</AppText>
           <AppText style={{ color: p.muted }}>{t("finish.nextHint")}</AppText>
           {error ? <AppText style={{ color: p.danger }}>{error}</AppText> : null}
           {next.targets.map((tg) => {
@@ -208,19 +208,19 @@ export function FinishScreen() {
             const isEditing = editing?.targetId === tg.id;
             return (
               <Card key={tg.id}>
-                <AppText style={{ fontSize: 18, fontWeight: "700" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
+                <AppText style={{ fontSize: 16, fontWeight: "600" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
                 {tg.currency === "none" || tg.effectiveLoad === null && tg.status !== "rejected" ? (
                   <AppText>{t("finish.noTarget")}</AppText>
                 ) : tg.status === "rejected" ? (
                   <AppText>{t("finish.rejectedNote")}</AppText>
                 ) : (
-                  <AppText ltr style={{ fontSize: 20, fontWeight: "800", color: p.accent }}>
+                  <AppText ltr style={{ fontSize: 20, fontWeight: "600", color: p.accent }}>
                     {t("today.nextSession", { target: isolateLtr(targetText(tg, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") })) })}
                   </AppText>
                 )}
                 <AppText style={{ color: p.muted, fontSize: 14 }}>{shortReason(renderReason(localizeReason(tg.reason, unit, lang), lang))}</AppText>
                 <AppText style={{ color: p.muted }}>{t(`finish.status.${tg.status}` as never)}</AppText>
-                {notices[tg.id] ? <AppText style={{ fontWeight: "700" }}>{notices[tg.id]}</AppText> : null}
+                {notices[tg.id] ? <AppText style={{ fontWeight: "600" }}>{notices[tg.id]}</AppText> : null}
 
                 {isEditing && editing ? (
                   <View style={{ gap: space.sm }}>
@@ -228,7 +228,7 @@ export function FinishScreen() {
                       <View style={{ width: 72 }}>
                         <BigButton label="−" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free", unit).load })} />
                       </View>
-                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: 32, fontWeight: "800" }}>{weightText(editing.load, unit)} {unitText}</AppText>
+                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: 28, fontWeight: "600" }}>{weightText(editing.load, unit)} {unitText}</AppText>
                       <View style={{ width: 72 }}>
                         <BigButton label="+" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, 1, (info?.setup as "free") ?? "free", unit).load })} />
                       </View>
@@ -264,7 +264,7 @@ export function FinishScreen() {
                         />
                         {jumpFor?.targetId === tg.id && tg.effectiveLoad !== null ? (
                           <View accessibilityLiveRegion="polite" style={{ gap: space.sm }}>
-                            <AppText style={{ fontWeight: "700", color: p.warn }}>{t("jump.title", { pct: jumpFor.check.pct, prev: formatLoad(jumpFor.prev, lang, unit), next: formatLoad(tg.effectiveLoad, lang, unit) })}</AppText>
+                            <AppText style={{ fontWeight: "600", color: p.warn }}>{t("jump.title", { pct: jumpFor.check.pct, prev: formatLoad(jumpFor.prev, lang, unit), next: formatLoad(tg.effectiveLoad, lang, unit) })}</AppText>
                             {jumpOptions(jumpFor.check, { load: tg.effectiveLoad, reps: tg.reps ?? 1 }, (k, params) => t(k, params), (kg) => formatLoad(kg, lang, unit)).map((o) => (
                               <BigButton
                                 key={o.kind}
@@ -306,14 +306,14 @@ export function FinishScreen() {
       <BigButton label={sharing ? t("card.sharing") : t("card.share")} selected={false} disabled={sharing} onPress={shareCard} />
       {askLink ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }} accessibilityRole="header">{t("link.consent.title")}</AppText>
+          <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("link.consent.title")}</AppText>
           <AppText>{t("link.consent.body")}</AppText>
           <BigButton label={linking ? t("link.sharing") : t("link.consent.ok")} disabled={linking} onPress={shareLink} />
           <BigButton label={t("link.consent.cancel")} selected={false} disabled={linking} onPress={() => setAskLink(false)} />
         </Card>
       ) : link ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }}>✓ {t("link.ready")}</AppText>
+          <AppText style={{ fontWeight: "600" }}>✓ {t("link.ready")}</AppText>
           <BigButton label={t("link.again")} selected={false} onPress={() => void Share.share({ message: t("link.message", { url: link.url }) })} />
           <BigButton label={t("link.stop")} selected={false} onPress={stopLink} />
         </Card>

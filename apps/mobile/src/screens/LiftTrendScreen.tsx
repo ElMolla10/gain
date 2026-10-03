@@ -38,14 +38,14 @@ export function LiftTrendScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
-      <AppText style={{ fontSize: 20, fontWeight: "800" }}>{exerciseLabels(lift, lang).primary}</AppText>
+      <AppText style={{ fontSize: 20, fontWeight: "600" }}>{exerciseLabels(lift, lang).primary}</AppText>
       <AppText style={{ color: p.muted }}>{t("trend.setupLine", { setup: t(`setup.${lift.setup}` as never) })}</AppText>
       <Card>
         <AppText style={{ color: p.muted }}>{timed ? t("trend.timedMeasure") : assisted ? t("trend.measureAssisted") : t("trend.measure")}</AppText>
         {trend.points.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : null}
         <TrendChart points={trend.points} assisted={assisted} />
         {trend.points.length > 0 ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("trend.chartHint")}</AppText> : null}
-        <AppText style={{ fontWeight: "800", fontSize: 18 }}>{t(directionKey(trend.direction, assisted))}</AppText>
+        <AppText style={{ fontWeight: "600", fontSize: 16 }}>{t(directionKey(trend.direction, assisted))}</AppText>
         {timed && trend.quantityChangePer30d != null ? (
           <AppText style={{ color: p.muted }}>
             {t("trend.changeQuantity", { delta: String(Math.round(Math.abs(trend.quantityChangePer30d) * 10) / 10), unit: timed === "time" ? letters.s : letters.m, n: Math.min(trend.points.length, 10) })}
@@ -65,7 +65,7 @@ export function LiftTrendScreen() {
       </Card>
       {recent.length > 0 ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }}>{t("trend.recent")}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t("trend.recent")}</AppText>
           {recent.map((pt) => (
             <AppText key={pt.at} ltr style={{ textAlign: "left" /* a11y-ok: LTR figures stay left-aligned */ }}>
               {localDateText(pt.at)}  {setText(pt)}

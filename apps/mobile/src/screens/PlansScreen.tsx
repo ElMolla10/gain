@@ -15,16 +15,16 @@ export function PlansScreen() {
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
       {lang === "ar" ? <ArDraftNote /> : null}
       <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("plans.nothing")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("plans.nothing")}</AppText>
       </Card>
       <Card>
-        <AppText accessibilityRole="header" style={{ fontWeight: "800", fontSize: 18 }}>{t("plans.free.title")}</AppText>
+        <AppText accessibilityRole="header" style={{ fontWeight: "600", fontSize: 16 }}>{t("plans.free.title")}</AppText>
         {FREE_FEATURES.map((f) => (
           <AppText key={f}>• {t(`plans.f.${f}` as never)}</AppText>
         ))}
       </Card>
       <Card>
-        <AppText accessibilityRole="header" style={{ fontWeight: "800", fontSize: 18 }}>{t("plans.paid.title")}</AppText>
+        <AppText accessibilityRole="header" style={{ fontWeight: "600", fontSize: 16 }}>{t("plans.paid.title")}</AppText>
         {PAID_FEATURES.map((f) => (
           <AppText key={f}>• {t(`plans.f.${f}` as never)}</AppText>
         ))}

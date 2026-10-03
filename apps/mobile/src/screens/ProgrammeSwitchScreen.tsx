@@ -62,16 +62,16 @@ export function ProgrammeSwitchScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
       <AppText style={{ color: p.muted }}>{t("prog.switch.note")}</AppText>
-      {message ? <AppText style={{ fontWeight: "700" }}>⚠ {message}</AppText> : null}
-      <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("prog.switch.mine")}</AppText>
+      {message ? <AppText style={{ fontWeight: "600" }}>⚠ {message}</AppText> : null}
+      <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("prog.switch.mine")}</AppText>
       {list.map((g) => (
         <Card key={g.programmeId}>
-          <AppText style={{ fontSize: 18, fontWeight: "700" }}>{g.name}</AppText>
+          <AppText style={{ fontSize: 16, fontWeight: "600" }}>{g.name}</AppText>
           <AppText style={{ color: p.muted }}>{t("prog.switch.line", { v: g.version, days: g.days, sessions: g.finishedSessions })}</AppText>
-          {g.isActive ? <AppText style={{ color: p.accent, fontWeight: "700" }}>✓ {t("prog.current")}</AppText> : <BigButton label={t("prog.switch.use")} disabled={busy} onPress={() => void run(() => programmes.setActiveProgramme(g.programmeId))} />}
+          {g.isActive ? <AppText style={{ color: p.accent, fontWeight: "600" }}>✓ {t("prog.current")}</AppText> : <BigButton label={t("prog.switch.use")} disabled={busy} onPress={() => void run(() => programmes.setActiveProgramme(g.programmeId))} />}
         </Card>
       ))}
-      <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("prog.switch.templates")}</AppText>
+      <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("prog.switch.templates")}</AppText>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
       <TemplateBrowser templates={TEMPLATES} showDaysFilter actionLabel={() => t("prog.switch.startTemplate")} disabled={busy} onPick={(tpl) => void run(() => startTemplate(tpl))} />
       <BigButton label={t("prog.new")} selected={false} onPress={() => nav.navigate("ProgrammeEdit")} />

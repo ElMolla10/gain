@@ -17,7 +17,7 @@ export function ExposureView(props: { rows: ExposureRow[] }) {
   const weekly = props.rows.length > 0 && props.rows.every((r) => r.setsPerWeek !== null);
   return (
     <Card>
-      <AppText style={{ fontWeight: "700" }}>{t("prog.exposure.title")}</AppText>
+      <AppText style={{ fontWeight: "600" }}>{t("prog.exposure.title")}</AppText>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("prog.exposure.note")}</AppText>
       {weekly ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("prog.perWeek")}</AppText> : <AppText style={{ color: p.muted, fontSize: 13 }}>{t("prog.exposure.unknown")}</AppText>}
       {props.rows.map((r) => (
@@ -42,7 +42,7 @@ export function EffectView(props: { before: ExposureRow[]; after: ExposureRow[];
   const num = (r: ExposureRow | null, which: "sets" | "sessions") => (r ? (which === "sets" ? (r.setsPerWeek ?? r.setsPerRotation) : (r.sessionsPerWeek ?? r.daysPerRotation)) : 0);
   return (
     <Card>
-      <AppText style={{ fontWeight: "700" }}>{t("prog.effect.title")}</AppText>
+      <AppText style={{ fontWeight: "600" }}>{t("prog.effect.title")}</AppText>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("prog.effect.note")}</AppText>
       {changes.length === 0 && goal.length === 0 ? <AppText>{t("prog.effect.none")}</AppText> : null}
       {changes.map((c) => {

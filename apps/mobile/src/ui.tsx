@@ -62,18 +62,20 @@ export function useReducedMotion(): boolean {
  * The page: a scrolling column with 16 px gutters, 24 px between sections, the bottom safe area, and taps that keep working while the
  * keyboard is open. `footer` is pinned above the safe area (a sticky primary action) and never covers the content.
  */
-export function Screen({ children, footer, scroll = true, contentStyle }: { children: React.ReactNode; footer?: React.ReactNode; scroll?: boolean; contentStyle?: StyleProp<ViewStyle> }) {
+export function Screen({ children, footer, scroll = true, contentStyle, title, tab }: { children: React.ReactNode; footer?: React.ReactNode; scroll?: boolean; contentStyle?: StyleProp<ViewStyle>; /** Screen title, 28/34 semibold, announced as a heading. */ title?: string; /** A tab root: no native header above it, so the top safe area is added here. */ tab?: boolean }) {
   const p = usePalette();
   const insets = useSafeAreaInsets();
-  const body = [{ padding: space.lg, gap: space.xl, paddingBottom: space.xl + (footer ? 0 : insets.bottom) }, contentStyle];
+  const body = [{ padding: space.lg, gap: space.xl, paddingTop: space.lg + (tab ? insets.top : 0), paddingBottom: space.xl + (footer || tab ? 0 : insets.bottom) }, contentStyle];
+  const heading = title ? <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{title}</AppText> : null;
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
       {scroll ? (
         <ScrollView contentContainerStyle={body} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
+          {heading}
           {children}
         </ScrollView>
       ) : (
-        <View style={[{ flex: 1 }, ...body]}>{children}</View>
+        <View style={[{ flex: 1 }, ...body]}>{heading}{children}</View>
       )}
       {footer ? (
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md + insets.bottom, gap: space.sm, backgroundColor: p.bg, borderTopWidth: 1, borderColor: p.border }}>{footer}</View>
@@ -142,7 +144,7 @@ export function BigButton(props: { label: string; onPress?: () => void; disabled
 }
 
 /** A 48 x 48 icon-only control. The label is spoken by TalkBack. */
-export function IconButton(props: { icon: IconName; label: string; onPress: () => void; disabled?: boolean; color?: string; mirror?: boolean }) {
+export function IconButton(props: { icon: IconName; label: string; onPress: () => void; disabled?: boolean; color?: string; mirror?: boolean; /** Arrow pointing to the start edge (back): flipped in left-to-right, as drawn in right-to-left. */ back?: boolean }) {
   const p = usePalette();
   return (
     <Pressable
@@ -152,7 +154,7 @@ export function IconButton(props: { icon: IconName; label: string; onPress: () =
       onPress={props.onPress}
       style={({ pressed }) => ({ width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? p.raised : "transparent", opacity: props.disabled ? 0.4 : 1 })}
     >
-      <Icon name={props.icon} color={props.color ?? p.text} size={24} mirror={props.mirror} />
+      <Icon name={props.icon} color={props.color ?? p.text} size={24} mirror={props.mirror} back={props.back} />
     </Pressable>
   );
 }
@@ -437,5 +439,19 @@ export function ListRow(props: { title: string; note?: string; trailing?: string
     <Pressable accessibilityRole="button" accessibilityLabel={props.accessibilityLabel} onPress={props.onPress} style={({ pressed }) => [style, pressed ? { backgroundColor: p.raised } : null]}>{inner}</Pressable>
   ) : (
     <View style={style}>{inner}</View>
+  );
+}
+
+/** A whole-card link: title, a muted note and a chevron (e.g. the goal pace on Today). */
+export function ListCard({ title, note, onPress }: { title: string; note?: string; onPress: () => void }) {
+  const p = usePalette();
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: pressed ? p.raised : p.card, padding: space.lg })}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <AppText style={{ fontWeight: "600" }}>{title}</AppText>
+        {note ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{note}</AppText> : null}
+      </View>
+      <Icon name="chevron" color={p.muted} size={20} mirror />
+    </Pressable>
   );
 }

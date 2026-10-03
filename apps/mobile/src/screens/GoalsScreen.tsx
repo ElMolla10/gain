@@ -92,10 +92,10 @@ export function GoalsScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }} keyboardShouldPersistTaps="handled">
       <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("goals.current")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("goals.current")}</AppText>
         {text ? (
           <>
-            <AppText style={{ fontSize: 18, fontWeight: "700" }}>{pace?.kind === "none" ? t("goals.none") : text.headline}</AppText>
+            <AppText style={{ fontSize: 16, fontWeight: "600" }}>{pace?.kind === "none" ? t("goals.none") : text.headline}</AppText>
             {text.details.map((d, i) => (
               <AppText key={i}>{d}</AppText>
             ))}
@@ -144,22 +144,22 @@ export function GoalsScreen() {
       />
 
       <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("goals.weighIn")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("goals.weighIn")}</AppText>
         <Field label={t("goals.weighIn.field", { unit: unitText })} value={weighText} onChangeText={(s) => { setWeighBad(false); setWeighText(s); }} numeric />
         {weighBad ? <AppText style={{ fontWeight: "600" }}>⚠ {t("goals.weighIn.bad", { min: fmt(30), max: fmt(300) })}</AppText> : null}
         <BigButton label={t("goals.weighIn.save")} onPress={() => void weigh()} />
-        <AppText style={{ fontWeight: "700" }}>{t("goals.weighIn.recent")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("goals.weighIn.recent")}</AppText>
         {weighIns.length === 0 ? <AppText style={{ color: p.muted }}>{t("goals.weighIn.none")}</AppText> : null}
         {weighIns.map((w) => (
           <View key={w.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space.md }}>
             <AppText ltr>{new Date(w.at).toISOString().slice(0, 10)}</AppText>
-            <AppText ltr style={{ fontWeight: "700" }}>{fmt(w.kg)}</AppText>
+            <AppText ltr style={{ fontWeight: "600" }}>{fmt(w.kg)}</AppText>
             <Chip label={t("goals.weighIn.delete")} onPress={() => void goals.deleteWeighIn(w.id).then(refresh)} />
           </View>
         ))}
       </Card>
       <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("weekly.history")}</AppText>
+        <AppText style={{ fontWeight: "600" }}>{t("weekly.history")}</AppText>
         {decided.length === 0 ? <AppText style={{ color: p.muted }}>{t("weekly.history.none")}</AppText> : null}
         {decided.map((d) => (
           <View key={d.id} style={{ gap: 2 }}>

@@ -33,7 +33,7 @@ function TitleCard(props: { row: ReturnType<typeof resolveAll>["rows"][number]; 
   const set = (o: Override) => props.onChange({ ...override, ...o });
   return (
     <Card>
-      <AppText ltr style={{ fontWeight: "700" }}>{row.title.title}</AppText>
+      <AppText ltr style={{ fontWeight: "600" }}>{row.title.title}</AppText>
       <AppText style={{ color: p.muted }}>{t("import.ex.counts", { workouts: row.title.workouts, sets: row.title.sets })}</AppText>
       <AppText style={{ color: p.text, fontWeight: "600" }}>{c ? "✓ " : "! "}{status}</AppText>
       {open ? (
@@ -176,11 +176,11 @@ export function ImportScreen() {
       <BigButton label={parsed ? t("import.pickAnother") : t("import.pick")} selected={!parsed} disabled={!!busy} onPress={() => void choose()} />
       {busy ? <AppText style={{ color: p.muted }}>{busy}</AppText> : null}
       {error ? <AppText style={{ color: p.text, fontWeight: "600" }}>{error}</AppText> : null}
-      {undone !== null ? <AppText style={{ fontWeight: "700" }}>{t("import.undone", { workouts: undone })}</AppText> : null}
+      {undone !== null ? <AppText style={{ fontWeight: "600" }}>{t("import.undone", { workouts: undone })}</AppText> : null}
 
       {result ? (
         <Card>
-          <AppText style={{ fontSize: 20, fontWeight: "800" }}>✓ {t("import.done.title")}</AppText>
+          <AppText style={{ fontSize: 20, fontWeight: "600" }}>✓ {t("import.done.title")}</AppText>
           <AppText>{t("import.done.body", { workouts: result.workouts, sets: result.sets, exercises: result.newExercises })}</AppText>
           {result.skippedSets > 0 ? <AppText style={{ color: p.muted }}>{t("import.done.skipped", { n: result.skippedSets })}</AppText> : null}
           {result.batchId ? <BigButton label={t("import.undo")} selected={false} onPress={() => void undo(result.batchId!)} /> : null}
@@ -189,12 +189,12 @@ export function ImportScreen() {
 
       {parsed ? (
         <Card>
-          <AppText ltr style={{ fontWeight: "700" }}>{t("import.fileInfo", { name: parsed.name, source: t(`import.source.${parsed.parse.source}` as StringKey) })}</AppText>
+          <AppText ltr style={{ fontWeight: "600" }}>{t("import.fileInfo", { name: parsed.name, source: t(`import.source.${parsed.parse.source}` as StringKey) })}</AppText>
           {unitFromFile ? (
             <AppText style={{ color: p.muted }}>{t("import.unit.fromFile", { unit: parsed.parse.unit })}</AppText>
           ) : (
             <>
-              <AppText style={{ fontWeight: "700" }}>{t("import.unit.title")}</AppText>
+              <AppText style={{ fontWeight: "600" }}>{t("import.unit.title")}</AppText>
               <AppText style={{ color: p.muted }}>{t("import.unit.note")}</AppText>
               <BigButton label={t("import.unit.kg")} selected={unit === "kg"} onPress={() => setUnit("kg")} />
               <BigButton label={t("import.unit.lb")} selected={unit === "lb"} onPress={() => setUnit("lb")} />
@@ -206,7 +206,7 @@ export function ImportScreen() {
       {preview ? (
         <>
           <Card>
-            <AppText style={{ fontWeight: "700" }}>{t("import.preview.title")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("import.preview.title")}</AppText>
             {preview.newWorkouts > 0 ? (
               <>
                 <AppText>{t("import.preview.workouts", { n: preview.newWorkouts, sets: preview.newSets })}</AppText>
@@ -223,11 +223,11 @@ export function ImportScreen() {
 
           {preview.newWorkouts > 0 ? (
             <>
-              <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("import.ex.title")}</AppText>
+              <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("import.ex.title")}</AppText>
               <AppText style={{ color: p.muted }}>{t("import.ex.note", { n: titles.length })}</AppText>
               {titles.some((x) => res.rows.find((r) => r.title === x)?.missing.includes("equipment")) ? (
                 <Card>
-                  <AppText style={{ fontWeight: "700" }}>{t("import.bulk.title", { n: res.rows.filter((r) => r.missing.includes("equipment")).length })}</AppText>
+                  <AppText style={{ fontWeight: "600" }}>{t("import.bulk.title", { n: res.rows.filter((r) => r.missing.includes("equipment")).length })}</AppText>
                   <AppText style={{ color: p.muted }}>{t("import.bulk.note")}</AppText>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
                     {GYM_EQUIPMENT.map((e) => (
@@ -255,7 +255,7 @@ export function ImportScreen() {
 
       {batches.length > 0 ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }}>{t("import.history.title")}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t("import.history.title")}</AppText>
           {batches.map((b) => (
             <View key={b.id} style={{ gap: space.xs }}>
               <AppText>{t("import.history.row", { source: t(`import.source.${b.source}` as StringKey), workouts: b.workouts, sets: b.sets })}</AppText>

@@ -41,7 +41,7 @@ export function DateSelect(props: { label: string; value: string; onChange: (iso
       onPress={() => setOpen(part)}
       style={{ flex: grow, minHeight: MIN_TOUCH, borderWidth: 2, borderColor: p.edge, borderRadius: 12, backgroundColor: p.card, justifyContent: "center", paddingHorizontal: space.sm }}
     >
-      <AppText style={{ color: parts[part] === null ? p.muted : p.text, fontWeight: "700", textAlign: "center" }} numberOfLines={1}>
+      <AppText style={{ color: parts[part] === null ? p.muted : p.text, fontWeight: "600", textAlign: "center" }} numberOfLines={1}>
         {parts[part] === null ? partName(part) : shown(part, parts[part]!)}
       </AppText>
     </Pressable>
@@ -71,14 +71,14 @@ export function DateSelect(props: { label: string; value: string; onChange: (iso
           <View style={{ backgroundColor: p.card, borderRadius: 16, padding: space.md, maxHeight: "80%", gap: space.sm }}>
             {open ? (
               <>
-                <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("date.choose", { part: partName(open) })}</AppText>
+                <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("date.choose", { part: partName(open) })}</AppText>
                 <FlatList
                   data={options(open)}
                   keyExtractor={(n) => String(n)}
                   initialNumToRender={20}
                   renderItem={({ item }) => (
                     <Pressable accessibilityRole="button" onPress={() => change(open, item)} style={{ minHeight: MIN_TOUCH, justifyContent: "center", paddingHorizontal: space.sm, borderBottomWidth: 1, borderColor: p.border, backgroundColor: parts[open] === item ? p.accent : "transparent" }}>
-                      <AppText style={{ fontSize: 18, fontWeight: parts[open] === item ? "800" : "500", color: parts[open] === item ? p.onFill : p.text }}>{shown(open, item)}</AppText>
+                      <AppText style={{ fontSize: 16, fontWeight: parts[open] === item ? "800" : "500", color: parts[open] === item ? p.onFill : p.text }}>{shown(open, item)}</AppText>
                     </Pressable>
                   )}
                 />

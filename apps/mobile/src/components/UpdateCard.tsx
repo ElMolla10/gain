@@ -72,7 +72,7 @@ export function UpdateCard() {
   const busy = phase === "checking" || phase === "downloading" || phase === "verifying";
   return (
     <Card>
-      <AppText style={{ fontWeight: "700" }}>{t("update.title")}</AppText>
+      <AppText style={{ fontWeight: "600" }}>{t("update.title")}</AppText>
       <AppText style={{ color: p.muted }}>{t("update.current", { v: installed })}</AppText>
       {Platform.OS !== "android" ? <AppText style={{ color: p.muted }}>{t("update.androidOnly")}</AppText> : null}
       <BigButton label={phase === "checking" ? t("update.checking") : t("update.check")} selected={false} disabled={busy || Platform.OS !== "android"} onPress={() => void check()} />
@@ -80,7 +80,7 @@ export function UpdateCard() {
       {result?.kind === "error" ? <AppText style={{ fontWeight: "600" }}>⚠ {t(`update.err.${result.reason}` as StringKey)}</AppText> : null}
       {result?.kind === "available" ? (
         <>
-          <AppText style={{ fontSize: 18, fontWeight: "800" }}>{t("update.available", { v: result.version })}</AppText>
+          <AppText style={{ fontSize: 16, fontWeight: "600" }}>{t("update.available", { v: result.version })}</AppText>
           {result.prerelease ? <AppText style={{ color: p.muted }}>{t("update.pre")}</AppText> : null}
           {result.size ? <AppText style={{ color: p.muted }}>{t("update.size", { mb: fmt(Math.round(result.size / 1_000_000)) })}</AppText> : null}
           {result.notes ? <AppText style={{ color: p.muted, fontSize: 14 }}>{result.notes}</AppText> : null}

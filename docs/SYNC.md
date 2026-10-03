@@ -33,6 +33,9 @@ Per row, the version with the **later `updated_at`** wins. At the very same mill
 | `GET /v1/sync/pull?since=N&limit=M` | token, 240/min | Changed rows after N in order, with `next` cursor and `hasMore`. |
 | `DELETE /v1/sync/data` | token | Remove the synced rows, keep the account. |
 | `DELETE /v1/account` | token | Remove everything for the account (rows, phones, links, account). Wired to "Delete my backup" in the app. |
+| `POST /v1/coach-links {card, expiresInDays?}` | token, 30/h | Publish one coach card (plain text blocks, validated, <= 24 KB) behind a private link. Default 7 days, max 30, max 20 active links. Returns `url` once; only the token's hash is stored. |
+| `GET /v1/coach-links`, `DELETE /v1/coach-links/:id` | token | List your links (never the tokens), revoke one. Only the creator can; for anyone else the link does not exist. Revoking also erases the stored card. |
+| `GET /c/:token` | none, 120/min per IP | The coach's page. See below. |
 | `GET /health` | none | `{ok:true}` |
 
 ## Sign-in (decision D3)
@@ -50,3 +53,10 @@ D1 data lives in the Cloudflare region D1 picks (automatic); **where exactly is 
 
 ## Not done / unverified
 See the status section appended after the first deploy, and the client side in SYNC-CLIENT.md when it lands.
+
+## Coach links (Step 22, the part that survives the dropped shared gyms)
+- The lifter taps "Share as link" on the finish screen; the app uploads the SAME card model the PDF uses (session, next targets, pace line, no bodyweight, not-a-doctor line) and gets back `https://<worker>/c/<token>`. The coach opens it in any browser: **no account, no app**.
+- The token is 192 random bits; guessing is not feasible, and an unknown, expired and revoked link all return the same 404 page. The page is plain escaped text (no script, CSP `default-src 'none'`, `noindex`, `no-referrer`, `no-store`), Arabic cards render right-to-left.
+- Anyone who has the link can read the card until it expires or is revoked. The app says so before uploading.
+- Creating a link makes an anonymous server account if the phone has none (the card has to belong to someone who can revoke it); it does **not** turn on sync.
+- Not done: image version, link preview, per-view notifications, a "live" card that updates (a link is a snapshot).

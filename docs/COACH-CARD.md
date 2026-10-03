@@ -22,3 +22,7 @@ On the Finish screen, "Share coach card (PDF)" makes one page and opens the syst
 - An image (PNG) card was not built: it needs a screenshot module. PDF was chosen because the plan allows image or PDF and `expo-print` renders HTML with proper bidi text.
 - The Arabic strings on the card are drafts.
 - Private links for coaches come with Step 22, not here.
+
+
+## Private link (server side built; app button comes with the sync client PR)
+The Worker can serve the card as a private, expiring, revocable web page without any account for the coach. See the "Coach links" section of [SYNC.md](SYNC.md). Server-side only so far: unit-tested and smoke-tested on local workerd; no app button, not deployed, no phone involved.

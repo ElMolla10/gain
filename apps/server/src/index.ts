@@ -1,4 +1,5 @@
 import * as authApi from "./auth";
+import * as coachApi from "./coach";
 import * as syncApi from "./sync";
 import { HttpError, type Env } from "./types";
 import { json } from "./util";
@@ -22,7 +23,10 @@ export async function handle(req: Request, env: Env, deps: Deps): Promise<Respon
     if (path === "/v1/auth/email/start" && m === "POST") return await authApi.emailStart(req, env, now, deps.fetch);
     if (path === "/v1/auth/email/verify" && m === "POST") return await authApi.emailVerify(req, env, now);
 
-    const protectedRoute = path === "/v1/me" || path === "/v1/auth/logout" || path === "/v1/account" || path.startsWith("/v1/sync/");
+    const view = /^\/c\/([^/]+)$/.exec(path);
+    if (view && m === "GET") return await coachApi.viewCard(req, env, view[1]!, now);
+
+    const protectedRoute = path === "/v1/me" || path.startsWith("/v1/coach-links") || path === "/v1/auth/logout" || path === "/v1/account" || path.startsWith("/v1/sync/");
     if (protectedRoute) {
       const auth = await authApi.authenticate(req, env, now);
       if (path === "/v1/me" && m === "GET") return await authApi.me(auth, env);
@@ -31,6 +35,10 @@ export async function handle(req: Request, env: Env, deps: Deps): Promise<Respon
       if (path === "/v1/sync/push" && m === "POST") return await syncApi.push(req, env, auth, now);
       if (path === "/v1/sync/pull" && m === "GET") return await syncApi.pull(req, env, auth, now);
       if (path === "/v1/sync/data" && m === "DELETE") return await syncApi.wipeData(env, auth);
+      if (path === "/v1/coach-links" && m === "POST") return await coachApi.createLink(req, env, auth, now);
+      if (path === "/v1/coach-links" && m === "GET") return await coachApi.listLinks(env, auth, now);
+      const rev = /^\/v1\/coach-links\/([A-Za-z0-9-]{1,64})$/.exec(path);
+      if (rev && m === "DELETE") return await coachApi.revokeLink(env, auth, rev[1]!, now);
     }
     return json({ error: "not_found" }, 404);
   } catch (e) {

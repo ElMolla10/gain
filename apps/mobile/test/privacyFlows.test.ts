@@ -48,4 +48,15 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
     expect(en["privacy.health.body"]).toMatch(/not a doctor/);
     expect(en["health.note"]).toMatch(/not medical advice/);
   });
+  it("'Delete everything' also removes the pre-update safety copy and the crash log", () => {
+    const d = text(join(root, "src/screens/DataScreen.tsx"));
+    const wipe = d.slice(d.indexOf("async function wipe"));
+    expect(wipe).toMatch(/PRE_MIGRATION_FILE/);
+    expect(wipe).toMatch(/\.delete\(\)/);
+    expect(wipe).toMatch(/diagnostics\.clear\(\)/);
+  });
+  it("a failed set save is shown to the lifter, not swallowed", () => {
+    const w = text(join(root, "src/screens/WorkoutScreen.tsx"));
+    expect(w).toMatch(/workout\.saveFailed\.title/);
+  });
 });

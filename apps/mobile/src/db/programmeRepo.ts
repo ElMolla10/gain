@@ -262,7 +262,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
    * Saves an edit as version N+1. No-op (no new version) when nothing changed. The name is the programme's, not the version's.
    * Rotation continues where it was (by day position); the next planned session is rewritten from the new version.
    */
-  async function saveNewVersion(programmeId: string, draft: ProgrammeDraft, opts: { background?: boolean } = {}): Promise<{ versionId: string; version: number; changed: boolean }> {
+  async function saveNewVersion(programmeId: string, draft: ProgrammeDraft, opts: { background?: boolean; /** Runs inside the same transaction, after the version is written: other rows that must exist together with it. */ alsoInTransaction?: (versionId: string) => Promise<void> } = {}): Promise<{ versionId: string; version: number; changed: boolean }> {
     const problems = validateDraft(draft);
     if (problems.length > 0) throw new DraftInvalid(problems);
     const cur = await db.get<{ id: string; version: number }>("SELECT id, version FROM programme_version WHERE programme_id = ? AND deleted_at IS NULL ORDER BY version DESC LIMIT 1", [programmeId]);
@@ -277,6 +277,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       const version = cur.version + 1;
       const versionId = await insertVersion(programmeId, version, draft);
       if (!opts.background) await voidStalePlanned(versionId);
+      if (opts.alsoInTransaction) await opts.alsoInTransaction(versionId);
       return { versionId, version, changed: true };
     });
     if (!opts.background) await replan();

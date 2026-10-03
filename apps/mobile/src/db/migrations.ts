@@ -305,13 +305,22 @@ ALTER TABLE session_exercise ADD COLUMN superset_group TEXT;
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
 
-/** Applies pending migrations in order, each in a transaction, tracked with PRAGMA user_version. */
-export async function migrate(db: Db): Promise<{ from: number; to: number }> {
+/** The schema version the database is at and the one this app needs. `from` 0 = a brand-new database (nothing to protect). */
+export async function migrationInfo(db: Db, migrations: readonly { version: number }[] = MIGRATIONS): Promise<{ from: number; to: number }> {
   const row = await db.get<{ user_version: number }>("PRAGMA user_version");
-  const from = Number(row?.user_version ?? 0);
-  if (from > LATEST_VERSION) throw new Error(`Database is newer (v${from}) than this app (v${LATEST_VERSION})`);
+  return { from: Number(row?.user_version ?? 0), to: migrations[migrations.length - 1]!.version };
+}
+
+/**
+ * Applies pending migrations in order, each in its own transaction together with its `user_version` bump, so a failure (or the process
+ * being killed) leaves the database at the last complete version, never half-migrated. Safety rule: callers take a backup first when
+ * `migrationInfo` says `0 < from < to` (see preMigrate.ts).
+ */
+export async function migrate(db: Db, migrations: readonly { version: number; name: string; sql: string }[] = MIGRATIONS): Promise<{ from: number; to: number }> {
+  const { from, to } = await migrationInfo(db, migrations);
+  if (from > to) throw new Error(`Database is newer (v${from}) than this app (v${to})`);
   let current = from;
-  for (const m of MIGRATIONS) {
+  for (const m of migrations) {
     if (m.version <= current) continue;
     await db.transaction(async () => {
       await db.exec(m.sql);

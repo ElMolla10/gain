@@ -18,7 +18,8 @@ export interface Profile {
   daysPerWeek: number;
   sessionMinutes: number;
   equipment: EquipmentType[];
-  goal: GoalInput;
+  /** Optional: null = no goal for now (set one later in Goals). */
+  goal: GoalInput | null;
   /** Optional unless the goal is a bodyweight goal. */
   heightCm: number | null;
   bodyweightKg: number | null;
@@ -68,7 +69,9 @@ export function validateProfile(p: Profile, nowMs: number): ProfileProblem[] {
   if (!Number.isInteger(p.daysPerWeek) || p.daysPerWeek < 1 || p.daysPerWeek > 7) out.push({ code: "days_bad" });
   if (!Number.isInteger(p.sessionMinutes) || p.sessionMinutes < 15 || p.sessionMinutes > 240) out.push({ code: "minutes_bad" });
   const g = p.goal;
-  if (g.kind === "lift") {
+  if (g === null) {
+    /* no goal: nothing to check */
+  } else if (g.kind === "lift") {
     if (!g.exerciseId) out.push({ code: "goal_exercise_missing" });
     if (!(g.targetLoad > 0) || g.targetLoad > 1000) out.push({ code: "goal_load_bad" });
     if (!Number.isInteger(g.targetReps) || g.targetReps < 1 || g.targetReps > 30) out.push({ code: "goal_reps_bad" });

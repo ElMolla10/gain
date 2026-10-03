@@ -103,6 +103,8 @@ function SetupRoute() {
 }
 
 function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
+  // "Import my workout history" on the first screen opens Import straight after setup is skipped.
+  const [openImport, setOpenImport] = useState(false);
   const { t, direction } = useI18n();
   const isDark = useIsDark();
   const palette = usePalette();
@@ -114,7 +116,12 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   if (props.needsOnboarding) {
     return (
       <View style={{ flex: 1, direction }}>
-        <OnboardingScreen onDone={props.onOnboarded} />
+        <OnboardingScreen
+          onDone={(imp) => {
+            setOpenImport(imp === true);
+            props.onOnboarded();
+          }}
+        />
         <StatusBar style={isDark ? "light" : "dark"} />
       </View>
     );
@@ -122,7 +129,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   return (
     // `direction` on the root flips every flex row and the navigation chrome at once, without restarting the app.
     <View style={{ flex: 1, direction }}>
-      <NavigationContainer theme={navTheme} direction={direction}>
+      <NavigationContainer theme={navTheme} direction={direction} initialState={openImport ? { routes: [{ name: "Tabs" }, { name: "Import" }] } : undefined}>
         <Stack.Navigator screenOptions={{ headerTitleStyle: { fontSize: 20, fontWeight: "700" }, headerShadowVisible: false }}>
           <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title"), headerShown: false }} />

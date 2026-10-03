@@ -156,6 +156,42 @@ describe("classification from the title only", () => {
     expect(matchLibrary("Lateral Raise", lib)).toBeNull(); // dumbbell or cable: ambiguous
     expect(matchLibrary("Bench Press", lib)?.id).toBe("bp");
   });
+  it("v0.12.0 library rules: exact name, Smith line, equipment words, variants and plain titles", () => {
+    const L: LibraryEntry[] = [
+      { id: "sq-b", nameEn: "Squat (Barbell)", equipment: "barbell", setup: "free" },
+      { id: "sq-m", nameEn: "Squat (Machine)", equipment: "machine", setup: "free" },
+      { id: "sq-s", nameEn: "Squat (Smith Machine)", equipment: "machine", setup: "free" },
+      { id: "dl-b", nameEn: "Deadlift (Barbell)", equipment: "barbell", setup: "free" },
+      { id: "dl-t", nameEn: "Deadlift (Trap Bar)", equipment: "barbell", setup: "free" },
+      { id: "pu", nameEn: "Pull-Up (bodyweight + added)", equipment: "plate", setup: "bodyweight_plus_added" },
+      { id: "pu-a", nameEn: "Pull Up (Assisted)", equipment: "assisted", setup: "assisted" },
+      { id: "tp", nameEn: "Cable Triceps Pushdown", equipment: "cable", setup: "free" },
+      { id: "tp-v", nameEn: "Triceps Pushdown (V Bar)", equipment: "cable", setup: "free" },
+      { id: "gs-d", nameEn: "Goblet Squat", equipment: "dumbbell", setup: "free" },
+      { id: "gs-k", nameEn: "Goblet Squat (Kettlebell)", equipment: "dumbbell", setup: "free" },
+      { id: "lr-m", nameEn: "Lateral Raise (Machine)", equipment: "machine", setup: "free" },
+      { id: "lr-s", nameEn: "Lateral Raise (Smith Machine)", equipment: "machine", setup: "free" },
+      { id: "dr", nameEn: "Dumbbell Row", equipment: "dumbbell", setup: "free" },
+    ];
+    expect(matchLibrary("Squat (Smith Machine)", L)?.id).toBe("sq-s"); // never the plain machine line
+    expect(matchLibrary("squat (machine)", L)?.id).toBe("sq-m"); // case does not matter
+    expect(matchLibrary("Deadlift (Trap Bar)", L)?.id).toBe("dl-t");
+    expect(matchLibrary("Deadlift (Barbell)", L)?.id).toBe("dl-b");
+    expect(matchLibrary("Pull Up", L)?.id).toBe("pu"); // plain title is the plain lift, not the assisted sibling
+    expect(matchLibrary("Pull Up (Assisted)", L)?.id).toBe("pu-a");
+    expect(matchLibrary("Pull Up (Weighted)", L)?.id).toBe("pu");
+    expect(matchLibrary("Triceps Pushdown", L)?.id).toBe("tp"); // the standard row, not the "(V Bar)" variant
+    expect(matchLibrary("Triceps Pushdown (Cable)", L)?.id).toBe("tp");
+    expect(matchLibrary("Goblet Squat (Dumbbell)", L)?.id).toBe("gs-d");
+    expect(matchLibrary("Goblet Squat (Kettlebell)", L)?.id).toBe("gs-k");
+    expect(matchLibrary("lateral raises machine", L)?.id).toBe("lr-m"); // equipment as a word
+    expect(matchLibrary("Dumbbell Row", L)?.id).toBe("dr");
+    expect(matchLibrary("Dumbbell Hack Squat", L)).toBeNull();
+  });
+  it("kettlebell and band brackets name their equipment", () => {
+    expect(classifyTitle("Swing (Kettlebell)").equipment).toBe("dumbbell");
+    expect(classifyTitle("Curl (Band)").equipment).toBe("cable");
+  });
   it("suggests a movement pattern from the name; unknown stays 'other'", () => {
     expect(guessPattern("Bench Press (Barbell)")).toBe("horizontal_push");
     expect(guessPattern("Incline Bench Press (Dumbbell)")).toBe("incline_push");

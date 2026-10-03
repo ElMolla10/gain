@@ -80,6 +80,15 @@ describe("classification by name", () => {
       "Good Morning (Barbell)",
       "Step Up",
       "Nordic Hamstring Curl",
+      "Back Extension (Hyperextension)",
+      "Sled Push",
+      "Tibialis Raise",
+      "Donkey Kick",
+      "Clamshell (Band)",
+      "Box Jump",
+      "Wall Sit",
+      "Rack Pull (Barbell)",
+      "Thruster (Barbell)",
       "ليج بريس",
       "سكوات بالبار",
     ]) {
@@ -88,7 +97,7 @@ describe("classification by name", () => {
     }
   });
   it("everything else is upper (including abs 'leg raise')", () => {
-    for (const t of ["Bench Press (Barbell)", "Incline Dumbbell Press", "Lat Pulldown (Cable)", "Seated Cable Row", "Bicep Curl (Dumbbell)", "Hammer Curl", "Triceps Pushdown", "Face Pull", "Overhead Press", "Pull Up", "Hanging Leg Raise", "Front Raise", "Shrug (Dumbbell)", "Chest Fly"]) {
+    for (const t of ["Bench Press (Barbell)", "Incline Dumbbell Press", "Lat Pulldown (Cable)", "Seated Cable Row", "Bicep Curl (Dumbbell)", "Hammer Curl", "Triceps Pushdown", "Face Pull", "Overhead Press", "Pull Up", "Hanging Leg Raise", "Front Raise", "Shrug (Dumbbell)", "Chest Fly", "Hanging Knee Raise", "Triceps Kickback (Dumbbell)", "Seated Knee Tuck"]) {
       expect(classifyLift(t).bodyRegion, t).toBe("upper");
       expect(ceilingClassOf(undefined, t), t).toBe("upper");
     }

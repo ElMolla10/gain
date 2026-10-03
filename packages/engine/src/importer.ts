@@ -268,6 +268,9 @@ const SUFFIX_EQUIPMENT: Record<string, EquipmentType> = {
   "pec deck": "machine",
   "machine plates": "machine",
   "plate loaded": "machine",
+  kettlebell: "dumbbell",
+  band: "cable",
+  "resistance band": "cable",
   plate: "plate",
 };
 
@@ -316,12 +319,50 @@ export function matchLibrary(title: string, library: LibraryEntry[]): LibraryEnt
   const c = classifyTitle(title);
   const key = nameKey(c.base);
   if (!key) return null;
-  const hits = library.filter((l) => {
+  // The exact same name (ignoring case and spacing) wins when it is unique: "Squat (Smith Machine)" is never confused with "Squat (Machine)".
+  const same = (a: string) => a.trim().toLowerCase().replace(/\s+/g, " ");
+  const exact = library.filter((l) => same(l.nameEn) === same(title));
+  if (exact.length === 1) return exact[0]!;
+  // Equipment the title states, in brackets ("(Cable)") or as a word ("Dumbbell Row", "lateral raises machine"); one kind only, else it says nothing.
+  const stated = c.equipment ?? wordEquipment(title);
+  const smith = isSmith(title);
+  let pool = library.filter((l) => {
     if (nameKey(classifyTitle(l.nameEn).base) !== key) return false;
+    if (isSmith(l.nameEn) !== smith) return false; // a Smith machine lift keeps its own line
     // The library name may carry the equipment as a word ("Barbell Bench Press"): compare with the stated equipment.
-    return c.equipment === null ? true : l.equipment === c.equipment && (c.setup === null || l.setup === c.setup);
+    return stated === null ? true : l.equipment === stated && (c.equipment === null || c.setup === null || l.setup === c.setup);
   });
-  return hits.length === 1 ? hits[0]! : null;
+  if (pool.length <= 1) return pool[0] ?? null;
+  const info = (l: LibraryEntry) => classifyTitle(l.nameEn);
+  // Several library rows are the same movement in different variants: prefer the one whose bracket text is the title's own ("(Trap Bar)")...
+  if (c.suffix) {
+    const sfx = c.suffix.toLowerCase();
+    const sameSuffix = pool.filter((l) => info(l).suffix?.toLowerCase() === sfx);
+    if (sameSuffix.length === 1) return sameSuffix[0]!;
+    if (sameSuffix.length > 1) pool = sameSuffix;
+  }
+  // ...a plain title ("Pull Up") that states no equipment means the plain lift, not its "(Assisted)" or "(Machine)" sibling...
+  if (stated === null) {
+    const plain = pool.filter((l) => info(l).equipment === null && info(l).setup === null);
+    if (plain.length === 1) return plain[0]!;
+    if (plain.length > 1) pool = plain;
+  }
+  // ...and the row without any bracket variant is the standard one ("Triceps Pushdown" vs "Triceps Pushdown (V Bar)").
+  const bare = pool.filter((l) => info(l).suffix === null);
+  return bare.length === 1 ? bare[0]! : null;
+}
+
+const isSmith = (name: string): boolean => /\bsmith\b/i.test(name);
+
+/** Equipment named as a word in the title, when exactly one kind appears. */
+function wordEquipment(title: string): EquipmentType | null {
+  const found = new Set<EquipmentType>();
+  const t = title.toLowerCase();
+  if (/\bbarbell\b/.test(t)) found.add("barbell");
+  if (/\bdumbbells?\b/.test(t)) found.add("dumbbell");
+  if (/\bcables?\b/.test(t)) found.add("cable");
+  if (/\bmachine\b|\bsmith\b/.test(t)) found.add("machine");
+  return found.size === 1 ? [...found][0]! : null;
 }
 
 const PATTERN_RULES: [RegExp, string][] = [

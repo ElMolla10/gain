@@ -50,3 +50,11 @@ Names and metadata only. No descriptions, cues, images or video were copied from
 - **Time-based moves** (plank, dead hang, wall sit, farmers walk) are in the list, but GAIN's logger records reps and load; how they should be logged was not decided.
 - **Band exercises** use the cable load model (no kg scale); sensible only if the lifter types a number they understand.
 - **Performance**: tested in Node (top-up of ~560 rows, filter in milliseconds). Not timed on a phone.
+
+## Same movement under two names (v0.13)
+
+A few movements were shipped twice: once under an older GAIN name and once under the Hevy-style name (for example "Conventional Deadlift" and "Deadlift (Barbell)"). The pairs are listed in `apps/mobile/src/db/library/equivalents.ts` (9 pairs; identical movement, gear, muscle and setup only. Variants such as single-arm, incline, rope or lying stay separate).
+
+**Nothing is merged, renamed or deleted.** Phones keep both rows and all history on either. The only effect: when a file import's title matches a row that has no use on this phone (no logged sets, no gym line, no programme slot) and its twin does, the import suggests the twin that is in use, so one lift does not split into two histories. The lifter can still pick another exercise on the import screen. If neither is in use, the exact name match is kept.
+
+Not done: hiding a twin in the picker, or moving history from one row to the other. Both would change what a phone already shows and need a decision (and a real-phone check) first.

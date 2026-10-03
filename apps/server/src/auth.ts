@@ -127,6 +127,7 @@ export async function deleteAccount(auth: Auth, env: Env): Promise<Response> {
   const id = auth.accountId;
   const stmts = [
     env.DB.prepare("DELETE FROM sync_row WHERE account_id = ?").bind(id),
+    env.DB.prepare("DELETE FROM coach_link WHERE account_id = ?").bind(id),
     env.DB.prepare("DELETE FROM device WHERE account_id = ?").bind(id),
     env.DB.prepare("DELETE FROM account WHERE id = ?").bind(id),
   ];

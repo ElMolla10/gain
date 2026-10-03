@@ -21,6 +21,8 @@ export const enFixes = {
   "range.why": "Programme range {pmin}-{pmax}; rep ceiling in force {max} ({source}).",
   "range.src.lift": "this lift's own ceiling",
   "range.src.default": "app-wide default for this kind of lift",
+  "why.warning.fewer_sets_than_planned": "Fewer sets were done at the top load than the programme prescribes, so last session did not count towards more load.",
+  "why.weakestNote": "\"Reps\" for a session means the weakest set at its top load: the fewest reps in any working set at the heaviest load of that session. Load goes up when that weakest set reaches the ceiling and at least {n} set(s) were done at that load.",
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
@@ -45,4 +47,6 @@ export const arFixes: Record<keyof typeof enFixes, string> = {
   "range.why": "نطاق البرنامج {pmin}-{pmax}؛ سقف العدّات المطبّق {max} ({source}).",
   "range.src.lift": "سقف التمرين نفسه",
   "range.src.default": "الافتراضي العام لنوع التمرين",
+  "why.warning.fewer_sets_than_planned": "اتعملت مجموعات أقل على أتقل وزن من اللي البرنامج طالبه، فالجلسة اللي فاتت ما اتحسبتش لزيادة الوزن.",
+  "why.weakestNote": "\"العدّات\" في الجلسة معناها أضعف مجموعة على أتقل وزن: أقل عدد عدّات في أي مجموعة شغل على أتقل وزن في الجلسة. الوزن بيزيد لما أضعف مجموعة توصل للسقف وتتعمل {n} مجموعة على الأقل على الوزن ده.",
 };

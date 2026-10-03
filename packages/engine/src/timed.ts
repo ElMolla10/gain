@@ -66,6 +66,7 @@ function summarizeTimed(s: HistorySession, measure: "time" | "distance", setup: 
     repsAtTop: Math.min(...qs),
     lastSetReps: qs[qs.length - 1]!,
     setsAtTop: atTop.length,
+    workingSets: trusted.length,
     rir: null,
     tags: [],
   };

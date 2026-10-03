@@ -20,6 +20,8 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
       "Go down to {load} {unit} for {reps}, about {pct}% lighter. {sessions} sessions at {prevLoad} {unit} without more reps: a lighter week, then build again.",
     confirm_top_of_range:
       "Stay at {load} {unit} and repeat {reps}. That is {have} of {need} sessions at the top; the next one earns more load.",
+    partial_session:
+      "Stay at {load} {unit} and repeat {reps} on all {planned} sets. Last time only {done} of {planned} sets were done at {load} {unit}, so it does not earn more load yet.",
     hold_jump_declined:
       "Stay at {load} {unit} for {reps}. You have declined the jump to {nextLoad} {unit} {count} times, so it will not be proposed again.",
     hold_no_heavier_load: "Stay at {load} {unit} for {reps}. There is no heavier {equipment} in this gym.",
@@ -49,6 +51,7 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
     step_down: "انزل لـ{load} {unit} لـ{reps}. آخر {misses} جلسات كانوا أقل من {lo} عدّات على {prevLoad} {unit}.",
     stall_deload: "انزل لـ{load} {unit} لـ{reps}، أخف بحوالي {pct}%. {sessions} جلسات على {prevLoad} {unit} من غير عدّات زيادة: أسبوع أخف وبعدها نبني تاني.",
     confirm_top_of_range: "ابقَ على {load} {unit} وكرّر {reps}. دي {have} من {need} جلسات في القمة، والجاية تستاهل وزن أكتر.",
+    partial_session: "ابقَ على {load} {unit} وكرّر {reps} في كل الـ{planned} مجموعات. آخر مرة اتعمل {done} من {planned} مجموعات بس على {load} {unit}، فلسه ما استاهلتش وزن أكتر.",
     hold_jump_declined: "ابقَ على {load} {unit} لـ{reps}. رفضت القفزة لـ{nextLoad} {unit} {count} مرات، فمش هقترحها تاني.",
     hold_no_heavier_load: "ابقَ على {load} {unit} لـ{reps}. مفيش {equipment} أتقل في الجيم ده.",
     hold_assisted_floor: "ابقَ على مساعدة {load} {unit} وكمّل حاول تعمل {reps}. دي أقل مساعدة في الجهاز ده.",

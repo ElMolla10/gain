@@ -70,6 +70,11 @@ export interface DayExerciseSpec {
   name?: string;
   /** The resolved rep ceiling for this lift (per-lift edit, else the default for its kind). Omitted = the engine's default by name. */
   repCeiling?: number;
+  /** True when `repCeiling` is this lift's own; false when it is the app-wide default for its kind of lift (recorded in the decision). */
+  repCeilingIsCustom?: boolean;
+  /** The range the programme was written with (before the ceiling replaced its top). Omitted = repMin / repMax. */
+  programmeRepMin?: number;
+  programmeRepMax?: number;
   isGoalLift: boolean;
   trackEffort: boolean;
   sets: number;
@@ -296,8 +301,10 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
         measure: ex.measure,
         equipment: ex.equipment,
         setup: ex.setup,
-        repRange: { min: ex.repMin, max: ex.repMax },
-        progression: ex.repCeiling !== undefined && !isTimedMeasure(ex.measure) ? { repCeiling: ex.repCeiling } : undefined,
+        repRange: { min: ex.programmeRepMin ?? ex.repMin, max: ex.programmeRepMax ?? ex.repMax },
+        // Only a ceiling the lifter set on this lift is a per-lift ceiling; the resolved app-wide default goes in as the default for every kind
+        // (same number, but the stored decision then says "default", not "this lift's own").
+        progression: ex.repCeiling !== undefined && ex.repCeilingIsCustom !== false && !isTimedMeasure(ex.measure) ? { repCeiling: ex.repCeiling } : undefined,
         isGoalLift: ex.isGoalLift,
         trackEffort: ex.trackEffort,
         plannedSets: ex.sets,
@@ -306,6 +313,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       history,
       rejections,
       asOf: new Date(now()).toISOString(),
+      options: ex.repCeiling !== undefined && ex.repCeilingIsCustom === false && !isTimedMeasure(ex.measure) ? { repCeilings: { upper: ex.repCeiling, lower: ex.repCeiling, lateral_raise: ex.repCeiling } } : undefined,
     });
     return { proposal, lineId, line };
   }

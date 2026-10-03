@@ -160,8 +160,17 @@ export interface ExerciseSpec {
   trackEffort?: boolean;
   /** Quality changes allowed, in preference order. Defaults to pause, slow_eccentric (+ extra_set for goal lifts). */
   qualityOptions?: QualityChange[];
-  /** Planned working sets (informational; extra_set adds one). */
+  /**
+   * Planned working sets. A session only EARNS more load when at least this many working sets were done at its top load (a session that
+   * stopped early does not earn progression just because the sets it did were strong). extra_set adds one.
+   * Unknown (undefined): one set is enough, as before.
+   */
   plannedSets?: number;
+  /**
+   * Top-set / back-off prescription: only this many sets (the heaviest ones) are judged for progression; the remaining planned sets are
+   * lighter back-off sets and are ignored. Omitted = straight sets (all `plannedSets` count). Judged on the weakest of the top sets.
+   */
+  topSets?: number;
   /** How the exercise is counted. Omitted = reps. For time / distance, `repRange` is read as seconds / metres. */
   measure?: Measure;
 }
@@ -191,6 +200,7 @@ export type ReasonKey =
   | "step_down"
   | "stall_deload"
   | "confirm_top_of_range"
+  | "partial_session"
   | "hold_jump_declined"
   | "hold_no_heavier_load"
   | "hold_assisted_floor"
@@ -230,6 +240,8 @@ export interface SessionSummary {
   /** Reps of the final working set at the top load (the 2-for-2 rule is worded on the last set). */
   lastSetReps: number;
   setsAtTop: number;
+  /** All trusted working sets of the session (any load), warm-ups, drop sets and unconfirmed outliers excluded. */
+  workingSets: number;
   /** Lowest RIR logged at the top load, if any. */
   rir: number | null;
   tags: string[];
@@ -275,6 +287,8 @@ export interface DecisionInputs {
     targetReps: number;
     qualifyingSessions: number;
     requiredSessions: number;
+    /** Working sets that must be done at the top load for a session to count (planned sets, or the top sets of a top-set/back-off prescription). */
+    requiredSetsAtTop?: number;
     fastTracked: boolean;
     stalled: boolean;
   };

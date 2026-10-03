@@ -14,4 +14,4 @@ What the findings are (advisory, package, installed, where it runs):
 
 Reading: every finding is in build-time or test-time tooling. None of the flagged packages is shipped as app code in the APK (the Hermes bundle is our code plus the React Native/Expo runtime), and the Worker (`apps/server`) has no runtime dependencies beyond `@gain/sync`. That is an assessment from the dependency paths, **not** a proof; the advisories on `react-native` and the `expo` family are inherited from the tooling packages listed.
 
-Next steps (nothing urgent): (1) vitest 2 -> current major in its own PR, run all four test suites; (2) re-run `npm audit` after each Expo SDK upgrade; (3) do not run `npm audit fix --force`.
+Update (v0.15 fixes): vitest bumped 2.1.x -> 3.2.7 (past the fixed 3.2.6), all four test suites pass unchanged; vitest 4/5 was not attempted. Next steps (nothing urgent): (1) optionally vitest 3 -> current major in its own PR; (2) re-run `npm audit` after each Expo SDK upgrade; (3) do not run `npm audit fix --force`.

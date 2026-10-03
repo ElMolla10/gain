@@ -2,6 +2,8 @@
 
 Status: **DRAFTS ONLY. Nothing here is published, nothing was submitted, no Play Console account is used.** The Arabic is a builder's draft, not reviewed by a native Egyptian lifter (the Arabic review is Mohamed's/Step 8). Final name, trademark check, support email, privacy URL and target countries are Mohamed's (open).
 
+**GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.** Arabic: **GAIN مجاني بالكامل. مفيش اشتراكات ولا مشتريات جوه التطبيق ولا مستويات مدفوعة للمميزات.** This sentence is in both full descriptions below and must stay true; the app is listed as free, with no in-app products and no ads.
+
 Rules used for every line: no medical, physique or results promise; each claim maps to a shipped feature (table at the end); say "suggestion", not "guarantee". Character counts are checked against Play's limits (title 30, short description 80, full description 4000).
 
 ## English
@@ -25,13 +27,16 @@ Rules used for every line: no medical, physique or results promise; each claim m
 > • History and trends for each lift. Import your history from Hevy or Strong. Export everything (JSON, CSV) at any time.
 > • English and Arabic, with right-to-left layout. kg or lb. Light and dark.
 >
+> FREE
+> GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers. Every feature is available to everyone.
+>
 > YOUR DATA
 > Everything is stored on your phone. There is no account and no ads. Back up and sync to a GAIN server is optional and off until you turn it on. You can delete everything from Settings.
 >
 > GOOD TO KNOW
 > GAIN is a training log and suggestion tool. It is not a doctor, physiotherapist or coach, and it does not promise any result. If something hurts, stop and ask a qualified professional. Suggestions are based only on what you log.
 
-(About 1,700 characters; limit 4000.)
+(About 2,000 characters; limit 4000.)
 
 ## Arabic (مسودة، محتاجة مراجعة من مصريين بيتمرنوا)
 
@@ -53,6 +58,9 @@ Rules used for every line: no medical, physique or results promise; each claim m
 > • إحماء من هدف النهارده، مؤقت راحة، سوبر سيت، ملاحظات، دروب سيت.
 > • تاريخ واتجاه كل تمرين. استورد تاريخك من Hevy أو Strong. صدّر كل حاجة (JSON وCSV) في أي وقت.
 > • عربي وإنجليزي بتخطيط يمين لشمال. كجم أو رطل. فاتح وغامق.
+>
+> مجاني
+> GAIN مجاني بالكامل. مفيش اشتراكات ولا مشتريات جوه التطبيق ولا مستويات مدفوعة للمميزات. كل المميزات متاحة للكل.
 >
 > بياناتك
 > كل حاجة محفوظة على موبايلك. مفيش حساب ومفيش إعلانات. النسخ الاحتياطي والمزامنة مع سيرفر GAIN اختيارية ومقفولة لحد ما تفتحها. تقدر تمسح كل حاجة من الإعدادات.
@@ -85,7 +93,7 @@ The draft answers now live in [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (buil
 2. Account, identity checks and testing-track requirements for new developer accounts: **unknown/changing**, check at the time (Step 25).
 3. Package id `app.gain.mobile` is permanent once published.
 4. Arabic copy needs native review; privacy policy needs legal review and a public URL.
-5. Billing: no billing exists. The listing must not mention subscriptions until Step 24 is real.
+5. Pricing: GAIN is completely free. In Play Console set the app as Free, answer "No" to in-app purchases and to ads, and keep the listing free of price, trial and subscription wording. Nothing to build or configure for billing.
 6. Screenshots need a device or emulator session.
 
 ## Claim check (each listing claim vs what is shipped; not device-verified)
@@ -102,4 +110,5 @@ The draft answers now live in [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (buil
 | Import Hevy/Strong; export JSON/CSV | Data screens | built, unit-tested |
 | Arabic RTL, kg/lb, dark | i18n/theme | built; NOT device-verified; Arabic is draft |
 | Everything on the phone, no account, no ads | privacy tests | true for 0.12/0.13 |
+| Completely free, no subscriptions, in-app purchases or paid tiers | no billing dependency or gate in the code (`free.test.ts`) | true |
 | Optional sync | Back up and sync (v0.11) | built; not device-verified |

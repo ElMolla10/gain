@@ -2,6 +2,8 @@
 
 Written 2026-10-02 from the code on `main` (v0.3.0, rule-v0.3); status rows updated through v0.17.0 (v0.17.0: feedback share sheet + unused permissions removed, NOT device-verified; v0.15.0: fixes and design pass from two outside reviews, NOT device-verified, see section 1; 47 programme templates with a Home/Gym picker; v0.13.0: timed exercises, training-day reminders, paywall scaffold OFF, library twin map, trainer/listing/retention docs; v0.12.0: 600-exercise library; v0.11.0: opt-in Back up and sync, private coach links, Cloudflare Worker deployed), not from intent. Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Update the status table whenever a step ships.
 
+**GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.** (Decision 2026-10-03.) The paywall scaffold added in v0.13.0 (`logic/plans.ts`, the hidden Plans page, `docs/PAYWALL-SCAFFOLD.md`) and the old Step 24 (subscription, paywall, pricing test) were removed in the change that made this decision. Older status paragraphs below (v0.13.0, v0.15.0, D9) still mention the scaffold or a "free" recommendation as they were written at the time; they are left as history. Every feature is available to everyone; the sync server's storage and request limits are abuse protection, not a tier.
+
 Conventions: `[ ]` open, `[x]` done. Sizes are S (days), M (1-2 weeks), L (several weeks) of focused work; no calendar dates. Nothing here is a forecast. Anything marked **unknown** has not been checked.
 
 ---
@@ -33,7 +35,7 @@ Rule for all steps: no step is "done" until it was run on a device (or is explic
 - **Not addressed / unknown:** P01, P13, P16, P30 appear in no PR, commit or doc, so no work on them is recorded; check them against the original review text.
 - **Design pass D1-D6 (#98-#103):** all six branches are merged (one charcoal + mint identity, fixed type scale enforced by a test, 48dp targets kept, Today/logger/Plan/History/Settings reworked, second-language exercise names hidden by default). Looks and font scaling at large sizes have not been seen on a phone.
 
-**Still blocked after v0.14.0 (needs a real phone, an outside account, payment or Mohamed's decision):** on-device checks of everything (Step 1, update-over-install of migration 9, TalkBack, RTL/dark, reminder and screen-off timer delivery); foreground-service/lock-screen timer (native spike + phone); email sign-in (no provider); Play Console, billing and purchases (accounts, payment, D9, Egypt payment methods; and the self-updater's install permission vs a Play build); trainer sign-off, native-Arabic review and legal review (the packs are prepared, nobody has reviewed them); thresholds (D5); the pilot; screenshots/store assets (need a device); privacy-policy URL and support email; keystore backup custody; iOS.
+**Still blocked after v0.14.0 (needs a real phone, an outside account, payment or Mohamed's decision):** on-device checks of everything (Step 1, update-over-install of migration 9, TalkBack, RTL/dark, reminder and screen-off timer delivery); foreground-service/lock-screen timer (native spike + phone); email sign-in (no provider); Play Console (account; and the self-updater's install permission vs a Play build); trainer sign-off, native-Arabic review and legal review (the packs are prepared, nobody has reviewed them); thresholds (D5); the pilot; screenshots/store assets (need a device); privacy-policy URL and support email; keystore backup custody; iOS.
 
 ---
 
@@ -68,9 +70,9 @@ Verified-on-device = **none recorded** for any row (the v0.2.0 release notes say
 | Dark mode / RTL | Partly (v0.10.0: code-level QA done, nothing looked at on a device; [A11Y-RTL-CHECKLIST.md](A11Y-RTL-CHECKLIST.md)) | Dark palette follows system; RTL flips via `direction`. Arabic strings are drafts, including everything added in v0.8.0 and the v0.9.0 logger (workout list, Today day choice, programme switch, date selectors and month names, updates; in `strings.workout/date/update/programme.ts`). The v0.9.0 logger has a light palette and uses start/end layout (RTL flips rows, swipe direction and the target bar), but neither theme nor RTL has been looked at on a device. |
 | Coach card | Partly (unit-tested only) | Finish screen: share a one-page PDF (session, next targets, pace line for lift/muscle goals, no bodyweight, not-a-doctor line) in English or Arabic. No image version. **v0.11.0:** also "Share as a link" (consent card, private random link, 7 days, stop sharing; server deployed, no account for the coach; unit/e2e-tested, not on a phone). PDF layout, Arabic rendering and share sheet never run on a phone ([COACH-CARD.md](COACH-CARD.md)). |
 | Decision log screen | Done (unit-tested only) | Settings > Decision log (and a button in History): every stored decision with lift, gym, suggested number, what you did, sentence, rule version, path; filter by lift; tap for the stored inputs. Old/unknown rule formats fall back to the stored sentence. [DECISION-LOG.md](DECISION-LOG.md). Not run on a device. |
-| Backend / sync | **Server deployed and smoke-tested; app side built (v0.11.0), NOT device-verified; email sign-in BLOCKED** | Cloudflare Worker `gain-sync` + D1 `gain-sync` (free tier) at https://gain-sync.elmolla10.workers.dev: anonymous account + recovery code, event push / cursor pull, idempotent client event UUIDs, tombstones, last write wins per row, rate limits, delete-account. App: Settings > Back up and sync (OFF by default, plain privacy text, recovery code, turn off / delete backup), auto-sync only when on, restore-first first sync (no merge of two populated phones), parked rows reported. Email code sign-in implemented but **BLOCKED: no email provider** (Resend path is only tested with a mock; the deployed Worker answers 501). D3 default adapted: anonymous + recovery code works now, email later. Never run on a phone; D1 free-tier limits unmeasured; region ENAM (checked 2026-10-03), Time Travel on (7 days if on free plan), restore rehearsed once on a throwaway D1 (SYNC.md; the live DB was never restored), quota exercised live, kill switch exercised on a throwaway Worker, no export outliving Time Travel. [SYNC.md](SYNC.md), [SYNC-CLIENT.md](SYNC-CLIENT.md). |
+| Backend / sync | **Server deployed and smoke-tested; app side built (v0.11.0), NOT device-verified; email sign-in BLOCKED** | Cloudflare Worker `gain-sync` + D1 `gain-sync` (free plan) at https://gain-sync.elmolla10.workers.dev: anonymous account + recovery code, event push / cursor pull, idempotent client event UUIDs, tombstones, last write wins per row, rate limits, delete-account. App: Settings > Back up and sync (OFF by default, plain privacy text, recovery code, turn off / delete backup), auto-sync only when on, restore-first first sync (no merge of two populated phones), parked rows reported. Email code sign-in implemented but **BLOCKED: no email provider** (Resend path is only tested with a mock; the deployed Worker answers 501). D3 default adapted: anonymous + recovery code works now, email later. Never run on a phone; D1 free-tier limits unmeasured; region ENAM (checked 2026-10-03), Time Travel on (7 days if on free plan), restore rehearsed once on a throwaway D1 (SYNC.md; the live DB was never restored), quota exercised live, kill switch exercised on a throwaway Worker, no export outliving Time Travel. [SYNC.md](SYNC.md), [SYNC-CLIENT.md](SYNC-CLIENT.md). |
 | Shared gyms | **DROPPED** | The gym UI was removed in v0.8.0 (a silent default gym), so there is nothing to share. Not built; D8 is moot. Can come back only if gyms return as a feature. |
-| Subscription / paywall | **Scaffold only (v0.13.0), no billing** | `logic/plans.ts` with flags `paywallEnabled` and `planPreviewVisible`, both OFF; while off everything is unlocked and the Plans page is hidden. The free-vs-paid split from PRODUCT.md and the limit-before-purchase text exist as data/UI; no price, no buy button, no billing library, nothing in the app calls the gate (tests assert this). Billing, entitlement server, trial and prices are not started and need Mohamed (D9, Egypt payment methods unknown) and a Play account. [PAYWALL-SCAFFOLD.md](PAYWALL-SCAFFOLD.md). |
+| Pricing / monetisation | **None: GAIN is completely free** | No subscriptions, in-app purchases, paid feature tiers, ads or donation prompts. The v0.13.0 paywall scaffold was removed (history: Step 24 below, v0.13.0 notes). Sync-server storage and request limits remain as operational safeguards, not tiers. |
 | Model layer | Seam + guardrails (tests only) | `ModelAdvisor` interface + `needsModel` flag, and since v0.10.0 pure guardrail code (`modelGuard.ts`: fixed rationale keys, gym-real loads within one step, rep range, no invented history, flagged-only, offline = rule, `path=model` log); nothing implements or calls a model ([MODEL-GUARDRAILS.md](MODEL-GUARDRAILS.md)). |
 | Analytics / privacy | Partly (v0.10.0, drafts; v0.17.0 adds a text feedback share and corrects the permission list) | No analytics and no third-party crash reporting. A local-only crash log with an opt-in share (Settings > Diagnostics, [DIAGNOSTICS.md](DIAGNOSTICS.md)); privacy policy and terms are **DRAFTS needing legal review** ([PRIVACY-POLICY-DRAFT.md](PRIVACY-POLICY-DRAFT.md), [TERMS-DRAFT.md](TERMS-DRAFT.md)) with an in-app Privacy and safety page and health notes; tests guard that only the update check, the opt-in sync transport and the coach link use the network (v0.11.0: the draft policy and privacy page now describe Back up and sync and coach links). Native crashes are not logged; no event analytics (needs D7). |
 | Store release | Not started (v0.13.0: listing text DRAFTS and asset checklist only, [PLAY-LISTING-DRAFT.md](PLAY-LISTING-DRAFT.md)) | Sideload APKs only (v0.1.0 to v0.13.0, arm64, own keystore; process in [RELEASE-PROCESS.md](RELEASE-PROCESS.md)). `app.gain.mobile` id. iOS config exists in `app.json`, nothing built or tested. |
@@ -249,7 +251,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Test:** network-capture check.
 - **Size:** S-M.
 - **Mohamed:** tool choice and budget.
-- **Risks:** the free tier or hosting location of a tool may conflict with the policy text.
+- **Risks:** the free plan or hosting location of a tool may conflict with the policy text.
 
 ### Step 19. Beta distribution (APK first)
 - [~] **Status (v0.10.0, drafts):** [RELEASE-PROCESS.md](RELEASE-PROCESS.md), [INSTALL-GUIDE.md](INSTALL-GUIDE.md), [BETA-FEEDBACK.md](BETA-FEEDBACK.md) written from the process actually used. **Clean-clone build DONE 2026-10-03** (fresh clone of v0.13.0: `npm ci`, typecheck, all tests, export bundle, prebuild, Gradle release build, signing with the real key; signer SHA-256 matched; same box only, see RELEASE-PROCESS.md section 8). **Second clean-clone build DONE 2026-10-03 (v0.17.0, see RELEASE-PROCESS.md section 8).** Not done: keystore backup (unknown, Mohamed), feedback channel, a build on a second/cold machine, install/upgrade on two phones, a non-technical lifter following the guide. **Goal:** a repeatable way to put builds on pilot phones.
@@ -270,14 +272,14 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** small sample; friendly users; the rule vs "repeat last" gap (Hevy backtest) may repeat. Do not tune the rule to ten people without trainer review.
 
 ### Step 21. Backend: Cloudflare Workers + D1, auth, sync
-- [~] **Status (v0.11.0, NOT device-verified):** server deployed to Mohamed's Cloudflare (free tier) and smoke-tested; client built and tested with fault injection against the real server code; delete-account wired into Delete everything (online copy first). Not done: two real phones, airplane-mode on a phone, email magic link (BLOCKED: no email provider; code path exists, dev mode only), a backup that outlives Time Travel (no scheduled export). **Checked 2026-10-03:** D1 Time Travel is on for `gain-sync` (7 days on free, 30 on paid; plan not confirmed), region ENAM, restore steps in [SYNC.md](SYNC.md), **rehearsed 2026-10-03 on a throwaway D1 database** (restore, verify, undo, generation bump, then deleted; the live database was never restored); D1 free-tier limits still not measured. Details: [SYNC.md](SYNC.md), [SYNC-CLIENT.md](SYNC-CLIENT.md).
+- [~] **Status (v0.11.0, NOT device-verified):** server deployed to Mohamed's Cloudflare (free plan) and smoke-tested; client built and tested with fault injection against the real server code; delete-account wired into Delete everything (online copy first). Not done: two real phones, airplane-mode on a phone, email magic link (BLOCKED: no email provider; code path exists, dev mode only), a backup that outlives Time Travel (no scheduled export). **Checked 2026-10-03:** D1 Time Travel is on for `gain-sync` (7 days on free, 30 on paid; plan not confirmed), region ENAM, restore steps in [SYNC.md](SYNC.md), **rehearsed 2026-10-03 on a throwaway D1 database** (restore, verify, undo, generation bump, then deleted; the live database was never restored); D1 free-tier limits still not measured. Details: [SYNC.md](SYNC.md), [SYNC-CLIENT.md](SYNC-CLIENT.md).
 - **Goal:** data survives a lost phone and works on a second device.
 - **Deliver:** Workers API + D1 schema mirroring local tables; sync on `updated_at` / `deleted_at` with client UUIDs; conflict rule written down (default: last write wins per row, no deletes resurrected); rate limits; backups; auth (decision D3); delete-account endpoint wired to Step 12; sync is optional: the app stays fully usable offline and signed out.
 - **Done means:** two devices converge after offline edits; replaying a sync twice creates no duplicate sessions; delete-account removes server rows.
 - **Test:** sync property tests on a local D1; two-device manual test; airplane-mode test.
 - **Size:** L.
 - **Mohamed:** Cloudflare account and budget limits; auth choice; where the data lives (region constraints are **unknown**).
-- **Risks:** sync bugs destroy trust faster than any other bug; free vs paid D1/Workers limits need checking at the time.
+- **Risks:** sync bugs destroy trust faster than any other bug; Cloudflare D1/Workers plan limits need checking at the time.
 
 ### Step 22. Shared gym fingerprints and coach-card links
 - [~] **Status (v0.11.0):** **shared gyms DROPPED** (gym UI removed in v0.8.0). **Coach-card links built:** private random link, hash stored, expiry (7 days, max 30), revoke, same 404 for unknown/expired/revoked, no account, escaped text-only page with strict CSP, rate limits, link-guessing and abuse tests; app button with consent. Deployed; not tried on a phone or with a real coach. Arabic/English page layout unseen on a phone.
@@ -298,14 +300,8 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Mohamed:** whether to do this at all before v1.0 (default: after pilot data shows how often cases are flagged); provider and budget.
 - **Risks:** cost, latency, and the model sounding confident. If pilot shows few flagged cases, skip it.
 
-### Step 24. Subscription, paywall, pricing test
-- [ ] **Goal:** find out if people pay, and what for. **v0.13.0: scaffold only (flags OFF, no billing, no price, nothing gated; [PAYWALL-SCAFFOLD.md](PAYWALL-SCAFFOLD.md)).** Everything under Deliver beyond the split and the limit text is open.
-- **Deliver:** free vs paid split from PRODUCT.md: free = logging, history, one template, basic charts, own-data export, records stay after cancel; paid = next-session targets, gym-aware increments, goal pace, short-week rebuild, weekly decision. Limit shown before purchase. Play Billing (via a library or RevenueCat: D9), server-checked entitlement, trial that covers several real sessions with renewal stated up front, annual shown first, restore purchases; price page experiments.
-- **Done means:** a test purchase, cancel and restore work on a licensed test account; cancelling keeps all records; prices are set only after fees and tax are confirmed.
-- **Test:** Play test tracks, licence testers.
-- **Size:** L.
-- **Mohamed:** prices to test (PRODUCT.md only says "near a local coaching snack"; the 149-249 EGP figure is explicitly unproven), payment method availability in Egypt (**unknown**), store fees/tax/VAT (**to confirm**).
-- **Risks:** many Egyptian users lack cards for Play billing (**unknown**, check carrier billing and other options); paywalling the core promise too early hurts the pilot, so gate only after Step 20.
+### Step 24. (Removed) Subscription, paywall, pricing test
+- **Removed 2026-10-03: GAIN is completely free.** No subscriptions, in-app purchases, or paid feature tiers, so there is no billing library, entitlement check, trial, price page or restore-purchase flow to build. Nothing replaces it (no ads, no donations). The step number is kept so older references still resolve.
 
 ### Step 25. Play internal and closed testing
 - [ ] **Goal:** install via the store, with signed AAB.
@@ -327,7 +323,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 
 ### Step 27. Launch and growth
 - [ ] **Goal:** first hundred users, reachable in person.
-- **Deliver:** launch in the pilot gym plus a few coaches; coach card as the sharing loop; invite codes for shared gyms; support routine (reply time, bug triage); no paid acquisition until week-6 retention and paying users exist (PRODUCT.md rule).
+- **Deliver:** launch in the pilot gym plus a few coaches; coach card as the sharing loop; invite codes for shared gyms; support routine (reply time, bug triage); no paid acquisition until week-6 retention is shown (PRODUCT.md rule).
 - **Done means:** the first hundred install count is met by people Mohamed can name or reach; weekly support log kept.
 - **Test:** funnel counts from Step 18 events.
 - **Size:** L (elapsed).
@@ -345,7 +341,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 
 ### Step 29. Post-launch metrics and success criteria
 - [ ] **Goal:** know if it is working, without vanity numbers. (Pilot-stage definitions are drafted in [PILOT-RETENTION-METRICS.md](PILOT-RETENTION-METRICS.md); no dashboard exists.)
-- **Deliver:** weekly dashboard of: sessions logged per active user, share of targets accepted / edited / rejected, share of users on pace for a goal, week-1/2/6 retention, trial-to-paid, crash-free sessions, support issues; written success criteria taken from PRODUCT.md "Success": users log without fighting the screen, trust the next weight enough to load it, can tell if the goal is on pace, and a few pay and stay.
+- **Deliver:** weekly dashboard of: sessions logged per active user, share of targets accepted / edited / rejected, share of users on pace for a goal, week-1/2/6 retention, crash-free sessions, support issues; written success criteria taken from PRODUCT.md "Success": users log without fighting the screen, trust the next weight enough to load it, can tell if the goal is on pace, and a few stay for months.
 - **Done means:** thresholds set by Mohamed before launch (D5), reviewed monthly.
 - **Test:** event counts spot-checked against raw data.
 - **Size:** S-M, then ongoing.
@@ -365,11 +361,11 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 | **v0.7** | 8, 10, 12, 13 (11 shipped in v0.4.0) | Reviewed library and aliases, native timer, export/delete round-trip, local coach card. **Shipped as v0.7.0 pre-release, partly:** export/delete (12) built; rest alert (10) and coach card PDF (13) built; library (8) grown but all Arabic still DRAFT and unreviewed; nothing device-verified. The milestone's own bar (reviewed library, timer working screen-off on a phone) is **not met**. |
 | **v0.8** | 14, 15, 16, 17, 18, 19 | A11y/RTL checklist passed, offline/perf tests passed, trainer feedback in, policy and consent live, signed APK process written. **v0.10.0 pre-release built code-level parts of 14, 15, 17 (drafts), 18 (local only), 19 (drafts); the milestone's bar is not met:** no device checks, no trainer feedback (16), no legal review or live policy. |
 | **v0.9 (pilot)** | 20 | Pilot report with agreement, week 1/2/6 retention and bug list; go/no-go on paying. |
-| **v0.10** | 21, 22, (23), 24, 25 | Sync, shared gyms, coach links, paywall test purchase, closed testing on Play. Model layer only if the pilot shows it is needed. **Shipped as v0.11.0 pre-release, partly:** sync (21) and coach links (22) built and deployed; shared gyms dropped; email sign-in blocked; paywall, Play closed testing and the model layer not started; nothing device-verified, so the milestone's bar is **not met**. |
+| **v0.10** | 21, 22, (23), 24, 25 | Sync, shared gyms, coach links, (paywall test purchase: removed, GAIN is free), closed testing on Play. Model layer only if the pilot shows it is needed. **Shipped as v0.11.0 pre-release, partly:** sync (21) and coach links (22) built and deployed; shared gyms dropped; email sign-in blocked; the paywall (since removed), Play closed testing and the model layer not started; nothing device-verified, so the milestone's bar is **not met**. |
 | **v1.0** | 26, 27 | Public listing live (AR + EN), data safety form accurate, first hundred users plan running. |
 | **v1.x** | 28, 29 | iOS via TestFlight; metrics reviewed against thresholds. |
 
-Pilot (v0.9) deliberately comes before backend and paywall: it tests the promise with local data only.
+Pilot (v0.9) deliberately comes before the backend: it tests the promise with local data only.
 
 ---
 
@@ -381,11 +377,11 @@ Pilot (v0.9) deliberately comes before backend and paywall: it tests the promise
 | D2 | Which phone(s) do you test on? | Your own plus one emulator now; add a second brand before v0.8. |
 | D3 | Auth for sync: anonymous device id + optional email magic link, Google sign-in, or phone number? | Email magic link, optional; the app works without an account. |
 | D4 | Library size at launch? | Cover the exercises in your Hevy history and the 7 templates first, then grow from pilot misses. **v0.12.0:** Mohamed asked for essentially all common gym exercises; 607 shipped. Remaining misses (uncommon, machine-brand-specific, strongman, mobility) will come from the pilot. |
-| D5 | Pilot and launch success thresholds (agreement rate, week-6 retention, paying users)? | You set them before the pilot starts; I will not propose numbers I cannot support. |
+| D5 | Pilot and launch success thresholds (agreement rate, week-6 retention)? | You set them before the pilot starts; I will not propose numbers I cannot support. |
 | D6 | Who reviews privacy policy and terms? | A lawyer or reputable template service; confirm Egypt and EU needs. |
 | D7 | Crash/analytics tool? | The cheapest tool that can run opt-in and avoids set-level content; decide at Step 18. |
 | D8 | Who can edit a shared gym? | Moot: shared gyms dropped (gym UI removed). Creator-only edits would have applied. |
-| D9 | Billing library? | Decide at Step 24 after checking Egypt payment options. |
+| D9 | Billing library? | Moot: GAIN is completely free (2026-10-03); no billing library. |
 | D10 | Do the rep ceilings 10/12/15 and one-session trigger stay default after the trainer review? | Keep until the trainer and pilot say otherwise. |
 | D11 | Android auto-backup of the app database (currently on, the Expo default): leave on or turn off? | Default: leave on until the privacy policy (Step 17); the delete screen says it exists. |
 

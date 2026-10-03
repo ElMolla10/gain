@@ -89,7 +89,7 @@ additions: close, plus, minus, alert, phone, cloud, play, edit) - `SettingsRows`
   are separate messages. The two are never one tick. Sync screen status uses the same words.
 - **Status is never colour alone** (icon + words everywhere; `InlineStatus`, `Notice`).
 - **No example data in production.** Empty states say what will show up. Harness numbers (below) exist only in the screenshot tool.
-- **Progress rules, recommendations, billing: untouched.** No AI, no billing, no change to targets.
+- **Progress rules and recommendations: untouched.** No AI, no change to targets. (Historical note: this release also stated "no billing"; the dormant Plans scaffold it mentions was removed on 2026-10-03 and GAIN is completely free.)
 - **Bug found while rendering and fixed.** Today compared a programme-slot id with a target's exercise id, so planned targets never showed
   next to exercises (also in v0.15.0). It now matches on `exerciseId`. No rule or number changed.
 - **Workout screen:** the "Saved on this phone" line now shows when a resumed workout already has saved sets (before, it said "Nothing logged yet"). Unsaved rows and a failed save are now part of that line (the failure alert is still shown) instead of only an alert or a footnote.
@@ -109,7 +109,7 @@ additions: close, plus, minus, alert, phone, cloud, play, edit) - `SettingsRows`
 - **Layout direction override** moved under Advanced; "auto" follows the language.
 - **Logo.** The kit's simplified lime logo proposals were not used; the original logo geometry is kept (the kit says its vectors are not exact traces).
 - **Back-compat.** The old `accentText` palette field and the logger's `blue*` names are gone; the test suite was updated with them.
-- **Not changed:** the Plans (billing preview) screen stays behind its flag (`PLAN_FLAGS.planPreviewVisible = false`); it was restyled but is unreachable, and no billing was enabled.
+- **Historical (v0.15.0):** a hidden Plans preview screen was restyled but unreachable. It, its flags and the scaffold were removed on 2026-10-03; GAIN is completely free.
 
 ## 6. Verification: what was and was not checked
 

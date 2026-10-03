@@ -49,4 +49,4 @@ GAIN is a training log and suggestion tool. It is not a doctor, a physiotherapis
 [How changes are announced.] Contact: [email].
 
 ## What changes this text (future steps)
-Email sign-in (once a provider exists), a model layer (23), billing (24), analytics (18, if ever), a Play listing (data-safety form, Step 26): each one adds data flows and **requires updating this policy and the in-app page first**.
+Email sign-in (once a provider exists), a model layer (23), analytics (18, if ever), a Play listing (data-safety form, Step 26): each one adds data flows and **requires updating this policy and the in-app page first**.

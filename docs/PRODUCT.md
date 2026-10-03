@@ -1,7 +1,9 @@
 # GAIN — Product Description
 
 Name: GAIN.
-Status: product to build. Pricing and launch numbers below are decisions to test, not forecasts.
+Status: product to build. Launch numbers below are decisions to test, not forecasts.
+
+**GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.**
 
 ## Product overview
 
@@ -189,7 +191,7 @@ A later assistant can answer “what did I lift last time?” and “why is this
 | Programme | Week, exercises, versions |
 | History | Sessions and one trend per lift |
 | Gym | Fingerprint, increments, shared gym profile |
-| Settings | Language, units, privacy, subscription |
+| Settings | Language, units, privacy, backup and sync, data export |
 
 ## Design
 
@@ -203,13 +205,15 @@ Review status (2026-10-03): Mohamed reports a trainer said the workouts/template
 
 The app is a training aid. It is not a doctor, a physio, or a licensed coach. Pain gets a clear line to professional advice, not a generated treatment. No form scoring from video, no body-photo judgement, no meal plans, no public feed in the first releases.
 
-## Price
+## Free for everyone
 
-Free: logging, history, one template, basic charts, own-data export, next-session targets with their reason, standard weight steps. Records stay available after cancel. The next-weight recommendation is the core promise and is not behind a paywall.
+GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.
 
-Paid (only if a decision to charge is made after the pilot): goal pace, short-week rebuild, weekly decision. Show the limit before purchase.
+Every feature is available to every lifter: logging, history, templates, charts, next-session targets with their reason, standard weight steps you can adjust, goal pace, short-week rebuild, the weekly review, own-data export, and optional backup and sync. There is no free-versus-paid split, no trial, no paywall and no upgrade prompt. GAIN does not carry ads or ask for donations either. Records are always yours and always visible.
 
-Hypothesis to test: a monthly price near a local coaching snack, and an annual price that is the default offer. Annual should be the plan shown first. A trial has to cover several real sessions, with renewal stated before it starts. Confirm store fees and tax before locking a number. Do not assume 149–249 EGP a month is what people will pay until someone pays it.
+The optional sync server has technical storage and request limits that protect it from abuse (see [SYNC.md](SYNC.md)). They are operational safeguards, the same for everyone, not a plan or a tier.
+
+Earlier drafts of this document described a free/paid split and a pricing test. That was dropped: see Step 24 and decision D9 in [MASTER-PLAN.md](MASTER-PLAN.md).
 
 ## First release
 
@@ -221,11 +225,11 @@ Not in the first release: chatbot, social feed, wearables, nutrition, video scor
 
 Start in one gym. Ten lifters who already log. Import or retype a month, show them the next weight beside the number they would have picked, and ask which they would load. Keep the ones who come back for Thursday’s target.
 
-Coaches get the card, not a SaaS pitch. A shared gym fingerprint makes the second member faster to onboard than the first. Growth is someone on the next bench seeing the target and asking what the app is. Spend on acquisition only after those people are still logging in week six and a few have paid a stated price.
+Coaches get the card, not a SaaS pitch. A shared gym fingerprint makes the second member faster to onboard than the first. Growth is someone on the next bench seeing the target and asking what the app is. Spend on acquisition only after those people are still logging in week six.
 
 ## Success
 
-A user can log without fighting the screen, trust the next weight enough to load it, and tell whether the goal is on pace. A few of them pay and stay. That is the win. Beating every existing app at logging, social, and programming at once is not the goal, and is not required.
+A user can log without fighting the screen, trust the next weight enough to load it, and tell whether the goal is on pace. A few of them stay for months. That is the win. Beating every existing app at logging, social, and programming at once is not the goal, and is not required.
 
 ### Short description
 

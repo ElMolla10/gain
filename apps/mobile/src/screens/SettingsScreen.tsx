@@ -1,4 +1,3 @@
-import { PLAN_FLAGS } from "../logic/plans";
 import { useNavigation } from "@react-navigation/native";
 import { HealthNote } from "../components/HealthNote";
 import { UpdateCard } from "../components/UpdateCard";
@@ -192,7 +191,7 @@ export function SettingsScreen() {
   const appearance = useAppearance();
   const version = Constants.expoConfig?.version ?? "0";
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Plans") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy") => void }>();
   return (
     <Screen tab title={t("tab.settings")}>
       <Group title={t("settings.group.training")}>
@@ -256,7 +255,6 @@ export function SettingsScreen() {
         <LinkRow label={t("sync.entry")} onPress={() => nav.navigate("Sync")} />
         <LinkRow label={t("import.entry")} note={t("import.entryNote")} onPress={() => nav.navigate("Import")} />
         <LinkRow label={t("dec.entry")} onPress={() => nav.navigate("DecisionLog")} />
-        {PLAN_FLAGS.planPreviewVisible ? <LinkRow label={t("plans.entry")} onPress={() => nav.navigate("Plans")} /> : null}
       </Group>
 
       <Group title={t("settings.group.about")}>

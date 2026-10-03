@@ -1,4 +1,4 @@
-# GAIN sync + coach-link Worker. Free tier only: one Worker, one D1 database, no paid add-ons.
+# GAIN sync + coach-link Worker. Hosting: one Worker and one D1 database on Cloudflare's own free plan, no add-ons (a hosting detail, not a GAIN plan).
 name = "gain-sync"
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
@@ -11,7 +11,7 @@ database_name = "gain-sync"
 database_id = "cf6d113c-a0ae-40fc-a100-28a71e693821"
 migrations_dir = "migrations"
 
-# Daily housekeeping (03:23 UTC): expired coach links, old rate-limit windows and sign-in codes, devices unused for 400+ days. Free tier allows cron triggers.
+# Daily housekeeping (03:23 UTC): expired coach links, old rate-limit windows and sign-in codes, devices unused for 400+ days. Cron triggers are included in Cloudflare's free plan.
 [triggers]
 crons = ["23 3 * * *"]
 

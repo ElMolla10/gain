@@ -42,8 +42,10 @@ Per row, the version with the **later `updated_at`** wins. At the very same mill
 - **Anonymous account + recovery code** is the default, so sync works with **no email provider**: the code (20 characters) is the only way to restore on a new phone. Lose the phone *and* the code and the backup is unreachable. The server stores only hashes of tokens and codes.
 - **Email sign-in (optional):** implemented as a one-time 8-digit **code** typed into the app (not a clickable link: a deep link back into the app is unverified without a device). **BLOCKED on an email provider**: nothing is configured, so the endpoint answers 501. Two ways to unblock, both untested against a real mail service: set the `RESEND_API_KEY` secret (`wrangler secret put RESEND_API_KEY`) and the `EMAIL_FROM` var (a Resend-verified sender), or point the code at another provider in `src/email.ts`. `DEV_EMAIL_CODES="1"` returns the code in the response for local testing and **must never be set on a deployed Worker** (a test checks `wrangler.toml`).
 
-## Limits and cost (free tier)
-Workers free: 100k requests/day. D1 free: 5 GB, 100k rows written/day, 5M rows read/day. A first upload writes ~1 row per event. Push batches are 100 events. These limits are from Cloudflare's docs as I remember them, **not measured**; re-check before relying on them.
+## Limits and cost
+GAIN has no plans or tiers. The limits below are Cloudflare's hosting limits plus GAIN's own per-account **storage limit** and request limits (see "Limits (P17)" below), the same for every account. They are operational safeguards against abuse and runaway storage, not a paywall.
+
+Cloudflare Workers free plan: 100k requests/day. D1 free plan: 5 GB, 100k rows written/day, 5M rows read/day. A first upload writes ~1 row per event. Push batches are 100 events. These limits are from Cloudflare's docs as I remember them, **not measured**; re-check before relying on them.
 
 ## Deploy
 `apps/server/scripts/deploy.sh` (needs `wrangler login` done; creates D1 `gain-sync` if missing, applies migrations, deploys Worker `gain-sync`). Then `node apps/server/scripts/smoke.mjs <worker url>`. Nothing secret is written into the repo.
@@ -62,21 +64,21 @@ See the status section appended after the first deploy, and the client side in S
 - Not done: image version, link preview, per-view notifications, a "live" card that updates (a link is a snapshot).
 
 ## Deployed (2026-10-03) and what exists in Mohamed's Cloudflare account
-Deployed with wrangler (OAuth login already on the box as imody10@gmail.com), free tier only:
-- Worker **`gain-sync`** at **https://gain-sync.elmolla10.workers.dev** (workers.dev subdomain already existed; no custom domain, no routes, no cron, no paid add-on).
+Deployed with wrangler (OAuth login already on the box as imody10@gmail.com), Cloudflare free plan only:
+- Worker **`gain-sync`** at **https://gain-sync.elmolla10.workers.dev** (workers.dev subdomain already existed; no custom domain, no routes, no cron, no add-on).
 - D1 database **`gain-sync`**, id `cf6d113c-a0ae-40fc-a100-28a71e693821` (an id is not a secret; it is in `wrangler.toml`), migrations 0001 and 0002 applied.
 - No secrets set (`RESEND_API_KEY` absent, so email sign-in answers 501). `DEV_EMAIL_CODES="0"`.
 - Existing resources (`fpl-edge`, `fpl-edge-pr57`, D1 `fpl-edge-db`) were not touched.
 - `node apps/server/scripts/smoke.mjs https://gain-sync.elmolla10.workers.dev` passed against the deployed Worker (16 checks incl. push/replay/stale/tombstone/recovery/coach link/delete account). Test accounts were deleted; the database was empty afterwards.
 - Redeploy: `apps/server/scripts/deploy.sh`. Roll back: `npx wrangler@4.147.0 rollback` (Workers keep previous versions).
 - To remove everything: `npx wrangler@4.147.0 delete gain-sync` and `npx wrangler@4.147.0 d1 delete gain-sync`.
-- Request volume is unmetered by us; nobody is rate limited globally, only per address/account (see the table). A flood from many addresses could exhaust the free daily request quota (the Worker would then answer errors until the next day): accepted risk for a pilot.
+- Request volume is unmetered by us; nobody is rate limited globally, only per address/account (see the table). A flood from many addresses could exhaust Cloudflare's daily request allowance (the Worker would then answer errors until the next day): accepted risk for a pilot.
 
 ## D1 backups and restore (checked 2026-10-03)
 
 What was checked on the live database `gain-sync` (id `cf6d113c-a0ae-40fc-a100-28a71e693821`, not a secret) with `wrangler@4.147.0` as the account owner, read-only commands only:
 - **Time Travel is on.** It is always on for D1; nothing to enable and no extra cost. `wrangler d1 time-travel info gain-sync` returned a current bookmark, and `--timestamp=<an hour earlier>` returned a bookmark, so history exists.
-- **Retention:** 7 days on the Workers Free plan, 30 days on Workers Paid (Cloudflare D1 limits page). I did not confirm which plan the account is on; assume **7 days** (this project is on the free tier).
+- **Retention:** 7 days on the Workers Free plan, 30 days on Workers Paid (Cloudflare D1 limits page). I did not confirm which plan the account is on; assume **7 days** (this project is on Cloudflare's free plan).
 - **Manual export works:** `d1 export gain-sync --remote --no-data` produced a 60-line schema file. A data export was not made (the database may hold real pilot data; this repo and these docs never contain any).
 - **Region:** the database runs in **ENAM** (eastern North America), no jurisdiction set. This answers "where is the data": the US east side. Egypt/EU data-residency rules are still **not assessed** (Step 17). A jurisdiction (EU) can only be chosen when a database is created.
 - Size 102 kB, 7 tables, read replication off.
@@ -102,7 +104,7 @@ Restoring overwrites the live database in place, so write down the "before" book
 **Generation (P07).** Each account has a `generation` (migration `0003_generation.sql`), returned by `/v1/me`, push and pull. It bumps when the account's synced rows are wiped (`DELETE /v1/sync/data`, used by "replace the backup"): sequence numbers restart at 1 after a wipe, so a phone's old cursor would silently skip new rows. A phone remembers the generation it last synced against; when it sees a different one, or when the server's newest change (`head`) is *behind* the phone's cursor (a restored/rewound D1), it **reconciles**: forgets what the server is known to have (every local row becomes unsent), resets its cursor to 0, re-reads the server's rows and re-sends its own (last-write-wins merges them). Nothing local is deleted. Tested against the real Worker code in `apps/server/test/e2e`.
 - **Operator runbook after restoring D1 (Time Travel / backup):** run `UPDATE account SET generation = generation + 1;` straight afterwards. A rewind that is later *outgrown* (the server's head passes the phone's old cursor again with different rows under those numbers) cannot be seen from inside the database, so bumping the generation is the reliable signal. Phones then reconcile on their next sync.
 
-**Limits (P17).** Request bodies over 9 MB are refused (413) before they are read; a single row is at most 64 KB; a push is at most 100 events and 8 MB; each account may hold `ACCOUNT_QUOTA_BYTES` characters of synced data (default 25,000,000; counted in `account.bytes_used`, updated by every push; a push that could pass it gets `413 quota_exceeded`).
+**Limits (P17).** Request bodies over 9 MB are refused (413) before they are read; a single row is at most 64 KB; a push is at most 100 events and 8 MB; each account has a **storage limit** of `ACCOUNT_QUOTA_BYTES` characters of synced data (default 25,000,000; counted in `account.bytes_used`, updated by every push; a push that could pass it gets `413 quota_exceeded`).
 
 **Kill switch.** Set the Worker variable `KILL_SWITCH` in the Cloudflare dashboard (no deploy): `1` = every endpoint except `/health` answers `503 service_paused`; `writes` = pull, `/v1/me` and coach-card views keep working but new accounts, pushes, sign-in codes and coach links are refused (recover, logout and DELETE still work). Anything else = normal. Phones treat 503 as a temporary server error.
 

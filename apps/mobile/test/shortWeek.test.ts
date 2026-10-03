@@ -89,7 +89,7 @@ describe("rebuildShortWeek by hand", () => {
   });
 });
 
-describe("rebuildShortWeek over all 7 templates", () => {
+describe("rebuildShortWeek over all templates", () => {
   it("never cuts a goal lift before an accessory, keeps floors, lists every cut, and hits the budget when it can", async () => {
     const { programmes } = await freshDb().then(async (c) => (await c.repos.seedIfNeeded(), c));
     const lib = await programmes.listExercises();

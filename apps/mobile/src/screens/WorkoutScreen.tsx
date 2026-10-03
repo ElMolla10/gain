@@ -1,8 +1,8 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
 import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, TextInput, Vibration, View } from "react-native";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Pressable, ScrollView, TextInput, Vibration, View, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
@@ -58,6 +58,25 @@ const clock = (ms: number) => {
 // For a timed exercise the row's "reps" box holds seconds or metres (the database stores reps = 1 plus duration_s / distance_m).
 const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.durationS ?? s.distanceM ?? s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags });
 const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, replacedBy: null, note: "", restOff: false, added: false, position: null, superset: null });
+
+/**
+ * The rest-timer readout. It ticks every 250 ms on its own (P27), so the logger screen is not re-rendered four times a second while a
+ * rest counts down. The timer value (an end time) is owned by the screen; this only reads it.
+ */
+const RestClock = memo(function RestClock({ timer, style }: { timer: RestTimer; style: TextStyle }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (timer.endsAt === null) return;
+    setNow(Date.now());
+    const h = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(h);
+  }, [timer.endsAt]);
+  return (
+    <AppText ltr style={style}>
+      {formatClock(remainingMs(timer, now))}
+    </AppText>
+  );
+});
 
 /** Ticks once a second on its own, so the rest of the screen does not re-render every second. */
 function LiveDuration({ startedAt, color }: { startedAt: number; color: string }) {
@@ -128,7 +147,6 @@ export function WorkoutScreen() {
   const [timer, setTimer] = useState<RestTimer>(() => newTimer());
   const [timerOpen, setTimerOpen] = useState(false);
   const [rest, setRest] = useState<RestSettings>(defaultRestSettings());
-  const [now, setNow] = useState(Date.now());
   const [restOver, setRestOver] = useState(false);
   const [jumpThreshold, setJumpThreshold] = useState(10);
   const startedRef = useRef(false);
@@ -246,22 +264,22 @@ export function WorkoutScreen() {
     [restAlerts, workout],
   );
 
-  // The clock only runs while a rest is counting down.
+  // When the rest timer reaches zero: buzz once, remember it, stop. One timeout at the end time, not a per-tick check on the screen.
   useEffect(() => {
     if (timer.endsAt === null) return;
-    setNow(Date.now());
-    const h = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(h);
-  }, [timer.endsAt]);
-
-  // When the rest timer reaches zero: buzz once, remember it, stop.
-  useEffect(() => {
-    if (timer.endsAt !== null && isDone(timer, now)) {
+    const fire = () => {
       if (rest.vibrate) Vibration.vibrate(400);
       setRestOver(true);
       setTimer((tm) => stopTimer(tm));
+    };
+    const wait = timer.endsAt - Date.now();
+    if (wait <= 0) {
+      fire();
+      return;
     }
-  }, [now, timer, rest.vibrate]);
+    const h = setTimeout(fire, wait);
+    return () => clearTimeout(h);
+  }, [timer, rest.vibrate]);
 
   const setsByEx = useMemo(() => {
     const m = new Map<string, SetRow[]>();
@@ -835,7 +853,7 @@ export function WorkoutScreen() {
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={t("workout.restTimerBtn")} accessibilityState={{ expanded: timerOpen }} onPress={() => setTimerOpen((o) => !o)} style={timerRunning ? { height: 48, minWidth: 48, paddingHorizontal: 12, flexDirection: "row", gap: 6, borderRadius: 24, backgroundColor: p.field, alignItems: "center", justifyContent: "center" } : circle}>
           <Stopwatch size={16} color={timerRunning ? p.blue : p.text} />
-          {timerRunning ? <AppText ltr style={{ color: p.blue, fontWeight: "700", fontSize: 15 }}>{formatClock(remainingMs(timer, now))}</AppText> : null}
+          {timerRunning ? <RestClock timer={timer} style={{ color: p.blue, fontWeight: "700", fontSize: 15 }} /> : null}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={t("workout.finishBtn")} disabled={finishing} onPress={() => askFinish(loaded)} style={{ minHeight: 48, paddingHorizontal: 20, borderRadius: 24, backgroundColor: finishing ? p.line : p.blueFill, alignItems: "center", justifyContent: "center" }}>
           <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>{t("workout.finishBtn")}</AppText>
@@ -868,7 +886,7 @@ export function WorkoutScreen() {
         {timerOpen ? (
           <View style={{ marginHorizontal: 12, marginBottom: 6, padding: 12, gap: 8, borderRadius: 12, backgroundColor: p.card }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <AppText ltr style={{ fontSize: 32, fontWeight: "800", minWidth: 92 }}>{formatClock(remainingMs(timer, now))}</AppText>
+              <RestClock timer={timer} style={{ fontSize: 32, fontWeight: "800", minWidth: 92 }} />
               {[-15, 15].map((d) => (
                 <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${d > 0 ? "+" : "−"}${Math.abs(d)}`} onPress={() => setTimer((tm) => adjustTimer(tm, d, Date.now()))} style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}>
                   <AppText ltr style={{ fontWeight: "700", fontSize: 18 }}>{d > 0 ? `+${d}` : `−${-d}`}</AppText>

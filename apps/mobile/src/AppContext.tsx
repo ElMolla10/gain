@@ -1,3 +1,4 @@
+import type { Reminders } from "./logic/reminders";
 import React, { createContext, useContext } from "react";
 import type { Repos } from "./db/repos";
 import type { Db } from "./db/driver";
@@ -35,6 +36,7 @@ export interface AppServices {
   decisions: DecisionRepo;
   data: DataRepo;
   restAlerts: RestAlerts;
+  reminders: Reminders;
   /** Opt-in backup/sync and coach links. Nothing here touches the network until the lifter turns it on or taps Share as a link. */
   sync: SyncEngine;
   coachLinks: CoachLinks;

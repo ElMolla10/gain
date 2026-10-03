@@ -20,7 +20,7 @@ Everything is saved **on your phone**, in GAIN's private app storage (a SQLite d
 | Safety copy before an update (`gain-before-update.json`, a full copy of your data in GAIN's private folder, written only when an update changes the database layout; replaced next time; removed by Delete everything) | restoring your data if an update goes wrong | on, not optional |
 | Crash log (error names, short messages, trimmed stack, where) | fixing bugs. No workout data. | on by default, can be switched off |
 
-GAIN does not request location, contacts, camera, photos, microphone, accounts or advertising identifiers. Declared Android permissions beyond the defaults: installing the update APK it downloads (`REQUEST_INSTALL_PACKAGES`), vibration for the rest timer, and (only if you switch it on) notifications for the end-of-rest alert.
+GAIN does not request location, contacts, camera, photos, microphone, accounts or advertising identifiers. Declared Android permissions beyond the defaults: installing the update APK it downloads (`REQUEST_INSTALL_PACKAGES`), vibration for the rest timer, and (only if you switch them on) notifications for the end-of-rest alert and for training-day reminders (local notifications you schedule yourself; nothing is sent from a server).
 
 ## 3. What can leave your phone, and when
 Only through something you start:

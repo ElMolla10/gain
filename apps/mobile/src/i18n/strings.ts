@@ -6,6 +6,7 @@ import { arUpdate, enUpdate } from "./strings.update";
 import { arDiag, enDiag } from "./strings.diag";
 import { arPlans, enPlans } from "./strings.plans";
 import { arPrivacy, enPrivacy } from "./strings.privacy";
+import { arRemind, enRemind } from "./strings.remind";
 import { arData, enData } from "./strings.data";
 import { arDecisions, enDecisions } from "./strings.decisions";
 import { arGoals, enGoals } from "./strings.goals";
@@ -184,6 +185,7 @@ export const en = {
   ...enDiag,
   ...enPrivacy,
   ...enPlans,
+  ...enRemind,
   ...enGoals,
   ...enWeekly,
   ...enShortWeek,
@@ -365,6 +367,7 @@ export const ar: Record<StringKey, string> = {
   ...arDiag,
   ...arPrivacy,
   ...arPlans,
+  ...arRemind,
   ...arGoals,
   ...arWeekly,
   ...arShortWeek,

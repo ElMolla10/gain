@@ -8,10 +8,11 @@ import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip } from "../ui";
+import { AppText, BigButton, Card, Chip, Stepper } from "../ui";
 import type { StringKey } from "../i18n/strings";
 import Constants from "expo-constants";
 import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
+import { loadReminderSettings, REMINDER_KEYS, reminderText, serializeDays, serializeTime, syncReminders, toggleDay, type ReminderSettings } from "../logic/reminders";
 import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
@@ -84,6 +85,59 @@ function useSilentRackSync() {
       if (g && isStandardRack(g.loads, other) && !isStandardRack(g.loads, unit)) await gyms.updateGym(g.id, { name: g.name, loads: defaultGymLoads(unit) });
     })().catch(() => undefined);
   }, [repos, gyms, unit]);
+}
+
+/** Opt-in reminders on the chosen weekdays at a chosen time (local notifications; off by default; not verified on a phone). */
+function ReminderCard() {
+  const { t, lang } = useI18n();
+  const p = usePalette();
+  const { repos, reminders } = useServices();
+  const [s, setS] = useState<ReminderSettings | null>(null);
+  const [note, setNote] = useState<StringKey | null>(null);
+  useEffect(() => {
+    void loadReminderSettings(repos).then(setS);
+  }, [repos]);
+  if (!s) return null;
+  const apply = async (next: ReminderSettings) => {
+    await repos.setSetting(REMINDER_KEYS.on, next.on ? "1" : "0");
+    await repos.setSetting(REMINDER_KEYS.days, serializeDays(next.days));
+    await repos.setSetting(REMINDER_KEYS.time, serializeTime(next.hour, next.minute));
+    setS(next);
+    const r = await syncReminders(reminders, next, reminderText(lang));
+    setNote(r === "failed" ? "remind.failed" : null);
+  };
+  return (
+    <Card>
+      <AppText style={{ fontWeight: "700" }}>{t("remind.settings")}</AppText>
+      <AppText style={{ color: p.muted }}>{t("remind.intro")}</AppText>
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        <Chip
+          label={t("remind.on")}
+          selected={s.on}
+          onPress={async () => {
+            const r = await reminders.ensurePermission();
+            if (r === "granted") await apply({ ...s, on: true });
+            else {
+              setNote(r === "denied" ? "remind.perm.denied" : "remind.perm.unavailable");
+              await apply({ ...s, on: false });
+            }
+          }}
+        />
+        <Chip label={t("remind.off")} selected={!s.on} onPress={() => void apply({ ...s, on: false })} />
+      </View>
+      <AppText style={{ color: p.muted }}>{t("remind.days")}</AppText>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+        {[6, 0, 1, 2, 3, 4, 5].map((d) => (
+          <Chip key={d} label={t(`weekly.day.${d}` as StringKey)} selected={s.days.includes(d)} onPress={() => void apply({ ...s, days: toggleDay(s.days, d) })} />
+        ))}
+      </View>
+      <Stepper label={t("remind.hour")} value={s.hour} min={0} max={23} onChange={(n) => void apply({ ...s, hour: n })} />
+      <Stepper label={t("remind.minute")} value={s.minute} min={0} max={55} step={5} onChange={(n) => void apply({ ...s, minute: n })} />
+      {s.on && s.days.length === 0 ? <AppText style={{ color: p.muted }}>{t("remind.pickDays")}</AppText> : null}
+      {note ? <AppText style={{ color: p.danger }}>{t(note)}</AppText> : null}
+      <AppText style={{ color: p.muted, fontSize: 13 }}>{t("remind.note")}</AppText>
+    </Card>
+  );
 }
 
 function RestCard() {
@@ -175,6 +229,7 @@ export function SettingsScreen() {
       </Card>
       <WeekStartCard />
       <RestCard />
+      <ReminderCard />
       <Card>
         <BigButton label={t("goals.entry")} selected={false} onPress={() => nav.navigate("Goals")} />
         <BigButton label={t("data.entry")} selected={false} onPress={() => nav.navigate("Data")} />

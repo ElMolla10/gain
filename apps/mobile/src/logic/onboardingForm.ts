@@ -1,6 +1,5 @@
-import type { EquipmentType } from "@gain/engine";
 import type { MuscleGroup } from "./exposure";
-import { normalizeDigits } from "./gymInput";
+import { GYM_EQUIPMENT, normalizeDigits } from "./gymInput";
 import { optionalNumber, validateProfile, type GoalInput, type Profile, type ProfileProblemCode } from "./onboarding";
 import { parseNumber } from "./gymInput";
 import { unitToKg, type Unit } from "./units";
@@ -12,7 +11,6 @@ export interface OnboardingForm {
   units: Unit;
   days: number | null;
   minutes: number | null;
-  equipment: EquipmentType[];
   goalKind: "lift" | "bodyweight" | "muscle" | null;
   goalExerciseId: string | null;
   goalLoadText: string;
@@ -29,7 +27,6 @@ export const emptyOnboardingForm = (language: "en" | "ar", units: Unit = "kg"): 
   units,
   days: null,
   minutes: null,
-  equipment: [],
   goalKind: null,
   goalExerciseId: null,
   goalLoadText: "",
@@ -78,7 +75,8 @@ export function buildProfile(f: OnboardingForm, nowMs: number): BuildResult {
     units: f.units,
     daysPerWeek: f.days ?? 0,
     sessionMinutes: f.minutes ?? 0,
-    equipment: f.equipment,
+    // No equipment question: a full gym is assumed (the silent default gym has every kind of load).
+    equipment: [...GYM_EQUIPMENT],
     goal: goal ?? { kind: "muscle", muscle: "other" },
     heightCm: height,
     bodyweightKg: bw,
@@ -94,7 +92,7 @@ export const STEPS: Step[] = ["language", "units", "basics", "goal", "programme"
 /** Problems that block leaving a step (later steps are checked when they are reached, and all again at the end). */
 export function stepProblems(step: Step, f: OnboardingForm, nowMs: number): FormProblemCode[] {
   const all = buildProfile(f, nowMs).problems;
-  const basics: FormProblemCode[] = ["days_bad", "minutes_bad", "no_equipment"];
+  const basics: FormProblemCode[] = ["days_bad", "minutes_bad"];
   const goal: FormProblemCode[] = ["goal_missing", "goal_muscle_missing", "goal_exercise_missing", "goal_load_bad", "goal_reps_bad", "goal_weight_bad", "goal_date_bad", "bodyweight_required", "bodyweight_bad", "height_bad"];
   if (step === "basics") return all.filter((p) => basics.includes(p));
   if (step === "goal") return all.filter((p) => goal.includes(p));

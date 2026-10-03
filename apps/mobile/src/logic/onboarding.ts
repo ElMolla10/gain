@@ -30,7 +30,6 @@ export const MINUTES_OPTIONS = [30, 45, 60, 75, 90, 120] as const;
 export type ProfileProblemCode =
   | "days_bad"
   | "minutes_bad"
-  | "no_equipment"
   | "goal_exercise_missing"
   | "goal_load_bad"
   | "goal_reps_bad"
@@ -65,7 +64,6 @@ export function validateProfile(p: Profile, nowMs: number): ProfileProblem[] {
   const out: ProfileProblem[] = [];
   if (!Number.isInteger(p.daysPerWeek) || p.daysPerWeek < 1 || p.daysPerWeek > 7) out.push({ code: "days_bad" });
   if (!Number.isInteger(p.sessionMinutes) || p.sessionMinutes < 15 || p.sessionMinutes > 240) out.push({ code: "minutes_bad" });
-  if (p.equipment.length === 0) out.push({ code: "no_equipment" });
   const g = p.goal;
   if (g.kind === "lift") {
     if (!g.exerciseId) out.push({ code: "goal_exercise_missing" });

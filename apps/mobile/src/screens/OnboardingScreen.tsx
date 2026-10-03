@@ -10,8 +10,8 @@ import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { ceilingForName } from "../logic/ceilings";
-import { MUSCLE_GROUPS } from "../logic/exposure";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
+import { MUSCLE_GROUPS } from "../logic/exposure";
 import { draftHasExercise, markGoalLift, DAYS_OPTIONS, MINUTES_OPTIONS } from "../logic/onboarding";
 import { buildProfile, emptyOnboardingForm, STEPS, stepProblems, type OnboardingForm, type Step } from "../logic/onboardingForm";
 import { validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
@@ -58,7 +58,6 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
   const keyById = useMemo(() => new Map(library.filter((e) => e.seedKey).map((e) => [e.id, e.seedKey!])), [library]);
   const idx = STEPS.indexOf(step);
   const set = (patch: Partial<OnboardingForm>) => setForm((f) => ({ ...f, ...patch }));
-  const toggleEquipment = (e: EquipmentType) => set({ equipment: form.equipment.includes(e) ? form.equipment.filter((x) => x !== e) : [...form.equipment, e] });
   const problems = stepProblems(step, form, now);
 
   const goTo = (s: Step) => {
@@ -82,7 +81,7 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
       { byKey: seedKeys },
       {
         lang,
-        equipment: form.equipment,
+        equipment: [...GYM_EQUIPMENT],
         sessionMinutes: form.minutes,
         goalLiftKey: goalKey,
         ceilingFor: (key) => {
@@ -147,9 +146,6 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
             {chipRow(DAYS_OPTIONS.map((d) => <Chip key={d} label={String(d)} selected={form.days === d} onPress={() => set({ days: d })} />))}
             <AppText style={{ fontWeight: "700" }}>{t("ob.minutes")}</AppText>
             {chipRow(MINUTES_OPTIONS.map((m) => <Chip key={m} label={t("ob.minutesValue", { n: m })} selected={form.minutes === m} onPress={() => set({ minutes: m })} />))}
-            <AppText style={{ fontWeight: "700" }}>{t("ob.equipment")}</AppText>
-            <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.equipmentNote")}</AppText>
-            {chipRow(GYM_EQUIPMENT.map((e) => <Chip key={e} label={t(`equipment.${e}` as StringKey)} selected={form.equipment.includes(e)} onPress={() => toggleEquipment(e)} />))}
             {problemLines(problems)}
           </>
         );

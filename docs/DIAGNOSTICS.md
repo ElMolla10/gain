@@ -9,6 +9,9 @@ Status: **built, unit-tested only, NOT run on a device. Wording needs legal revi
 - **Where entries come from:** React Native's global error hook (previous handler still runs afterwards, so app behaviour is unchanged), a root error boundary (a screen that throws while drawing shows a plain message and "Try again" instead of a blank screen), and a failure while opening the database at start-up.
 - **Export is opt-in each time.** "Show me the report" displays the plain-text report (app version, Android version, language, database schema number, the entries). "Share the report" writes it to the cache folder as `gain-diagnostics-<date>.txt` and opens the Android share sheet; the lifter chooses the destination. Nothing happens automatically.
 
+## Send feedback (v0.17.0, for pilot testers)
+Settings > Diagnostics > "Send feedback" opens Android's share sheet with a short TEXT message (not a file): three questions to fill in (what did you do, what did you expect/what happened, did you lose sets or see a wrong weight), then the app version, Android version, language, database schema, how many crash notes are saved and the latest three as one line each (kind, where, message; no stack traces). The lifter edits it and chooses where it goes. Nothing is sent by the app; no workout data is included (unit-tested on the builder: `buildFeedbackMessage`). Never run on a phone. English questions with a draft Arabic version.
+
 ## Guarantees that are tested
 `apps/mobile/test/diagnostics.test.ts`: entry trimming and redaction, repeat counting, 50-entry cap, damaged log file ignored, off switch honoured, the logger never throws (disk errors included), report contains no workout data and says so, global handler logs then delegates, no double install, and a source guard that the diagnostics code contains no network, analytics or crash-service references.
 

@@ -137,6 +137,32 @@ export function buildReport(entries: readonly DiagEntry[], ctx: ReportContext): 
   return [...head, ...body].join("\n");
 }
 
+export interface FeedbackLabels {
+  title: string;
+  did: string;
+  expected: string;
+  lost: string;
+  tech: string;
+  crashNotes: string;
+  latest: string;
+}
+
+/**
+ * A feedback message the lifter edits and sends by hand through the system share sheet (text only; nothing is sent by the app). Questions to
+ * fill in, then phone/app facts and the latest crash-log lines WITHOUT stack traces. Contains no workout data by construction (the entries are
+ * the redacted crash-log entries, which hold none).
+ */
+export function buildFeedbackMessage(entries: readonly DiagEntry[], ctx: Omit<ReportContext, "generatedAt">, labels: FeedbackLabels, recent = 3): string {
+  const lines = [labels.title, "", `1. ${labels.did}`, "", "", `2. ${labels.expected}`, "", "", `3. ${labels.lost}`, "", "", `--- ${labels.tech} ---`];
+  lines.push(`App version: ${ctx.appVersion}`, `Platform: ${ctx.platform} ${ctx.osVersion ?? ""}`.trimEnd(), `Language: ${ctx.language}`, `Database schema: ${ctx.schemaVersion ?? "unknown"}`, `${labels.crashNotes}: ${entries.length}`);
+  const last = entries.slice(-recent);
+  if (last.length > 0) {
+    lines.push(`${labels.latest}:`);
+    for (const e of last) lines.push(`- ${e.kind.toUpperCase()} at ${e.where}: ${e.message.split("\n")[0]!.slice(0, 120)}`);
+  }
+  return lines.join("\n");
+}
+
 export interface Diagnostics {
   record(kind: DiagKind, where: string, err: unknown): void;
   entries(): DiagEntry[];

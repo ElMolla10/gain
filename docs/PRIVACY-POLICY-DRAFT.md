@@ -2,7 +2,7 @@
 
 > **Status: draft for a lawyer or a reputable template service to review (decision D6). Do not publish it as final.** Placeholders in [square brackets] are open. Which laws apply to Egyptian users and to any EU users is **unknown** here; until a reviewer says otherwise the working standard is GDPR-style principles: collect little, ask consent where needed, let people export and delete.
 >
-> The in-app version is Settings > Privacy and safety (`strings.privacy.ts`, English and a DRAFT Arabic translation). `apps/mobile/test/privacyFlows.test.ts` fails if the code stops matching the statements below. Version of the app described: 0.10.0 (Android, sideloaded APK).
+> The in-app version is Settings > Privacy and safety (`strings.privacy.ts`, English and a DRAFT Arabic translation). `apps/mobile/test/privacyFlows.test.ts` fails if the code stops matching the statements below. Version of the app described: 0.17.0 (Android, sideloaded APK); sections 2 and 3 were last re-read against the code and the built APK on 2026-10-03.
 
 ## 1. Who is responsible
 [Controller: person or company name], [postal address], contact: [email]. (Mohamed to decide; D6.)
@@ -20,7 +20,7 @@ Everything is saved **on your phone**, in GAIN's private app storage (a SQLite d
 | Safety copy before an update (`gain-before-update.json`, a full copy of your data in GAIN's private folder, written only when an update changes the database layout; replaced next time; removed by Delete everything) | restoring your data if an update goes wrong | on, not optional |
 | Crash log (error names, short messages, trimmed stack, where) | fixing bugs. No workout data. | on by default, can be switched off |
 
-GAIN does not request location, contacts, camera, photos, microphone, accounts or advertising identifiers. Declared Android permissions beyond the defaults: installing the update APK it downloads (`REQUEST_INSTALL_PACKAGES`), vibration for the rest timer, and (only if you switch them on) notifications for the end-of-rest alert and for training-day reminders (local notifications you schedule yourself; nothing is sent from a server).
+GAIN does not request location, contacts, camera, photos, microphone, accounts or advertising identifiers. **Android permissions in the finished app** (checked with `aapt2 dump permissions` on the built APK; v0.16.0 and earlier carried extra ones that libraries add by default, removed in v0.17.0, see [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md)): internet (update check, opt-in sync, coach links), installing the update APK it downloads (`REQUEST_INSTALL_PACKAGES`), vibration for the rest timer, wake lock / run at boot / notifications (the end-of-rest alert and, if you switch them on, training-day reminders: local notifications you schedule yourself, nothing is sent from a server), network state, and a set of launcher-badge permissions added by the notifications library (unused). Earlier builds also listed overlay, shared-storage and biometric permissions that GAIN never used.
 
 ## 3. What can leave your phone, and when
 Only through something you start:

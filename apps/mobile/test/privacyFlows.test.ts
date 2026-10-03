@@ -43,6 +43,15 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
     const cfg = JSON.parse(text(join(root, "app.json"))) as { expo: { android: { permissions: string[] } } };
     expect(cfg.expo.android.permissions).toEqual(["REQUEST_INSTALL_PACKAGES"]);
   });
+  it("permissions that libraries add but the app never uses are removed from the final manifest (overlay, shared storage, biometrics)", () => {
+    const cfg = JSON.parse(text(join(root, "app.json"))) as { expo: { android: { blockedPermissions?: string[] } } };
+    expect([...(cfg.expo.android.blockedPermissions ?? [])].sort()).toEqual(
+      ["android.permission.READ_EXTERNAL_STORAGE", "android.permission.SYSTEM_ALERT_WINDOW", "android.permission.USE_BIOMETRIC", "android.permission.USE_FINGERPRINT", "android.permission.WRITE_EXTERNAL_STORAGE"],
+    );
+    // The source behind that claim: files are picked with the system picker and written to the app's own folders; secure-store is never asked to require authentication.
+    const all = src.map(text).join("\n");
+    expect(all).not.toMatch(/requireAuthentication|SYSTEM_ALERT_WINDOW|MANAGE_EXTERNAL_STORAGE|PermissionsAndroid|getPermissionsAsync\(\)\s*.*MediaLibrary/);
+  });
   it("the page says the things the code makes true, and is marked DRAFT", () => {
     expect(en["privacy.draft"]).toMatch(/DRAFT/);
     expect(en["privacy.local.body"]).toMatch(/By default there is no account and no server/);

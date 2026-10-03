@@ -5,7 +5,7 @@ import { FLOOR_SETS, MIN_GOAL_SETS, rebuildShortWeek, type Rebuild } from "../sr
 import { estimateSessionMinutes, instantiateTemplate, TEMPLATES } from "../src/logic/templates";
 import { freshDb } from "./helpers";
 
-const pat: Record<string, string> = { bench: "horizontal_push", row: "horizontal_pull", curl: "elbow_flexion", press: "vertical_push", squat: "squat", rdl: "hinge", tri: "elbow_extension", calf: "calf", lat: "vertical_pull" };
+const pat: Record<string, string> = { bench: "horizontal_push", row: "horizontal_pull", curl: "elbow_flexion", press: "vertical_push", squat: "squat", rdl: "hinge", tri: "elbow_extension", calf: "calf", lat: "vertical_pull", row2: "horizontal_pull" };
 const patternOf = (id: string) => pat[id];
 const ex = (id: string, sets = 3, goal = false) => newExercise(id, { sets, isGoalLift: goal });
 const draft = (days: [string, ReturnType<typeof ex>[]][]): ProgrammeDraft => ({ name: "P", days: days.map(([name, exercises]) => ({ name, exercises })) });
@@ -86,6 +86,24 @@ describe("rebuildShortWeek by hand", () => {
     const kept = r.draft.days[0]!.exercises.map((e) => e.exerciseId);
     expect(kept).toContain("squat"); // quads is a priority muscle (a muscle goal): 3 sets, floor min(3, 6) = 3
     expect(r.floorMissed).toEqual([]);
+  });
+});
+
+describe("a priority floor that cannot be met does not push the cuts onto the goal lift", () => {
+  it("1 kept day, back is the goal muscle on 2 days: the 2-session floor is unmet from the start, accessories still go before goal sets", () => {
+    const p = draft([
+      ["A", [ex("lat", 4, true), ex("row", 3), ex("curl", 3), ex("tri", 3)]],
+      ["B", [ex("row2", 3), ex("press", 3)]],
+    ]);
+    const r = ok(rebuildShortWeek(p, { days: 1, minutes: 25, patternOf }));
+    const kept = r.draft.days[0]!.exercises;
+    expect(kept.find((e) => e.exerciseId === "lat")!.sets).toBe(4); // goal lift untouched
+    expect(r.overBudget).toBe(false);
+    expect(r.minutes[0]!).toBeLessThanOrEqual(25);
+    expect(kept.map((e) => e.exerciseId).sort()).toEqual(["lat", "row", "row2"]); // non-priority work went first
+    // The unmet floor is not made worse: at least the original 6 sets of back remain.
+    expect(kept.filter((e) => e.exerciseId !== "curl").reduce((n, e) => n + e.sets, 0)).toBeGreaterThanOrEqual(6);
+    expect(r.floorMissed).toContain("back"); // and it is still reported as missed (2 sessions are impossible on 1 day)
   });
 });
 

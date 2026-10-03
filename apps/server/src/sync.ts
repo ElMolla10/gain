@@ -5,6 +5,12 @@ import { HttpError, type Env } from "./types";
 import { json, readJson } from "./util";
 
 const MINUTE = 60 * 1000;
+export const DEFAULT_ACCOUNT_QUOTA = 25_000_000;
+
+async function generationOf(env: Env, accountId: string): Promise<number> {
+  const r = await env.DB.prepare("SELECT generation FROM account WHERE id = ?").bind(accountId).first<{ generation: number }>();
+  return r?.generation ?? 1;
+}
 
 /**
  * The last-write-wins guard, in SQL so two concurrent pushes cannot both win. Same order as compareVersions() in @gain/sync:
@@ -44,25 +50,37 @@ export async function push(req: Request, env: Env, auth: Auth, now: number): Pro
   if (good.length > 0) {
     // What the server holds now, only to tell "duplicate" (same event seen before) from "stale" (a newer version won).
     const existing = new Map<string, string>();
+    const oldLen = new Map<string, number>();
     for (let k = 0; k < good.length; k += 30) {
       const chunk = good.slice(k, k + 30);
       const q = chunk.map(() => "(tbl = ? AND row_id = ?)").join(" OR ");
-      const rows = await env.DB.prepare(`SELECT tbl, row_id, event_id FROM sync_row WHERE account_id = ? AND (${q})`)
+      const rows = await env.DB.prepare(`SELECT tbl, row_id, event_id, LENGTH(data) AS len FROM sync_row WHERE account_id = ? AND (${q})`)
         .bind(auth.accountId, ...chunk.flatMap((g) => [g.ev.table, g.ev.rowId]))
-        .all<{ tbl: string; row_id: string; event_id: string }>();
-      for (const r of rows.results) existing.set(`${r.tbl}|${r.row_id}`, r.event_id);
+        .all<{ tbl: string; row_id: string; event_id: string; len: number }>();
+      for (const r of rows.results) {
+        existing.set(`${r.tbl}|${r.row_id}`, r.event_id);
+        oldLen.set(`${r.tbl}|${r.row_id}`, r.len);
+      }
     }
+    // Per-account storage quota: refuse a push that could take the account past it. (Upper bound: counts every event as if it won.)
+    const quota = Number(env.ACCOUNT_QUOTA_BYTES ?? DEFAULT_ACCOUNT_QUOTA) || DEFAULT_ACCOUNT_QUOTA;
+    const used = (await env.DB.prepare("SELECT bytes_used FROM account WHERE id = ?").bind(auth.accountId).first<{ bytes_used: number }>())?.bytes_used ?? 0;
+    const growth = good.reduce((n, g) => n + Math.max(0, g.ev.data.length - (oldLen.get(`${g.ev.table}|${g.ev.rowId}`) ?? 0)), 0);
+    if (used + growth > quota) throw new HttpError(413, "quota_exceeded", { quota, used });
     const batch = await env.DB.batch(
       good.map((g) => env.DB.prepare(UPSERT).bind(auth.accountId, g.ev.table, g.ev.rowId, g.ev.updatedAt, g.ev.deletedAt, g.ev.data, g.ev.eventId, auth.deviceId, now)),
     );
+    let delta = 0;
     good.forEach((g, k) => {
       const changed = (batch[k]?.meta?.changes ?? 0) > 0;
+      if (changed) delta += g.ev.data.length - (oldLen.get(`${g.ev.table}|${g.ev.rowId}`) ?? 0);
       if (changed) results[g.i] = { eventId: g.ev.eventId, status: "applied" };
       else results[g.i] = { eventId: g.ev.eventId, status: existing.get(`${g.ev.table}|${g.ev.rowId}`) === g.ev.eventId ? "duplicate" : "stale" };
     });
+    if (delta !== 0) await env.DB.prepare("UPDATE account SET bytes_used = MAX(0, bytes_used + ?) WHERE id = ?").bind(delta, auth.accountId).run();
   }
   const head = await env.DB.prepare("SELECT COALESCE(MAX(seq), 0) AS head FROM sync_row WHERE account_id = ?").bind(auth.accountId).first<{ head: number }>();
-  const out: PushResponse = { results, head: head?.head ?? 0 };
+  const out: PushResponse = { results, head: head?.head ?? 0, generation: await generationOf(env, auth.accountId) };
   return json(out);
 }
 
@@ -85,12 +103,17 @@ export async function pull(req: Request, env: Env, auth: Auth, now: number): Pro
     head: head?.head ?? 0,
     next: page.length > 0 ? page[page.length - 1]!.seq : since,
     hasMore: rows.results.length > limit,
+    generation: await generationOf(env, auth.accountId),
   };
   return json(out);
 }
 
 /** DELETE /v1/sync/data: removes the synced rows but keeps the account (used by "keep this phone's data, replace the backup"). */
 export async function wipeData(env: Env, auth: Auth): Promise<Response> {
-  await env.DB.prepare("DELETE FROM sync_row WHERE account_id = ?").bind(auth.accountId).run();
-  return json({ wiped: true });
+  // The sequence numbers start again from 1 after a wipe, so the generation changes: other phones must not trust their old cursor.
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM sync_row WHERE account_id = ?").bind(auth.accountId),
+    env.DB.prepare("UPDATE account SET generation = generation + 1, bytes_used = 0 WHERE id = ?").bind(auth.accountId),
+  ]);
+  return json({ wiped: true, generation: await generationOf(env, auth.accountId) });
 }

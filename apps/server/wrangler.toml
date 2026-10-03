@@ -11,7 +11,14 @@ database_name = "gain-sync"
 database_id = "cf6d113c-a0ae-40fc-a100-28a71e693821"
 migrations_dir = "migrations"
 
+# Daily housekeeping (03:23 UTC): expired coach links, old rate-limit windows and sign-in codes, devices unused for 400+ days. Free tier allows cron triggers.
+[triggers]
+crons = ["23 3 * * *"]
+
 [vars]
 # Email sign-in codes are only printed in the API response when this is "1". NEVER set it on a deployed Worker.
 DEV_EMAIL_CODES = "0"
 EMAIL_FROM = ""
+# Optional limits and the kill switch (set in the dashboard, no deploy needed):
+#   ACCOUNT_QUOTA_BYTES = "25000000"   max characters of synced data per account
+#   KILL_SWITCH = "1" | "writes"       "1" pauses everything except /health; "writes" refuses new accounts, pushes and coach links

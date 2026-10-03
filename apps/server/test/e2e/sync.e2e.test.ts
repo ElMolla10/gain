@@ -478,3 +478,40 @@ describe("turning it off", () => {
     expect(await a.engine.getRecoveryCode()).toBeNull();
   });
 });
+
+describe("the server's copy was replaced or rewound (P07)", () => {
+  it("after a server-side wipe the phone notices the new generation, re-sends everything and loses nothing", async () => {
+    const { w, a } = await pair();
+    await a.trainOnce();
+    await sync(a);
+    const token = (await a.engine.token())!;
+    const before = Number((await w.call("GET", "/v1/me", { token })).body.rows);
+    expect(before).toBeGreaterThan(0);
+    // the operator (or a "replace the backup" on another phone) wipes the account's rows
+    await w.call("DELETE", "/v1/sync/data", { token });
+    expect(Number((await w.call("GET", "/v1/me", { token })).body.rows)).toBe(0);
+    w.tick(61_000);
+    const r = await sync(a);
+    expect(r.reconciled).toBe(true);
+    expect(Number((await w.call("GET", "/v1/me", { token })).body.rows)).toBe(before);
+    // and it settles: the next sync has nothing to do
+    w.tick(61_000);
+    const again = await sync(a);
+    expect(again.reconciled).toBe(false);
+    expect(again.pushed).toBe(0);
+  });
+
+  it("a server restored to an older state (its newest change is behind the phone's cursor) is detected and repaired", async () => {
+    const { w, a } = await pair();
+    await a.trainOnce();
+    await sync(a);
+    const token = (await a.engine.token())!;
+    const before = Number((await w.call("GET", "/v1/me", { token })).body.rows);
+    // simulate a restore to an earlier backup: the newest half of the rows are gone, the generation is unchanged
+    w.db.raw.exec("DELETE FROM sync_row WHERE seq > (SELECT MAX(seq) / 2 FROM sync_row)");
+    w.tick(61_000);
+    const r = await sync(a);
+    expect(r.reconciled).toBe(true);
+    expect(Number((await w.call("GET", "/v1/me", { token })).body.rows)).toBe(before);
+  });
+});

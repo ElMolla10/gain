@@ -116,10 +116,10 @@ export async function logout(auth: Auth, env: Env): Promise<Response> {
 }
 
 export async function me(auth: Auth, env: Env): Promise<Response> {
-  const a = await env.DB.prepare("SELECT id, email, created_at FROM account WHERE id = ?").bind(auth.accountId).first<{ id: string; email: string | null; created_at: number }>();
+  const a = await env.DB.prepare("SELECT id, email, created_at, generation FROM account WHERE id = ?").bind(auth.accountId).first<{ id: string; email: string | null; created_at: number; generation: number }>();
   const d = await env.DB.prepare("SELECT COUNT(*) AS n FROM device WHERE account_id = ?").bind(auth.accountId).first<{ n: number }>();
   const h = await env.DB.prepare("SELECT COALESCE(MAX(seq), 0) AS head, COUNT(*) AS rows FROM sync_row WHERE account_id = ?").bind(auth.accountId).first<{ head: number; rows: number }>();
-  return json({ accountId: a?.id, email: a?.email ?? null, createdAt: a?.created_at, devices: d?.n ?? 0, head: h?.head ?? 0, rows: h?.rows ?? 0 });
+  return json({ accountId: a?.id, email: a?.email ?? null, createdAt: a?.created_at, devices: d?.n ?? 0, generation: a?.generation ?? 1, head: h?.head ?? 0, rows: h?.rows ?? 0 });
 }
 
 /** DELETE /v1/account: everything the server holds for this account is removed (rows, devices, links, the account itself). */

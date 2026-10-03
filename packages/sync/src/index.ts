@@ -90,6 +90,8 @@ export interface PushRequest {
 export interface PushResponse {
   results: PushResult[];
   head: number;
+  /** Changes when the server's copy of the account was replaced or rewound (wipe, restore). Absent on servers older than this field. */
+  generation?: number;
 }
 
 export interface PulledRow {
@@ -107,6 +109,8 @@ export interface PullResponse {
   /** The cursor to send next time (seq of the last row returned, or `since` if none). */
   next: number;
   hasMore: boolean;
+  /** See PushResponse.generation. */
+  generation?: number;
 }
 
 /** A row as a canonical JSON string: keys sorted, so the same row is the same string on every device. */

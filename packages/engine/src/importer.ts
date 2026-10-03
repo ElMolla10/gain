@@ -9,10 +9,21 @@ import type { EquipmentType, LoggedSet, SetupType } from "./types";
 export type ImportSource = "hevy" | "strong";
 export type WeightUnit = "kg" | "lb";
 
+/** A row with seconds and/or metres instead of reps (plank, dead hang, farmer's walk). Kept so it can be imported once the exercise is a timed one. */
+export interface ImportedTimedSet {
+  load: number;
+  durationS: number | null;
+  distanceM: number | null;
+  warmup?: boolean;
+  tags?: string[];
+}
+
 export interface ImportedExercise {
   /** The title exactly as exported. */
   title: string;
   sets: LoggedSet[];
+  /** Rows with no reps but a duration or a distance. Also counted in `skippedRows` (they are only imported for a timed exercise). Omitted = none. */
+  timed?: ImportedTimedSet[];
   /** Rows that were not a usable set (rest timers, timed or cardio rows with no reps). */
   skippedRows: number;
 }
@@ -85,6 +96,7 @@ function parseHevy(text: string): ImportParse {
   // Hevy names the weight column after the unit set in the app: weight_kg or weight_lbs.
   const inLbs = headerOf(text, ",").some((h) => h.toLowerCase() === "weight_lbs");
   const normalized = inLbs ? text.replace(/weight_lbs/i, "weight_kg").replace(/distance_miles/i, "distance_km") : text;
+  const metresPerDistanceUnit = inLbs ? 1609.344 : 1000; // distance_km, or distance_miles in a pounds file
   const r = parseHevyCsv(normalized);
   const workouts: ImportedWorkout[] = r.workouts.map((w) => ({
     source: "hevy",
@@ -94,10 +106,20 @@ function parseHevy(text: string): ImportParse {
     key: workoutKey("hevy", w.title, w.startTime),
     exercises: w.exercises.map((e) => {
       const sets: LoggedSet[] = [];
+      const timed: ImportedTimedSet[] = [];
       let skipped = 0;
       for (const s of e.sets) {
         if (s.reps === null || s.reps < 1) {
           skipped++;
+          const durationS = s.durationSeconds !== null && s.durationSeconds > 0 ? Math.round(s.durationSeconds) : null;
+          const distanceM = s.distanceKm !== null && s.distanceKm > 0 ? Math.round(s.distanceKm * metresPerDistanceUnit * 10) / 10 : null;
+          if (durationS !== null || distanceM !== null) {
+            const t: ImportedTimedSet = { load: s.weightKg ?? 0, durationS, distanceM };
+            if (s.type === "warmup") t.warmup = true;
+            else if (s.type === "dropset") t.tags = ["drop"];
+            else if (s.type === "failure") t.tags = ["failure"];
+            timed.push(t);
+          }
           continue;
         }
         const set: LoggedSet = { load: s.weightKg ?? 0, reps: s.reps };
@@ -107,7 +129,7 @@ function parseHevy(text: string): ImportParse {
         if (s.rpe !== null) set.rir = Math.max(0, 10 - s.rpe);
         sets.push(set);
       }
-      return { title: e.title, sets, skippedRows: skipped };
+      return timed.length > 0 ? { title: e.title, sets, timed, skippedRows: skipped } : { title: e.title, sets, skippedRows: skipped };
     }),
   }));
   return { source: "hevy", unit: inLbs ? "lb" : "kg", workouts, warnings: r.warnings, rowCount: r.rowCount };
@@ -167,6 +189,7 @@ function parseStrong(text: string): ImportParse {
   const iW = col("weight", "weight (kg)", "weight (lb)", "weight (lbs)");
   const iReps = col("reps");
   const iRpe = col("rpe");
+  const iSecs = col("seconds");
   const missing = [["Date", iDate], ["Workout Name", iName], ["Exercise Name", iEx], ["Set Order", iSet], ["Weight", iW], ["Reps", iReps]].filter(([, i]) => (i as number) < 0).map(([n]) => n);
   if (missing.length > 0) throw new HevyParseError(`Missing columns: ${missing.join(", ")}`);
   const wHeader = header[iW]!.toLowerCase();
@@ -217,6 +240,14 @@ function parseStrong(text: string): ImportParse {
     const reps = num(row[iReps]);
     if (reps === null || reps < 1) {
       ex.skippedRows++;
+      const secs = iSecs >= 0 ? num(row[iSecs]) : null;
+      if (secs !== null && secs > 0) {
+        const t: ImportedTimedSet = { load: num(row[iW]) ?? 0, durationS: Math.round(secs), distanceM: null };
+        if (kind === "warmup") t.warmup = true;
+        else if (kind === "drop") t.tags = ["drop"];
+        else if (kind === "failure") t.tags = ["failure"];
+        (ex.timed ??= []).push(t);
+      }
       continue;
     }
     const set: LoggedSet = { load: num(row[iW]) ?? 0, reps };
@@ -243,7 +274,7 @@ export function toKilograms(p: ImportParse, chosen?: WeightUnit): ImportParse {
   return {
     ...p,
     unit: "kg",
-    workouts: p.workouts.map((w) => ({ ...w, exercises: w.exercises.map((e) => ({ ...e, sets: e.sets.map((s) => ({ ...s, load: lbToKg(s.load) })) })) })),
+    workouts: p.workouts.map((w) => ({ ...w, exercises: w.exercises.map((e) => ({ ...e, sets: e.sets.map((s) => ({ ...s, load: lbToKg(s.load) })), ...(e.timed ? { timed: e.timed.map((s) => ({ ...s, load: lbToKg(s.load) })) } : {}) })) })),
   };
 }
 

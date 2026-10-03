@@ -159,6 +159,27 @@ export function IconButton(props: { icon: IconName; label: string; onPress: () =
   );
 }
 
+/**
+ * A quiet text action ("Why", "Change workout"): accent label with an optional icon, no fill and no outline, so it never competes with the
+ * primary button. The touch area is always at least 48 x 48 dp whatever the text size; a long label wraps and is never cut off.
+ */
+export function QuietAction(props: { label: string; onPress: () => void; onLongPress?: () => void; icon?: IconName; /** Spoken label when it must say more than the visible one (e.g. "Why: Bench Press"). */ accessibilityLabel?: string; /** For a control that opens or closes something in place. */ expanded?: boolean }) {
+  const p = usePalette();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={props.accessibilityLabel ?? props.label}
+      accessibilityState={props.expanded === undefined ? undefined : { expanded: props.expanded }}
+      onPress={props.onPress}
+      onLongPress={props.onLongPress}
+      style={({ pressed }) => ({ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.raised : "transparent" })}
+    >
+      {props.icon ? <Icon name={props.icon} color={p.accent} size={18} /> : null}
+      <AppText style={{ fontSize: ty.label, fontWeight: "600", color: p.accent, flexShrink: 1 }}>{props.label}</AppText>
+    </Pressable>
+  );
+}
+
 /** Labelled text field. Numbers stay left-to-right inside right-to-left layouts; the text itself follows the language. */
 export function Field(props: {
   label: string;
@@ -273,15 +294,15 @@ export function Stepper(props: { label: string; value: number; onChange: (n: num
   );
 }
 
-/** One line of status: icon + words, coloured by kind. Status is never colour alone. */
-export function InlineStatus({ kind, text }: { kind: "info" | "success" | "warn" | "error"; text: string }) {
+/** One line of status: icon + words, coloured by kind. Status is never colour alone. `compact` = caption size (a status that sits in a header). */
+export function InlineStatus({ kind, text, icon: iconOverride, compact }: { kind: "info" | "success" | "warn" | "error"; text: string; icon?: IconName; compact?: boolean }) {
   const p = usePalette();
   const color = kind === "error" ? p.danger : kind === "warn" ? p.warn : kind === "success" ? p.success : p.muted;
-  const icon: IconName = kind === "error" || kind === "warn" ? "alert" : kind === "success" ? "check" : "why";
+  const icon: IconName = iconOverride ?? (kind === "error" || kind === "warn" ? "alert" : kind === "success" ? "check" : "why");
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-start", gap: space.xs }}>
-      <View style={{ paddingTop: 2 }}><Icon name={icon} color={color} size={16} /></View>
-      <AppText style={{ color, fontSize: ty.label, flexShrink: 1 }}>{text}</AppText>
+      <View style={{ paddingTop: 2 }}><Icon name={icon} color={color} size={compact ? 14 : 16} /></View>
+      <AppText style={{ color, fontSize: compact ? ty.caption : ty.label, flexShrink: 1 }}>{text}</AppText>
     </View>
   );
 }
@@ -370,6 +391,41 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
         </View>
       </View>
     </Modal>
+  );
+}
+
+/**
+ * A one-of-many picker in a Sheet (e.g. which workout day). Rows are radio buttons: the chosen one carries a check mark AND a different
+ * surface (never colour alone), each row speaks "name, badge, detail", picking closes the sheet. 56 dp rows; long names wrap.
+ */
+export function ChoiceSheet(props: { visible: boolean; title: string; note?: string; onClose: () => void; onSelect: (id: string) => void; options: { id: string; label: string; detail?: string; /** A short status word such as "Suggested today". */ badge?: string; selected: boolean }[] }) {
+  const p = usePalette();
+  return (
+    <Sheet visible={props.visible} title={props.title} onClose={props.onClose}>
+      {props.note ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{props.note}</AppText> : null}
+      <View accessibilityRole="radiogroup" style={{ gap: space.sm }}>
+        {props.options.map((o) => (
+          <Pressable
+            key={o.id}
+            accessibilityRole="radio"
+            accessibilityLabel={[o.label, o.badge, o.detail].filter(Boolean).join(", ")}
+            accessibilityState={{ checked: o.selected, selected: o.selected }}
+            onPress={() => {
+              props.onSelect(o.id);
+              props.onClose();
+            }}
+            style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.sm, paddingHorizontal: space.lg, borderRadius: radius.card, borderWidth: o.selected ? 2 : 1, borderColor: o.selected ? p.accent : p.border, backgroundColor: o.selected ? p.tint : pressed ? p.raised : "transparent" })}
+          >
+            <View style={{ flex: 1, gap: 2 }}>
+              <AppText style={{ fontWeight: "600" }}>{o.label}</AppText>
+              {o.badge ? <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent }}>{o.badge}</AppText> : null}
+              {o.detail ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{o.detail}</AppText> : null}
+            </View>
+            {o.selected ? <Icon name="check" color={p.accent} size={22} /> : null}
+          </Pressable>
+        ))}
+      </View>
+    </Sheet>
   );
 }
 

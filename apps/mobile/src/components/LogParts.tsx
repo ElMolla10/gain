@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, PanResponder, Pressable, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 import { useI18n } from "../i18n";
 import { Icon } from "./Icon";
-import { INPUT_HEIGHT, radius, space, useLogPalette } from "../theme";
-import { AppText, Sheet, useInputFont } from "../ui";
+import { INPUT_HEIGHT, radius, space, type as ty, useLogPalette } from "../theme";
+import { AppText, QuietAction, Sheet, useInputFont } from "../ui";
 
 /**
  * Small building blocks of the active workout screen (icons live in components/Icon.tsx).
@@ -21,7 +21,10 @@ export function CellInput<T extends number>(props: {
   onValue: (v: T | null) => void;
   placeholder?: string;
   decimal?: boolean;
+  /** The row is ticked: the box loses its well so the row reads as finished, not as a form still to fill. */
   done?: boolean;
+  /** The set the lifter is on: the box gets an outline so it stands out from the wash behind it. */
+  current?: boolean;
   /** A small caption above the box (unit or column name); used when the row is laid out in two lines at large font sizes. */
   unitLabel?: string;
   style?: StyleProp<ViewStyle>;
@@ -61,8 +64,8 @@ export function CellInput<T extends number>(props: {
           ...font,
           height: INPUT_HEIGHT,
           borderRadius: radius.input,
-          borderWidth: bad || focused ? 2 : 0,
-          borderColor: bad ? p.warn : p.accent,
+          borderWidth: bad || focused ? 2 : props.current ? 1.5 : 0,
+          borderColor: bad ? p.warn : focused ? p.accent : p.edge,
           paddingHorizontal: 4,
           paddingVertical: 0,
           fontSize: 16,
@@ -151,5 +154,34 @@ export function MenuSheet(props: { visible: boolean; title: string; /** Kept for
     <Sheet visible={props.visible} title={props.title} onClose={props.onClose} footer={danger.length > 0 ? <>{danger.map((d, i) => row(d, i))}</> : undefined}>
       <View style={{ gap: 2 }}>{normal.map((it, i) => row(it, i))}</View>
     </Sheet>
+  );
+}
+
+/**
+ * The target of one exercise as a single compact line: "Target  55 kg × 9  [Why]". It wraps onto a second line when the text is large and
+ * is never cut off. "Why" is quiet (accent text, no frame) but keeps a 48 dp touch area. `reason` shows under the line while `expanded`.
+ */
+export function TargetLine(props: { label: string; value: string; whyLabel: string; whyA11y: string; onWhy: () => void; onWhyLong?: () => void; expanded?: boolean; reason?: string }) {
+  const p = useLogPalette();
+  return (
+    <View style={{ gap: 2 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: space.sm }}>
+        <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.label}</AppText>
+        <AppText style={{ fontSize: ty.section, fontWeight: "600", flexShrink: 1 }}>{props.value}</AppText>
+        <QuietAction label={props.whyLabel} icon="why" accessibilityLabel={props.whyA11y} expanded={props.expanded} onPress={props.onWhy} onLongPress={props.onWhyLong} />
+      </View>
+      {props.expanded && props.reason ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.reason}</AppText> : null}
+    </View>
+  );
+}
+
+/** The per-exercise rest-timer switch: timer icon + the length (or "Off"). The spoken label says it all; 48 dp tall. */
+export function RestToggle(props: { text: string; off: boolean; a11y: string; onPress: () => void }) {
+  const p = useLogPalette();
+  return (
+    <Pressable accessibilityRole="switch" accessibilityLabel={props.a11y} accessibilityState={{ checked: !props.off }} onPress={props.onPress} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}>
+      <Icon name="timer" color={props.off ? p.muted : p.accent} size={18} />
+      <AppText ltr={!props.off} style={{ color: props.off ? p.muted : p.accent, fontWeight: "600", fontSize: ty.label }}>{props.text}</AppText>
+    </Pressable>
   );
 }

@@ -6,7 +6,7 @@ import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, Vibration
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
-import { CellInput, MenuSheet, SwipeRow } from "../components/LogParts";
+import { CellInput, MenuSheet, RestToggle, SwipeRow, TargetLine } from "../components/LogParts";
 import { Icon } from "../components/Icon";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { WorkoutHelp } from "../components/WorkoutHelp";
@@ -26,7 +26,8 @@ import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type Jump
 import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
-import { acceptGhost, addRow, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { acceptGhost, addRow, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
@@ -133,6 +134,10 @@ export function WorkoutScreen() {
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const [outliers, setOutliers] = useState<Record<string, OutlierResult>>({});
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  /** The last save failed (shown in the header until a save succeeds); the alert alone would be easy to miss. */
+  const [saveError, setSaveError] = useState(false);
+  /** "Resumed your open workout": a confirmation that goes away by itself. */
+  const [resumeNote, setResumeNote] = useState(false);
   const [warmOpen, setWarmOpen] = useState<string | null>(null);
   const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
   const [whyOpen, setWhyOpen] = useState<Record<string, boolean>>({});
@@ -230,12 +235,19 @@ export function WorkoutScreen() {
       setSets(all);
       setRows(initial);
       setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), gym, slots, info });
+      if (resumed) setResumeNote(true);
     })().catch((e) => {
       diagnostics.record("error", "open workout", e);
       startedRef.current = false;
       setLoadError(true);
     });
   }, [repos, workout, programmes, dayId, makeDisp, buildInfo, attempt]);
+
+  useEffect(() => {
+    if (!resumeNote) return;
+    const h = setTimeout(() => setResumeNote(false), RESUMED_NOTE_MS);
+    return () => clearTimeout(h);
+  }, [resumeNote]);
 
   useEffect(() => {
     void repos.getSetting(JUMP_SETTING_KEY).then((v) => setJumpThreshold(parseJumpThreshold(v)));
@@ -349,9 +361,11 @@ export function WorkoutScreen() {
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
+      setSaveError(false);
     } catch (e) {
       // Storage full or the database failed: the row stays un-ticked (nothing half-saved) and the lifter is told, never left guessing.
       diagnostics.record("error", "save set", e);
+      setSaveError(true);
       Alert.alert(t("workout.saveFailed.title"), t("workout.saveFailed.body"));
     } finally {
       setBusy(null);
@@ -371,6 +385,7 @@ export function WorkoutScreen() {
       setRows((r) => ({ ...r, [ex.exerciseId]: unlogRow(r[ex.exerciseId] ?? [], row.key, Crypto.randomUUID()) }));
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
+      setSaveError(false);
     } finally {
       setBusy(null);
     }
@@ -531,6 +546,15 @@ export function WorkoutScreen() {
 
   const timerRunning = timer.endsAt !== null;
   const unlogged = Object.values(rows).reduce((n, list) => n + unloggedFilled(list), 0);
+  const unsavedRows = Object.values(rows).reduce((n, list) => n + pendingCount(list), 0);
+  const statusKind = saveStatusKind({ failed: saveError, saving: busy !== null, pending: unsavedRows, resumedNote: resumeNote, savedSets: sets.length });
+  const status =
+    statusKind === "failed" ? ({ kind: "error", icon: "alert", text: t("workout.status.failed") } as const)
+    : statusKind === "saving" ? ({ kind: "info", icon: "phone", text: t("workout.status.saving") } as const)
+    : statusKind === "unsaved" ? ({ kind: "info", icon: "edit", text: t("workout.status.unsaved", { n: unsavedRows }) } as const)
+    : statusKind === "resumed" ? ({ kind: "success", icon: "check", text: t("workout.resumed") } as const)
+    : statusKind === "saved" ? ({ kind: "info", icon: "phone", text: savedAt ? t("workout.saved", { time: clock(savedAt) }) : t("status.savedLocal") } as const)
+    : ({ kind: "info", icon: "why", text: t("workout.notSaved") } as const);
   const programmeIds = loaded.slots.filter((s) => !exState[s.exerciseId]?.added).map((s) => s.exerciseId);
   const order = orderSlots(programmeIds, exState);
   const ssLabel = supersetLabels(order, exState);
@@ -620,8 +644,8 @@ export function WorkoutScreen() {
     const stacked = fontScale > 1.3;
 
     return (
-      <View key={ex.id} style={{ gap: space.sm, paddingTop: space.xl, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.fill }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingStart: space.lg, paddingEnd: space.xs }}>
+      <View key={ex.id} style={{ gap: space.xs, paddingTop: space.lg, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.fill }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, paddingStart: space.lg, paddingEnd: space.xs }}>
           <View style={{ flex: 1 }}>
             {ssLabel[ex.slot] ? (
               <AppText style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}>{t("workout.superset.label", { letter: ssLabel[ex.slot]! })}</AppText>
@@ -629,38 +653,27 @@ export function WorkoutScreen() {
             <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
             {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
           </View>
+          {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
+          <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(timer.durationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}: ${labels.primary}`} onPress={() => void toggleRest(ex.slot)} />
           <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => setMenuFor(ex.slot)} />
         </View>
 
-        {/* Compact target line: the target is the largest thing in the block, with "Previous" in the table below it. It wraps onto a second line when it is long and is never cut off. */}
-        <View style={{ marginHorizontal: space.md, paddingVertical: space.md, paddingHorizontal: space.md, borderRadius: radius.card, backgroundColor: p.field, borderStartWidth: 4, borderStartColor: p.fill, gap: space.xs }}>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: space.md, rowGap: space.xs }}>
-            <View style={{ flexShrink: 1, gap: 2 }}>
-              <AppText style={{ fontSize: 13, fontWeight: "600", color: p.accent, letterSpacing: 0.4 }}>{t("workout.nextTarget")}</AppText>
-              <AppText style={{ fontSize: 28, fontWeight: "600" }}>{targetText}</AppText>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${t("workout.whyShort")}: ${labels.primary}`}
-              onPress={() => (info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id })) : setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded })))}
-              onLongPress={() => setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded }))}
-              style={{ minHeight: 48, minWidth: 48, flexDirection: "row", gap: space.xs, justifyContent: "center", alignItems: "center", paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1.5, borderColor: p.edge }}
-            >
-              <Icon name="why" color={p.accent} size={18} />
-              <AppText style={{ fontSize: 14, fontWeight: "600", color: p.accent }}>{t("workout.whyShort")}</AppText>
-            </Pressable>
-          </View>
-          {expanded ? <AppText style={{ fontSize: 14, color: p.muted }}>{reasonText}</AppText> : null}
+        {/* Compact target line: "Target 55 kg × 9 · Why". It wraps onto a second line when it is long and is never cut off. */}
+        <View style={{ paddingHorizontal: space.lg }}>
+          <TargetLine
+            label={t("workout.nextTarget")}
+            value={targetText}
+            whyLabel={t("workout.whyShort")}
+            whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
+            expanded={info.stored ? undefined : expanded}
+            reason={reasonText}
+            onWhy={() => (info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id })) : setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded })))}
+            onWhyLong={() => setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded }))}
+          />
+          {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md }}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}: ${labels.primary}`} onPress={() => void toggleRest(ex.slot)} style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.xs }}>
-            <Icon name="timer" color={st.restOff ? p.muted : p.accent} size={18} />
-            <AppText style={{ color: st.restOff ? p.muted : p.accent, fontWeight: "600", fontSize: 14 }}>{st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}</AppText>
-          </Pressable>
-        </View>
-
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingTop: space.xs }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md }}>
           <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
           <View style={{ flex: 1.3 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>
           {stacked ? null : (
@@ -677,7 +690,9 @@ export function WorkoutScreen() {
           {list.map((row, i) => {
             const done = row.saved && !row.dirty;
             const canTick = rowCanLog(row);
-            const bg = done ? p.doneBg : p.bg;
+            const current = currentRowKey(list) === row.key;
+            // Ticked rows get only a quiet wash (the lime tick says "done"); the set being worked on is the one with the strong wash, bar and outlined boxes.
+            const bg = done ? p.doneBg : current ? p.activeBg : p.bg;
             // Every small control says which exercise and which set it belongs to (a screen reader hears a list of identical boxes otherwise).
             const ctx = t("workout.setContext", { exercise: labels.primary, n: numbering[i] ?? i + 1 });
             const setButton = (
@@ -712,6 +727,8 @@ export function WorkoutScreen() {
                 placeholder={row.ghostLoad !== null ? weightText(row.ghostLoad, unit) : undefined}
                 unitLabel={stacked ? unitText : undefined}
                 decimal
+                done={done}
+                current={current}
               />
             );
             const repsCell = (
@@ -724,11 +741,14 @@ export function WorkoutScreen() {
                 onValue={(v) => patch(ex.exerciseId, row.key, { reps: v })}
                 placeholder={row.ghostReps !== null ? String(row.ghostReps) : undefined}
                 unitLabel={stacked ? (timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")) : undefined}
+                done={done}
+                current={current}
               />
             );
             const rirCell = ex.trackEffort ? (
-              <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: stacked ? 96 : 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v) => patch(ex.exerciseId, row.key, { rir: v })} unitLabel={stacked ? t("workout.col.rir") : undefined} />
+              <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: stacked ? 96 : 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v) => patch(ex.exerciseId, row.key, { rir: v })} unitLabel={stacked ? t("workout.col.rir") : undefined} done={done} current={current} />
             ) : null;
+            const bar = current ? <View pointerEvents="none" style={{ position: "absolute", start: 0, top: 6, bottom: 6, width: 4, borderRadius: 2, backgroundColor: p.accent }} /> : null;
             const tick = (
               <View style={colTick}>
                 <Pressable
@@ -737,7 +757,7 @@ export function WorkoutScreen() {
                   accessibilityLabel={`${done ? t("workout.untick") : row.saved ? t("workout.tickUpdate") : t("workout.tick")}. ${ctx}`}
                   disabled={busy !== null || (!row.saved && !canTick)}
                   onPress={() => (done ? void untick(ex, row) : void logRow(ex, row))}
-                  style={{ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.fill : p.field, borderWidth: done ? 0 : 1.5, borderColor: row.saved && row.dirty ? p.accent : p.edge, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
+                  style={{ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.fill : p.field, borderWidth: done ? 0 : current ? 2 : 1.5, borderColor: (row.saved && row.dirty) || current ? p.accent : p.edge, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
                 >
                   {row.saved && row.dirty ? <Icon name="edit" color={p.accent} size={20} /> : <Icon name="check" color={done ? p.onFill : p.muted} size={22} />}
                 </Pressable>
@@ -747,6 +767,7 @@ export function WorkoutScreen() {
               <SwipeRow key={row.key} background={bg} deleteLabel={t("workout.deleteSet")} onDelete={() => void dropRow(ex, row)}>
                 {stacked ? (
                   <View style={{ gap: space.xs, paddingHorizontal: space.md, paddingVertical: space.xs }}>
+                    {bar}
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                       {setButton}
                       {previous}
@@ -760,6 +781,7 @@ export function WorkoutScreen() {
                   </View>
                 ) : (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 2 }}>
+                    {bar}
                     {setButton}
                     {previous}
                     {loadCell}
@@ -872,7 +894,13 @@ export function WorkoutScreen() {
       {/* Compact header: back, title, rest timer, Finish. The numbers live in the stats row below, in the scroll. */}
       <View style={{ paddingTop: insets.top + space.xs, paddingBottom: space.xs, paddingHorizontal: space.xs, flexDirection: "row", alignItems: "center", gap: space.xs, backgroundColor: p.bg }}>
         <IconButton icon="chevron" back label={t("workout.collapse")} onPress={() => navigation.goBack()} />
-        <AppText accessibilityRole="header" style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{t("workout.header")}</AppText>
+        <View style={{ flex: 1, gap: 2, paddingHorizontal: space.xs }}>
+          <AppText accessibilityRole="header" style={{ fontSize: ty.body, fontWeight: "600" }}>{t("workout.header")}</AppText>
+          {/* Save status: always in view, in words + icon. Failures and unsaved work come before any friendlier message; "resumed" fades after a few seconds. */}
+          <View accessibilityLiveRegion="polite">
+            <InlineStatus compact kind={status.kind} icon={status.icon} text={status.text} />
+          </View>
+        </View>
         <IconButton icon="why" label={t("workout.help.button")} onPress={() => setHelpOpen(true)} />
         <Pressable
           accessibilityRole="button"
@@ -899,7 +927,7 @@ export function WorkoutScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, rowGap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.sm }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, rowGap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
           <Stat label={t("workout.stat.duration")}>
             <LiveDuration startedAt={loaded.startedAt} color={p.accent} />
           </Stat>
@@ -918,14 +946,6 @@ export function WorkoutScreen() {
             </Notice>
           </View>
         ) : null}
-
-        <View style={{ paddingHorizontal: space.lg, gap: 2 }}>
-          {loaded.resumed ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.resumed")}</AppText> : null}
-          <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: space.xs }}>
-            <Icon name="phone" color={p.muted} size={16} />
-            <AppText style={{ color: p.muted, fontSize: 13, flexShrink: 1 }}>{savedAt ? `${t("workout.saved", { time: clock(savedAt) })}` : sets.length > 0 ? t("status.savedLocal") : t("workout.notSaved")}</AppText>
-          </View>
-        </View>
 
         {shown.map((ex, i) => renderExercise(ex, i))}
 

@@ -107,8 +107,10 @@ export interface LogPalette {
   fill: string;
   onFill: string;
   fillPressed: string;
-  /** Background of a ticked (logged) row. */
+  /** Background of a ticked (logged) row: only a quiet olive wash; the filled lime tick is what says "done". */
   doneBg: string;
+  /** Background of the set the lifter is on now (the first unticked row of an exercise): clearly stronger than `doneBg`. */
+  activeBg: string;
   warn: string;
   danger: string;
   onDanger: string;
@@ -116,9 +118,9 @@ export interface LogPalette {
   edge: string;
 }
 
-const logOf = (p: Palette, doneBg: string): LogPalette => ({ bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, fillPressed: p.fillPressed, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
-export const logDarkPalette: LogPalette = logOf(darkPalette, "#273518");
-export const logLightPalette: LogPalette = logOf(lightPalette, "#E4F2BC");
+const logOf = (p: Palette, doneBg: string): LogPalette => ({ activeBg: p.tint, bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, fillPressed: p.fillPressed, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
+export const logDarkPalette: LogPalette = logOf(darkPalette, "#1C2315");
+export const logLightPalette: LogPalette = logOf(lightPalette, "#EEF4DC");
 
 /** Colours handed to the navigation container, so tab bar, headers and the logger all use the one identity. */
 export function navColors(p: Palette): { primary: string; background: string; card: string; text: string; border: string; notification: string } {

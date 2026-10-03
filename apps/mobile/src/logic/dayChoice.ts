@@ -24,3 +24,19 @@ export function initialSelection(days: DayLite[], suggestedId: string | null, op
   if (has(suggestedId)) return suggestedId;
   return days[0]?.id ?? null;
 }
+
+/** How the chosen day is labelled on Today. Always words, never a symbol alone: "Suggested today", "In progress" or "Your choice". */
+export type DayLabel = "inProgress" | "suggested" | "pick";
+export function dayLabel(day: { id: string; suggested: boolean }, openDayId: string | null): DayLabel {
+  if (openDayId !== null && day.id === openDayId) return "inProgress";
+  return day.suggested ? "suggested" : "pick";
+}
+
+/**
+ * What the one big button does for the chosen day. An open workout is always resumed (never abandoned, never stacked under another
+ * day): choosing a different day while one is open still resumes the open one, and says so (`elsewhere`). Otherwise the chosen day starts.
+ */
+export type SessionAction = { kind: "start"; dayId: string } | { kind: "resume"; dayId: string; elsewhere: boolean };
+export function sessionAction(chosenId: string, openDayId: string | null): SessionAction {
+  return openDayId === null ? { kind: "start", dayId: chosenId } : { kind: "resume", dayId: openDayId, elsewhere: openDayId !== chosenId };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialSelection, markSuggested } from "../src/logic/dayChoice";
+import { dayLabel, initialSelection, markSuggested, sessionAction } from "../src/logic/dayChoice";
 import { freshDb } from "./helpers";
 
 const days = [
@@ -21,6 +21,26 @@ describe("choosing the day (pure)", () => {
     expect(initialSelection(days, "b", null, "gone")).toBe("b");
     expect(initialSelection(days, null, null, null)).toBe("a");
     expect(initialSelection([], "b", null, null)).toBeNull();
+  });
+});
+
+describe("Today: label and the one action (pure)", () => {
+  const m = markSuggested(days, "b");
+  it("labels the chosen day in words: Suggested today / Your choice / In progress (no star)", () => {
+    expect(dayLabel(m[1]!, null)).toBe("suggested");
+    expect(dayLabel(m[0]!, null)).toBe("pick");
+    expect(dayLabel(m[2]!, "c")).toBe("inProgress");
+    expect(dayLabel(m[1]!, "c")).toBe("suggested"); // the suggestion keeps its label while another day is the open one
+  });
+  it("starts the chosen day when nothing is open", () => {
+    expect(sessionAction("a", null)).toEqual({ kind: "start", dayId: "a" });
+  });
+  it("resumes the open workout whichever day is shown, and says when it is another day", () => {
+    expect(sessionAction("c", "c")).toEqual({ kind: "resume", dayId: "c", elsewhere: false });
+    expect(sessionAction("a", "c")).toEqual({ kind: "resume", dayId: "c", elsewhere: true });
+  });
+  it("changing the picked day keeps the open workout selected after a reload (resume is never lost)", () => {
+    expect(initialSelection(days, "b", "c", "a")).toBe("c");
   });
 });
 

@@ -346,3 +346,23 @@ describe("an unconfirmed outlier never moves the next target (Step 5)", () => {
     expect(typo.bench).toMatchObject({ load: clean.bench.load, reps: clean.bench.reps, currency: clean.bench.currency, jumpKind: clean.bench.jumpKind });
   });
 });
+
+describe("P04 swapping a big jump for a smaller step", () => {
+  it("editTargetLoad can set the reps with the load (repeat + one more rep)", async () => {
+    const ctx = await freshDb();
+    await ctx.repos.seedIfNeeded();
+    const gymId = (await ctx.repos.getActiveGymId())!;
+    const gym = await ctx.repos.loadGymFingerprint(gymId);
+    const day = (await ctx.repos.getNextDay())!.day;
+    const ex = (await ctx.repos.listDayExercises(day.id))[0]!;
+    const planned = await ctx.finish.planDay(day.id, gymId);
+    const targets = await ctx.finish.getTargets(planned!.sessionId);
+    const tg = targets.find((x) => x.exerciseId === ex.exerciseId)!;
+    const load = tg.load ?? 20;
+    await ctx.finish.editTargetLoad(tg.id, load, gym, ex.equipment, ex.setup, 9);
+    const after = (await ctx.finish.getTarget(tg.id))!;
+    expect(after.status).toBe("edited");
+    expect(after.reps).toBe(9);
+    await expect(ctx.finish.editTargetLoad(tg.id, load, gym, ex.equipment, ex.setup, 0)).rejects.toThrow();
+  });
+});

@@ -2,7 +2,7 @@ import { isTimed, quantityText, targetPhrase, targetQuantity } from "../logic/qu
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, renderReason, type GymFingerprint } from "@gain/engine";
+import { findSpec, nextLoadAbove, renderReason, type GymFingerprint } from "@gain/engine";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, Share, View } from "react-native";
 import { useServices } from "../AppContext";
@@ -18,6 +18,7 @@ import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
+import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
 
 interface Next {
   sessionId: string;
@@ -44,6 +45,9 @@ export function FinishScreen() {
   const [link, setLink] = useState<{ id: string; url: string } | null>(null);
   const started = useRef(false);
   const [failed, setFailed] = useState(false);
+  /** A proposed jump of more than 10% waiting for the lifter's decision (P04). */
+  const [jumpFor, setJumpFor] = useState<{ targetId: string; check: JumpCheck; prev: number } | null>(null);
+  const [threshold, setThreshold] = useState(10);
   const [attempt, setAttempt] = useState(0);
 
   const reload = useCallback(
@@ -52,6 +56,10 @@ export function FinishScreen() {
   );
 
   // Write the next session's targets as soon as this screen opens (idempotent), then show them.
+  useEffect(() => {
+    void repos.getSetting(JUMP_SETTING_KEY).then((v) => setThreshold(parseJumpThreshold(v)));
+  }, [repos]);
+
   useEffect(() => {
     if (started.current) return;
     started.current = true;
@@ -242,7 +250,40 @@ export function FinishScreen() {
                   <View style={{ gap: space.sm }}>
                     {tg.currency !== "none" && tg.load !== null ? (
                       <>
-                        <BigButton label={t("finish.accept")} disabled={tg.status === "accepted"} onPress={() => act(() => finish.acceptTarget(tg.id))} />
+                        <BigButton
+                          label={t("finish.accept")}
+                          disabled={tg.status === "accepted"}
+                          onPress={() => {
+                            // A load jump of more than 10% over last time is confirmed first, with smaller steps on offer.
+                            const prev = Number(tg.reason.params.prevLoad);
+                            const lastReps = Number(tg.reason.params.lastReps);
+                            const micro = Number.isFinite(prev) ? (spec ? nextLoadAbove(spec, prev, false) : prev + 1.25) : null;
+                            const check = isTimed(tg.measure) ? null : checkJump({ prevLoad: Number.isFinite(prev) ? prev : null, prevReps: Number.isFinite(lastReps) ? lastReps : null, targetLoad: tg.effectiveLoad, targetReps: tg.reps, setup: info?.setup ?? "free", thresholdPct: threshold, microLoad: micro });
+                            if (check?.needsConfirm) return setJumpFor({ targetId: tg.id, check, prev });
+                            void act(() => finish.acceptTarget(tg.id));
+                          }}
+                        />
+                        {jumpFor?.targetId === tg.id && tg.effectiveLoad !== null ? (
+                          <View accessibilityLiveRegion="polite" style={{ gap: space.sm }}>
+                            <AppText style={{ fontWeight: "700", color: p.warn }}>{t("jump.title", { pct: jumpFor.check.pct, prev: formatLoad(jumpFor.prev, lang, unit), next: formatLoad(tg.effectiveLoad, lang, unit) })}</AppText>
+                            {jumpOptions(jumpFor.check, { load: tg.effectiveLoad, reps: tg.reps ?? 1 }, (k, params) => t(k, params), (kg) => formatLoad(kg, lang, unit)).map((o) => (
+                              <BigButton
+                                key={o.kind}
+                                label={o.label}
+                                selected={o.kind === "anyway"}
+                                onPress={() => {
+                                  setJumpFor(null);
+                                  void act(async () => {
+                                    if (o.kind === "anyway") return finish.acceptTarget(tg.id);
+                                    if (!info) return;
+                                    await finish.editTargetLoad(tg.id, o.load, next.gym, info.equipment, info.setup as "free", o.reps);
+                                  });
+                                }}
+                              />
+                            ))}
+                            <BigButton label={t("finish.cancel")} selected={false} onPress={() => setJumpFor(null)} />
+                          </View>
+                        ) : null}
                         <BigButton label={t("finish.edit")} selected={false} onPress={() => setEditing({ targetId: tg.id, load: tg.effectiveLoad ?? tg.load ?? 0 })} />
                         <BigButton label={t("finish.reject")} selected={false} disabled={tg.status === "rejected"} onPress={() =>
                           act(async () => {

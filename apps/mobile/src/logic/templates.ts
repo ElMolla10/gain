@@ -3,6 +3,7 @@ import { newExercise, type DraftDay, type ProgrammeDraft } from "./programmeDraf
 import { CORE_TEMPLATES } from "./templateData/core";
 import { GYM_BASIC_TEMPLATES } from "./templateData/gymBasic";
 import { GYM_SPLIT_TEMPLATES } from "./templateData/gymSplits";
+import { BAND_TEMPLATES, BODYWEIGHT_TEMPLATES, DUMBBELL_TEMPLATES } from "./templateData/home";
 import type { Template } from "./templateTypes";
 
 export * from "./templateTypes";
@@ -15,7 +16,7 @@ export * from "./templateTypes";
  * ordinary, common community / coaching ways to arrange a week, not a recommendation for any person. Arabic names are draft
  * translations (`arDraft`). Sources and rationale: docs/TEMPLATES.md.
  */
-export const TEMPLATES: Template[] = [...CORE_TEMPLATES, ...GYM_BASIC_TEMPLATES, ...GYM_SPLIT_TEMPLATES];
+export const TEMPLATES: Template[] = [...CORE_TEMPLATES, ...GYM_BASIC_TEMPLATES, ...GYM_SPLIT_TEMPLATES, ...DUMBBELL_TEMPLATES, ...BODYWEIGHT_TEMPLATES, ...BAND_TEMPLATES];
 
 export interface TemplateOffer {
   template: Template;

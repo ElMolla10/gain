@@ -174,28 +174,48 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return planNextSession(finished.gym_id);
   }
 
-  /** Plans the next programme day at this gym: a planned session plus a target per exercise. Same rules as writeNextSessionTargets. */
+  /** Plans the next (suggested) programme day at this gym: a planned session plus a target per exercise. Same rules as writeNextSessionTargets. */
   async function planNextSession(gymId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
     const next = await repos.getNextDay();
     if (!next) return null;
+    return planDay(next.day.id, gymId);
+  }
+
+  /**
+   * Plans ONE day of the active programme (the suggested one, or the one the lifter chose on Today): a planned session with a target per
+   * exercise. Only one planned session exists at a time, so planned sessions for other days (a suggestion the lifter skipped, a day that
+   * was missed) are voided: missed workouts never stack up. Finished and in-progress sessions are never touched. Null when that day's
+   * workout is already in progress, or the day is not part of the active programme.
+   */
+  async function planDay(dayId: string, gymId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
+    const active = await repos.getLatestProgrammeVersion();
+    if (!active) return null;
+    const day = await db.get<{ id: string; name: string; programme_version_id: string }>("SELECT id, name, programme_version_id FROM programme_day WHERE id = ? AND deleted_at IS NULL", [dayId]);
+    if (!day || day.programme_version_id !== active.versionId) return null;
     const open = await db.get<{ id: string; status: string }>(
       "SELECT id, status FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL",
-      [next.day.id],
+      [dayId],
     );
     if (open?.status === "in_progress") return null;
     return db.transaction(async () => {
       const t = now();
+      const others = await db.all<{ id: string }>("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL AND programme_day_id <> ?", [dayId]);
+      for (const o of others) {
+        await db.run("UPDATE decision_log SET deleted_at = ?, updated_at = ? WHERE deleted_at IS NULL AND target_id IN (SELECT id FROM target WHERE session_id = ?)", [t, t, o.id]);
+        await db.run("UPDATE target SET deleted_at = ?, updated_at = ? WHERE session_id = ? AND deleted_at IS NULL", [t, t, o.id]);
+        await db.run("UPDATE session SET deleted_at = ?, updated_at = ? WHERE id = ?", [t, t, o.id]);
+      }
       let sessionId = open?.id;
       if (!sessionId) {
         sessionId = newId();
         await db.run(
           `INSERT INTO session (id, programme_version_id, programme_day_id, gym_id, status, planned_for, created_at, updated_at)
            VALUES (?, ?, ?, ?, 'planned', ?, ?, ?)`,
-          [sessionId, next.versionId, next.day.id, gymId, new Date(t).toISOString().slice(0, 10), t, t],
+          [sessionId, day.programme_version_id, dayId, gymId, new Date(t).toISOString().slice(0, 10), t, t],
         );
       }
-      const created = await fillTargets(sessionId, next.day.id, gymId);
-      return { sessionId, dayName: next.day.name, created };
+      const created = await fillTargets(sessionId, dayId, gymId);
+      return { sessionId, dayName: day.name, created };
     });
   }
 
@@ -363,6 +383,6 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return db.get<{ id: string }>("SELECT id FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL", [dayId]);
   }
 
-  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
+  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, planDay, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
 }
 export type FinishRepo = ReturnType<typeof createFinishRepo>;

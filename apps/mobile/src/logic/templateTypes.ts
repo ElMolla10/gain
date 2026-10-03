@@ -8,9 +8,16 @@ export type TemplateId = string;
 export type TemplateLevel = "beginner" | "intermediate" | "advanced";
 export const TEMPLATE_LEVELS: readonly TemplateLevel[] = ["beginner", "intermediate", "advanced"];
 
-/** What the programme needs. "gym": any gear in the library. "dumbbell": dumbbells (and kettlebells) plus bodyweight moves only. "bodyweight": bodyweight moves only (a bar or sturdy edge for pulling). */
-export type TemplateGear = "gym" | "dumbbell" | "bodyweight";
-export const TEMPLATE_GEARS: readonly TemplateGear[] = ["gym", "dumbbell", "bodyweight"];
+/**
+ * What the programme needs. "gym": any gear in the library. "dumbbell": dumbbells (and kettlebells) plus bodyweight moves only.
+ * "band": resistance bands plus bodyweight moves only. "bodyweight": bodyweight moves only (a bar or sturdy edge for pulling).
+ */
+export type TemplateGear = "gym" | "dumbbell" | "band" | "bodyweight";
+export const TEMPLATE_GEARS: readonly TemplateGear[] = ["gym", "dumbbell", "band", "bodyweight"];
+
+/** Where it can be done. Home = bodyweight, dumbbells or bands only; Gym = anywhere with the gear (a gym has all of it, so home programmes also show under Gym). */
+export type TemplateVenue = "home" | "gym";
+export const TEMPLATE_VENUES: readonly TemplateVenue[] = ["home", "gym"];
 
 /** What the arrangement leans toward. "bulking" = a higher-volume muscle-gain emphasis; GAIN gives no food or calorie advice. */
 export type TemplateGoal = "general" | "strength" | "hypertrophy" | "bulking" | "glutes" | "arms_shoulders";

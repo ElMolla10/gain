@@ -3,6 +3,11 @@ import { LATEST_VERSION } from "./migrations";
 import type { Db, Deps } from "./driver";
 import { hasLoggedSets } from "./sessionSql";
 
+export class BackupIncomplete extends Error {
+  constructor(detail: string) {
+    super(`The backup would be incomplete (${detail}); nothing was saved.`);
+  }
+}
 export class RestoreFailed extends Error {
   constructor(detail: string) {
     super(`Restore failed, nothing was changed: ${detail}`);
@@ -44,7 +49,14 @@ export function createDataRepo(db: Db, deps: Deps, maint: Db = db) {
     // sync_* is bookkeeping and holds the account token: it never goes into a file the lifter may share.
     for (const name of await userTables()) if (!name.startsWith("sync_")) tables[name] = await db.all(`SELECT * FROM ${name}`);
     const file: BackupFile = { app: BACKUP_APP, format: BACKUP_FORMAT, schemaVersion: Number(v?.user_version ?? LATEST_VERSION), exportedAt: new Date(nowMs).toISOString(), tables };
-    return JSON.stringify(file);
+    // A backup only counts as made when it is complete: every table has as many rows in the file as in the database, and the file reads back.
+    for (const [name, rows] of Object.entries(tables)) {
+      const n = (await db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM ${name}`))!.n;
+      if (n !== rows.length) throw new BackupIncomplete(`table ${name} has ${n} rows but ${rows.length} were written`);
+    }
+    const text = JSON.stringify(file);
+    parseBackup(text, Math.max(file.schemaVersion, LATEST_VERSION));
+    return text;
   }
 
   /** Finished sessions' sets in Hevy's column layout (kg): opens in Excel, and GAIN's own import reads it back. */
@@ -107,9 +119,17 @@ export function createDataRepo(db: Db, deps: Deps, maint: Db = db) {
    * Replace everything on this phone with a backup. All or nothing: the file is checked first, then the swap runs in one
    * transaction with foreign keys verified before it commits. Needs a backup from this app version or an older one.
    */
-  async function restoreJson(text: string): Promise<{ sessions: number; sets: number }> {
+  async function restoreJson(text: string, opts: { keepCurrent?: (json: string) => void | Promise<void> } = {}): Promise<{ sessions: number; sets: number }> {
     const { file, counts: c } = await inspectBackup(text);
     const tables = await userTables();
+    // First an automatic local copy of what is on the phone now. If it cannot be made (or verified by the caller), nothing is replaced.
+    if (opts.keepCurrent) {
+      try {
+        await opts.keepCurrent(await exportJson());
+      } catch (e) {
+        throw new RestoreFailed(`could not keep a copy of the current data first (${e instanceof Error ? e.message : String(e)})`);
+      }
+    }
     await maint.exec("PRAGMA foreign_keys = OFF");
     try {
       await maint.transaction(async () => {
@@ -122,6 +142,12 @@ export function createDataRepo(db: Db, deps: Deps, maint: Db = db) {
         }
         const bad = await maint.all("PRAGMA foreign_key_check");
         if (bad.length > 0) throw new RestoreFailed("the backup refers to rows it does not contain");
+        // Completeness: every table holds exactly the rows the file had (tables the file does not have must be empty).
+        for (const t of tables) {
+          const want = file.tables[t]?.length ?? 0;
+          const have = (await maint.get<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t}`))!.n;
+          if (have !== want) throw new RestoreFailed(`incomplete restore: ${t} has ${have} rows instead of ${want}`);
+        }
       });
     } catch (e) {
       throw e instanceof RestoreFailed ? e : new RestoreFailed(e instanceof Error ? e.message : String(e));

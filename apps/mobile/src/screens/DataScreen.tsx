@@ -5,7 +5,7 @@ import { ScrollView } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
-import { PRE_MIGRATION_FILE } from "../db/preMigrate";
+import { PRE_MIGRATION_FILE, PRE_RESTORE_FILE } from "../db/preMigrate";
 import { RestoreFailed, type DataCounts } from "../db/dataRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
@@ -26,6 +26,7 @@ export function DataScreen() {
   const [found, setFound] = useState<{ text: string; file: BackupFile; sessions: number; sets: number } | null>(null);
   const [askDelete, setAskDelete] = useState(false);
   const [safetyCopy, setSafetyCopy] = useState(false);
+  const [restoreCopy, setRestoreCopy] = useState(false);
   const [hasOnline, setHasOnline] = useState(false);
   const [onlineFailed, setOnlineFailed] = useState(false);
 
@@ -35,8 +36,10 @@ export function DataScreen() {
       sync.token().then((tok) => setHasOnline(tok !== null));
       try {
         setSafetyCopy(new File(Paths.document, PRE_MIGRATION_FILE).exists);
+        setRestoreCopy(new File(Paths.document, PRE_RESTORE_FILE).exists);
       } catch {
         setSafetyCopy(false);
+        setRestoreCopy(false);
       }
     }, [data, sync]),
   );
@@ -51,6 +54,8 @@ export function DataScreen() {
       const f = new File(Paths.cache, name);
       f.create({ overwrite: true });
       f.write(body);
+      // The export only counts as made when the file reads back exactly as written.
+      if (f.textSync() !== body) throw new Error("the saved file does not match the data");
       uri = f.uri;
     } catch (e) {
       setBusy(null);
@@ -87,11 +92,11 @@ export function DataScreen() {
   }
 
   /** The copy GAIN keeps from just before the last update: shown through the same checked restore as any backup. */
-  async function useSafetyCopy() {
+  async function useSafetyCopy(name: string = PRE_MIGRATION_FILE) {
     setErr(null);
     setMsg(null);
     try {
-      const text = await new File(Paths.document, PRE_MIGRATION_FILE).text();
+      const text = await new File(Paths.document, name).text();
       const i = await data.inspectBackup(text);
       setFound({ text, file: i.file, sessions: i.counts.sessions, sets: i.counts.sets });
     } catch (e) {
@@ -103,7 +108,15 @@ export function DataScreen() {
     if (!found) return;
     setErr(null);
     try {
-      const r = await data.restoreJson(found.text);
+      const r = await data.restoreJson(found.text, {
+        // An automatic copy of what is on the phone now, kept (and read back) before anything is replaced.
+        keepCurrent: (json) => {
+          const f = new File(Paths.document, PRE_RESTORE_FILE);
+          if (!f.exists) f.create({ overwrite: true });
+          f.write(json);
+          if (f.textSync() !== json) throw new Error("the saved copy does not match");
+        },
+      });
       setFound(null);
       setMsg(t("data.restored", r));
       restart();
@@ -126,11 +139,14 @@ export function DataScreen() {
       try {
         const f = new File(Paths.document, PRE_MIGRATION_FILE);
         if (f.exists) f.delete();
+        const r = new File(Paths.document, PRE_RESTORE_FILE);
+        if (r.exists) r.delete();
       } catch {
         /* nothing to remove */
       }
       diagnostics.clear();
       setSafetyCopy(false);
+      setRestoreCopy(false);
       setAskDelete(false);
       setOnlineFailed(false);
       restart();
@@ -167,11 +183,19 @@ export function DataScreen() {
         ) : null}
       </Card>
 
+      {restoreCopy ? (
+        <Card>
+          <AppText style={{ fontWeight: "700" }}>{t("data.beforeRestore.title")}</AppText>
+          <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.beforeRestore.note")}</AppText>
+          <BigButton label={t("data.safety.use")} selected={false} disabled={!!busy} onPress={() => void useSafetyCopy(PRE_RESTORE_FILE)} />
+        </Card>
+      ) : null}
+
       {safetyCopy ? (
         <Card>
           <AppText style={{ fontWeight: "700" }}>{t("data.safety.title")}</AppText>
           <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.safety.note")}</AppText>
-          <BigButton label={t("data.safety.use")} selected={false} disabled={!!busy} onPress={useSafetyCopy} />
+          <BigButton label={t("data.safety.use")} selected={false} disabled={!!busy} onPress={() => void useSafetyCopy()} />
         </Card>
       ) : null}
 

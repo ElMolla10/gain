@@ -102,12 +102,25 @@ describe("safety copy before an update (migration safety rule)", () => {
     expect(res).toEqual({ sessions: 3, sets: 9 });
   });
 
-  it("if the copy cannot be written (disk full) the update is not blocked and the error is returned for the crash log", async () => {
+  it("if the copy cannot be written (disk full) the update is BLOCKED, the error is returned, and nothing was migrated", async () => {
     const old = await dbAt(2);
     const r = await backupBeforeMigrate(old, testDeps(), () => { throw new Error("ENOSPC"); });
     expect(r.backedUp).toBe(false);
+    expect(r.blocked).toBe(true);
     expect((r.error as Error).message).toBe("ENOSPC");
+    expect((await old.get<{ user_version: number }>("PRAGMA user_version"))!.user_version).toBe(2); // still the old layout
+    // the lifter can knowingly go on (the app does so only after they choose it)
     expect((await migrate(old)).to).toBe(LATEST_VERSION);
+  });
+
+  it("a copy that does not read back identical counts as failed (blocked)", async () => {
+    const old = await dbAt(4);
+    const r = await backupBeforeMigrate(old, testDeps(), () => undefined, () => "truncated");
+    expect(r.blocked).toBe(true);
+    const ok: Record<string, string> = {};
+    const good = await backupBeforeMigrate(old, testDeps(), (n, t) => void (ok[n] = t), (n) => ok[n]!);
+    expect(good.backedUp).toBe(true);
+    expect(good.blocked).toBeUndefined();
     expect(await count(old, "workout_set")).toBe(9);
   });
 });

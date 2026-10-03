@@ -100,11 +100,12 @@ const NOT_LATERAL = /\b(reverse|rear|bent|incline\s+rear)\b/;
 
 /**
  * Legs: squat (incl. hack, split, goblet, front), leg press/extension/curl/any "leg" move, lunge, RDL and every deadlift variant,
- * calf raise, hip thrust, glute anything, hamstring/quad/adductor/abductor, good morning, step-up, kettlebell swing, Nordic curl.
+ * calf raise, hip thrust, glute anything, hamstring/quad/adductor/abductor, good morning, step-up, kettlebell swing, Nordic curl,
+ * back extension, glute-band work, sleds, jumps, tibialis raise, hip flexor/circle work (v0.12.0 library names).
  * "Leg raise" (abs) is upper. Lat. Everything else is upper.
  */
 const LOWER =
-  /squat|\blegs?\b(?!\s+raises?)|\blunges?\b|deadlift|\brdl\b|romanian|hip thrust|\bglutes?\b|\bcalf\b|\bcalves\b|hamstring|\bquads?\b|quadricep|adductor|abductor|good morning|step up|kettlebell swing|nordic|hip extension|hip abduction|hip adduction|سكوات|ليج|سمانة|رجل|ديدلفت/;
+  /squat|\blegs?\b(?!\s+raises?)|\blunges?\b|deadlift|\brdl\b|romanian|hip thrust|\bglutes?\b|\bcalf\b|\bcalves\b|hamstring|\bquads?\b|quadricep|adductor|abductor|good morning|step up|kettlebell swing|nordic|hip extension|hip abduction|hip adduction|hip flexion|hip flexor|hip circle|back extension|hyperextension|pull through|frog pump|donkey|fire hydrant|clamshell|band walk|monster walk|copenhagen|wall sit|box jump|broad jump|jump squat|\bsled\b|rack pull|thruster|wall ball|tire flip|tibialis|standing knee raise|سكوات|ليج|سمانة|رجل|ديدلفت/;
 
 /** Best-effort classification from an exercise name (Hevy imports have no muscle group). Lateral raise is checked by name first. */
 export function classifyLift(name: string): ClassifiedLift {

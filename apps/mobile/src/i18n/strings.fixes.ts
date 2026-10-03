@@ -1,5 +1,6 @@
 /** Strings added by the fixes-only release (error states and the like). Arabic is a draft. */
 export const enFixes = {
+  "prog.dayCard": "{day} — {n} exercises · {sets} sets",
   "today.hero": "{day} · {sets} sets · ~{min} min",
   "today.nextSession": "Next session: {target}",
   "today.exercisesHeading": "Exercises",
@@ -29,6 +30,7 @@ export const enFixes = {
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
+  "prog.dayCard": "{day} — {n} تمارين · {sets} مجموعات",
   "today.hero": "{day} · {sets} مجموعات · حوالي {min} د",
   "today.nextSession": "الجلسة الجاية: {target}",
   "today.exercisesHeading": "التمارين",

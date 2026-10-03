@@ -1,5 +1,15 @@
 /** Strings added by the fixes-only release (error states and the like). Arabic is a draft. */
 export const enFixes = {
+  "settings.group.training": "Training",
+  "settings.group.display": "Display",
+  "settings.group.data": "Data",
+  "settings.group.about": "About",
+  "settings.appearance": "Appearance",
+  "settings.appearance.dark": "Dark",
+  "settings.appearance.light": "Light",
+  "settings.appearance.system": "System",
+  "settings.secondName": "Show both exercise names",
+  "settings.secondNameNote": "Also show the other language's name under each exercise.",
   "history.rowLine": "{min} min · {sets} sets",
   "history.rowLineNoTime": "{sets} sets",
   "prog.dayCard": "{day} — {n} exercises · {sets} sets",
@@ -32,6 +42,16 @@ export const enFixes = {
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
+  "settings.group.training": "التمرين",
+  "settings.group.display": "العرض",
+  "settings.group.data": "البيانات",
+  "settings.group.about": "عن التطبيق",
+  "settings.appearance": "المظهر",
+  "settings.appearance.dark": "داكن",
+  "settings.appearance.light": "فاتح",
+  "settings.appearance.system": "حسب الجهاز",
+  "settings.secondName": "اعرض الاسمين للتمارين",
+  "settings.secondNameNote": "اعرض اسم اللغة التانية كمان تحت كل تمرين.",
   "history.rowLine": "{min} د · {sets} مجموعات",
   "history.rowLineNoTime": "{sets} مجموعات",
   "prog.dayCard": "{day} — {n} تمارين · {sets} مجموعات",

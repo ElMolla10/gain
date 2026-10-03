@@ -215,7 +215,8 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   async function lastPerformance(line: LineIdentity, lineId: string): Promise<{ performedAt: string; sets: LoggedSet[] } | null> {
     const h = await getHistory(line, lineId);
     const last = h[h.length - 1];
-    return last ? { performedAt: last.performedAt, sets: last.sets.filter((s) => !s.warmup) } : null;
+    // Working sets only: no warm-ups and no drop sets, so row N of today lines up with working set N of last time.
+    return last ? { performedAt: last.performedAt, sets: last.sets.filter((s) => !s.warmup && !s.tags?.includes("drop")) } : null;
   }
 
   async function loadRejectionMemory(line: LineIdentity, lineId: string): Promise<RejectionMemory> {
@@ -272,8 +273,9 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     const lineId = await ensureLine(input.exerciseId, session.gym_id, ctx.setup);
     const line: LineIdentity = { exerciseId: input.exerciseId, gymId: session.gym_id, setup: ctx.setup };
 
+    // Warm-ups and drop sets are lighter on purpose, so they are never compared with the line.
     let outlier: OutlierResult | null = null;
-    if (!input.warmup) {
+    if (!input.warmup && !input.tags?.includes("drop")) {
       const history = await getHistory(line, lineId);
       const todaySets = (await listSessionSets(input.sessionId, input.exerciseId)).map(toLogged);
       if (todaySets.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: todaySets });
@@ -322,7 +324,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
    */
   async function updateLiveSet(
     setId: string,
-    v: { load: number; reps: number; rir: number | null; warmup: boolean },
+    v: { load: number; reps: number; rir: number | null; warmup: boolean; tags?: string[] },
     ctx: { gym: GymFingerprint; equipment: ExerciseSpec["equipment"]; setup: SetupType },
   ): Promise<{ outlier: OutlierResult | null }> {
     if (!(v.reps >= 1) || !Number.isFinite(v.load) || v.load < 0) throw new Error("Invalid set");
@@ -334,7 +336,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     if (!row) throw new Error("Unknown set");
     let outlier: OutlierResult | null = null;
     let status: OutlierStatus = "none";
-    if (!v.warmup) {
+    if (!v.warmup && !v.tags?.includes("drop")) {
       const line: LineIdentity = { exerciseId: row.exercise_id, gymId: row.gym_id, setup: ctx.setup };
       const history = await getHistory(line, row.line_id);
       const others = (await listSessionSets(row.session_id, row.exercise_id)).filter((x) => x.id !== setId).map(toLogged);
@@ -342,7 +344,8 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       outlier = checkOutlier({ load: v.load, reps: v.reps, rir: v.rir }, { line, history, gymSpec: findSpec(ctx.gym, ctx.equipment) });
       status = row.outlier_status === "confirmed" && row.load === v.load && row.reps === v.reps ? "confirmed" : outlier.outlierStatus;
     }
-    await db.run("UPDATE workout_set SET load = ?, reps = ?, rir = ?, is_warmup = ?, outlier_status = ?, updated_at = ? WHERE id = ?", [v.load, v.reps, v.rir, v.warmup ? 1 : 0, status, now(), setId]);
+    const tagsJson = v.tags === undefined ? null : JSON.stringify(v.tags);
+    await db.run("UPDATE workout_set SET load = ?, reps = ?, rir = ?, is_warmup = ?, tags_json = COALESCE(?, tags_json), outlier_status = ?, updated_at = ? WHERE id = ?", [v.load, v.reps, v.rir, v.warmup ? 1 : 0, tagsJson, status, now(), setId]);
     return { outlier };
   }
 

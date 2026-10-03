@@ -48,8 +48,8 @@ export function previousText(lastWorking: readonly { load: number; reps: number 
   return `${kgToUnit(s.load, unit)}${unitText} x ${s.reps}`;
 }
 
-/** 0-based index among working rows for each row (null for warm-ups): lines up with `rowLabels`. */
-export function workingIndexes(rows: readonly { warmup: boolean }[]): (number | null)[] {
+/** 0-based index among working rows for each row (null for warm-ups and drop sets): lines up with `rowLabels` and with the last session's working sets. */
+export function workingIndexes(rows: readonly { warmup: boolean; tags?: readonly string[] }[]): (number | null)[] {
   let n = 0;
-  return rows.map((r) => (r.warmup ? null : n++));
+  return rows.map((r) => (r.warmup || r.tags?.includes("drop") ? null : n++));
 }

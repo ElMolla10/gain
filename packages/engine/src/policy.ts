@@ -12,8 +12,9 @@ import type {
 } from "./types";
 
 /**
- * Progression policy. DEFAULT RULE = ACSM 2009 position stand (Ratamess et al., "Progression Models in Resistance Training for
- * Healthy Adults", grade B): when the lifter can do the target, raise the load 2-10%, snapped to a load that exists in the gym.
+ * Progression policy. DEFAULT RULE is BASED ON the ACSM 2009 position stand (Ratamess et al., "Progression Models in Resistance Training for
+ * Healthy Adults", grade B): raise the load 2-10% when the lifter can do the target. It is not a literal implementation: the rep ceilings,
+ * the one-session trigger and the snapping to standard steps are GAIN conventions.
  * The target is the lift's REP CEILING, which is the lifter's own configuration on top (10 upper, 12 legs, 15 lateral raises) and
  * a single session reaching it is enough. Everything else (RIR fast track, stall deload, step-down) is off by default and only
  * available as opt-in conventions. See docs/PROGRESSION-RULES.md.

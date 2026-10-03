@@ -18,3 +18,14 @@ jobs:
       # Engine + mobile (the mobile DB-layer tests use Node's built-in SQLite, no device needed).
       - run: npm run typecheck
       - run: npm test
+  # P28: the Android JS bundle must build (catches bad imports, missing assets and unresolved modules that tsc and vitest do not).
+  android-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run export:android -w @gain/mobile

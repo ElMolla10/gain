@@ -44,7 +44,7 @@ Names and metadata only. No descriptions, cues, images or video were copied from
 
 ## What is not verified
 - **Hevy's own list**: its exercise library is not public (the API needs a key), so "matches Hevy naming" means the style in Mohamed's export and my knowledge of it. Some names (for example `Chest Press (Plate Loaded)`, `Seated Row (Plate Loaded)`, `Cable Crossover`) may differ from Hevy's exact title; such an import falls back to "pick one" and never creates a wrong match.
-- **Strong's names** were checked only against the synthetic fixture.
+- **Strong's names** were checked only against the synthetic fixture. The Strong evidence is synthetic (P26): no real Strong export has been tested, so the Strong import is unverified on real data.
 - **All Arabic** (names, aliases, gear words such as "ماكينة بالأطباق" for plate-loaded and "(TRX)"): drafted by me, not slang I have heard; not reviewed by a native Egyptian lifter. Rows 51+ of the review sheet were added after Mohamed's reported review and are unreviewed.
 - **Muscle assignments** are one primary muscle per row, a judgement call for compound lifts (a Smith squat is "quads"; a dip is "chest" or "triceps" by variant).
 - **Time-based moves** (plank, dead hang, wall sit, farmers walk) are in the list, but GAIN's logger records reps and load; how they should be logged was not decided.

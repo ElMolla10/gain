@@ -27,7 +27,7 @@ export class GymInvalid extends Error {
 }
 
 /**
- * Gym editor data layer. A gym is a list of loads that exist (the fingerprint), not an equipment checklist.
+ * Gym editor data layer. A gym is a list of standard weight steps (the fingerprint, adjustable data), not a claim about what a real gym has and not an equipment checklist.
  * Several gyms can be saved; each has its own history lines (exercise + gym + setup), so editing or switching
  * a gym never mixes histories.
  */

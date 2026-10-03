@@ -79,7 +79,7 @@ export function localToEpoch(iso: string): number {
 
 /**
  * Converted weights carry rounding noise (135 lb is 61.23 kg in the file's conversion, 61.236 kg on a 5 lb barbell). A load within
- * this many kg of one that exists in the gym is that load; anything further away is kept exactly as written.
+ * this many kg of one of the standard steps is that load; anything further away is kept exactly as written.
  */
 export const IMPORT_SNAP_KG = 0.015;
 export function snapImportedLoad(gym: GymFingerprint, equipment: EquipmentType, setup: SetupType, load: number): number {

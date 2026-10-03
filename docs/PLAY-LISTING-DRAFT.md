@@ -12,7 +12,7 @@ Rules used for every line: no medical, physique or results promise; each claim m
 
 **Full description:**
 
-> GAIN is a lifting log for people who already train. Finish a workout and GAIN writes the next one for you: the exercise, the weight, the reps, and the reason, using the weights that actually exist in your gym.
+> GAIN is a lifting log for people who already train. Finish a workout and GAIN writes the next one for you: the exercise, the weight, the reps, and the reason, using standard weight steps (2.5 kg plates, typical dumbbell and stack jumps) that you can adjust.
 >
 > WHAT IT DOES
 > • Next session, written at the door: after you finish, you see the next targets before you leave. Accept, edit or reject each one. Rejected suggestions are remembered.

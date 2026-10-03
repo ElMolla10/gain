@@ -2,13 +2,13 @@
 
 Rows: 1049, workouts: 70, 2025-09-22 to 2026-09-29. Parser warnings: 0.
 
-**What this measures:** for each session of a lift, the rule proposes from everything *before* that session; we compare with what the lifter actually did. This is agreement with the lifter, not proof that the rule is right.
+**What this measures:** for each session of a lift, the rule proposes from everything *before* that session; we compare with what the lifter actually did. This is agreement with the lifter, not proof that the rule is right. **Caveats (P22):** it measures imitation of one lifter, not benefit. The load grid ("racks") is inferred from the whole export, including loads logged after the session being predicted, so it uses future information that the app would not have at the time. It is a sanity check on one person's history, not evidence the rule works for others.
 
 **Assumptions (a Hevy export has neither):** the load grid per equipment class is inferred as the greatest common divisor of every logged load in that class; the top of the rep range is each lift's rep ceiling (10 / 12 / 15, sensitivity below) and the bottom is assumed 6; no effort data (RPE is empty), so the effort currency never fires; no rejection history. Compared on the hardest working load of the session and the minimum reps at it; warm-ups are not in the export, drop sets are excluded.
 
 ## Headline: default rule (rule-v0.3) vs "repeat the last load"
 
-Default = ACSM 2009 (2-10% load step, snapped to real loads) with the lifter's rep ceilings: **10 reps upper body, 12 reps legs, 15 reps lateral raises** (classified from the exercise name). Load goes up only when the weakest working set at the current load reaches the ceiling, once. Until then: one more rep.
+Default = based on ACSM 2009 (2-10% load step, snapped to standard steps; ceilings and snapping are GAIN conventions) with the lifter's rep ceilings: **10 reps upper body, 12 reps legs, 15 reps lateral raises** (classified from the exercise name). Load goes up only when the weakest working set at the current load reaches the ceiling, once. Until then: one more rep.
 
 | | Same load as lifter | Same load and reps | Lifter met or beat it | Rule proposed heavier | Lifter went heavier | Rule held/lowered while he went up | Rule went up while he held/lowered |
 |---|---|---|---|---|---|---|---|

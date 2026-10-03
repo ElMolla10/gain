@@ -1,6 +1,6 @@
 # Progression rules (rule-v0.3)
 
-**The default rule is the ACSM 2009 position stand** (source 1 below): when the lifter can do the target, raise the load 2-10%, snapped to a load that exists in the gym. One research basis, not a blend. On top of it sits **Mohamed's own configuration**: what "the target" is, and how often it has to be hit.
+**The default rule is based on the ACSM 2009 position stand** (source 1 below): raise the load 2-10% when the lifter can do the target. It is not a literal implementation of ACSM: the 10/12/15 rep ceilings, the one-session trigger and the snapping to standard steps are GAIN conventions. On top of it sits **Mohamed's own configuration**: what "the target" is, and how often it has to be hit.
 
 Nothing here was tuned to any one lifter's history. The Hevy backtest (`docs/BACKTEST-HEVY.md`) is a sanity check only.
 
@@ -99,7 +99,7 @@ Resolution order: default (acsm_2009), then the named preset, then explicit fiel
 ## Decision flow (engine)
 
 1. Only comparable history (same exercise, gym, setup). Warm-ups, drop sets and unconfirmed outliers are excluded.
-2. Anchor on the last top load, snapped to a load that exists in this gym.
+2. Anchor on the last top load, snapped to a standard step.
 3. Low confidence: repeat, never a jump.
 4. (Opt-in) step down one real step after `stepDownAfterMisses` sessions below the range; (opt-in) stall deload.
 5. Below the bottom of the range: rebuild reps. Between the bottom and the ceiling: one more rep.

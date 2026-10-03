@@ -140,7 +140,7 @@ describe("accept, edit, reject", () => {
     await finish.editTargetLoad(bench.id, 60, gym, "barbell", "free");
     const t = (await finish.getTarget(bench.id))!;
     expect(t).toMatchObject({ status: "edited", editedLoad: 60, effectiveLoad: 60, load: 62.5 });
-    await expect(finish.editTargetLoad(bench.id, 61, gym, "barbell", "free")).rejects.toThrow(/does not exist/);
+    await expect(finish.editTargetLoad(bench.id, 61, gym, "barbell", "free")).rejects.toThrow(/not one of the standard steps/);
     expect((await finish.getTarget(bench.id))!.editedLoad).toBe(60);
   });
   it("editing never touches rejection memory", async () => {

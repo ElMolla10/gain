@@ -360,11 +360,11 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     });
   }
 
-  /** Edit the load. It must be a load that exists in this gym. Editing is neither a rejection nor an acceptance of the jump. */
+  /** Edit the load. It must be one of the standard steps for this equipment. Editing is neither a rejection nor an acceptance of the jump. */
   async function editTargetLoad(targetId: string, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType, reps?: number): Promise<void> {
     const tr = await mustGet(targetId);
     const spec = findSpec(gym, equipment);
-    if (spec && !isGymLoad(spec, load, setup !== "free")) throw new Error("That load does not exist in this gym");
+    if (spec && !isGymLoad(spec, load, setup !== "free")) throw new Error("That load is not one of the standard steps");
     if (!(load >= 0)) throw new Error("Invalid load");
     if (reps !== undefined && !(Number.isInteger(reps) && reps >= 1 && reps <= 100)) throw new Error("Invalid reps");
     const t = now();

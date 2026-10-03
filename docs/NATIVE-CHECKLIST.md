@@ -1,8 +1,8 @@
-# Native checklist for v0.17.0 (v0.16.0 look + feedback share + fewer permissions)
+# Native checklist for v0.18.0 (v0.16.0 look + feedback share + fewer permissions + completely free)
 
 **Nothing below has been run on an Android device or emulator.** The box has no usable hardware acceleration (`/dev/kvm` is root-only, `emulator -accel-check` fails for the box user, and the earlier software-emulated x86_64 run needed ~20-25 min to boot and then hit repeated ANRs; see DEVICE-TEST-0.4.md). Every row is NOT TESTED until you fill it in. Browser renders do not count.
 
-Install the signed arm64 APK from the v0.17.0 release over v0.16.0 (Settings > Check for updates, or sideload). Phone: ______  Android: ______  Date: ______
+Install the signed arm64 APK from the v0.18.0 release over v0.17.0 (Settings > Check for updates, or sideload). Phone: ______  Android: ______  Date: ______
 
 | # | Check | How | Result |
 |---|---|---|---|
@@ -31,5 +31,6 @@ Install the signed arm64 APK from the v0.17.0 release over v0.16.0 (Settings > C
 | 23 | Export/share still works (new) | JSON backup, CSV, coach-card PDF and diagnostics report open the share sheet and the receiving app can read the file | NOT TESTED |
 | 24 | Notifications still work (new check) | Rest alert and a training-day reminder arrive (permission prompt on Android 13+) | NOT TESTED |
 | 25 | Permissions page (new) | Android Settings > Apps > GAIN > Permissions shows only Notifications (and no files/media, overlay or biometric entry) | NOT TESTED |
+| 26 | Completely free (new in v0.18.0) | Settings has no plan, upgrade, subscription or purchase entry; nothing in the app asks for payment; every screen opens | NOT TESTED |
 
 Report anything marked FAIL as an issue with a screenshot.

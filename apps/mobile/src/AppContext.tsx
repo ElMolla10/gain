@@ -15,6 +15,8 @@ import type { ProgrammeRepo } from "./db/programmeRepo";
 import type { ShortWeekRepo } from "./db/shortWeekRepo";
 import type { WeeklyRepo } from "./db/weeklyRepo";
 import type { WorkoutRepo } from "./db/workoutRepo";
+import type { CoachLinks } from "./sync/coachLinks";
+import type { SyncEngine } from "./sync/engine";
 
 export interface AppServices {
   db: Db;
@@ -33,6 +35,11 @@ export interface AppServices {
   decisions: DecisionRepo;
   data: DataRepo;
   restAlerts: RestAlerts;
+  /** Opt-in backup/sync and coach links. Nothing here touches the network until the lifter turns it on or taps Share as a link. */
+  sync: SyncEngine;
+  coachLinks: CoachLinks;
+  /** Sync quietly when it is on (throttled); a no-op when it is off. */
+  autoSync: (force?: boolean) => void;
   /** Reload everything from the database (after a restore or delete-all) without restarting the process. */
   restart: () => void;
 }

@@ -21,8 +21,10 @@ On the Finish screen, "Share coach card (PDF)" makes one page and opens the syst
 - PDF rendering on a real phone, Arabic shaping and right-to-left layout in the PDF, the font used for Arabic, page fit on small and large phones, the share sheet itself. The plan's "done means" (renders correctly in RTL and LTR on two screen sizes) is **not met until a phone check**.
 - An image (PNG) card was not built: it needs a screenshot module. PDF was chosen because the plan allows image or PDF and `expo-print` renders HTML with proper bidi text.
 - The Arabic strings on the card are drafts.
-- Private links for coaches come with Step 22, not here.
+- Private links for coaches are in v0.11 (below).
 
 
-## Private link (server side built; app button comes with the sync client PR)
-The Worker can serve the card as a private, expiring, revocable web page without any account for the coach. See the "Coach links" section of [SYNC.md](SYNC.md). Server-side only so far: unit-tested and smoke-tested on local workerd; no app button, not deployed, no phone involved.
+## Private link (v0.11)
+Finish screen > "Share coach card as a link": a consent card says what is uploaded and who can read it, then the app uploads that one card (`toCoachPayload`, same words as the PDF, clipped to the server limits and total size), gets a random link and opens the share sheet with a short message. "Stop sharing this link" revokes it at once. Links last 7 days (server maximum 30). The server and page are described in the "Coach links" section of [SYNC.md](SYNC.md). It needs internet and no account; the PDF remains the offline option.
+
+Status: server deployed and smoke-tested; app button unit-tested for wiring and payload validity; **not tried on a phone** (share sheet, opening the link in a browser on a phone, Arabic page layout).

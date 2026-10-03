@@ -16,6 +16,7 @@ import { arCard, enCard } from "./strings.card";
 import { arRest, enRest } from "./strings.rest";
 import { arShortWeek, enShortWeek } from "./strings.shortWeek";
 import { arStop, enStop } from "./strings.stop";
+import { arSync, enSync } from "./strings.sync";
 import { arWarmup, enWarmup } from "./strings.warmup";
 import { arWeekly, enWeekly } from "./strings.weekly";
 
@@ -181,6 +182,7 @@ export const en = {
   ...enWeekly,
   ...enShortWeek,
   ...enStop,
+  ...enSync,
   ...enHistory,
   ...enDecisions,
   ...enWarmup,
@@ -356,6 +358,7 @@ export const ar: Record<StringKey, string> = {
   ...arWeekly,
   ...arShortWeek,
   ...arStop,
+  ...arSync,
   ...arHistory,
   ...arDecisions,
   ...arWarmup,

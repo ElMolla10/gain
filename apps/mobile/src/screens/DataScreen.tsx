@@ -16,7 +16,7 @@ import { AppText, BigButton, Card } from "../ui";
 
 /** Your data: export (JSON backup, CSV of sets), restore a backup, delete everything. Local only: nothing is uploaded. */
 export function DataScreen() {
-  const { data, restart } = useServices();
+  const { data, restart, sync } = useServices();
   const { t } = useI18n();
   const p = usePalette();
   const [counts, setCounts] = useState<DataCounts | null>(null);
@@ -26,16 +26,19 @@ export function DataScreen() {
   const [found, setFound] = useState<{ text: string; file: BackupFile; sessions: number; sets: number } | null>(null);
   const [askDelete, setAskDelete] = useState(false);
   const [safetyCopy, setSafetyCopy] = useState(false);
+  const [hasOnline, setHasOnline] = useState(false);
+  const [onlineFailed, setOnlineFailed] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       data.counts().then(setCounts);
+      sync.token().then((tok) => setHasOnline(tok !== null));
       try {
         setSafetyCopy(new File(Paths.document, PRE_MIGRATION_FILE).exists);
       } catch {
         setSafetyCopy(false);
       }
-    }, [data]),
+    }, [data, sync]),
   );
 
   async function share(name: string, mime: string, make: () => Promise<string>) {
@@ -109,9 +112,15 @@ export function DataScreen() {
     }
   }
 
-  async function wipe() {
+  async function wipe(localOnly = false) {
     setErr(null);
     try {
+      // If this phone has an online backup or coach links, delete those FIRST: once the local data (and the key to the account) is gone
+      // there would be no way to delete them. If the server cannot be reached the lifter chooses: try again, or delete only here.
+      if (hasOnline && !localOnly) {
+        const r = await sync.disconnect({ deleteServerData: true });
+        if (!r.ok) return setOnlineFailed(true);
+      }
       await data.deleteAll();
       // "Delete everything" also removes the copy kept before the last update and the crash log: no data of yours stays behind in GAIN.
       try {
@@ -123,6 +132,7 @@ export function DataScreen() {
       diagnostics.clear();
       setSafetyCopy(false);
       setAskDelete(false);
+      setOnlineFailed(false);
       restart();
     } catch (e) {
       setErr(t("data.exportFailed", { detail: e instanceof Error ? e.message : String(e) }));
@@ -170,7 +180,10 @@ export function DataScreen() {
           <>
             <AppText style={{ fontWeight: "800" }}>{t("data.delete")}</AppText>
             <AppText>{t("data.delete.warn")}</AppText>
-            <BigButton label={t("data.delete.ask")} onPress={wipe} />
+            {hasOnline ? <AppText>{t("data.delete.online")}</AppText> : null}
+            {onlineFailed ? <AppText style={{ color: p.danger }}>{t("data.delete.onlineFailed")}</AppText> : null}
+            <BigButton label={t("data.delete.ask")} onPress={() => wipe()} />
+            {onlineFailed ? <BigButton label={t("data.delete.localOnly")} selected={false} onPress={() => wipe(true)} /> : null}
             <BigButton label={t("data.delete.cancel")} selected={false} onPress={() => setAskDelete(false)} />
           </>
         ) : (

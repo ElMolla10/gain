@@ -1,4 +1,5 @@
 import { renderReason } from "@gain/engine";
+import { COACH_LIMITS, type CoachCardPayload } from "@gain/sync";
 import type { PaceResult } from "../db/goalRepo";
 import type { SessionSummary, TargetRow } from "../db/finishRepo";
 import { formatLoad, isolateLtr, translate, type Lang } from "../i18n/format";
@@ -84,6 +85,26 @@ export function buildCardModel(i: CardInput): CardModel {
     blocks,
     footer: t("card.notDoctor"),
   };
+}
+
+/** The card as the server's plain-text payload: same words as the PDF, every string clipped to the server's limits. */
+export function toCoachPayload(m: CardModel): CoachCardPayload {
+  const clip = (s: string) => (s.length > COACH_LIMITS.maxText ? s.slice(0, COACH_LIMITS.maxText - 1) + "…" : s);
+  let budget: number = COACH_LIMITS.maxLines;
+  const blocks = m.blocks.slice(0, COACH_LIMITS.maxBlocks).map((b) => {
+    const lines = b.lines.slice(0, Math.max(0, budget)).map(clip);
+    budget -= lines.length;
+    return { heading: clip(b.heading), lines };
+  });
+  const out: CoachCardPayload = { lang: m.lang, dir: m.dir, title: clip(m.title), date: clip(m.date), blocks, footer: clip(m.footer) };
+  // Total size cap: cut from the end (the last lines are the least important) rather than have the server refuse the whole card.
+  while (JSON.stringify(out).length > COACH_LIMITS.maxBytes) {
+    const last = out.blocks[out.blocks.length - 1]!;
+    if (last.lines.length > 0) last.lines.pop();
+    else if (out.blocks.length > 1) out.blocks.pop();
+    else break;
+  }
+  return out;
 }
 
 const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");

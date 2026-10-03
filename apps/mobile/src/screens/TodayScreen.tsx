@@ -10,7 +10,9 @@ import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
 import { WeeklyReviewCard } from "../components/WeeklyReviewCard";
 import { useServices } from "../AppContext";
-import { estimateMinutes, exerciseLabels, isolateLtr } from "../i18n/format";
+import { exerciseLabels, isolateLtr } from "../i18n/format";
+import { estimateDayMinutes } from "../logic/duration";
+import { loadRestSettings } from "../logic/restAlert";
 import { useI18n } from "../i18n";
 import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
 import { BrandLogo } from "../BrandLogo";
@@ -28,6 +30,8 @@ interface TodayData {
   suggestedId: string;
   /** The workout that is open right now, if any: it is resumed, another day is not started on top of it. */
   openDayId: string | null;
+  /** Rest between sets in seconds (the time estimate counts it). */
+  restSeconds: number;
   /** The targets already written for each day (after a finished workout, or once a day is started); none before that. */
   targets: Record<string, TargetRow[]>;
 }
@@ -69,7 +73,7 @@ export function TodayScreen() {
         const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
         if (alive) setPaceLine(pace.kind === "none" ? "" : describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
         if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
-        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, targets };
+        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets };
       }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
       return () => {
         alive = false;
@@ -134,7 +138,7 @@ export function TodayScreen() {
 
       <Card>
         <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "800" }}>
-          {t("today.hero", { day: chosen.name, sets: chosen.sets, min: estimateMinutes(chosen.sets) })}
+          {t("today.hero", { day: chosen.name, sets: chosen.sets, min: estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds) })}
         </AppText>
         {lead && leadEx ? (
           <View style={{ gap: space.xs }}>

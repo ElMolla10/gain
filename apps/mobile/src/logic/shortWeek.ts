@@ -1,4 +1,4 @@
-import { estimateSessionMinutes } from "./templates";
+import { estimateDayMinutes } from "./duration";
 import { groupOfPattern, type MuscleGroup } from "./exposure";
 import type { DraftDay, DraftExercise, ProgrammeDraft } from "./programmeDraft";
 
@@ -24,8 +24,10 @@ export const MIN_GOAL_SETS = 3;
 export interface RebuildOptions {
   /** Days the lifter can train this week: 1 .. number of programme days. */
   days: number;
-  /** Minutes per session, or null for no limit. Estimated at 3 minutes per set, like the rest of the app. */
+  /** Minutes per session, or null for no limit. Estimated with `estimateDayMinutes` (sets + rest + warm-ups + moving between exercises). */
   minutes: number | null;
+  /** The lifter's rest time between sets in seconds (the estimate counts it). Defaults to the app default. */
+  restSeconds?: number;
   patternOf: (exerciseId: string) => string | undefined;
   /** Muscles to protect besides the goal lifts' muscles (a muscle goal). */
   extraPriority?: MuscleGroup[];
@@ -59,6 +61,7 @@ export type RebuildError = "days_bad" | "minutes_bad" | "empty";
 
 const clone = (d: ProgrammeDraft): ProgrammeDraft => ({ ...d, days: d.days.map((day) => ({ ...day, exercises: day.exercises.map((e) => ({ ...e })) })) });
 const setsOf = (day: DraftDay) => day.exercises.reduce((n, e) => n + e.sets, 0);
+const loadOf = (day: DraftDay) => ({ exercises: day.exercises.length, sets: setsOf(day) });
 
 export function rebuildShortWeek(original: ProgrammeDraft, o: RebuildOptions): Rebuild | RebuildError {
   const N = original.days.length;
@@ -141,7 +144,7 @@ export function rebuildShortWeek(original: ProgrammeDraft, o: RebuildOptions): R
   const budget = o.minutes;
   if (budget !== null) {
     for (const k of kept) {
-      const over = () => estimateSessionMinutes(setsOf(k.day)) > budget;
+      const over = () => estimateDayMinutes(loadOf(k.day), o.restSeconds) > budget;
       const dayName = origName[k.orig]!;
       const fits = (mutate: (d: ProgrammeDraft) => void) => {
         // Applies a change to a copy of the kept draft and reports whether every priority floor still holds.
@@ -205,5 +208,5 @@ export function rebuildShortWeek(original: ProgrammeDraft, o: RebuildOptions): R
 
   for (const g of priority) if (!floorHolds(keptDraft(), g)) floorMissed.push(g);
   const draft = { name: original.name, days: kept.map((k) => k.day) };
-  return { draft, cuts, overBudget, minutes: draft.days.map((d) => estimateSessionMinutes(setsOf(d))), floorMissed };
+  return { draft, cuts, overBudget, minutes: draft.days.map((d) => estimateDayMinutes(loadOf(d), o.restSeconds)), floorMissed };
 }

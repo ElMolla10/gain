@@ -64,6 +64,8 @@ export interface DayExerciseSpec {
   setup: SetupType;
   /** How the exercise is counted; omitted = reps. For time / distance, repMin..repMax is the seconds / metres range. */
   measure?: Measure;
+  /** The exercise's movement pattern (library value), used to tell isolation work from the big lifts. */
+  pattern?: string;
   repMin: number;
   repMax: number;
   /** Exercise name (for the default ceiling by name). */

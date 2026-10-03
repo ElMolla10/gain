@@ -1,7 +1,7 @@
 import type { ProgrammeDraft } from "./programmeDraft";
 
 /**
- * Weekly exposure: how many hard sets and how many sessions each muscle group gets in a normal week of this programme.
+ * Planned direct sets: how many sets and sessions each muscle group is planned to get in a normal week of this programme (indirect work is not counted).
  * It is arithmetic on the programme, nothing more. Each exercise counts once, under its main movement pattern
  * (a squat is counted as quads, not also glutes), and the app does NOT say whether a number is enough.
  */

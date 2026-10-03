@@ -47,7 +47,7 @@ describe("paywall scaffold: off by default, no billing", () => {
   });
   it("the preview row in Settings is only built when its flag is on, and the plans page has no buy button or price", () => {
     const settings = readFileSync(join(SRC, "screens/SettingsScreen.tsx"), "utf8");
-    expect(settings).toMatch(/PLAN_FLAGS\.planPreviewVisible \? <BigButton/);
+    expect(settings).toMatch(/PLAN_FLAGS\.planPreviewVisible \? <LinkRow/);
     const page = readFileSync(join(SRC, "screens/PlansScreen.tsx"), "utf8");
     expect(page).not.toMatch(/BigButton|Pressable|fetch\(|EGP|USD/);
   });

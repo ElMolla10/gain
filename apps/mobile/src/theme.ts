@@ -24,6 +24,11 @@ const subscribe = (l: () => void) => {
   return () => void listeners.delete(l);
 };
 
+/** The chosen appearance setting (dark, light or system), re-rendering when it changes. */
+export function useAppearance(): Appearance {
+  return useSyncExternalStore(subscribe, getAppearance, getAppearance);
+}
+
 /** The scheme actually drawn: the chosen appearance, or the system's when "system". */
 export function useIsDark(): boolean {
   const system = useColorScheme();

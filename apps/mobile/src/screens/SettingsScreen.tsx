@@ -7,8 +7,10 @@ import type { CeilingClass, RepCeilings } from "@gain/engine";
 import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
-import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, Stepper } from "../ui";
+import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
+import { AppText, Chip, Stepper } from "../ui";
+import { Block, Group, LinkRow, SelectRow, SwitchRow } from "../components/SettingsRows";
+import { unitLabel } from "../logic/units";
 import type { StringKey } from "../i18n/strings";
 import Constants from "expo-constants";
 import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
@@ -34,18 +36,11 @@ function CeilingsCard() {
   );
   if (!c) return null;
   return (
-    <Card>
-      <AppText style={{ fontWeight: "700" }}>{t("settings.ceilings")}</AppText>
-      <AppText>{t("settings.ceilings.note")}</AppText>
+    <Block title={t("settings.ceilings")} note={t("settings.ceilings.note")}>
       {KINDS.map((k) => (
-        <View key={k} style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-          <AppText style={{ flex: 1 }}>{t(`settings.ceilings.${k}` as const)}</AppText>
-          <BigButton label="-" selected={false} accessibilityHint={t("settings.ceilings.less")} onPress={() => void bump(k, -1)} />
-          <AppText ltr style={{ minWidth: 32, textAlign: "center", fontWeight: "700" }}>{String(c[k])}</AppText>
-          <BigButton label="+" selected={false} accessibilityHint={t("settings.ceilings.more")} onPress={() => void bump(k, 1)} />
-        </View>
+        <Stepper key={k} label={t(`settings.ceilings.${k}` as const)} value={c[k]} min={1} max={100} onChange={(n) => void bump(k, n - c[k])} />
       ))}
-    </Card>
+    </Block>
   );
 }
 
@@ -59,14 +54,13 @@ function WeekStartCard() {
   }, [weekly]);
   if (day === null) return null;
   return (
-    <Card>
-      <AppText style={{ fontWeight: "700" }}>{t("weekly.settings.weekStart")}</AppText>
+    <Block title={t("weekly.settings.weekStart")}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         {[6, 0, 1, 2, 3, 4, 5].map((d) => (
           <Chip key={d} label={t(`weekly.day.${d}` as StringKey)} selected={day === d} onPress={() => void weekly.setWeekStartsOn(d).then(() => setDay(d))} />
         ))}
       </View>
-    </Card>
+    </Block>
   );
 }
 
@@ -107,36 +101,37 @@ function ReminderCard() {
     setNote(r === "failed" ? "remind.failed" : null);
   };
   return (
-    <Card>
-      <AppText style={{ fontWeight: "700" }}>{t("remind.settings")}</AppText>
-      <AppText style={{ color: p.muted }}>{t("remind.intro")}</AppText>
-      <View style={{ flexDirection: "row", gap: space.sm }}>
-        <Chip
-          label={t("remind.on")}
-          selected={s.on}
-          onPress={async () => {
-            const r = await reminders.ensurePermission();
-            if (r === "granted") await apply({ ...s, on: true });
-            else {
-              setNote(r === "denied" ? "remind.perm.denied" : "remind.perm.unavailable");
-              await apply({ ...s, on: false });
-            }
-          }}
-        />
-        <Chip label={t("remind.off")} selected={!s.on} onPress={() => void apply({ ...s, on: false })} />
-      </View>
-      <AppText style={{ color: p.muted }}>{t("remind.days")}</AppText>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-        {[6, 0, 1, 2, 3, 4, 5].map((d) => (
-          <Chip key={d} label={t(`weekly.day.${d}` as StringKey)} selected={s.days.includes(d)} onPress={() => void apply({ ...s, days: toggleDay(s.days, d) })} />
-        ))}
-      </View>
-      <Stepper label={t("remind.hour")} value={s.hour} min={0} max={23} onChange={(n) => void apply({ ...s, hour: n })} />
-      <Stepper label={t("remind.minute")} value={s.minute} min={0} max={55} step={5} onChange={(n) => void apply({ ...s, minute: n })} />
-      {s.on && s.days.length === 0 ? <AppText style={{ color: p.muted }}>{t("remind.pickDays")}</AppText> : null}
-      {note ? <AppText style={{ color: p.danger }}>{t(note)}</AppText> : null}
-      <AppText style={{ color: p.muted, fontSize: 13 }}>{t("remind.note")}</AppText>
-    </Card>
+    <>
+      <SwitchRow
+        label={t("remind.settings")}
+        note={t("remind.intro")}
+        value={s.on}
+        onChange={async (on) => {
+          if (!on) return void apply({ ...s, on: false });
+          const r = await reminders.ensurePermission();
+          if (r === "granted") await apply({ ...s, on: true });
+          else {
+            setNote(r === "denied" ? "remind.perm.denied" : "remind.perm.unavailable");
+            await apply({ ...s, on: false });
+          }
+        }}
+      />
+      {s.on ? (
+        <Block>
+          <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("remind.days")}</AppText>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+            {[6, 0, 1, 2, 3, 4, 5].map((d) => (
+              <Chip key={d} label={t(`weekly.day.${d}` as StringKey)} selected={s.days.includes(d)} onPress={() => void apply({ ...s, days: toggleDay(s.days, d) })} />
+            ))}
+          </View>
+          <Stepper label={t("remind.hour")} value={s.hour} min={0} max={23} onChange={(n) => void apply({ ...s, hour: n })} />
+          <Stepper label={t("remind.minute")} value={s.minute} min={0} max={55} step={5} onChange={(n) => void apply({ ...s, minute: n })} />
+          {s.days.length === 0 ? <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("remind.pickDays")}</AppText> : null}
+          <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("remind.note")}</AppText>
+        </Block>
+      ) : null}
+      {note ? <AppText style={{ color: p.danger, fontSize: ty.secondary }}>{t(note)}</AppText> : null}
+    </>
   );
 }
 
@@ -155,103 +150,122 @@ function RestCard() {
     setS(next);
   };
   return (
-    <Card>
-      <AppText style={{ fontWeight: "700" }}>{t("rest.settings")}</AppText>
-      <AppText style={{ color: p.muted }}>{t("rest.default")}</AppText>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-        {REST_CHOICES.map((n) => (
-          <Chip key={n} label={t("rest.defaultValue", { n })} selected={s.seconds === n} onPress={() => void save("seconds", String(n), { ...s, seconds: n })} />
-        ))}
-      </View>
-      <AppText style={{ color: p.muted }}>{t("rest.vibrate")}</AppText>
-      <View style={{ flexDirection: "row", gap: space.sm }}>
-        <Chip label={t("rest.on")} selected={s.vibrate} onPress={() => void save("vibrate", "1", { ...s, vibrate: true })} />
-        <Chip label={t("rest.off")} selected={!s.vibrate} onPress={() => void save("vibrate", "0", { ...s, vibrate: false })} />
-      </View>
-      <AppText style={{ color: p.muted }}>{t("rest.notify")}</AppText>
-      <View style={{ flexDirection: "row", gap: space.sm }}>
-        <Chip
-          label={t("rest.on")}
-          selected={s.notify}
-          onPress={async () => {
-            const r = await restAlerts.ensurePermission();
-            if (r === "granted") {
-              setNote(null);
-              await save("notify", "1", { ...s, notify: true });
-            } else {
-              setNote(r === "denied" ? "rest.perm.denied" : "rest.perm.unavailable");
-              await save("notify", "0", { ...s, notify: false });
-            }
-          }}
-        />
-        <Chip
-          label={t("rest.off")}
-          selected={!s.notify}
-          onPress={async () => {
+    <>
+      <Block title={t("rest.settings")}>
+        <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("rest.default")}</AppText>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+          {REST_CHOICES.map((n) => (
+            <Chip key={n} label={t("rest.defaultValue", { n })} selected={s.seconds === n} onPress={() => void save("seconds", String(n), { ...s, seconds: n })} />
+          ))}
+        </View>
+      </Block>
+      <SwitchRow label={t("rest.vibrate")} value={s.vibrate} onChange={(on) => void save("vibrate", on ? "1" : "0", { ...s, vibrate: on })} />
+      <SwitchRow
+        label={t("rest.notify")}
+        note={t("rest.notifyNote")}
+        value={s.notify}
+        onChange={async (on) => {
+          if (!on) {
             setNote(null);
             await restAlerts.cancel();
+            return save("notify", "0", { ...s, notify: false });
+          }
+          const r = await restAlerts.ensurePermission();
+          if (r === "granted") {
+            setNote(null);
+            await save("notify", "1", { ...s, notify: true });
+          } else {
+            setNote(r === "denied" ? "rest.perm.denied" : "rest.perm.unavailable");
             await save("notify", "0", { ...s, notify: false });
-          }}
-        />
-      </View>
-      {note ? <AppText style={{ color: p.danger }}>{t(note)}</AppText> : null}
-      <AppText style={{ color: p.muted, fontSize: 13 }}>{t("rest.notifyNote")}</AppText>
-    </Card>
+          }
+        }}
+      />
+      {note ? <AppText style={{ color: p.danger, fontSize: ty.secondary }}>{t(note)}</AppText> : null}
+    </>
   );
 }
 
 export function SettingsScreen() {
-  const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart, unit, setUnit } = useI18n();
+  const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart, unit, setUnit, showSecondName, setShowSecond } = useI18n();
+  const { repos } = useServices();
   const p = usePalette();
+  const appearance = useAppearance();
   const version = Constants.expoConfig?.version ?? "0";
   useSilentRackSync();
   const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Plans") => void }>();
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
-      <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("settings.language")}</AppText>
-        <BigButton label={t("settings.language.en")} selected={lang === "en"} onPress={() => setLang("en")} />
-        <BigButton label={t("settings.language.ar")} selected={lang === "ar"} onPress={() => setLang("ar")} />
-      </Card>
-      <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("settings.direction")}</AppText>
-        <BigButton label={t("settings.direction.auto")} selected={rtlOverride === "auto"} onPress={() => setRtlOverride("auto")} />
-        <BigButton label={t("settings.direction.rtl")} selected={rtlOverride === "on"} onPress={() => setRtlOverride("on")} />
-        <BigButton label={t("settings.direction.ltr")} selected={rtlOverride === "off"} onPress={() => setRtlOverride("off")} />
-        {needsRestart ? <AppText style={{ color: p.muted }}>{t("settings.restartNote")}</AppText> : null}
-      </Card>
-      <CeilingsCard />
-      <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("settings.units")}</AppText>
-        <BigButton label={t("settings.units.kg")} selected={unit === "kg"} onPress={() => setUnit("kg")} />
-        <BigButton label={t("settings.units.lb")} selected={unit === "lb"} onPress={() => setUnit("lb")} />
-        <AppText style={{ color: p.muted, fontSize: 13 }}>{t("settings.units.note")}</AppText>
-      </Card>
-      <WeekStartCard />
-      <RestCard />
-      <ReminderCard />
-      <Card>
-        <BigButton label={t("goals.entry")} selected={false} onPress={() => nav.navigate("Goals")} />
-        <BigButton label={t("data.entry")} selected={false} onPress={() => nav.navigate("Data")} />
-        <BigButton label={t("sync.entry")} selected={false} onPress={() => nav.navigate("Sync")} />
-        <BigButton label={t("dec.entry")} selected={false} onPress={() => nav.navigate("DecisionLog")} />
-        <BigButton label={t("stop.entry")} selected={false} onPress={() => nav.navigate("StoppedSuggestions")} />
-        <BigButton label={t("privacy.entry")} selected={false} onPress={() => nav.navigate("Privacy")} />
-        {PLAN_FLAGS.planPreviewVisible ? <BigButton label={t("plans.entry")} selected={false} onPress={() => nav.navigate("Plans")} /> : null}
-        <BigButton label={t("diag.entry")} selected={false} onPress={() => nav.navigate("Diagnostics")} />
-      </Card>
-      <Card>
-        <BigButton label={t("import.entry")} selected={false} onPress={() => nav.navigate("Import")} />
-        <AppText style={{ color: p.muted, fontSize: 13 }}>{t("import.entryNote")}</AppText>
-      </Card>
-      <Card>
-        <BigButton label={t("settings.setupAgain")} selected={false} onPress={() => nav.navigate("Setup")} />
-        <AppText style={{ color: p.muted, fontSize: 13 }}>{t("settings.setupAgainNote")}</AppText>
-      </Card>
-      <AppText style={{ color: p.muted }}>{t("settings.privacy")}</AppText>
-      <HealthNote />
-      <UpdateCard />
-      <AppText style={{ color: p.muted }}>{t("settings.version", { v: version })}</AppText>
+    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.lg, paddingBottom: space.xl * 2 }}>
+      <Group title={t("settings.group.training")}>
+        <CeilingsCard />
+        <RestCard />
+        <WeekStartCard />
+        <ReminderCard />
+        <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
+        <LinkRow label={t("stop.entry")} onPress={() => nav.navigate("StoppedSuggestions")} />
+        <LinkRow label={t("settings.setupAgain")} note={t("settings.setupAgainNote")} onPress={() => nav.navigate("Setup")} />
+      </Group>
+
+      <Group title={t("settings.group.display")}>
+        <SelectRow
+          label={t("settings.language")}
+          value={lang}
+          options={[
+            { value: "en", label: t("settings.language.en") },
+            { value: "ar", label: t("settings.language.ar") },
+          ]}
+          onChange={setLang}
+        />
+        <SelectRow
+          label={t("settings.units")}
+          note={t("settings.units.note")}
+          value={unit}
+          options={[
+            { value: "kg", label: unitLabel("kg", lang) },
+            { value: "lb", label: unitLabel("lb", lang) },
+          ]}
+          onChange={setUnit}
+        />
+        <SelectRow
+          label={t("settings.appearance")}
+          value={appearance}
+          options={APPEARANCES.map((a) => ({ value: a, label: t(`settings.appearance.${a}` as const) }))}
+          onChange={(a) => {
+            setAppearance(a);
+            void repos.setSetting("appearance", a);
+          }}
+        />
+        <SelectRow
+          label={t("settings.direction")}
+          note={needsRestart ? t("settings.restartNote") : undefined}
+          value={rtlOverride}
+          options={[
+            { value: "auto", label: t("settings.direction.auto") },
+            { value: "on", label: t("settings.direction.rtl") },
+            { value: "off", label: t("settings.direction.ltr") },
+          ]}
+          onChange={setRtlOverride}
+        />
+        <SwitchRow label={t("settings.secondName")} note={t("settings.secondNameNote")} value={showSecondName} onChange={setShowSecond} />
+      </Group>
+
+      <Group title={t("settings.group.data")}>
+        <LinkRow label={t("data.entry")} onPress={() => nav.navigate("Data")} />
+        <LinkRow label={t("sync.entry")} onPress={() => nav.navigate("Sync")} />
+        <LinkRow label={t("import.entry")} note={t("import.entryNote")} onPress={() => nav.navigate("Import")} />
+        <LinkRow label={t("dec.entry")} onPress={() => nav.navigate("DecisionLog")} />
+        {PLAN_FLAGS.planPreviewVisible ? <LinkRow label={t("plans.entry")} onPress={() => nav.navigate("Plans")} /> : null}
+      </Group>
+
+      <Group title={t("settings.group.about")}>
+        <LinkRow label={t("privacy.entry")} onPress={() => nav.navigate("Privacy")} />
+        <LinkRow label={t("diag.entry")} onPress={() => nav.navigate("Diagnostics")} />
+        <View style={{ paddingVertical: space.md, gap: space.sm }}>
+          <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.privacy")}</AppText>
+          <HealthNote />
+          <UpdateCard />
+          <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
+        </View>
+      </Group>
     </ScrollView>
   );
 }

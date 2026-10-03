@@ -39,7 +39,7 @@ describe("sync covers the real schema", () => {
       const text = readFileSync(join(__dirname, "..", "src", f), "utf8");
       for (const m of text.matchAll(/(?:setSetting|getSetting)\(\s*"([a-z_]+)"/g)) keys.add(m[1]!);
     }
-    const deviceOnly = new Set(["language", "rtl_override", "rest_seconds", "rest_vibrate", "rest_notify", "last_update_check", "update_skipped", "app_version_seen"]);
+    const deviceOnly = new Set(["language", "rtl_override", "rest_seconds", "rest_vibrate", "rest_notify", "last_update_check", "update_skipped", "app_version_seen", "appearance", "second_name"]);
     const unknown = [...keys].filter((k) => !(SYNCED_SETTING_KEYS as readonly string[]).includes(k) && !deviceOnly.has(k));
     expect(unknown, "decide for each: sync it (SYNCED_SETTING_KEYS) or list it as device-only here").toEqual([]);
   });

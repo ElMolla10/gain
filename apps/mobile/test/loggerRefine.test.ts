@@ -78,7 +78,7 @@ describe("logger and Today: layout rules (source)", () => {
     expect(today).toContain("isLead");
     expect(today).toContain('navigate("Why"');
     expect(today.indexOf("<BigButton hero")).toBeGreaterThan(0);
-    expect(today.indexOf('t("today.sampleNote")')).toBeGreaterThan(today.indexOf("<BigButton hero"));
+    expect(today.indexOf('t("today.starterNote")')).toBeGreaterThan(today.indexOf("<BigButton hero"));
   });
   it("Why/Change actions are the shared QuietAction with a 48 dp minimum touch area", () => {
     const q = ui.slice(ui.indexOf("export function QuietAction"), ui.indexOf("/** Labelled text field"));

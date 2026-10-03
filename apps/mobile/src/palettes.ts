@@ -22,6 +22,13 @@ export interface Palette {
   onFill: string;
   /** `fill` while pressed (slightly darker). */
   fillPressed: string;
+  /**
+   * "Done" treatment (a ticked set): a muted green fill with a green outline and a green check, so a finished set never competes with the
+   * lime that is reserved for the current unfinished row and the primary actions. Done is carried by the check mark + the checkbox state, not by colour alone.
+   */
+  doneFill: string;
+  doneEdge: string;
+  onDone: string;
   /** Selected-state background that is quieter than `fill` (target strip, selected row). */
   tint: string;
   /** Decoration only (hairlines, card borders). Not an interactive boundary. */
@@ -51,6 +58,9 @@ export const darkPalette: Palette = {
   fill: c.lime,
   onFill: c.darkAccentText,
   fillPressed: "#9FD816",
+  doneFill: "#2E4A38",
+  doneEdge: "#5E8F72",
+  onDone: c.success,
   tint: "#2A3320",
   border: c.border,
   edge: "#8A9580",
@@ -75,6 +85,9 @@ export const lightPalette: Palette = {
   fill: c.lime,
   onFill: c.ink,
   fillPressed: "#9FD816",
+  doneFill: "#CDE6D5",
+  doneEdge: "#3F8A5F",
+  onDone: "#1B6B3E",
   tint: "#E7F2C4",
   border: "#D3D8C5",
   edge: c.lightBorder,
@@ -103,11 +116,15 @@ export interface LogPalette {
   muted: string;
   /** Accent as text / icon colour on `bg` (lime on dark, dark olive on light). */
   accent: string;
-  /** Filled controls (done tick, primary buttons): lime, with ink on it. */
+  /** Filled controls (primary buttons, the current set): lime, with ink on it. A finished set uses `doneFill` instead. */
   fill: string;
   onFill: string;
   fillPressed: string;
-  /** Background of a ticked (logged) row: only a quiet olive wash; the filled lime tick is what says "done". */
+  /** Done tick (a logged set): muted green fill, outline and check colour. See Palette.doneFill. */
+  doneFill: string;
+  doneEdge: string;
+  onDone: string;
+  /** Background of a ticked (logged) row: only a quiet olive wash; the muted green check is what says "done". */
   doneBg: string;
   /** Background of the set the lifter is on now (the first unticked row of an exercise): clearly stronger than `doneBg`. */
   activeBg: string;
@@ -118,7 +135,7 @@ export interface LogPalette {
   edge: string;
 }
 
-const logOf = (p: Palette, doneBg: string): LogPalette => ({ activeBg: p.tint, bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, fillPressed: p.fillPressed, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
+const logOf = (p: Palette, doneBg: string): LogPalette => ({ activeBg: p.tint, bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, fillPressed: p.fillPressed, doneFill: p.doneFill, doneEdge: p.doneEdge, onDone: p.onDone, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
 export const logDarkPalette: LogPalette = logOf(darkPalette, "#1C2315");
 export const logLightPalette: LogPalette = logOf(lightPalette, "#EEF4DC");
 

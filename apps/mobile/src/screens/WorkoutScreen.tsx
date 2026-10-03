@@ -644,7 +644,7 @@ export function WorkoutScreen() {
     const stacked = fontScale > 1.3;
 
     return (
-      <View key={ex.id} style={{ gap: space.xs, paddingTop: space.lg, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.fill }}>
+      <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.fill }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, paddingStart: space.lg, paddingEnd: space.xs }}>
           <View style={{ flex: 1 }}>
             {ssLabel[ex.slot] ? (
@@ -658,6 +658,7 @@ export function WorkoutScreen() {
           <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => setMenuFor(ex.slot)} />
         </View>
 
+        {/* Tight vertical rhythm (spacing tokens): exercise block starts space.md below the previous one; heading, target line and set table sit directly on each other (the 48 dp controls already carry the breathing room), with space.xs above the column heads. */}
         {/* Compact target line: "Target 55 kg × 9 · Why". It wraps onto a second line when it is long and is never cut off. */}
         <View style={{ paddingHorizontal: space.lg }}>
           <TargetLine
@@ -673,7 +674,7 @@ export function WorkoutScreen() {
           {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, marginTop: space.xs }}>
           <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
           <View style={{ flex: 1.3 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>
           {stacked ? null : (
@@ -691,7 +692,7 @@ export function WorkoutScreen() {
             const done = row.saved && !row.dirty;
             const canTick = rowCanLog(row);
             const current = currentRowKey(list) === row.key;
-            // Ticked rows get only a quiet wash (the lime tick says "done"); the set being worked on is the one with the strong wash, bar and outlined boxes.
+            // Ticked rows get only a quiet wash (the muted green check says "done"; lime stays for the current set and primary actions); the set being worked on is the one with the strong wash, bar and outlined boxes.
             const bg = done ? p.doneBg : current ? p.activeBg : p.bg;
             // Every small control says which exercise and which set it belongs to (a screen reader hears a list of identical boxes otherwise).
             const ctx = t("workout.setContext", { exercise: labels.primary, n: numbering[i] ?? i + 1 });
@@ -757,9 +758,9 @@ export function WorkoutScreen() {
                   accessibilityLabel={`${done ? t("workout.untick") : row.saved ? t("workout.tickUpdate") : t("workout.tick")}. ${ctx}`}
                   disabled={busy !== null || (!row.saved && !canTick)}
                   onPress={() => (done ? void untick(ex, row) : void logRow(ex, row))}
-                  style={{ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.fill : p.field, borderWidth: done ? 0 : current ? 2 : 1.5, borderColor: (row.saved && row.dirty) || current ? p.accent : p.edge, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
+                  style={{ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.doneFill : p.field, borderWidth: done ? 1.5 : current ? 2 : 1.5, borderColor: done ? p.doneEdge : (row.saved && row.dirty) || current ? p.accent : p.edge, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
                 >
-                  {row.saved && row.dirty ? <Icon name="edit" color={p.accent} size={20} /> : <Icon name="check" color={done ? p.onFill : p.muted} size={22} />}
+                  {row.saved && row.dirty ? <Icon name="edit" color={p.accent} size={20} /> : <Icon name="check" color={done ? p.onDone : p.muted} size={22} />}
                 </Pressable>
               </View>
             );

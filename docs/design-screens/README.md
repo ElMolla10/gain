@@ -25,3 +25,6 @@ The other screens keep the earlier five variants (`dark-en`, `light-en`, `dark-a
 Large text ("fs150") is the harness multiplying text sizes by 1.5 and feeding `fontScale` 1.5 to the layout code; it is not Android's real system font scaling.
 The full set (more states, light/dark, EN/AR, 1.5x text; the Today/logger images are regenerated for this revision) is a box artefact, not committed:
 `/workspace/design/screens/web-render/`.
+
+## Revision for this round (done tick, spacing, starter note)
+Today and logger screenshots (`02a`, `02d`, `03a`, `03b`, `03c`) were regenerated: completed sets now show a **muted green** tick (not lime), spacing between exercise heading, target line and set table is tighter, and Today shows "Starter programme · Edit it to match your routine." (Arabic is a draft). Still **web renders on fabricated screenshot-only data, not device tests**.

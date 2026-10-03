@@ -160,7 +160,7 @@ export function TodayScreen() {
         </View>
         {action.kind === "resume" ? <InlineStatus kind={action.elsewhere ? "warn" : "info"} text={action.elsewhere ? t("today.finishOpenFirst") : t("today.openWorkout")} /> : null}
         <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />
-        {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.sampleNote")}</AppText> : null}
+        {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.starterNote")}</AppText> : null}
       </Card>
 
       <View style={{ gap: space.sm }}>

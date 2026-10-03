@@ -8,7 +8,7 @@ workers_dev = true
 binding = "DB"
 database_name = "gain-sync"
 # Filled in by scripts/deploy.sh after `wrangler d1 create`. An id is not a secret.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "cf6d113c-a0ae-40fc-a100-28a71e693821"
 migrations_dir = "migrations"
 
 [vars]

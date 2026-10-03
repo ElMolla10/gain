@@ -60,3 +60,14 @@ See the status section appended after the first deploy, and the client side in S
 - Anyone who has the link can read the card until it expires or is revoked. The app says so before uploading.
 - Creating a link makes an anonymous server account if the phone has none (the card has to belong to someone who can revoke it); it does **not** turn on sync.
 - Not done: image version, link preview, per-view notifications, a "live" card that updates (a link is a snapshot).
+
+## Deployed (2026-10-03) and what exists in Mohamed's Cloudflare account
+Deployed with wrangler (OAuth login already on the box as imody10@gmail.com), free tier only:
+- Worker **`gain-sync`** at **https://gain-sync.elmolla10.workers.dev** (workers.dev subdomain already existed; no custom domain, no routes, no cron, no paid add-on).
+- D1 database **`gain-sync`**, id `cf6d113c-a0ae-40fc-a100-28a71e693821` (an id is not a secret; it is in `wrangler.toml`), migrations 0001 and 0002 applied.
+- No secrets set (`RESEND_API_KEY` absent, so email sign-in answers 501). `DEV_EMAIL_CODES="0"`.
+- Existing resources (`fpl-edge`, `fpl-edge-pr57`, D1 `fpl-edge-db`) were not touched.
+- `node apps/server/scripts/smoke.mjs https://gain-sync.elmolla10.workers.dev` passed against the deployed Worker (16 checks incl. push/replay/stale/tombstone/recovery/coach link/delete account). Test accounts were deleted; the database was empty afterwards.
+- Redeploy: `apps/server/scripts/deploy.sh`. Roll back: `npx wrangler@4.147.0 rollback` (Workers keep previous versions).
+- To remove everything: `npx wrangler@4.147.0 delete gain-sync` and `npx wrangler@4.147.0 d1 delete gain-sync`.
+- Request volume is unmetered by us; nobody is rate limited globally, only per address/account (see the table). A flood from many addresses could exhaust the free daily request quota (the Worker would then answer errors until the next day): accepted risk for a pilot.

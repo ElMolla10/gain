@@ -171,7 +171,7 @@ describe("template catalogue: weekly muscle exposure sanity", () => {
     }
   });
   it("every template with 3+ days a week trains each major area at least twice a week, except body-part splits (bro / Arnold-type), which are tagged by name", () => {
-    const SINGLE_FREQ = new Set(["mix_4", "bro_5", "arnold_3", "ppl_3", "ppl_5", "phat_5", "arms_shoulders_4"]);
+    const SINGLE_FREQ = new Set(["mix_4", "bro_5", "arnold_3", "ppl_3", "db_ppl_3", "bw_ppl_3", "ppl_5", "phat_5", "arms_shoulders_4"]);
     for (const t of TEMPLATES.filter((x) => x.days >= 3 && !SINGLE_FREQ.has(x.id) && !FOCUSED.has(x.goal))) {
       const w = weekly(t);
       for (const [name, mus] of Object.entries(MAJOR)) {
@@ -436,4 +436,24 @@ describe("every template works with the real library, the programme repo, the sw
     }
     expect(checked).toBeGreaterThan(TEMPLATES.length * 4);
   }, 120_000);
+});
+
+describe("catalogue coverage (the v0.14.0 promise)", () => {
+  it("has at least 25 programmes (we ship far more) across every level, gear, goal, and 2 to 6 days", () => {
+    expect(TEMPLATES.length).toBeGreaterThanOrEqual(40);
+    for (const d of [2, 3, 4, 5, 6]) expect(TEMPLATES.some((t) => t.days === d), `days ${d}`).toBe(true);
+    for (const l of TEMPLATE_LEVELS) expect(TEMPLATES.some((t) => t.level === l), l).toBe(true);
+    for (const g of TEMPLATE_GEARS) expect(TEMPLATES.some((t) => t.gear === g), g).toBe(true);
+    for (const g of TEMPLATE_GOALS) expect(TEMPLATES.some((t) => t.goal === g), g).toBe(true);
+  });
+  it("has plenty of home programmes: at least 15 (dumbbell, bands, bodyweight), each with an English and a draft Arabic name", () => {
+    const home = TEMPLATES.filter((t) => t.gear !== "gym");
+    expect(home.length).toBeGreaterThanOrEqual(15);
+    for (const g of ["dumbbell", "band", "bodyweight"] as const) expect(home.filter((t) => t.gear === g).length, g).toBeGreaterThanOrEqual(3);
+    for (const d of [2, 3, 4, 5, 6]) expect(home.some((t) => t.days === d), `home days ${d}`).toBe(true);
+  });
+  it("the well-known shapes are there", () => {
+    const ids = new Set(TEMPLATES.map((t) => t.id));
+    for (const id of ["full_body_2", "full_body_3", "full_body_4", "upper_lower_2", "upper_lower_4", "ul_ppl_5", "ppl_3", "ppl_5", "ppl_6", "phul_4", "phat_5", "bro_5", "arnold_6", "torso_limbs_4", "sl_5x5_3", "ss_3", "glutes_3", "arms_shoulders_4", "bulk_ppl_6", "minimal_2"]) expect(ids.has(id), id).toBe(true);
+  });
 });

@@ -1,6 +1,6 @@
 # Release process (Step 19): signed arm64 pre-release APK on GitHub
 
-Status: **written from the process actually used for v0.9.0 and v0.10.0 on the build box. Never tried from a clean clone by a second person, and never tried on a second phone maker.** Treat it as a checklist to run, not as proof it is repeatable.
+Status: **written from the process actually used for v0.9.0 and v0.10.0 on the build box. Run once from a fresh clone on the same box (2026-10-03, section 8) and it worked; never tried by a second person, on a second box, or on a second phone maker.** Treat it as a checklist to run, not as proof it is repeatable.
 
 ## 0. Before you start
 - One build at a time. The box has ~16 GB RAM and Gradle needs ~3 GB: `pgrep -fa "gradle|emulator|qemu"` must be empty, `free -m` should show 4 GB+ available.
@@ -11,14 +11,21 @@ Status: **written from the process actually used for v0.9.0 and v0.10.0 on the b
 `apps/mobile/app.json`: `expo.version` = `X.Y.Z` and `expo.android.versionCode` = **previous + 1** (Android only installs a higher versionCode over an older one; the in-app updater compares `expo.version`). Update the status table in `docs/MASTER-PLAN.md` and `docs/ROADMAP.md` honestly. PR, wait for green CI, merge.
 
 ## 2. Build (JDK 17, Android SDK in `~/tools`, `. ~/env-gain.sh`)
+`~/env-gain.sh` is not in the repo. On a new box create it with the paths of your JDK 17 and Android SDK (platform 36, build-tools 36.0.0, NDK 27.1.12297006 as downloaded by Gradle; accept the licences once with `sdkmanager --licenses`):
 ```
+export ANDROID_HOME=$HOME/tools/android-sdk ANDROID_SDK_ROOT=$HOME/tools/android-sdk JAVA_HOME=$HOME/tools/jdk-17.0.20.1+1
+export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH
+```
+From a fresh clone, install the JS dependencies first (prebuild runs with `--no-install` and the Gradle build reads the React Native/Expo sources from `node_modules`):
+```
+npm ci                                                            # repo root, Node 22+
 cd apps/mobile
 CI=1 npx expo prebuild --platform android --clean --no-install   # regenerates android/ (git-ignored)
 git checkout package.json                                         # prebuild rewrites the "android" script; do not commit that
 cd android
 ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon -Dorg.gradle.jvmargs=-Xmx2g
 ```
-Output: `android/app/build/outputs/apk/release/app-release.apk` (about 2 minutes on a warm box). It is signed with the *debug* key by the generated project; step 3 replaces that signature. **arm64-v8a only**: phones with armv7 or x86 are not covered.
+Output: `android/app/build/outputs/apk/release/app-release.apk` (about 2.5 minutes on a warm box, 346 Gradle tasks, from a fresh clone). It is signed with the *debug* key by the generated project; step 3 replaces that signature. **arm64-v8a only**: phones with armv7 or x86 are not covered.
 
 ## 3. Sign with the release key (the SAME key as every earlier release)
 ```
@@ -60,5 +67,6 @@ On a phone that has the previous version: Settings > Check for updates > Downloa
 ## 7. Keystore custody (Mohamed)
 `~/keystores/gain-release.jks` + `.pw` live on the build box only. **Whether a backup exists elsewhere is unknown.** Losing the key means sideloaded users cannot update (they must uninstall and lose data unless they exported a backup) and, depending on the Play App Signing choice, blocks Play uploads. Action for Mohamed: copy both files to an offline place he controls, separately from each other, and write down who holds them.
 
-## 8. Clean-clone check (still to run once)
-`git clone`, `npm ci`, steps 2-3 on a box that has the SDK. Expect `npm ci` plus prebuild to need network. Not done.
+## 8. Clean-clone check
+Run on 2026-10-03 on the build box (same SDK, JDK and keystore as the real releases), from a fresh `git clone` of `main` at v0.13.0 (`1e867e0`): `npm ci` (11 s), `npm run typecheck` (clean in all 4 workspaces), `npm test` (engine 354, sync 19, mobile 565, server 83, all pass), `npm run export:android -w @gain/mobile` (1122 modules, 3.3 MB Hermes bundle), `expo prebuild`, `gradlew assembleRelease` (BUILD SUCCESSFUL in 2m 24s), zipalign + apksigner: signer certificate SHA-256 matched `571bc5a8...c5b2`, `aapt2 dump badging` showed `app.gain.mobile` versionCode 13, versionName 0.13.0. The test APK was deleted and not published.
+Still NOT checked: a different machine (this box already had the SDK, JDK, NDK and a Gradle cache, so a truly cold box needs the SDK/NDK downloads and licence acceptance), a different person, byte-for-byte reproducibility against the published APK (not attempted), installing the result on a phone.

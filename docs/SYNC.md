@@ -49,7 +49,7 @@ Workers free: 100k requests/day. D1 free: 5 GB, 100k rows written/day, 5M rows r
 `apps/server/scripts/deploy.sh` (needs `wrangler login` done; creates D1 `gain-sync` if missing, applies migrations, deploys Worker `gain-sync`). Then `node apps/server/scripts/smoke.mjs <worker url>`. Nothing secret is written into the repo.
 
 ## Region and backups
-D1 data lives in the Cloudflare region D1 picks (automatic); **where exactly is unknown**, and Egyptian/EU residency rules are **unknown** (Step 17). D1 Time Travel gives point-in-time restore but no separate backup was set up.
+D1 data lives in **ENAM** (eastern North America, checked 2026-10-03); Egyptian/EU residency rules are **unknown** (Step 17). D1 Time Travel is on (7 days on the free plan, 30 on paid) but no separate backup was set up. Restore steps: see "D1 backups and restore" at the end of this file.
 
 ## Not done / unverified
 See the status section appended after the first deploy, and the client side in SYNC-CLIENT.md (shipped in v0.11).
@@ -71,3 +71,27 @@ Deployed with wrangler (OAuth login already on the box as imody10@gmail.com), fr
 - Redeploy: `apps/server/scripts/deploy.sh`. Roll back: `npx wrangler@4.147.0 rollback` (Workers keep previous versions).
 - To remove everything: `npx wrangler@4.147.0 delete gain-sync` and `npx wrangler@4.147.0 d1 delete gain-sync`.
 - Request volume is unmetered by us; nobody is rate limited globally, only per address/account (see the table). A flood from many addresses could exhaust the free daily request quota (the Worker would then answer errors until the next day): accepted risk for a pilot.
+
+## D1 backups and restore (checked 2026-10-03)
+
+What was checked on the live database `gain-sync` (id `cf6d113c-a0ae-40fc-a100-28a71e693821`, not a secret) with `wrangler@4.147.0` as the account owner, read-only commands only:
+- **Time Travel is on.** It is always on for D1; nothing to enable and no extra cost. `wrangler d1 time-travel info gain-sync` returned a current bookmark, and `--timestamp=<an hour earlier>` returned a bookmark, so history exists.
+- **Retention:** 7 days on the Workers Free plan, 30 days on Workers Paid (Cloudflare D1 limits page). I did not confirm which plan the account is on; assume **7 days** (this project is on the free tier).
+- **Manual export works:** `d1 export gain-sync --remote --no-data` produced a 60-line schema file. A data export was not made (the database may hold real pilot data; this repo and these docs never contain any).
+- **Region:** the database runs in **ENAM** (eastern North America), no jurisdiction set. This answers "where is the data": the US east side. Egypt/EU data-residency rules are still **not assessed** (Step 17). A jurisdiction (EU) can only be chosen when a database is created.
+- Size 102 kB, 7 tables, read replication off.
+- **Not set up:** any export that outlives Time Travel (no scheduled export to R2, no cron; the Worker has none by design). Anything older than 7 days is gone.
+- Restore has **never been rehearsed** on this database.
+
+### Restore steps (run from `apps/server`, after `wrangler login` as the account owner)
+Restoring overwrites the live database in place, so write down the "before" bookmark first; it is the undo.
+1. `npx wrangler@4.147.0 d1 time-travel info gain-sync` : note the current bookmark (this is your undo point).
+2. Pick the target moment (UTC, inside the retention window): `npx wrangler@4.147.0 d1 time-travel info gain-sync --timestamp=2026-10-03T09:00:00Z` : prints the bookmark for that minute.
+3. Optional, safer: save the current state first with `npx wrangler@4.147.0 d1 export gain-sync --remote --output=/secure/place/gain-sync-before.sql` (it contains users' synced data; keep it off the repo and delete it when done).
+4. Restore: `npx wrangler@4.147.0 d1 time-travel restore gain-sync --bookmark=<bookmark from step 2>` (per Cloudflare's docs the response includes the previous bookmark; the restore itself was not run here).
+5. Undo a bad restore: run the same command with the bookmark from step 1 (old bookmarks stay valid while inside retention; limit 10 restores per 10 minutes).
+6. Check: `node apps/server/scripts/smoke.mjs https://gain-sync.elmolla10.workers.dev` still passes (it makes and deletes its own test accounts), and `npx wrangler@4.147.0 d1 execute gain-sync --remote --command "select count(*) from account"` looks plausible.
+- After a restore, a phone that synced after the target moment holds rows the server no longer has. Its next push re-sends them (event ids and last-write-wins make that safe), so phones heal the server; this is by design but **untested against a real restore**.
+- Deleted-account data restored by a rollback comes back: if a lifter used "Delete my backup" after the target moment, their rows reappear. Re-run the deletion if that matters.
+- Worker code is separate: `npx wrangler@4.147.0 rollback` (see Deployed above). The schema is in `apps/server/migrations`; `d1 migrations apply` on an empty database rebuilds the tables but not the data.
+- Dashboard alternative: Cloudflare dashboard > Workers & Pages > D1 > gain-sync > Time Travel (not checked).

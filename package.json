@@ -9,5 +9,5 @@
     "typecheck:engine": "npm run typecheck -w @gain/engine",
     "test:engine": "npm run test -w @gain/engine"
   },
-  "engines": { "node": ">=20" }
+  "engines": { "node": ">=22" }
 }

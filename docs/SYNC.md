@@ -109,4 +109,10 @@ Restoring overwrites the live database in place, so write down the "before" book
 
 **Housekeeping.** A daily cron trigger (`[triggers] crons` in `wrangler.toml`, 03:23 UTC) deletes expired coach links, old rate-limit windows, expired sign-in codes and devices unused for 400+ days (that phone gets 401 and signs in again with its recovery code).
 
-**Not done:** per-device token rotation and a "revoke other devices" screen (needs UI); the server must be deployed and `0003` applied (`wrangler d1 migrations apply`) before phones see generations. Until then phones simply don't get the field and behave as before.
+**Not done:** per-device token rotation and a "revoke other devices" screen (needs UI).
+
+### Deployment status of v0.15.0 server changes (2026-10-03)
+- **Deployed and migration applied** on the live Worker `gain-sync` / D1 `gain-sync` (wrangler 4.147.0, account owner). `0003_generation.sql` was the only pending migration and applied cleanly; Worker version `2e3beff2-3c98-47af-8f3c-673496b3ea05` is live with the daily cron trigger (`23 3 * * *`).
+- Before the change: a Time Travel bookmark was taken (`00000002-00000000-000050f9-5366598a51c079d2583d8d1e9a676485`, 13:07 UTC) and a schema-only export saved off-repo. The database held 0 accounts, so no user data was at risk. No restore was needed or run.
+- **Smoke test passed** against https://gain-sync.elmolla10.workers.dev: `scripts/smoke.mjs` (16 checks) plus a manual check that `/v1/me`, push and pull return `generation` (1), push/pull return `head`, and `DELETE /v1/sync/data` bumps generation to 2. Test accounts were deleted; the database was empty afterwards.
+- **Not verified live:** the cron cleanup has not run yet (first run 03:23 UTC); the per-account quota (`413 quota_exceeded`) and the `KILL_SWITCH` variable were not exercised on the deployed Worker (covered by unit/e2e tests only); phone-side reconcile against this server is not device-verified; a Time Travel restore is still never rehearsed.

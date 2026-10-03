@@ -30,3 +30,9 @@ export function parseRepsInput(text: string): number | null {
   const n = parseTyped(text);
   return n !== null && Number.isInteger(n) && n >= 1 && n <= MAX_REPS ? n : null;
 }
+
+/** Reps left in the tank: a whole number 0..10 (empty = not tracked, which the field reports as null too). */
+export function parseRirInput(text: string): number | null {
+  const n = parseTyped(text);
+  return n !== null && Number.isInteger(n) && n >= 0 && n <= 10 ? n : null;
+}

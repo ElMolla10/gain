@@ -44,3 +44,15 @@ describe("typed set numbers (logger)", () => {
     expect(canLog(d("x", "8"))).toBe(false);
   });
 });
+
+import { parseRirInput } from "../src/logic/setInput";
+describe("reps left (RIR) input", () => {
+  it("is a whole number 0..10; anything else is not tracked", () => {
+    expect(parseRirInput("0")).toBe(0);
+    expect(parseRirInput("2")).toBe(2);
+    expect(parseRirInput("10")).toBe(10);
+    expect(parseRirInput("11")).toBeNull();
+    expect(parseRirInput("1.5")).toBeNull();
+    expect(parseRirInput("")).toBeNull();
+  });
+});

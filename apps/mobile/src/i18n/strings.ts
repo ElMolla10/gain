@@ -1,6 +1,7 @@
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
 import { arCommon, enCommon } from "./strings.common";
 import { arDate, enDate } from "./strings.date";
+import { arWorkout, enWorkout } from "./strings.workout";
 import { arData, enData } from "./strings.data";
 import { arDecisions, enDecisions } from "./strings.decisions";
 import { arGoals, enGoals } from "./strings.goals";
@@ -79,7 +80,7 @@ export const en = {
   "workout.repeat": "Repeat last set",
   "workout.undo": "Undo last set",
   "workout.saved": "Saved on this phone at {time}",
-  "workout.notSaved": "Nothing logged yet for this exercise",
+  "workout.notSaved": "Nothing logged yet",
   "workout.setsToday": "Sets today",
   "workout.warmupTag": "warm-up",
   "workout.unconfirmedTag": "unconfirmed",
@@ -168,6 +169,7 @@ export const en = {
   "why.oldFormat": "The stored inputs are in a format this version cannot show in full. The sentence and rule version above are what was stored.",
   ...enCommon,
   ...enDate,
+  ...enWorkout,
   ...enGoals,
   ...enWeekly,
   ...enShortWeek,
@@ -249,7 +251,7 @@ export const ar: Record<StringKey, string> = {
   "workout.repeat": "كرّر آخر مجموعة",
   "workout.undo": "تراجع عن آخر مجموعة",
   "workout.saved": "اتحفظ على التليفون الساعة {time}",
-  "workout.notSaved": "لسه مسجلتش حاجة في التمرين ده",
+  "workout.notSaved": "لسه مسجلتش حاجة",
   "workout.setsToday": "مجموعات النهارده",
   "workout.warmupTag": "إحماء",
   "workout.unconfirmedTag": "مش مؤكدة",
@@ -338,6 +340,7 @@ export const ar: Record<StringKey, string> = {
   "why.oldFormat": "الأرقام المخزنة بصيغة النسخة دي مش قادرة تعرضها كاملة. الجملة ونسخة القاعدة فوق هما اللي اتخزنوا.",
   ...arCommon,
   ...arDate,
+  ...arWorkout,
   ...arGoals,
   ...arWeekly,
   ...arShortWeek,

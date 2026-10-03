@@ -13,6 +13,12 @@ export interface SetRowDraft {
   saved: boolean;
   /** Saved, but typed over since (needs "update"). */
   dirty: boolean;
+  /**
+   * Ghost text for an empty KG / REPS box: today's target (or the previous set). Never stored by itself: it only becomes the
+   * row's value when the lifter ticks the row, so one tap on the checkmark accepts the target.
+   */
+  ghostLoad: number | null;
+  ghostReps: number | null;
 }
 
 export interface SavedSet {
@@ -30,8 +36,14 @@ export interface Prefill {
 
 export const rowReady = (r: Pick<SetRowDraft, "load" | "reps">): r is Pick<SetRowDraft, "load" | "reps"> & { load: number; reps: number } => r.load !== null && r.reps !== null && r.reps >= 1 && r.load >= 0;
 
-const fromSaved = (s: SavedSet): SetRowDraft => ({ key: s.id, load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup, saved: true, dirty: false });
-const blank = (key: string, p: Prefill): SetRowDraft => ({ key, load: p.load, reps: p.reps, rir: null, warmup: false, saved: false, dirty: false });
+/** What the row means right now: what was typed, else the ghost target. */
+export const effectiveOf = (r: Pick<SetRowDraft, "load" | "reps" | "ghostLoad" | "ghostReps">): { load: number | null; reps: number | null } => ({ load: r.load ?? r.ghostLoad, reps: r.reps ?? r.ghostReps });
+
+/** True when ticking the row can log a set (typed values and/or ghost values fill both boxes). */
+export const rowCanLog = (r: Pick<SetRowDraft, "load" | "reps" | "ghostLoad" | "ghostReps">): boolean => rowReady(effectiveOf(r));
+
+const fromSaved = (s: SavedSet): SetRowDraft => ({ key: s.id, load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup, saved: true, dirty: false, ghostLoad: null, ghostReps: null });
+const blank = (key: string, p: Prefill): SetRowDraft => ({ key, load: null, reps: null, rir: null, warmup: false, saved: false, dirty: false, ghostLoad: p.load, ghostReps: p.reps });
 
 /**
  * Rows to show for one exercise: the sets already logged today (oldest first), then empty rows prefilled with today's target
@@ -54,10 +66,23 @@ export function mergeRows(prev: SetRowDraft[], saved: SavedSet[]): SetRowDraft[]
   return [...out, ...prev.filter((r) => !r.saved)];
 }
 
-/** A new empty row, prefilled from the last working row (the common case is the same weight again), else from the target. */
+/** A new empty row whose ghost is the last working row (the common case is the same weight again), else the target. */
 export function addRow(rows: SetRowDraft[], target: Prefill, newKey: () => string): SetRowDraft[] {
-  const last = [...rows].reverse().find((r) => !r.warmup && r.load !== null && r.reps !== null);
-  return [...rows, blank(newKey(), last ? { load: last.load, reps: last.reps } : target)];
+  const last = [...rows].reverse().find((r) => !r.warmup && rowCanLog(r));
+  return [...rows, blank(newKey(), last ? effectiveOf(last) : target)];
+}
+
+/** Ticking an unlogged row with empty boxes takes the ghost values as the row's own (so the screen shows what was logged). */
+export function acceptGhost(rows: SetRowDraft[], key: string): SetRowDraft[] {
+  return rows.map((r) => (r.key === key ? { ...r, ...effectiveOf(r) } : r));
+}
+
+/**
+ * Un-ticking a logged row: it goes back to unlogged and keeps its numbers. It gets a NEW key, because the old set id belongs to a set
+ * that is now deleted (logging the same id again would be ignored as a duplicate).
+ */
+export function unlogRow(rows: SetRowDraft[], key: string, newKey: string): SetRowDraft[] {
+  return rows.map((r) => (r.key === key ? { ...r, key: newKey, saved: false, dirty: false, ghostLoad: r.load, ghostReps: r.reps } : r));
 }
 
 export const removeRow = (rows: SetRowDraft[], key: string): SetRowDraft[] => rows.filter((r) => r.key !== key);
@@ -76,4 +101,4 @@ export function rowLabels(rows: SetRowDraft[]): string[] {
 }
 
 /** Rows that are filled in but not logged: what finishing would leave out (shown as a note, never saved silently). */
-export const unloggedFilled = (rows: SetRowDraft[]): number => rows.filter((r) => !r.saved && rowReady(r)).length;
+export const unloggedFilled = (rows: SetRowDraft[]): number => rows.filter((r) => !r.saved && (r.load !== null || r.reps !== null) && rowCanLog(r)).length;

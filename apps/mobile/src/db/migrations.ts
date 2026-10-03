@@ -270,6 +270,25 @@ CREATE TABLE short_week (
 CREATE UNIQUE INDEX short_week_one_active ON short_week(programme_id) WHERE status = 'active' AND deleted_at IS NULL;
 `,
   },
+  {
+    version: 6,
+    name: "session_exercise",
+    sql: `
+-- Per-workout changes to ONE programme slot of the open workout (v0.9.0 logger): the lifter removed the exercise, swapped it for another
+-- one for today only, wrote a note, or switched its rest timer off. The programme itself is never changed by any of this.
+CREATE TABLE session_exercise (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES session(id),
+  slot_exercise_id TEXT NOT NULL REFERENCES exercise(id),
+  removed INTEGER NOT NULL DEFAULT 0,
+  replaced_by TEXT REFERENCES exercise(id),
+  note TEXT,
+  rest_off INTEGER NOT NULL DEFAULT 0,
+  ${TS}
+);
+CREATE UNIQUE INDEX session_exercise_slot ON session_exercise(session_id, slot_exercise_id) WHERE deleted_at IS NULL;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

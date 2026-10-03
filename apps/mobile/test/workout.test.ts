@@ -222,3 +222,44 @@ describe("history, last performance and the live target", () => {
     expect(n!.c).toBe(1);
   });
 });
+
+describe("per-workout exercise changes (remove / replace / note / rest timer)", () => {
+  async function open() {
+    const ctx = await freshDb();
+    await ctx.repos.seedIfNeeded();
+    const gymId = (await ctx.repos.getActiveGymId())!;
+    const gym = await ctx.repos.loadGymFingerprint(gymId);
+    const next = (await ctx.repos.getNextDay())!;
+    const exs = await ctx.repos.listDayExercises(next.day.id);
+    const { id } = await ctx.workout.startOrResumeSession(next.day.id, gymId);
+    return { ...ctx, id, exs, gym, dctx: { gym, equipment: exs[0]!.equipment, setup: exs[0]!.setup } };
+  }
+  it("starts empty and upserts one row per slot", async () => {
+    const { workout, id, exs } = await open();
+    expect(await workout.listExerciseState(id)).toEqual([]);
+    const slot = exs[0]!.exerciseId;
+    await workout.patchExerciseState(id, slot, { note: "belt on" });
+    await workout.patchExerciseState(id, slot, { restOff: true });
+    expect(await workout.listExerciseState(id)).toEqual([{ slot, removed: false, replacedBy: null, note: "belt on", restOff: true }]);
+  });
+  it("removing an exercise deletes its logged sets and restoring brings the slot back", async () => {
+    const { workout, id, exs, dctx } = await open();
+    const slot = exs[0]!.exerciseId;
+    await workout.logSet({ sessionId: id, exerciseId: slot, load: 60, reps: 8 }, dctx);
+    await workout.removeExercise(id, slot, slot);
+    expect(await workout.listSessionSets(id)).toHaveLength(0);
+    expect((await workout.listExerciseState(id))[0]).toMatchObject({ slot, removed: true });
+    await workout.patchExerciseState(id, slot, { removed: false });
+    expect((await workout.listExerciseState(id))[0]!.removed).toBe(false);
+  });
+  it("replacing is refused once sets are logged, allowed before, and never touches the programme", async () => {
+    const { workout, repos, id, exs, dctx } = await open();
+    const slot = exs[0]!.exerciseId;
+    const other = exs[1]!.exerciseId;
+    await workout.replaceExercise(id, slot, slot, other);
+    expect((await workout.listExerciseState(id))[0]).toMatchObject({ slot, replacedBy: other });
+    await workout.logSet({ sessionId: id, exerciseId: other, load: 40, reps: 10 }, dctx);
+    await expect(workout.replaceExercise(id, slot, other, slot)).rejects.toThrow();
+    expect((await repos.listDayExercises((await repos.getNextDay())!.day.id))[0]!.exerciseId).toBe(slot);
+  });
+});

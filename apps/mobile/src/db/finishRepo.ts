@@ -5,6 +5,7 @@ import {
   type GymFingerprint,
   type LineIdentity,
   type LoggedSet,
+  type Measure,
   type Proposal,
   type ReasonText,
   type SetupType,
@@ -26,6 +27,10 @@ export interface TargetRow {
   nameAr: string;
   load: number | null;
   reps: number | null;
+  /** How the exercise is counted; for time / distance the target is `durationS` / `distanceM` and `reps` is null. */
+  measure: Measure;
+  durationS: number | null;
+  distanceM: number | null;
   targetRir: number | null;
   quality: string | null;
   plannedSets: number | null;
@@ -50,6 +55,9 @@ interface RawTarget {
   name_ar: string;
   load: number | null;
   reps: number | null;
+  measure: Measure;
+  duration_s: number | null;
+  distance_m: number | null;
   target_rir: number | null;
   quality: string | null;
   planned_sets: number | null;
@@ -73,6 +81,9 @@ const toTarget = (r: RawTarget): TargetRow => ({
   nameAr: r.name_ar,
   load: r.load,
   reps: r.reps,
+  measure: r.measure,
+  durationS: r.duration_s,
+  distanceM: r.distance_m,
   targetRir: r.target_rir,
   quality: r.quality,
   plannedSets: r.planned_sets,
@@ -116,14 +127,14 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     for (const r of rows) byEx.set(r.exerciseId, [...(byEx.get(r.exerciseId) ?? []), r]);
     const exercises: SessionSummary["exercises"] = [];
     for (const [exerciseId, sets] of byEx) {
-      const meta = await db.get<{ name_en: string; name_ar: string; setup: SetupType }>("SELECT name_en, name_ar, setup FROM exercise WHERE id = ?", [exerciseId]);
+      const meta = await db.get<{ name_en: string; name_ar: string; setup: SetupType; measure: Measure }>("SELECT name_en, name_ar, setup, measure FROM exercise WHERE id = ?", [exerciseId]);
       if (!meta) continue;
       const lineId = sets[0]!.lineId;
       const line: LineIdentity = { exerciseId, gymId: session.gym_id, setup: meta.setup };
       const prior = (await workout.getHistory(line, lineId)).filter((h) => h.performedAt < new Date(session.finished_at ?? now()).toISOString());
       const priorSets: LoggedSet[] = prior.flatMap((h) => h.sets);
-      const today: LoggedSet[] = sets.map((s) => ({ load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags, outlierStatus: s.outlierStatus }));
-      exercises.push({ exerciseId, nameEn: meta.name_en, nameAr: meta.name_ar, ...summarizeExercise(meta.setup, today, priorSets) });
+      const today: LoggedSet[] = sets.map((s) => ({ load: s.load, reps: s.reps, durationS: s.durationS, distanceM: s.distanceM, rir: s.rir, warmup: s.warmup, tags: s.tags, outlierStatus: s.outlierStatus }));
+      exercises.push({ exerciseId, nameEn: meta.name_en, nameAr: meta.name_ar, ...summarizeExercise(meta.setup, today, priorSets, meta.measure) });
     }
     return {
       sessionId,
@@ -138,7 +149,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     };
   }
 
-  const TARGET_SELECT = `SELECT t.id, t.session_id, t.exercise_id, t.line_id, e.name_en, e.name_ar, t.load, t.reps, t.target_rir, t.quality,
+  const TARGET_SELECT = `SELECT t.id, t.session_id, t.exercise_id, t.line_id, e.name_en, e.name_ar, e.measure, t.load, t.reps, t.duration_s, t.distance_m, t.target_rir, t.quality,
       t.planned_sets, t.currency, t.jump_kind, t.rule_version, t.path, t.status, t.reason_key, t.reason_params_json, t.confidence, t.edited_load
     FROM target t JOIN exercise e ON e.id = t.exercise_id WHERE t.deleted_at IS NULL`;
 
@@ -230,7 +241,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     const decided: { ex: (typeof exercises)[number]; proposal: Proposal; lineId: string }[] = [];
     for (const ex of exercises) {
       const { proposal, lineId } = await workout.liveProposal(
-        { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, repCeiling: ex.repCeiling, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
+        { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, repMin: ex.repMin, repMax: ex.repMax, repCeiling: ex.repCeiling, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
         gym,
       );
       decided.push({ ex, proposal, lineId });
@@ -243,16 +254,18 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         if (exists) continue;
         const targetId = newId();
         await db.run(
-          `INSERT INTO target (id, session_id, exercise_id, line_id, load, reps, target_rir, quality, planned_sets, currency, jump_kind,
+          `INSERT INTO target (id, session_id, exercise_id, line_id, load, reps, duration_s, distance_m, target_rir, quality, planned_sets, currency, jump_kind,
              rule_version, path, status, reason_key, reason_params_json, confidence, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rule', 'proposed', ?, ?, ?, ?, ?)`,
-          [targetId, sessionId, ex.exerciseId, lineId, proposal.load, proposal.reps, proposal.targetRir, proposal.quality, proposal.sets, proposal.currency, proposal.jumpKind,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rule', 'proposed', ?, ?, ?, ?, ?)`,
+          [targetId, sessionId, ex.exerciseId, lineId, proposal.load, proposal.reps, proposal.durationS ?? null, proposal.distanceM ?? null, proposal.targetRir, proposal.quality, proposal.sets, proposal.currency, proposal.jumpKind,
             proposal.ruleVersion, proposal.reason.key, JSON.stringify(proposal.reason.params), proposal.confidence, t, t],
         );
         const payload: DecisionPayload = {
           proposal: {
             load: proposal.load,
             reps: proposal.reps,
+            durationS: proposal.durationS ?? null,
+            distanceM: proposal.distanceM ?? null,
             currency: proposal.currency,
             jumpKind: proposal.jumpKind,
             confidence: proposal.confidence,

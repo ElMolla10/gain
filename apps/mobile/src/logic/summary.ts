@@ -1,6 +1,7 @@
-import { isTrustedWorkingSet, type LoggedSet, type SetupType } from "@gain/engine";
+import { isTimedMeasure, isTrustedWorkingSet, quantityOf, type LoggedSet, type Measure, type SetupType } from "@gain/engine";
 
-export type RecordKind = "load" | "reps_at_load";
+/** `quantity_at_load`: a longer hold / carry than ever at that same load (time and distance exercises). */
+export type RecordKind = "load" | "reps_at_load" | "quantity_at_load";
 
 export interface ExerciseSummary {
   /** Working sets that count: not warm-ups, not drop sets, not unconfirmed/rejected outliers. */
@@ -9,7 +10,10 @@ export interface ExerciseSummary {
   dropSets: number;
   /** Logged but waiting for a confirm: shown, but they do not count and do not move the next target. */
   unconfirmed: number;
-  top: { load: number; reps: number } | null;
+  /** How the exercise is counted (omitted = reps). */
+  measure?: Measure;
+  /** The heaviest counted load and, at it, the best reps. For time / distance exercises `reps` is 1 and `quantity` is the best seconds / metres at that load. */
+  top: { load: number; reps: number; quantity?: number } | null;
   /** Records versus earlier sessions on the SAME line. Empty on the first time: no history, no record claim. */
   records: RecordKind[];
   firstTime: boolean;
@@ -21,7 +25,8 @@ const harder = (setup: SetupType, a: number, b: number) => (setup === "assisted"
  * What counted today for one exercise, and what was a record against that line's earlier sessions.
  * "Heavier" means less assistance on assisted lines. A first-ever session is labelled first time, never a record.
  */
-export function summarizeExercise(setup: SetupType, today: LoggedSet[], prior: LoggedSet[]): ExerciseSummary {
+export function summarizeExercise(setup: SetupType, today: LoggedSet[], prior: LoggedSet[], measure: Measure = "reps"): ExerciseSummary {
+  if (isTimedMeasure(measure)) return summarizeTimedExercise(setup, today, prior, measure);
   const counted = today.filter(isTrustedWorkingSet);
   const priorWork = prior.filter(isTrustedWorkingSet);
   const top = counted.length
@@ -46,6 +51,36 @@ export function summarizeExercise(setup: SetupType, today: LoggedSet[], prior: L
     dropSets: today.filter((s) => !s.warmup && s.tags?.includes("drop")).length,
     unconfirmed: today.filter((s) => !s.warmup && s.outlierStatus === "unconfirmed").length,
     top: top && topReps !== null ? { load: top.load, reps: topReps } : null,
+    records,
+    firstTime,
+  };
+}
+
+function summarizeTimedExercise(setup: SetupType, today: LoggedSet[], prior: LoggedSet[], measure: "time" | "distance"): ExerciseSummary {
+  const has = (s: LoggedSet) => quantityOf(s, measure) !== null;
+  const counted = today.filter((s) => isTrustedWorkingSet(s) && has(s));
+  const priorWork = prior.filter((s) => isTrustedWorkingSet(s) && has(s));
+  const top = counted.length ? counted.reduce((best, s) => (harder(setup, s.load, best.load) ? s : best), counted[0]!) : null;
+  const topLoad = top?.load ?? null;
+  const best = (xs: LoggedSet[]) => Math.max(...xs.map((s) => quantityOf(s, measure)!));
+  const topQty = topLoad === null ? null : best(counted.filter((s) => Math.abs(s.load - topLoad) < 1e-6));
+  const records: RecordKind[] = [];
+  const firstTime = priorWork.length === 0;
+  if (topLoad !== null && topQty !== null && !firstTime) {
+    const priorBestLoad = priorWork.reduce((b, s) => (harder(setup, s.load, b) ? s.load : b), priorWork[0]!.load);
+    if (harder(setup, topLoad, priorBestLoad)) records.push("load");
+    else {
+      const sameLoad = priorWork.filter((s) => Math.abs(s.load - topLoad) < 1e-6);
+      if (sameLoad.length > 0 && topQty > best(sameLoad)) records.push("quantity_at_load");
+    }
+  }
+  return {
+    counted: counted.length,
+    warmups: today.filter((s) => s.warmup).length,
+    dropSets: today.filter((s) => !s.warmup && s.tags?.includes("drop")).length,
+    unconfirmed: today.filter((s) => !s.warmup && s.outlierStatus === "unconfirmed").length,
+    measure,
+    top: top && topQty !== null ? { load: top.load, reps: 1, quantity: topQty } : null,
     records,
     firstTime,
   };

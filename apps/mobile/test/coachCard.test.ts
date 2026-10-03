@@ -13,7 +13,7 @@ const summary: SessionSummary = {
   totals: { exercises: 2, counted: 6, warmups: 2, unconfirmed: 1, records: 1 },
 };
 const target = (over: Partial<TargetRow>): TargetRow => ({
-  id: "t", sessionId: "n", exerciseId: "bench", lineId: "l", nameEn: "Bench <Press>", nameAr: "بنش برس", load: 62.5, reps: 8, targetRir: 2, quality: null, plannedSets: 3,
+  id: "t", sessionId: "n", exerciseId: "bench", lineId: "l", nameEn: "Bench <Press>", nameAr: "بنش برس", load: 62.5, reps: 8, measure: "reps", durationS: null, distanceM: null, targetRir: 2, quality: null, plannedSets: 3,
   currency: "reps", jumpKind: null, ruleVersion: "r1", path: "rule", status: "proposed", reason: { key: "reps.progress", params: {} } as never, confidence: "high", editedLoad: null, effectiveLoad: 62.5, ...over,
 });
 const base = { unit: "kg" as const, date: "2026-10-03", summary, paceLine: "On pace" };

@@ -144,7 +144,9 @@ describe("CSV export (Hevy columns)", () => {
     const sessions = await a.data.counts();
     expect(parsed.workouts).toHaveLength(sessions.sessions);
     const csvSets = parsed.workouts.flatMap((w) => w.exercises.flatMap((e) => e.sets));
-    expect(csvSets).toHaveLength(sessions.sets);
+    const csvTimed = parsed.workouts.flatMap((w) => w.exercises.flatMap((e) => e.timed ?? []));
+    expect(csvSets.length + csvTimed.length).toBe(sessions.sets); // holds and carries are written with an empty reps cell and read back as timed
+    expect(csvTimed.length).toBeGreaterThan(0);
     expect(csvSets.filter((s) => s.warmup).length).toBeGreaterThanOrEqual(12);
     const own = csvSets.find((s) => s.load === 60 && s.reps === 9)!;
     expect(own.rir).toBe(2); // RIR 2 -> RPE 8 -> RIR 2

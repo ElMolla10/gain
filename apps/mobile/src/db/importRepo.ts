@@ -1,4 +1,4 @@
-import { classifyTitle, findSpec, guessPattern, matchLibrary, roundToGymLoad, type EquipmentType, type GymFingerprint, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type SetupType } from "@gain/engine";
+import { classifyTitle, findSpec, guessPattern, matchLibrary, MAX_METRES, MAX_SECONDS, roundToGymLoad, type EquipmentType, type GymFingerprint, type ImportedExercise, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type Measure, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { ProgrammeRepo } from "./programmeRepo";
@@ -8,7 +8,7 @@ import type { WorkoutRepo } from "./workoutRepo";
 /** The lifter's decision for one exported title. */
 export type MappingChoice =
   | { kind: "existing"; exerciseId: string }
-  | { kind: "new"; nameEn: string; pattern: string; equipment: EquipmentType; setup: SetupType };
+  | { kind: "new"; nameEn: string; pattern: string; equipment: EquipmentType; setup: SetupType; /** Omitted = counted from the file (seconds / metres when the title only has those). */ measure?: Measure };
 
 /** What the app proposes for a title before the lifter confirms it. Equipment `null` means the title does not say, so the lifter must choose. */
 export type Suggestion =
@@ -21,6 +21,8 @@ export interface TitlePreview {
   /** New workouts (not already imported) that use this title. */
   workouts: number;
   sets: number;
+  /** Rows of this title the suggested exercise cannot count (seconds for a distance exercise, a hold for a reps exercise): they would be skipped. */
+  unfit: number;
   suggestion: Suggestion;
 }
 
@@ -88,6 +90,35 @@ export function snapImportedLoad(gym: GymFingerprint, equipment: EquipmentType, 
 
 const usable = (s: { load: number; reps: number }) => Number.isFinite(s.load) && s.load >= 0 && Number.isInteger(s.reps) && s.reps >= 1;
 
+type Timed = NonNullable<ImportedExercise["timed"]>[number];
+const usableTimed = (t: Timed, measure: "time" | "distance"): boolean => {
+  const q = measure === "time" ? t.durationS : t.distanceM;
+  return Number.isFinite(t.load) && t.load >= 0 && q !== null && Number.isFinite(q) && q > 0 && q <= (measure === "time" ? MAX_SECONDS : MAX_METRES);
+};
+/** Rows that could be imported under SOME exercise: reps sets, or rows with seconds / metres. Whether they are depends on how the exercise is counted. */
+const hasAnyRows = (e: ImportedExercise): boolean => e.sets.some(usable) || (e.timed ?? []).length > 0;
+/** The rows of one exercise that are importable when it is counted in `measure`; `dropped` = rows of the file that do not fit that measure. */
+export function rowsFor(e: ImportedExercise, measure: Measure): { sets: number; dropped: number } {
+  if (measure === "reps") return { sets: e.sets.filter(usable).length, dropped: e.sets.filter((x) => !usable(x)).length + (e.timed ?? []).length };
+  const timed = e.timed ?? [];
+  const ok = timed.filter((t) => usableTimed(t, measure)).length;
+  return { sets: ok, dropped: timed.length - ok + e.sets.length };
+}
+/** How a NEW exercise with this title is counted: seconds when the file only has durations for it, metres when it only has distances, else reps. */
+export function inferMeasure(parse: ImportParse, title: string): Measure {
+  let reps = 0, secs = 0, metres = 0;
+  for (const w of parse.workouts) for (const e of w.exercises) {
+    if (e.title !== title) continue;
+    reps += e.sets.filter(usable).length;
+    for (const t of e.timed ?? []) {
+      if (t.distanceM !== null) metres++;
+      else if (t.durationS !== null) secs++;
+    }
+  }
+  if (reps > 0 || secs + metres === 0) return "reps";
+  return metres > secs ? "distance" : "time";
+}
+
 /**
  * Imports other apps' history as finished sessions. The data is the lifter's, read as written: nothing is estimated or filled in.
  * Weights must already be in kg (engine `toKilograms`). History lands on one line per exercise + gym + setup, the same lines the
@@ -119,7 +150,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         continue;
       }
       seen.add(w.key);
-      if (!w.exercises.some((e) => e.sets.some(usable))) {
+      if (!w.exercises.some(hasAnyRows)) {
         empty++;
         continue;
       }
@@ -140,22 +171,29 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   /** What the file contains and what would happen, before anything is written. Saved choice first, then an exact library match, else a new exercise. */
   async function preview(parse: ImportParse): Promise<ImportPreview> {
     const { fresh, duplicates, empty } = await triage(parse);
-    const library: LibraryEntry[] = (await programmes.listExercises()).map((e) => ({ id: e.id, nameEn: e.nameEn, equipment: e.equipment, setup: e.setup }));
+    const all = await programmes.listExercises();
+    const library: LibraryEntry[] = all.map((e) => ({ id: e.id, nameEn: e.nameEn, equipment: e.equipment, setup: e.setup }));
+    const measureById = new Map(all.map((e) => [e.id, e.measure]));
     const saved = await savedMappings(parse.source);
     const byTitle = new Map<string, TitlePreview>();
     let newSets = 0;
     for (const w of fresh) {
       for (const e of w.exercises) {
-        const n = e.sets.filter(usable).length;
-        if (n === 0) continue;
-        newSets += n;
         let t = byTitle.get(e.title);
+        const sugg = t?.suggestion ?? suggest(e.title, saved, library);
+        const measure: Measure = sugg.kind === "new" ? inferMeasure(parse, e.title) : measureById.get(sugg.exerciseId) ?? "reps";
+        const n = rowsFor(e, measure).sets;
+        const unfit = rowsFor(e, measure).dropped;
+        if (n === 0 && !hasAnyRows(e)) continue; // nothing in it for anyone
+        if (n === 0 && unfit === 0) continue;
+        newSets += n;
         if (!t) {
-          t = { title: e.title, workouts: 0, sets: 0, suggestion: suggest(e.title, saved, library) };
+          t = { title: e.title, workouts: 0, sets: 0, unfit: 0, suggestion: sugg };
           byTitle.set(e.title, t);
         }
-        t.workouts++;
+        if (n > 0) t.workouts++;
         t.sets += n;
+        t.unfit += unfit;
       }
     }
     const dates = fresh.map((w) => w.startTime.slice(0, 10)).sort();
@@ -214,7 +252,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     if (!gym) throw new Error("Unknown gym");
     const { fresh, duplicates, empty } = await triage(parse);
     const need = new Set<string>();
-    for (const w of fresh) for (const e of w.exercises) if (e.sets.some(usable)) need.add(e.title);
+    for (const w of fresh) for (const e of w.exercises) if (hasAnyRows(e)) need.add(e.title);
     const missing = [...need].filter((t) => !mappings[t]);
     if (missing.length > 0) throw new ImportIncomplete(missing);
     for (const t of need) {
@@ -224,7 +262,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     if (fresh.length === 0) return { batchId: null, workouts: 0, sets: 0, duplicates, empty, skippedSets: 0, newExercises: 0 };
 
     return db.transaction(async () => {
-      const exerciseOf = new Map<string, { id: string; setup: SetupType; equipment: EquipmentType }>();
+      const exerciseOf = new Map<string, { id: string; setup: SetupType; equipment: EquipmentType; measure: Measure }>();
       const gymLoads = await repos.loadGymFingerprint(gymId);
       let newExercises = 0;
       for (const title of need) {
@@ -234,11 +272,11 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
           exerciseId = c.exerciseId;
         } else {
           const before = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM exercise");
-          exerciseId = await programmes.createExercise({ nameEn: c.nameEn, pattern: c.pattern, equipment: c.equipment, setup: c.setup });
+          exerciseId = await programmes.createExercise({ nameEn: c.nameEn, pattern: c.pattern, equipment: c.equipment, setup: c.setup, measure: c.measure ?? inferMeasure(parse, title) });
           const after = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM exercise");
           if (Number(after?.n) > Number(before?.n)) newExercises++;
         }
-        const ex = await db.get<{ id: string; setup: SetupType; equipment: EquipmentType }>("SELECT id, setup, equipment FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+        const ex = await db.get<{ id: string; setup: SetupType; equipment: EquipmentType; measure: Measure }>("SELECT id, setup, equipment, measure FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
         if (!ex) throw new Error(`Unknown exercise for "${title}"`);
         exerciseOf.set(title, ex);
       }
@@ -249,7 +287,19 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
 
       let sets = 0;
       let skippedSets = 0;
+      let workouts = 0;
+      let emptyNow = empty;
       for (const w of fresh) {
+        // What each exercise of this workout contributes under the way its exercise is counted; a workout with nothing left is skipped, not stored empty.
+        const plan = w.exercises.map((e) => {
+          const ex = exerciseOf.get(e.title);
+          return { e, ex, rows: ex ? rowsFor(e, ex.measure) : { sets: 0, dropped: 0 } };
+        });
+        if (plan.every((x) => x.rows.sets === 0)) {
+          emptyNow++;
+          continue;
+        }
+        workouts++;
         const sessionId = newId();
         const start = localToEpoch(w.startTime);
         const end = w.endTime ? Math.max(start, localToEpoch(w.endTime)) : start; // no end time in the file: the session ends when it starts, nothing is estimated
@@ -259,27 +309,39 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
           [sessionId, versionId, dayId, gymId, start, end, w.key, batchId, t0, t0],
         );
         const position = new Map<string, number>();
-        for (const e of w.exercises) {
-          const ex = exerciseOf.get(e.title);
+        for (const { e, ex, rows } of plan) {
           if (!ex) continue; // an exercise with no usable set was not mapped
+          skippedSets += rows.dropped;
+          if (rows.sets === 0) continue;
           const lineId = await workout.ensureLine(ex.id, gymId, ex.setup);
-          for (const s of e.sets) {
-            if (!usable(s)) {
-              skippedSets++;
-              continue;
+          if (ex.measure === "reps") {
+            for (const s of e.sets) {
+              if (!usable(s)) continue;
+              const pos = (position.get(ex.id) ?? 0) + 1;
+              position.set(ex.id, pos);
+              await db.run(
+                `INSERT INTO workout_set (id, session_id, exercise_id, line_id, position, load, reps, rir, is_warmup, tags_json, outlier_status, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'none', ?, ?)`,
+                [newId(), sessionId, ex.id, lineId, pos, snapImportedLoad(gymLoads, ex.equipment, ex.setup, s.load), s.reps, s.rir ?? null, s.warmup ? 1 : 0, JSON.stringify(s.tags ?? []), t0, t0],
+              );
+              sets++;
             }
-            const pos = (position.get(ex.id) ?? 0) + 1;
-            position.set(ex.id, pos);
-            await db.run(
-              `INSERT INTO workout_set (id, session_id, exercise_id, line_id, position, load, reps, rir, is_warmup, tags_json, outlier_status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'none', ?, ?)`,
-              [newId(), sessionId, ex.id, lineId, pos, snapImportedLoad(gymLoads, ex.equipment, ex.setup, s.load), s.reps, s.rir ?? null, s.warmup ? 1 : 0, JSON.stringify(s.tags ?? []), t0, t0],
-            );
-            sets++;
+          } else {
+            for (const s of e.timed ?? []) {
+              if (!usableTimed(s, ex.measure)) continue;
+              const pos = (position.get(ex.id) ?? 0) + 1;
+              position.set(ex.id, pos);
+              await db.run(
+                `INSERT INTO workout_set (id, session_id, exercise_id, line_id, position, load, reps, duration_s, distance_m, rir, is_warmup, tags_json, outlier_status, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, NULL, ?, ?, 'none', ?, ?)`,
+                [newId(), sessionId, ex.id, lineId, pos, snapImportedLoad(gymLoads, ex.equipment, ex.setup, s.load), ex.measure === "time" ? Math.round(s.durationS!) : null, ex.measure === "distance" ? s.distanceM! : null, s.warmup ? 1 : 0, JSON.stringify(s.tags ?? []), t0, t0],
+              );
+              sets++;
+            }
           }
         }
       }
-      await db.run("UPDATE import_batch SET workouts = ?, sets = ?, updated_at = ? WHERE id = ?", [fresh.length, sets, deps.now(), batchId]);
+      await db.run("UPDATE import_batch SET workouts = ?, sets = ?, updated_at = ? WHERE id = ?", [workouts, sets, deps.now(), batchId]);
       for (const title of need) {
         const ex = exerciseOf.get(title)!;
         await db.run(
@@ -288,7 +350,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
           [newId(), parse.source, title, ex.id, t0, t0],
         );
       }
-      return { batchId, workouts: fresh.length, sets, duplicates, empty, skippedSets, newExercises };
+      return { batchId, workouts, sets, duplicates, empty: emptyNow, skippedSets, newExercises };
     }).then(async (r) => {
       await resync();
       return r;

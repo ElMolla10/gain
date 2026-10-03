@@ -1,4 +1,5 @@
-import type { EquipmentType, SetupType } from "@gain/engine";
+import type { EquipmentType, Measure, SetupType } from "@gain/engine";
+import { DEFAULT_TIMED_RANGE } from "./library/measures";
 import { computeExposure, type ExposureRow } from "../logic/exposure";
 import { draftFingerprint, validateDraft, type DraftProblem, type ProgrammeDraft } from "../logic/programmeDraft";
 import type { Db, Deps } from "./driver";
@@ -27,6 +28,8 @@ export interface LibraryExercise {
   pattern: string;
   equipment: EquipmentType;
   setup: SetupType;
+  /** How it is counted: reps (default), time (seconds held) or distance (metres carried). */
+  measure: Measure;
   isCustom: boolean;
 }
 
@@ -62,6 +65,15 @@ export interface NewExerciseInput {
   pattern: string;
   equipment: EquipmentType;
   setup: SetupType;
+  /** Omitted = reps. */
+  measure?: Measure;
+}
+
+/** A change of how an exercise is counted is refused once sets were logged for it: old sets would change meaning. */
+export class MeasureLocked extends Error {
+  constructor() {
+    super("This exercise already has logged sets, so it keeps the way it is counted");
+  }
 }
 
 /**
@@ -73,8 +85,8 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
 
   // ---- exercise library -----------------------------------------------------------------------------------
   async function listExercises(): Promise<LibraryExercise[]> {
-    const rows = await db.all<{ id: string; seed_key: string | null; name_en: string; name_ar: string; aliases_ar_json: string; pattern: string; equipment: EquipmentType; setup: SetupType; is_sample: number }>(
-      "SELECT id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, is_sample FROM exercise WHERE deleted_at IS NULL ORDER BY name_en",
+    const rows = await db.all<{ id: string; seed_key: string | null; name_en: string; name_ar: string; aliases_ar_json: string; pattern: string; equipment: EquipmentType; setup: SetupType; measure: Measure; is_sample: number }>(
+      "SELECT id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, measure, is_sample FROM exercise WHERE deleted_at IS NULL ORDER BY name_en",
     );
     return rows.map((r) => ({
       id: r.id,
@@ -85,6 +97,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       pattern: r.pattern,
       equipment: r.equipment,
       setup: r.setup,
+      measure: r.measure,
       isCustom: r.seed_key === null,
     }));
   }
@@ -93,16 +106,44 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
   async function createExercise(input: NewExerciseInput): Promise<string> {
     const nameEn = input.nameEn.trim();
     if (nameEn === "") throw new Error("Exercise name is empty");
-    const dup = await db.get<{ id: string }>("SELECT id FROM exercise WHERE lower(name_en) = lower(?) AND equipment = ? AND setup = ? AND deleted_at IS NULL", [nameEn, input.equipment, input.setup]);
+    const measure = input.measure ?? "reps";
+    const dup = await db.get<{ id: string }>("SELECT id FROM exercise WHERE lower(name_en) = lower(?) AND equipment = ? AND setup = ? AND measure = ? AND deleted_at IS NULL", [nameEn, input.equipment, input.setup, measure]);
     if (dup) return dup.id; // the same movement is never created twice
     const id = newId();
     const t = now();
     await db.run(
-      `INSERT INTO exercise (id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, is_sample, created_at, updated_at)
-       VALUES (?, NULL, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-      [id, nameEn, (input.nameAr ?? "").trim() || nameEn, JSON.stringify(input.aliasesAr ?? []), input.pattern, input.equipment, input.setup, t, t],
+      `INSERT INTO exercise (id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, measure, is_sample, created_at, updated_at)
+       VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+      [id, nameEn, (input.nameAr ?? "").trim() || nameEn, JSON.stringify(input.aliasesAr ?? []), input.pattern, input.equipment, input.setup, measure, t, t],
     );
     return id;
+  }
+
+  /**
+   * Counts an exercise in reps, seconds or metres. Refused once any set was logged for it (the numbers already stored would change meaning).
+   * Programme slots that use it get the new unit's starting range (a reps range such as 8-12 would read as 8-12 seconds), in every saved
+   * version, so the Today list and the next target stay consistent; sessions already finished are untouched. Planned targets are rewritten.
+   */
+  async function setExerciseMeasure(exerciseId: string, measure: Measure): Promise<{ changed: boolean; slots: number }> {
+    const ex = await db.get<{ measure: Measure }>("SELECT measure FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+    if (!ex) throw new Error("Unknown exercise");
+    if (ex.measure === measure) return { changed: false, slots: 0 };
+    const logged = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM workout_set WHERE exercise_id = ? AND deleted_at IS NULL", [exerciseId]);
+    if (Number(logged?.n) > 0) throw new MeasureLocked();
+    const range = measure === "reps" ? { min: 6, max: 10, sets: null } : DEFAULT_TIMED_RANGE[measure];
+    const slots = await db.transaction(async () => {
+      const t = now();
+      await db.run("UPDATE exercise SET measure = ?, updated_at = ? WHERE id = ?", [measure, t, exerciseId]);
+      const r = await db.run(
+        "UPDATE programme_day_exercise SET rep_min = ?, rep_max = ?, rep_ceiling = NULL, track_effort = 0, updated_at = ? WHERE exercise_id = ? AND deleted_at IS NULL",
+        [range.min, range.max, t, exerciseId],
+      );
+      return r.changes;
+    });
+    // Planned sessions hold targets written under the old unit: drop and rewrite them.
+    const gymId = await repos.getActiveGymId();
+    if (gymId) await finish.refreshPlannedSessions(gymId);
+    return { changed: true, slots };
   }
 
   async function seedKeyMap(): Promise<Map<string, { exerciseId: string; equipment: EquipmentType }>> {
@@ -294,6 +335,6 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     await replan();
   }
 
-  return { listExercises, createExercise, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
+  return { listExercises, createExercise, setExerciseMeasure, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
 }
 export type ProgrammeRepo = ReturnType<typeof createProgrammeRepo>;

@@ -45,10 +45,10 @@ export function createDataRepo(db: Db, deps: Deps) {
   /** Finished sessions' sets in Hevy's column layout (kg): opens in Excel, and GAIN's own import reads it back. */
   async function exportCsv(): Promise<string> {
     const rows = await db.all<{
-      title: string; started_at: number | null; finished_at: number; exercise: string; exercise_id: string; load: number; reps: number; rir: number | null;
+      title: string; started_at: number | null; finished_at: number; exercise: string; exercise_id: string; load: number; reps: number; rir: number | null; duration_s: number | null; distance_m: number | null;
       is_warmup: number; tags_json: string; sid: string;
     }>(
-      `SELECT d.name AS title, s.started_at, s.finished_at, e.name_en AS exercise, e.id AS exercise_id, ws.load, ws.reps, ws.rir, ws.is_warmup, ws.tags_json, s.id AS sid
+      `SELECT d.name AS title, s.started_at, s.finished_at, e.name_en AS exercise, e.id AS exercise_id, ws.load, ws.reps, ws.rir, ws.duration_s, ws.distance_m, ws.is_warmup, ws.tags_json, s.id AS sid
          FROM workout_set ws JOIN session s ON s.id = ws.session_id JOIN exercise e ON e.id = ws.exercise_id JOIN programme_day d ON d.id = s.programme_day_id
         WHERE s.status = 'finished' AND s.deleted_at IS NULL AND ws.deleted_at IS NULL AND s.finished_at IS NOT NULL
         ORDER BY s.finished_at, s.rowid, ws.created_at, ws.position, ws.rowid`,
@@ -72,7 +72,7 @@ export function createDataRepo(db: Db, deps: Deps) {
       idx.set(k, i + 1);
       out.push({
         title: r.title, startMs: r.started_at ?? r.finished_at, endMs: r.finished_at, exerciseTitle: r.exercise, setIndex: i,
-        warmup: r.is_warmup === 1, drop: (JSON.parse(r.tags_json) as string[]).includes("drop"), failure: (JSON.parse(r.tags_json) as string[]).includes("failure"), supersetId: ssId.get(k) ?? null, weightKg: r.load, reps: r.reps, rir: r.rir,
+        warmup: r.is_warmup === 1, drop: (JSON.parse(r.tags_json) as string[]).includes("drop"), failure: (JSON.parse(r.tags_json) as string[]).includes("failure"), supersetId: ssId.get(k) ?? null, weightKg: r.load, reps: r.reps, rir: r.rir, durationS: r.duration_s, distanceM: r.distance_m,
       });
     }
     return buildCsv(out);

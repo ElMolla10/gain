@@ -5,6 +5,9 @@ export interface DecisionPayload {
   proposal: {
     load: number | null;
     reps: number | null;
+    /** Time / distance exercises: the target seconds / metres (reps is null). Absent in decisions stored before v0.13. */
+    durationS?: number | null;
+    distanceM?: number | null;
     currency: string;
     jumpKind: string | null;
     confidence: string;

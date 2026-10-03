@@ -1,3 +1,4 @@
+import { measureOfKey } from "../src/db/library/measures";
 import { beforeAll, describe, expect, it } from "vitest";
 import { ALL_LIBRARY, CATALOG } from "../src/db/libraryDraft";
 import { GEARS, MUSCLE_GROUPS } from "../src/db/library";
@@ -6,7 +7,7 @@ import { buildSearchIndex, metaOf, PICKER_PAGE, searchExercises, type SearchRow 
 import { en, ar } from "../src/i18n/strings";
 
 const asRows = (): LibraryExercise[] =>
-  ALL_LIBRARY.map((e, i) => ({ id: `id${i}`, seedKey: e.key, nameEn: e.en, nameAr: e.ar, aliasesAr: e.aliasesAr, pattern: e.pattern, equipment: e.equipment, setup: e.setup, isCustom: false })).sort((a, b) => a.nameEn.localeCompare(b.nameEn));
+  ALL_LIBRARY.map((e, i) => ({ id: `id${i}`, seedKey: e.key, nameEn: e.en, nameAr: e.ar, aliasesAr: e.aliasesAr, pattern: e.pattern, equipment: e.equipment, setup: e.setup, measure: measureOfKey(e.key), isCustom: false })).sort((a, b) => a.nameEn.localeCompare(b.nameEn));
 
 let rows: LibraryExercise[];
 let index: SearchRow[];
@@ -64,7 +65,7 @@ describe("picker search over 600+ exercises", () => {
   });
 
   it("the lifter's own exercises are filtered by their pattern and equipment, not by a guess", () => {
-    const mine: LibraryExercise = { id: "m", seedKey: null, nameEn: "My cable thing", nameAr: "حاجتي", aliasesAr: [], pattern: "elbow_extension", equipment: "cable", setup: "free", isCustom: true };
+    const mine: LibraryExercise = { id: "m", seedKey: null, nameEn: "My cable thing", nameAr: "حاجتي", aliasesAr: [], pattern: "elbow_extension", equipment: "cable", setup: "free", measure: "reps", isCustom: true };
     expect(metaOf(mine)).toEqual({ group: "triceps", gear: "cable", muscle: null });
     const ix = buildSearchIndex([...rows, mine]);
     expect(searchExercises(ix, { query: "my cable", group: "triceps", gear: "cable" })).toEqual([mine]);

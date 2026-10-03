@@ -3,10 +3,11 @@ import React, { useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
-import { exerciseLabels, matchesExercise } from "../i18n/format";
+import { exerciseLabels } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { PATTERNS } from "../logic/exposure";
+import { buildSearchIndex, GEARS, metaOf, MUSCLE_GROUPS, PICKER_PAGE, searchExercises, type Gear, type LibraryGroup } from "../logic/exerciseSearch";
 import { space, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, Field } from "../ui";
 
@@ -39,8 +40,14 @@ export function ExercisePicker(props: {
   const [equipment, setEquipment] = useState<EquipmentType>("machine");
   const [setup, setSetup] = useState<SetupType>("free");
   const [error, setError] = useState<string | null>(null);
+  const [group, setGroup] = useState<LibraryGroup | null>(null);
+  const [gear, setGear] = useState<Gear | null>(null);
+  const [limit, setLimit] = useState(PICKER_PAGE);
 
-  const shown = useMemo(() => props.exercises.filter((e) => !props.exclude?.includes(e.id) && matchesExercise(q, e)), [props.exercises, props.exclude, q]);
+  // The searchable text is built once per list; a keystroke only filters it.
+  const index = useMemo(() => buildSearchIndex(props.exercises), [props.exercises]);
+  const found = useMemo(() => searchExercises(index, { query: q, group, gear, exclude: props.exclude }), [index, q, group, gear, props.exclude]);
+  const shown = found.slice(0, limit);
 
   async function create() {
     if (nameEn.trim() === "") return setError(t("pick.nameMissing"));
@@ -92,10 +99,26 @@ export function ExercisePicker(props: {
             </Card>
           ) : (
             <>
-              <Field label={t("pick.search")} value={q} onChangeText={setQ} />
+              <Field label={t("pick.search")} value={q} onChangeText={(v) => { setQ(v); setLimit(PICKER_PAGE); }} />
+              <AppText style={{ fontWeight: "600" }}>{t("pick.filter.muscle")}</AppText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+                <Chip label={t("pick.all")} selected={group === null} onPress={() => { setGroup(null); setLimit(PICKER_PAGE); }} />
+                {MUSCLE_GROUPS.map((x) => (
+                  <Chip key={x} label={t(`group.${x}` as StringKey)} selected={group === x} onPress={() => { setGroup(group === x ? null : x); setLimit(PICKER_PAGE); }} />
+                ))}
+              </ScrollView>
+              <AppText style={{ fontWeight: "600" }}>{t("pick.filter.gear")}</AppText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+                <Chip label={t("pick.all")} selected={gear === null} onPress={() => { setGear(null); setLimit(PICKER_PAGE); }} />
+                {GEARS.map((x) => (
+                  <Chip key={x} label={t(`gear.${x}` as StringKey)} selected={gear === x} onPress={() => { setGear(gear === x ? null : x); setLimit(PICKER_PAGE); }} />
+                ))}
+              </ScrollView>
+              <AppText style={{ color: p.muted, fontSize: 13 }}>{t("pick.count", { n: found.length })}</AppText>
               {shown.length === 0 ? <AppText style={{ color: p.muted }}>{t("pick.none")}</AppText> : null}
               {shown.map((e) => {
                 const l = exerciseLabels(e, lang);
+                const m = metaOf(e);
                 return (
                   <Pressable key={e.id} accessibilityRole="button" onPress={() => props.onPick(e.id)} style={{ minHeight: 56, paddingVertical: space.sm, borderBottomWidth: 1, borderColor: p.border }}>
                     <AppText style={{ fontWeight: "600" }}>{l.primary}</AppText>
@@ -103,9 +126,14 @@ export function ExercisePicker(props: {
                       {l.secondary}
                       {e.isCustom ? ` · ${t("pick.own")}` : ""}
                     </AppText>
+                    <AppText style={{ color: p.muted, fontSize: 12 }}>
+                      {m.group ? `${t(`group.${m.group}` as StringKey)} · ` : ""}
+                      {t(`gear.${m.gear}` as StringKey)}
+                    </AppText>
                   </Pressable>
                 );
               })}
+              {found.length > shown.length ? <BigButton label={t("pick.more", { n: found.length - shown.length })} selected={false} onPress={() => setLimit(limit + PICKER_PAGE)} /> : null}
               <BigButton label={t("pick.create")} selected={false} onPress={() => setCreating(true)} />
             </>
           )}

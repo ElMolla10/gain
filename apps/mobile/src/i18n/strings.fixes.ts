@@ -1,5 +1,6 @@
 /** Strings added by the fixes-only release (error states and the like). Arabic is a draft. */
 export const enFixes = {
+  "workout.setContext": "{exercise}, set {n}",
   "data.beforeRestore.title": "Copy from before the last restore",
   "data.beforeRestore.note": "Before every restore GAIN keeps the data that was on this phone. One copy; the newest replaces the older. It is deleted with 'Delete everything'.",
   "settings.group.training": "Training",
@@ -44,6 +45,7 @@ export const enFixes = {
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
+  "workout.setContext": "{exercise}، المجموعة {n}",
   "data.beforeRestore.title": "نسخة من قبل آخر استعادة",
   "data.beforeRestore.note": "قبل أي استعادة GAIN بيحتفظ بالبيانات اللي كانت على الموبايل. نسخة واحدة، والأحدث بتحل محل الأقدم. بتتمسح مع 'امسح كل حاجة'.",
   "settings.group.training": "التمرين",

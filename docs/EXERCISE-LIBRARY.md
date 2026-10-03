@@ -4,8 +4,9 @@ Status: **built and unit-tested; never opened on a phone.** Every Arabic name an
 
 ## What ships
 - **607 exercises**: 50 that shipped before v0.12.0 (20 sample-programme exercises + 30 draft library rows, names unchanged) plus **557 new rows**. Counts are asserted by `apps/mobile/test/library.test.ts` (>= 500 total, >= 450 added by the library lists).
-- Spread: chest 55, back 76ish, shoulders 71, biceps/triceps/forearms 35/42/25ish, quads 70ish, hamstrings 39ish, glutes 30ish, calves 15, core 68ish, traps 11, neck 8, hips (adductors, abductors, hip flexors) 19ish, full body/Olympic/kettlebell 40ish. Exact per-group counts are in the test (every group >= 8, every gear >= 5).
-- Gear: barbell, EZ bar, trap bar, dumbbell, kettlebell, cable, band, selectorized machine, plate-loaded machine, Smith machine, bodyweight, suspension (TRX/rings), assisted machine.
+- Spread by picker group (primary muscle): chest 55, back 75 (lats, upper back, lower back), shoulders 71 (front, side, rear delts), biceps 36, triceps 42, forearms 25, quads 72, hamstrings 39, glutes 31, calves 15, core 68 (abs, obliques), traps 11, neck 8, hips 19 (adductors, abductors, hip flexors), full body 40. A test requires every group >= 8 rows.
+- Spread by gear: barbell 100, dumbbell 102, cable 86, machine 65, plate-loaded 38, Smith 24, kettlebell 25, band 30, EZ bar 5, trap bar 6, bodyweight 110, suspension 10, assisted 6 (test: every gear >= 5).
+- Setups: 481 free, 120 bodyweight + added, 6 assisted. Ceiling classes: 406 upper (10), 191 leg (12), 10 lateral raise (15).
 - Source files: `apps/mobile/src/db/library/{upper,arms,lower,core}.ts` (data), `types.ts` (muscle/gear model, builder), `existing.ts` (metadata for the 50 older rows), `libraryDraft.ts` (assembles the list, `LIBRARY_VERSION = 2`).
 
 ## Per-exercise fields

@@ -15,7 +15,7 @@ describe("P10 logger: instructions behind a help button, compact wrapping target
     expect(screen).toContain("<WorkoutHelp");
     expect(screen).toMatch(/accessibilityLabel=\{t\("workout\.help\.button"\)\}/);
   });
-  it("the target line is 'Next: <target> · Why' and wraps instead of truncating", () => {
+  it("the target line is 'Target: <target>' with a small Why button and wraps instead of truncating", () => {
     const i = screen.indexOf("Compact target line");
     const block = screen.slice(i, screen.indexOf("</View>\n\n", i));
     expect(block).toContain('t("workout.nextTarget")');
@@ -32,6 +32,6 @@ describe("P10 logger: instructions behind a help button, compact wrapping target
       expect(en[k].length).toBeGreaterThan(0);
       expect(ar[k]).toMatch(/[\u0600-\u06FF]/);
     }
-    expect(en["workout.nextTarget"]).toBe("Next");
+    expect(en["workout.nextTarget"]).toBe("Target");
   });
 });

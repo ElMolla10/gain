@@ -89,7 +89,7 @@ export function CellInput<T extends number>(props: {
           borderColor: p.warn,
           paddingHorizontal: 4,
           paddingVertical: 0,
-          fontSize: 17,
+          fontSize: 16,
           fontWeight: "700",
           color: p.text,
           backgroundColor: props.done ? "transparent" : p.field,
@@ -170,7 +170,7 @@ export function MenuSheet(props: { visible: boolean; title: string; /** Let a lo
               }}
               style={{ minHeight: 52, justifyContent: "center", paddingHorizontal: 12, borderRadius: 10 }}
             >
-              <AppText style={{ fontSize: 17, fontWeight: "600", color: it.danger ? p.danger : p.text }}>{it.label}</AppText>
+              <AppText style={{ fontSize: 16, fontWeight: "600", color: it.danger ? p.danger : p.text }}>{it.label}</AppText>
             </Pressable>
           ))}
           </ScrollView>

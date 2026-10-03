@@ -17,8 +17,8 @@ export interface Palette {
   warn: string;
 }
 
-export const lightPalette: Palette = { bg: "#f6f6f4", card: "#ffffff", text: "#141414", muted: "#5d5d5a", accent: "#1f6f4a", accentText: "#ffffff", border: "#d9d9d4", disabled: "#b9b9b3", edge: "#82827d", danger: "#b00020", warn: "#a85f00" };
-export const darkPalette: Palette = { bg: "#101211", card: "#1a1d1b", text: "#f2f2ee", muted: "#a5a8a2", accent: "#4cc38a", accentText: "#06150e", border: "#303432", disabled: "#555955", edge: "#7c807b", danger: "#ff8a8a", warn: "#e8a33a" };
+export const lightPalette: Palette = { bg: "#f4f6f5", card: "#ffffff", text: "#141717", muted: "#566061", accent: "#17724c", accentText: "#ffffff", border: "#d9d9d4", disabled: "#b9b9b3", edge: "#82827d", danger: "#b00020", warn: "#a85f00" };
+export const darkPalette: Palette = { bg: "#141617", card: "#1e2122", text: "#f2f4f3", muted: "#a9afad", accent: "#5eddaa", accentText: "#06150e", border: "#2f3435", disabled: "#555c5a", edge: "#7d8583", danger: "#ff8a8a", warn: "#e8a33a" };
 
 
 /**
@@ -48,11 +48,16 @@ export interface LogPalette {
   edge: string;
 }
 
-export const logDarkPalette: LogPalette = { bg: "#000000", card: "#111214", field: "#1e2024", line: "#2a2c31", text: "#f5f5f5", muted: "#9ea3ab", blue: "#4cc38a", blueFill: "#4cc38a", onBlue: "#06150e", doneBg: "#0f2a1e", warn: "#f5b13d", danger: "#ff6b6b", onDanger: "#000000", edge: "#6f757e" };
-export const logLightPalette: LogPalette = { bg: "#f2f3f5", card: "#ffffff", field: "#e8eaee", line: "#d5d9df", text: "#111418", muted: "#566070", blue: "#1f6f4a", blueFill: "#1f6f4a", onBlue: "#ffffff", doneBg: "#dcefe5", warn: "#8a5a00", danger: "#c4262b", onDanger: "#ffffff", edge: "#707a8a" };
+export const logDarkPalette: LogPalette = { bg: "#141617", card: "#1e2122", field: "#272b2c", line: "#2f3435", text: "#f2f4f3", muted: "#a9afad", blue: "#5eddaa", blueFill: "#5eddaa", onBlue: "#06150e", doneBg: "#17342a", warn: "#f5b13d", danger: "#ff6b6b", onDanger: "#000000", edge: "#7d8583" };
+export const logLightPalette: LogPalette = { bg: "#f4f6f5", card: "#ffffff", field: "#e7ecea", line: "#d5dbd9", text: "#141717", muted: "#566061", blue: "#17724c", blueFill: "#17724c", onBlue: "#ffffff", doneBg: "#dcefe5", warn: "#8a5a00", danger: "#c4262b", onDanger: "#ffffff", edge: "#82827d" };
 
 
 /** Colours handed to the navigation container, so tab bar, headers and the logger all use the one primary accent. */
 export function navColors(p: Palette): { primary: string; background: string; card: string; text: string; border: string; notification: string } {
   return { primary: p.accent, background: p.bg, card: p.card, text: p.text, border: p.border, notification: p.accent };
 }
+
+export type Appearance = "dark" | "light" | "system";
+export const APPEARANCES: readonly Appearance[] = ["dark", "light", "system"];
+/** Dark (charcoal + mint) is the default; anything unknown falls back to it. */
+export const parseAppearance = (raw: string | null | undefined): Appearance => (raw === "light" || raw === "system" ? raw : "dark");

@@ -53,7 +53,7 @@ export function WeeklyReviewCard() {
       {o.goalStatus ? <AppText>{t("weekly.goalStatus", { status: t(`pace.status.${o.goalStatus}` as StringKey) })}</AppText> : null}
       {review.thin ? <AppText style={{ fontWeight: "600" }}>{t("weekly.thin")}</AppText> : null}
       <AppText style={{ fontWeight: "700" }}>{t("weekly.proposal")}</AppText>
-      <AppText style={{ fontSize: 17 }}>{changeText(c, t)}</AppText>
+      <AppText style={{ fontSize: 16 }}>{changeText(c, t)}</AppText>
       <AppText style={{ color: p.muted }}>{t(`weekly.reason.${review.reason}` as StringKey)}</AppText>
       {asking ? (
         <View style={{ gap: space.sm }}>

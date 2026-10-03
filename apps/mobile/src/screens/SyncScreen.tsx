@@ -140,7 +140,7 @@ export function SyncScreen() {
       {step === "code" && code ? (
         <Card>
           <AppText style={{ fontWeight: "700" }} accessibilityRole="header">{t("sync.code.title")}</AppText>
-          <AppText ltr selectable style={{ fontSize: 22, fontWeight: "800", letterSpacing: 1 }}>{code}</AppText>
+          <AppText ltr selectable style={{ fontSize: 20, fontWeight: "800", letterSpacing: 1 }}>{code}</AppText>
           <AppText>{t("sync.code.body")}</AppText>
           <BigButton label={t("sync.code.saved")} onPress={() => setStep("idle")} />
         </Card>

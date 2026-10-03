@@ -66,7 +66,7 @@ export function DecisionLogScreen() {
             <AppText ltr style={{ fontWeight: "700" }}>{localDateText(d.decidedAt)}</AppText>
             <AppText style={{ fontSize: 18, fontWeight: "800" }}>{exerciseLabels(d, lang).primary}</AppText>
             <AppText style={{ color: p.muted }}>{t("dec.for", { day: d.dayName })}</AppText>
-            <AppText style={{ fontSize: 17 }}>
+            <AppText style={{ fontSize: 16 }}>
               {hasNumber(d)
                 ? isTimed(d.measure)
                   ? t("dec.targetTimed", { q: isolateLtr(targetPhrase(d.load!, targetQuantity(d, d.measure)!, d.measure, fmt, { s: t("qty.s"), m: t("qty.m") })) })

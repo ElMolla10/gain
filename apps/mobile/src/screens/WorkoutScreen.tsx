@@ -773,7 +773,7 @@ export function WorkoutScreen() {
             <View style={{ marginHorizontal: 12, padding: 12, gap: 6, borderRadius: 12, backgroundColor: p.card }}>
               <AppText style={{ fontWeight: "700" }}>{t("warm.title", { load: fmt(offer.workingLoad) })}</AppText>
               {offer.sets.map((w, i) => (
-                <AppText key={i} style={{ fontSize: 17 }}>{fmt(w.load)} × {isolateLtr(String(w.reps))}</AppText>
+                <AppText key={i} style={{ fontSize: 16 }}>{fmt(w.load)} × {isolateLtr(String(w.reps))}</AppText>
               ))}
               <AppText style={{ color: p.muted, fontSize: 13 }}>{t("warm.note")}</AppText>
               <View style={{ flexDirection: "row", gap: 8 }}>
@@ -868,7 +868,7 @@ export function WorkoutScreen() {
         {timerOpen ? (
           <View style={{ marginHorizontal: 12, marginBottom: 6, padding: 12, gap: 8, borderRadius: 12, backgroundColor: p.card }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <AppText ltr style={{ fontSize: 34, fontWeight: "800", minWidth: 92 }}>{formatClock(remainingMs(timer, now))}</AppText>
+              <AppText ltr style={{ fontSize: 32, fontWeight: "800", minWidth: 92 }}>{formatClock(remainingMs(timer, now))}</AppText>
               {[-15, 15].map((d) => (
                 <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${d > 0 ? "+" : "−"}${Math.abs(d)}`} onPress={() => setTimer((tm) => adjustTimer(tm, d, Date.now()))} style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}>
                   <AppText ltr style={{ fontWeight: "700", fontSize: 18 }}>{d > 0 ? `+${d}` : `−${-d}`}</AppText>

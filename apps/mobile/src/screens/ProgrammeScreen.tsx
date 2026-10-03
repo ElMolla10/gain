@@ -65,7 +65,7 @@ export function ProgrammeScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
       <Card>
-        <AppText style={{ fontSize: 24, fontWeight: "800" }}>{data.name}</AppText>
+        <AppText style={{ fontSize: 20, fontWeight: "800" }}>{data.name}</AppText>
         <AppText style={{ color: p.muted }}>{t("prog.version", { v: data.version })}</AppText>
         {data.isSample ? <AppText style={{ color: p.muted }}>{t("prog.sampleTag")}</AppText> : null}
       </Card>

@@ -198,7 +198,7 @@ export function FinishScreen() {
         <Card><AppText>{t("finish.noNext")}</AppText></Card>
       ) : (
         <>
-          <AppText style={{ fontSize: 22, fontWeight: "800" }}>{t("finish.next", { day: next.dayName })}</AppText>
+          <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("finish.next", { day: next.dayName })}</AppText>
           <AppText style={{ color: p.muted }}>{t("finish.nextHint")}</AppText>
           {error ? <AppText style={{ color: p.danger }}>{error}</AppText> : null}
           {next.targets.map((tg) => {
@@ -213,7 +213,7 @@ export function FinishScreen() {
                 ) : tg.status === "rejected" ? (
                   <AppText>{t("finish.rejectedNote")}</AppText>
                 ) : (
-                  <AppText style={{ fontSize: 22, fontWeight: "800" }}>
+                  <AppText style={{ fontSize: 20, fontWeight: "800" }}>
                     {isTimed(tg.measure)
                       ? isolateLtr(targetPhrase(tg.effectiveLoad ?? 0, targetQuantity(tg, tg.measure) ?? 0, tg.measure, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") }))
                       : <>{formatLoad(tg.effectiveLoad ?? 0, lang, unit)} × {isolateLtr(String(tg.reps ?? ""))}</>}
@@ -229,7 +229,7 @@ export function FinishScreen() {
                       <View style={{ width: 72 }}>
                         <BigButton label="−" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free", unit).load })} />
                       </View>
-                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: 36, fontWeight: "800" }}>{weightText(editing.load, unit)} {unitText}</AppText>
+                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: 32, fontWeight: "800" }}>{weightText(editing.load, unit)} {unitText}</AppText>
                       <View style={{ width: 72 }}>
                         <BigButton label="+" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, 1, (info?.setup as "free") ?? "free", unit).load })} />
                       </View>

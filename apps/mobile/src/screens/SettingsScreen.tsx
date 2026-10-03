@@ -1,3 +1,4 @@
+import { PLAN_FLAGS } from "../logic/plans";
 import { useNavigation } from "@react-navigation/native";
 import { HealthNote } from "../components/HealthNote";
 import { UpdateCard } from "../components/UpdateCard";
@@ -150,7 +151,7 @@ export function SettingsScreen() {
   const p = usePalette();
   const version = Constants.expoConfig?.version ?? "0";
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Plans") => void }>();
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <Card>
@@ -181,6 +182,7 @@ export function SettingsScreen() {
         <BigButton label={t("dec.entry")} selected={false} onPress={() => nav.navigate("DecisionLog")} />
         <BigButton label={t("stop.entry")} selected={false} onPress={() => nav.navigate("StoppedSuggestions")} />
         <BigButton label={t("privacy.entry")} selected={false} onPress={() => nav.navigate("Privacy")} />
+        {PLAN_FLAGS.planPreviewVisible ? <BigButton label={t("plans.entry")} selected={false} onPress={() => nav.navigate("Plans")} /> : null}
         <BigButton label={t("diag.entry")} selected={false} onPress={() => nav.navigate("Diagnostics")} />
       </Card>
       <Card>

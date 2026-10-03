@@ -30,10 +30,12 @@ describe("paywall scaffold: off by default, no billing", () => {
   });
   it("the split is the one in PRODUCT.md", () => {
     const product = readFileSync(join(__dirname, "../../../docs/PRODUCT.md"), "utf8");
-    expect(product).toContain("Free: logging, history, one template, basic charts, own-data export. Records stay available after cancel.");
-    expect(product).toContain("Paid: next-session targets, gym-aware increments, goal pace, short-week rebuild, weekly decision.");
-    expect(FREE_FEATURES).toHaveLength(5);
-    expect(PAID_FEATURES).toHaveLength(5);
+    expect(product).toContain("Free: logging, history, one template, basic charts, own-data export, next-session targets with their reason, standard weight steps. Records stay available after cancel.");
+    expect(product).toContain("Paid (only if a decision to charge is made after the pilot): goal pace, short-week rebuild, weekly decision.");
+    expect(FREE_FEATURES).toHaveLength(7);
+    expect(PAID_FEATURES).toHaveLength(3);
+    // P31: the next-weight recommendation is never gated.
+    expect(FREE_FEATURES).toContain("next_session_targets");
   });
   it("nothing in the app asks whether a feature is unlocked: no feature is gated", () => {
     const users = all.filter((f) => /\bisUnlocked\b/.test(readFileSync(f, "utf8")) && !f.endsWith("logic/plans.ts"));

@@ -4,7 +4,7 @@ export type WarmupNone = "no_target" | "already_started" | "assisted" | "too_lig
 export type WarmupOffer = { kind: "offer"; sets: WarmupSet[]; workingLoad: number } | { kind: "none"; reason: WarmupNone };
 
 /**
- * Warm-ups for one exercise, from the working load decided for today, on loads that exist in this gym.
+ * Warm-ups for one exercise, from the working load decided for today, on the standard steps for this equipment.
  * Offered only before anything is logged for the exercise today (a second tap or a restart never doubles them),
  * and never for assisted lines. They are logged as warm-ups: the engine ignores them for the next target.
  */

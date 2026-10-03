@@ -33,7 +33,7 @@ export function repeatLast(today: Prefill["today"]): SetDraft | null {
   return last ? { load: last.load, reps: last.reps, rir: last.rir, warmup: last.warmup } : null;
 }
 
-/** Step the load to the next/previous load that EXISTS in this gym. Without gym loads, fall back to 2.5 kg (5 lb in lb mode) and say so. Loads are kg. */
+/** Step the load to the next/previous standard step for this equipment. Without gym loads, fall back to 2.5 kg (5 lb in lb mode) and say so. Loads are kg. */
 export function stepLoad(
   spec: GymLoadSpec | null,
   current: number | null,

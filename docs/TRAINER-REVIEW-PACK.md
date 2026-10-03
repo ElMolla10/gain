@@ -6,7 +6,7 @@ How to use: give the trainer this file and [PROGRESSION-RULES.md](PROGRESSION-RU
 
 Plain facts the trainer should know first
 - The app proposes a number; the lifter accepts, edits or rejects it. It does not diagnose, treat pain or promise results.
-- Defaults come from one research source (ACSM 2009 position stand: raise load 2-10% when the lifter can do the target) plus Mohamed's configuration (target = a rep ceiling, one session at it is enough). The configuration is an instruction, not a study.
+- Defaults come from one research source (based on the ACSM 2009 position stand: raise load 2-10% when the lifter can do the target; the ceilings and snapping are GAIN conventions, not ACSM) plus Mohamed's configuration (target = a rep ceiling, one session at it is enough). The configuration is an instruction, not a study.
 - A Hevy backtest on one lifter's 70 workouts: the rule picked the same load he used 58% of the time; "repeat last load" 60%. It proposed a heavier load in 4% of sessions while he went heavier in 26% ([BACKTEST-HEVY.md](BACKTEST-HEVY.md)). One lifter, friendly data; a flag, not a verdict.
 
 Verdict key: **A** = accept as is, **C** = accept with the change in the note, **R** = reject / replace, **?** = cannot judge.
@@ -42,7 +42,7 @@ Verdict key: **A** = accept as is, **C** = accept with the change in the note, *
 
 | # | Item | Current value | Question | Verdict | Note |
 |---|---|---|---|---|---|
-| 3.1 | Ladder | Empty bar x 10 (barbell, if target >= 1.5x the bar), then 50% x 8, 70% x 5, 85% x 3 of the target, rounded to loads that exist, at most 4 sets | Acceptable for the usual lifts? Too many sets for isolation lifts? | | |
+| 3.1 | Ladder | Empty bar x 10 (barbell, if target >= 1.5x the bar), then 50% x 8, 70% x 5, 85% x 3 of the target, rounded to standard steps, at most 4 sets | Acceptable for the usual lifts? Too many sets for isolation lifts? | | |
 | 3.2 | When offered | Only before the first set of that exercise, with a target; not for assisted lifts or very light targets | Agree? | | |
 | 3.3 | Counting | Warm-ups never change targets, records or trends | Agree? | | |
 

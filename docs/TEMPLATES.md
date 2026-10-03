@@ -5,7 +5,7 @@ Status: **47 templates, unit-tested only, NOT device-verified, NOT trainer-revie
 ## What these are (and are not)
 Common community / coaching ways to arrange a training week, written with exercises from GAIN's own 607-exercise library. They are **not** copies of any named programme, **not** personalised, **not** medical advice. Names such as "StrongLifts-style", "Starting Strength-style", "PHUL-style", "PHAT-style", "Arnold split", "bro split", "torso / limbs" and "PPL" describe the *shape* (which lifts or muscles on which day, rough sets x reps) as widely circulated in lifting communities. I did **not** open or copy the original authors' programmes or books, so I make no claim that a template matches the original, and I cite no study for any template's sets, reps or split. The sets, reps and exercise picks are my arrangement and sanity-checked by the tests below, not derived from a source.
 
-The only research GAIN relies on is the load-progression rule (ACSM 2009 position stand, plus Mohamed's rep-ceiling configuration), documented in [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Templates do not change that rule.
+The only research GAIN relies on is the load-progression rule (based on the ACSM 2009 position stand, with GAIN conventions: rep ceilings, one-session trigger, standard steps; plus Mohamed's rep-ceiling configuration), documented in [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Templates do not change that rule.
 
 ## Where they live
 - `apps/mobile/src/logic/templateTypes.ts`: model (`Template`, `level`, `gear`, `goal`, per-lift `ceiling`).

@@ -13,10 +13,13 @@ export const PLAN_FLAGS = {
 
 export type PlanFlags = { readonly paywallEnabled: boolean; readonly planPreviewVisible: boolean };
 
-/** Free: logging, history, one template, basic charts, own-data export. Records stay after cancel (PRODUCT.md, Price). */
-export const FREE_FEATURES = ["logging", "history", "one_template", "basic_charts", "export_own_data"] as const;
-/** Paid: next-session targets, gym-aware increments, goal pace, short-week rebuild, weekly decision (PRODUCT.md, Price). */
-export const PAID_FEATURES = ["next_session_targets", "gym_aware_increments", "goal_pace", "short_week_rebuild", "weekly_decision"] as const;
+/**
+ * Free: logging, history, one template, basic charts, own-data export, and the next-weight recommendation with its reason (P31: the core
+ * promise of the app is never behind a paywall). Records stay after cancel (PRODUCT.md, Price).
+ */
+export const FREE_FEATURES = ["logging", "history", "one_template", "basic_charts", "export_own_data", "next_session_targets", "gym_aware_increments"] as const;
+/** Paid (only if a decision to charge is made after the pilot): goal pace, short-week rebuild, weekly decision. */
+export const PAID_FEATURES = ["goal_pace", "short_week_rebuild", "weekly_decision"] as const;
 
 export type FreeFeature = (typeof FREE_FEATURES)[number];
 export type PaidFeature = (typeof PAID_FEATURES)[number];

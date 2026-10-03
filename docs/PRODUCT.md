@@ -7,13 +7,13 @@ Status: product to build. Pricing and launch numbers below are decisions to test
 
 GAIN is an Arabic and English lifting app that ends every workout by deciding the next one.
 
-You finish a session. Before you leave the gym, the app has already written the next targets: the exercise, the exact load that exists in your gym, the reps, and why. Over weeks it tracks whether you are on pace for a goal you actually named — 100 kg bench, a bodyweight target, or a muscle you want to prioritise — and it says so in one line, not a dashboard.
+You finish a session. Before you leave the gym, the app has already written the next targets: the exercise, the next load (a standard increment you can adjust), the reps, and why. Over weeks it tracks whether you are on pace for a goal you actually named — 100 kg bench, a bodyweight target, or a muscle you want to prioritise — and it says so in one line, not a dashboard.
 
 The core promise: **Leave knowing the next weight. Come back knowing if the goal is still on pace.**
 
 It is built for muscle and strength, for people who already train. It does not promise a physique, a rate of progress, or a medical outcome. Results depend on training, food, sleep, and the person.
 
-AI is not a chat tab. It is the layer that turns messy logs into the next target, the goal pace, and the small change when a week goes wrong. A rule calculates the number. The model handles the cases a fixed rule gets wrong. The user sees both, and nothing changes the plan until they accept it.
+There is no AI in the app today. A written rule calculates the next number from your logged sets, and the reason is shown next to it. Nothing changes the plan until you accept it. Any model-assisted feature is a later idea (see below) and is frozen until pilot evidence says it is worth building.
 
 ## Who it is for
 
@@ -53,7 +53,7 @@ Language, units (kilograms preselected, pounds offered), then the minimum needed
 
 The user can bring a programme they already run, pick a reviewed template, or import a Hevy or Strong export. Exercises they dislike, muscles they want more of, and movements they have been told to avoid are optional. A restriction is a constraint, not a diagnosis. The app does not invent rehab.
 
-Onboarding does not ask about the gym. It creates a default gym silently with standard loads in the chosen unit (2.5 kg barbell steps from a 20 kg bar, a typical dumbbell rack, 5 kg cable and machine jumps; in pounds, a 45 lb bar with 5 lb steps, 5 lb dumbbell steps and 5/10 lb stack jumps). The gym is still a list of loads that exist, not a generic “dumbbells: yes”: there is no Gym screen (removed in v0.8.0): the gym is a silent data-layer default and targets only use the standard loads. A gym editor may come back later if real use shows it is needed.
+Onboarding does not ask about the gym. It creates a default gym silently with standard loads in the chosen unit (2.5 kg barbell steps from a 20 kg bar, a typical dumbbell rack, 5 kg cable and machine jumps; in pounds, a 45 lb bar with 5 lb steps, 5 lb dumbbell steps and 5/10 lb stack jumps). The gym is still a list of standard weight steps, not a generic “dumbbells: yes”, and not a claim about what your gym really has: there is no Gym screen (removed in v0.8.0): the gym is a silent data-layer default and targets only use the standard loads. A gym editor may come back later if real use shows it is needed.
 
 ### Units
 
@@ -66,7 +66,7 @@ They see the first session and can edit it. Optional questions can be skipped.
 1. Open Today. See the session, the goal lifts, the estimated time, and the one-line pace.
 2. Start. Each exercise shows the last comparable performance and today’s target.
 3. Log weight and reps with large controls. Repeat a set. Mark warm-ups. Optional effort.
-4. Targets for later sets can update from what you just did, still using a load that exists here.
+4. Targets for later sets can update from what you just did, still using a standard step.
 5. Finish. See what counted, what was a record, and what you changed.
 6. Accept or edit the next session. It is written then, not tomorrow morning.
 7. Once a week, one decision: keep, small change, or easier week.
@@ -81,7 +81,7 @@ The product is the handoff. When the user taps finish, the next scheduled sessio
 
 ### 2. Gym fingerprint
 
-A gym is a list of loads that exist, not a yes/no equipment checklist.
+A gym is a list of standard weight steps (adjustable), not a yes/no equipment checklist and not a promise that your gym has those weights.
 
 - Dumbbell pairs actually on the rack.
 - Barbell increment, usually 2.5 kg, sometimes 1.25 kg if they own fractional plates.
@@ -164,9 +164,9 @@ Offline first. Saved locally, synced later, with a visible saved state and no du
 
 Search in Arabic aliases and English names. Numbers and exercise names stay readable in RTL layout. Equipment, setup, short cues, licensed demos. Short enough to read between sets. Aliases should match what people say in Egyptian gyms, not textbook translations.
 
-## AI, not a chatbot
+## Possible later: model assistance (not built, not in the app)
 
-The model is allowed to do five things:
+This section is a design sketch only. No model runs in the app or on the server today. If one is ever added, it would be allowed to do five things:
 
 1. Estimate the next working set from comparable history and sets already done today.
 2. Choose the progression currency when the ideal load does not exist.
@@ -205,9 +205,9 @@ The app is a training aid. It is not a doctor, a physio, or a licensed coach. Pa
 
 ## Price
 
-Free: logging, history, one template, basic charts, own-data export. Records stay available after cancel.
+Free: logging, history, one template, basic charts, own-data export, next-session targets with their reason, standard weight steps. Records stay available after cancel. The next-weight recommendation is the core promise and is not behind a paywall.
 
-Paid: next-session targets, gym-aware increments, goal pace, short-week rebuild, weekly decision. Show the limit before purchase.
+Paid (only if a decision to charge is made after the pilot): goal pace, short-week rebuild, weekly decision. Show the limit before purchase.
 
 Hypothesis to test: a monthly price near a local coaching snack, and an annual price that is the default offer. Annual should be the plan shown first. A trial has to cover several real sessions, with renewal stated before it starts. Confirm store fees and tax before locking a number. Do not assume 149–249 EGP a month is what people will pay until someone pays it.
 

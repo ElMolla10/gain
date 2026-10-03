@@ -23,6 +23,8 @@ Before taking any export: say what is taken (workouts, sets, targets and the acc
 - **Override reason** = the lifter's answer to "why not the app's number?" asked in the weekly check-in, in their words, tagged afterwards (too heavy / too light / equipment / felt bad / forgot / other). Not collected in-app.
 - **On pace** = the `pace` status the Goals screen showed on the check-in day (the lifter reads it out or screenshots it); count ahead / on pace / behind / too thin.
 
+Tooling: `npm run pilot-metrics -w @gain/mobile -- --tz-minutes 180 P01.json ...` computes these from backups (see [PILOT-KIT.md](PILOT-KIT.md) section 5); synthetic-tested, not yet run on a real pilot file.
+
 ## Weekly check-in (3 questions, sent at the end of weeks 1, 2, 3, 4, 5, 6)
 1. How many days could you train this week, and how many did you? (number, number)
 2. For each exercise where you did NOT load the app's number: what did you load and why? (free text)

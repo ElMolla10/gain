@@ -923,7 +923,7 @@ export function WorkoutScreen() {
           {loaded.resumed ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.resumed")}</AppText> : null}
           <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: space.xs }}>
             <Icon name="phone" color={p.muted} size={16} />
-            <AppText style={{ color: p.muted, fontSize: 13, flexShrink: 1 }}>{savedAt ? `${t("workout.saved", { time: clock(savedAt) })}` : t("workout.notSaved")}</AppText>
+            <AppText style={{ color: p.muted, fontSize: 13, flexShrink: 1 }}>{savedAt ? `${t("workout.saved", { time: clock(savedAt) })}` : sets.length > 0 ? t("status.savedLocal") : t("workout.notSaved")}</AppText>
           </View>
         </View>
 

@@ -292,6 +292,36 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     await db.run("UPDATE workout_set SET outlier_status = ?, updated_at = ?, deleted_at = CASE WHEN ? = 'rejected' THEN ? ELSE deleted_at END WHERE id = ?", [status, t, status, t, setId]);
   }
 
+  /**
+   * Correct a set of the workout that is still open (typed over in the list). The outlier check runs again against the other sets;
+   * a set the lifter already confirmed stays confirmed when its numbers did not change.
+   */
+  async function updateLiveSet(
+    setId: string,
+    v: { load: number; reps: number; rir: number | null; warmup: boolean },
+    ctx: { gym: GymFingerprint; equipment: ExerciseSpec["equipment"]; setup: SetupType },
+  ): Promise<{ outlier: OutlierResult | null }> {
+    if (!(v.reps >= 1) || !Number.isFinite(v.load) || v.load < 0) throw new Error("Invalid set");
+    const row = await db.get<{ session_id: string; exercise_id: string; line_id: string; load: number; reps: number; outlier_status: OutlierStatus; gym_id: string }>(
+      `SELECT ws.session_id, ws.exercise_id, ws.line_id, ws.load, ws.reps, ws.outlier_status, s.gym_id AS gym_id FROM workout_set ws JOIN session s ON s.id = ws.session_id
+       WHERE ws.id = ? AND ws.deleted_at IS NULL AND s.status = 'in_progress'`,
+      [setId],
+    );
+    if (!row) throw new Error("Unknown set");
+    let outlier: OutlierResult | null = null;
+    let status: OutlierStatus = "none";
+    if (!v.warmup) {
+      const line: LineIdentity = { exerciseId: row.exercise_id, gymId: row.gym_id, setup: ctx.setup };
+      const history = await getHistory(line, row.line_id);
+      const others = (await listSessionSets(row.session_id, row.exercise_id)).filter((x) => x.id !== setId).map(toLogged);
+      if (others.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: others });
+      outlier = checkOutlier({ load: v.load, reps: v.reps, rir: v.rir }, { line, history, gymSpec: findSpec(ctx.gym, ctx.equipment) });
+      status = row.outlier_status === "confirmed" && row.load === v.load && row.reps === v.reps ? "confirmed" : outlier.outlierStatus;
+    }
+    await db.run("UPDATE workout_set SET load = ?, reps = ?, rir = ?, is_warmup = ?, outlier_status = ?, updated_at = ? WHERE id = ?", [v.load, v.reps, v.rir, v.warmup ? 1 : 0, status, now(), setId]);
+    return { outlier };
+  }
+
   async function deleteSet(setId: string): Promise<void> {
     const t = now();
     await db.run("UPDATE workout_set SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [t, t, setId]);
@@ -311,6 +341,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     logSet,
     addWarmups,
     setOutlierStatus,
+    updateLiveSet,
     deleteSet,
   };
 }

@@ -2,8 +2,9 @@ import { StackActions, useNavigation, useRoute } from "@react-navigation/native"
 import { findSpec, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, Vibration, View } from "react-native";
+import { Pressable, ScrollView, Vibration, View } from "react-native";
 import { useServices } from "../AppContext";
+import { NumField } from "../components/NumField";
 import type { TargetRow } from "../db/finishRepo";
 import type { SetRow } from "../db/workoutRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
@@ -11,12 +12,12 @@ import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { warmupOffer } from "../logic/warmups";
-import { canLog, initialDraft, repeatLast, RIR_CHOICES, stepLoad, stepReps, type SetDraft } from "../logic/draft";
+import { initialDraft, stepLoad, stepReps } from "../logic/draft";
+import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
+import { addRow, editRow, initialRows, markSaved, mergeRows, removeRow, rowLabels, rowReady, unloggedFilled, type Prefill, type SetRowDraft } from "../logic/workoutRows";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
-import { NumField } from "../components/NumField";
-import { parseLoadInput, parseRepsInput } from "../logic/setInput";
-import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card } from "../ui";
+import { MIN_TOUCH, space, usePalette } from "../theme";
+import { AppText, BigButton, Card, Chip } from "../ui";
 
 type DayEx = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>[number];
 interface ExInfo {
@@ -25,6 +26,7 @@ interface ExInfo {
   last: { performedAt: string; sets: LoggedSet[] } | null;
   /** The target written when the previous workout was finished, if any. */
   stored: TargetRow | null;
+  prefill: Prefill;
 }
 interface Loaded {
   sessionId: string;
@@ -33,33 +35,29 @@ interface Loaded {
   exercises: DayEx[];
   info: Record<string, ExInfo>;
 }
-interface Pending {
-  setId: string;
-  load: number;
-  reps: number;
-  outlier: OutlierResult;
-}
 
 const clock = (ms: number) => {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-/** Weight / reps: typed directly (numeric keyboard); the − / + steppers beside it are optional and secondary. */
-function TypedStepper(props: { field: React.ReactNode; onLess: () => void; onMore: () => void; lessLabel: string; moreLabel: string }) {
+const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup });
+
+/** Small optional − / + next to a typed field. Secondary: typing is the main way in. */
+function Mini(props: { label: string; onPress: () => void; hint: string }) {
+  const p = usePalette();
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: space.sm }}>
-      <View style={{ width: 56 }}>
-        <BigButton label="−" onPress={props.onLess} accessibilityHint={props.lessLabel} selected={false} />
-      </View>
-      <View style={{ flex: 1, flexDirection: "row" }}>{props.field}</View>
-      <View style={{ width: 56 }}>
-        <BigButton label="+" onPress={props.onMore} accessibilityHint={props.moreLabel} selected={false} />
-      </View>
-    </View>
+    <Pressable accessibilityRole="button" accessibilityLabel={props.hint} onPress={props.onPress} style={{ flex: 1, minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: p.border, backgroundColor: p.card, alignItems: "center", justifyContent: "center" }}>
+      <AppText ltr style={{ fontSize: 22, fontWeight: "700" }}>{props.label}</AppText>
+    </Pressable>
   );
 }
 
+/**
+ * The active workout: ONE scrolling list of every exercise. Each shows today's target (with the reason) and its sets as rows with typed
+ * weight and reps, a warm-up toggle, log / update and remove per row, and add set per exercise. Finish is at the bottom. A row is saved on
+ * the phone the moment it is logged (offline); nothing waits for the finish.
+ */
 export function WorkoutScreen() {
   const { repos, workout, finish, restAlerts } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
@@ -69,15 +67,15 @@ export function WorkoutScreen() {
   const dayId = (route.params as { dayId: string }).dayId;
 
   const [loaded, setLoaded] = useState<Loaded | null | "nogym">(null);
-  const [idx, setIdx] = useState(0);
+  const [rows, setRows] = useState<Record<string, SetRowDraft[]>>({});
   const [sets, setSets] = useState<SetRow[]>([]);
-  const [draft, setDraft] = useState<SetDraft>({ load: null, reps: null, rir: null, warmup: false });
-  const [draftId, setDraftId] = useState(() => Crypto.randomUUID());
+  const [outliers, setOutliers] = useState<Record<string, OutlierResult>>({});
+  const [steppers, setSteppers] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [warmOpen, setWarmOpen] = useState(false);
-  const [warmDone, setWarmDone] = useState<string | null>(null);
-  const [pending, setPending] = useState<Pending | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [warmOpen, setWarmOpen] = useState<string | null>(null);
+  const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
   const [timer, setTimer] = useState<RestTimer>(() => newTimer());
   const [rest, setRest] = useState<RestSettings>(defaultRestSettings());
   const [now, setNow] = useState(Date.now());
@@ -100,9 +98,22 @@ export function WorkoutScreen() {
           { exerciseId: e.exerciseId, name: e.nameEn, equipment: e.equipment, setup: e.setup, repMin: e.repMin, repMax: e.repMax, repCeiling: e.repCeiling, isGoalLift: e.isGoalLift, trackEffort: e.trackEffort, sets: e.sets },
           gym,
         );
-        info[e.exerciseId] = { proposal, line, last: await workout.lastPerformance(line, lineId), stored: await finish.getTargetForExercise(id, e.exerciseId) };
+        const last = await workout.lastPerformance(line, lineId);
+        const stored = await finish.getTargetForExercise(id, e.exerciseId);
+        const lastTop = last?.sets.reduce<LoggedSet | null>((a, s) => (a === null || s.load > a.load ? s : a), null) ?? null;
+        // Never invented: today's target, else last time's top set, else empty.
+        const d = initialDraft({
+          today: [],
+          target: stored ? (stored.effectiveLoad !== null && stored.reps !== null && stored.status !== "rejected" ? { load: stored.effectiveLoad, reps: stored.reps } : null) : proposal.status === "proposed" ? { load: proposal.load, reps: proposal.reps } : null,
+          last: lastTop ? { load: lastTop.load, reps: lastTop.reps } : null,
+        });
+        info[e.exerciseId] = { proposal, line, last, stored, prefill: { load: d.load, reps: d.reps } };
       }
-      setSets(await workout.listSessionSets(id));
+      const all = await workout.listSessionSets(id);
+      const initial: Record<string, SetRowDraft[]> = {};
+      for (const e of exercises) initial[e.exerciseId] = initialRows(all.filter((s) => s.exerciseId === e.exerciseId).map(toSaved), e.sets, info[e.exerciseId]!.prefill, () => Crypto.randomUUID());
+      setSets(all);
+      setRows(initial);
       setLoaded({ sessionId: id, resumed, gym, exercises, info });
     })().catch(() => setLoaded("nogym"));
   }, [repos, workout, finish, dayId]);
@@ -137,84 +148,88 @@ export function WorkoutScreen() {
     }
   }, [now, timer, rest.vibrate]);
 
-  const ex = loaded && loaded !== "nogym" ? loaded.exercises[idx] : undefined;
-  const info = ex && loaded && loaded !== "nogym" ? loaded.info[ex.exerciseId] : undefined;
-  const exSets = useMemo(() => (ex ? sets.filter((s) => s.exerciseId === ex.exerciseId) : []), [sets, ex]);
-  const spec = ex && loaded && loaded !== "nogym" ? findSpec(loaded.gym, ex.equipment) : null;
+  const setsByEx = useMemo(() => {
+    const m = new Map<string, SetRow[]>();
+    for (const s of sets) m.set(s.exerciseId, [...(m.get(s.exerciseId) ?? []), s]);
+    return m;
+  }, [sets]);
 
-  // Reset the draft when the exercise changes or a set is logged / undone.
-  const lastSetKey = exSets.map((s) => s.id).join(",");
-  useEffect(() => {
-    if (!ex || !info) return;
-    const lastTop = info.last?.sets.reduce<LoggedSet | null>((a, s) => (a === null || s.load > a.load ? s : a), null) ?? null;
-    setDraft(
-      initialDraft({
-        today: exSets.map((s) => ({ load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup })),
-        target: info.stored
-          ? info.stored.effectiveLoad !== null && info.stored.reps !== null
-            ? { load: info.stored.effectiveLoad, reps: info.stored.reps }
-            : null
-          : info.proposal.status === "proposed"
-            ? { load: info.proposal.load, reps: info.proposal.reps }
-            : null,
-        last: lastTop ? { load: lastTop.load, reps: lastTop.reps } : null,
-      }),
-    );
-    setDraftId(Crypto.randomUUID());
-    setWarmOpen(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ex?.exerciseId, lastSetKey, info]);
+  /** Re-read the saved sets and fold them into the rows (unlogged rows and typed-over edits stay). */
+  const reload = useCallback(
+    async (sessionId: string) => {
+      const all = await workout.listSessionSets(sessionId);
+      setSets(all);
+      setRows((prev) => {
+        const next: Record<string, SetRowDraft[]> = {};
+        for (const [exId, list] of Object.entries(prev)) next[exId] = mergeRows(list, all.filter((s) => s.exerciseId === exId).map(toSaved));
+        return next;
+      });
+    },
+    [workout],
+  );
 
-  const save = useCallback(
-    async (d: SetDraft) => {
-      if (!loaded || loaded === "nogym" || !ex || !canLog(d) || saving) return;
-      setSaving(true);
-      try {
-        const r = await workout.logSet(
-          { id: draftId, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load: d.load, reps: d.reps, rir: d.rir, warmup: d.warmup },
-          { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup },
-        );
-        setSets(await workout.listSessionSets(loaded.sessionId));
-        setSavedAt(Date.now());
-        if (r.outlier?.verdict === "unconfirmed") setPending({ setId: r.id, load: d.load, reps: d.reps, outlier: r.outlier });
-        if (!d.warmup) {
+  const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
+
+  async function logRow(ex: DayEx, row: SetRowDraft) {
+    if (!loaded || loaded === "nogym" || busy || !rowReady(row)) return;
+    setBusy(row.key);
+    const ctx = { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup };
+    try {
+      if (!row.saved) {
+        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load: row.load, reps: row.reps, rir: row.rir, warmup: row.warmup }, ctx);
+        if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
+        if (!row.warmup) {
           setRestOver(false);
           setTimer((tm) => startTimer(tm, Date.now()));
         }
-      } finally {
-        setSaving(false);
+      } else if (row.dirty) {
+        const r = await workout.updateLiveSet(row.key, { load: row.load, reps: row.reps, rir: row.rir, warmup: row.warmup }, ctx);
+        if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
       }
-    },
-    [loaded, ex, saving, workout, draftId],
-  );
+      setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
+      await reload(loaded.sessionId);
+      setSavedAt(Date.now());
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function dropRow(ex: DayEx, row: SetRowDraft) {
+    if (!loaded || loaded === "nogym") return;
+    if (row.saved) {
+      await workout.deleteSet(row.key);
+      setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
+      await reload(loaded.sessionId);
+    } else {
+      setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
+    }
+  }
 
   if (loaded === null) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
   if (loaded === "nogym") return <AppText style={{ padding: space.lg }}>{t("workout.noGym")}</AppText>;
-  if (!ex || !info) return null;
 
-  const labels = exerciseLabels(ex, lang);
-  const pr = info.proposal;
-  const lastText = info.last
-    ? info.last.sets.map((s) => `${isolateLtr(weightText(s.load, unit))} × ${isolateLtr(`${s.reps}`)}`).join("  ·  ")
-    : null;
-  const stepSetup = ex.setup;
-  const loadStep = (dir: 1 | -1) => setDraft((d) => ({ ...d, load: stepLoad(spec, d.load, dir, stepSetup, unit).load }));
-  const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
-  const offer = warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length });
   const timerRunning = timer.endsAt !== null;
-  const last = repeatLast(exSets.map((s) => ({ load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup })));
+  const unlogged = Object.values(rows).reduce((n, list) => n + unloggedFilled(list), 0);
 
-  return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }} keyboardShouldPersistTaps="handled">
-      {loaded.resumed ? <AppText style={{ color: p.muted }}>{t("workout.resumed")}</AppText> : null}
-      <AppText style={{ color: p.muted }}>{t("workout.exercise", { i: idx + 1, n: loaded.exercises.length })}</AppText>
+  const renderExercise = (ex: DayEx, exIdx: number) => {
+    const info = loaded.info[ex.exerciseId]!;
+    const list = rows[ex.exerciseId] ?? [];
+    const labels = exerciseLabels(ex, lang);
+    const pr = info.proposal;
+    const spec = findSpec(loaded.gym, ex.equipment);
+    const exSets = setsByEx.get(ex.exerciseId) ?? [];
+    const numbering = rowLabels(list);
+    const lastText = info.last ? info.last.sets.map((s) => `${isolateLtr(weightText(s.load, unit))} × ${isolateLtr(`${s.reps}`)}`).join("  ·  ") : null;
+    const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
+    const offer = warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length });
+    const pending = exSets.filter((s) => s.outlierStatus === "unconfirmed");
 
-      <Card>
-        <AppText style={{ fontSize: 26, fontWeight: "800" }}>{labels.primary}</AppText>
+    return (
+      <Card key={ex.id}>
+        <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.exercise", { i: exIdx + 1, n: loaded.exercises.length })}</AppText>
+        <AppText style={{ fontSize: 24, fontWeight: "800" }}>{labels.primary}</AppText>
         <AppText style={{ color: p.muted }}>{labels.secondary}</AppText>
-        <AppText style={{ fontWeight: "700", marginTop: space.sm }}>{t("workout.last")}</AppText>
-        <AppText>{lastText ?? t("workout.lastNone")}</AppText>
-        <AppText style={{ fontWeight: "700", marginTop: space.sm }}>{t("workout.target")}</AppText>
+        <AppText style={{ fontWeight: "700", marginTop: space.xs }}>{t("workout.target")}</AppText>
         {info.stored ? (
           info.stored.status === "rejected" ? (
             <AppText>{t("finish.rejectedNote")}</AppText>
@@ -233,44 +248,44 @@ export function WorkoutScreen() {
           <AppText>{t("workout.targetNone")}</AppText>
         )}
         <AppText style={{ color: p.muted }}>{renderReason(localizeReason(info.stored ? info.stored.reason : pr.reason, unit, lang), lang)}</AppText>
+        <AppText style={{ color: p.muted, fontSize: 13 }}>
+          {t("workout.last")}: {lastText ?? t("workout.lastNone")}
+        </AppText>
         {info.stored ? (
-          <>
-            <AppText style={{ color: p.muted }}>{t(`finish.status.${info.stored.status}` as never)}</AppText>
-            <BigButton label={t("finish.why")} selected={false} onPress={() => navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id }))} />
-          </>
+          <BigButton label={t("finish.why")} selected={false} onPress={() => navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id }))} />
         ) : null}
-      </Card>
 
-      {pending ? (
-        <Card style={{ borderColor: "#c77700", borderWidth: 2 }}>
-          <AppText style={{ fontWeight: "800" }}>⚠ {t("workout.outlier.title")}</AppText>
-          <AppText>
-            {t("workout.outlier.body", { load: pending.outlier.expected ? fmt(pending.outlier.expected.medianLoad) : "?", reps: pending.outlier.expected?.medianReps ?? "?" })}
-          </AppText>
-          <AppText style={{ color: p.muted }}>{t("workout.outlier.note")}</AppText>
-          <BigButton
-            label={t("workout.outlier.confirm")}
-            onPress={async () => {
-              await workout.setOutlierStatus(pending.setId, "confirmed");
-              setPending(null);
-              setSets(await workout.listSessionSets(loaded.sessionId));
-            }}
-          />
-          <BigButton
-            label={t("workout.outlier.reject")}
-            selected={false}
-            onPress={async () => {
-              await workout.setOutlierStatus(pending.setId, "rejected");
-              setPending(null);
-              setSets(await workout.listSessionSets(loaded.sessionId));
-            }}
-          />
-        </Card>
-      ) : null}
+        {pending.map((s) => {
+          const o = outliers[s.id];
+          return (
+            <Card key={s.id} style={{ borderColor: "#c77700", borderWidth: 2 }}>
+              <AppText style={{ fontWeight: "800" }}>⚠ {t("workout.outlier.title")}</AppText>
+              <AppText>
+                {isolateLtr(`${weightText(s.load, unit)} ${unitText} × ${s.reps}`)} · {t("workout.outlier.body", { load: o?.expected ? fmt(o.expected.medianLoad) : "?", reps: o?.expected?.medianReps ?? "?" })}
+              </AppText>
+              <AppText style={{ color: p.muted }}>{t("workout.outlier.note")}</AppText>
+              <BigButton
+                label={t("workout.outlier.confirm")}
+                onPress={async () => {
+                  await workout.setOutlierStatus(s.id, "confirmed");
+                  await reload(loaded.sessionId);
+                }}
+              />
+              <BigButton
+                label={t("workout.outlier.reject")}
+                selected={false}
+                onPress={async () => {
+                  await workout.setOutlierStatus(s.id, "rejected");
+                  setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], s.id) }));
+                  await reload(loaded.sessionId);
+                }}
+              />
+            </Card>
+          );
+        })}
 
-      <Card>
         {offer.kind === "offer" ? (
-          warmOpen ? (
+          warmOpen === ex.exerciseId ? (
             <View style={{ gap: space.sm }}>
               <AppText style={{ fontWeight: "700" }}>{t("warm.title", { load: fmt(offer.workingLoad) })}</AppText>
               {offer.sets.map((w, i) => (
@@ -279,135 +294,137 @@ export function WorkoutScreen() {
               <AppText style={{ color: p.muted, fontSize: 13 }}>{t("warm.note")}</AppText>
               <BigButton
                 label={t("warm.confirm")}
-                disabled={saving}
+                disabled={busy !== null}
                 onPress={async () => {
-                  setSaving(true);
+                  setBusy("warm");
                   try {
                     await workout.addWarmups(loaded.sessionId, ex.exerciseId, offer.sets, { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup });
-                    setSets(await workout.listSessionSets(loaded.sessionId));
-                    setWarmOpen(false);
-                    setWarmDone(ex.exerciseId);
+                    await reload(loaded.sessionId);
+                    setWarmOpen(null);
+                    setWarmDone((d) => ({ ...d, [ex.exerciseId]: true }));
                   } finally {
-                    setSaving(false);
+                    setBusy(null);
                   }
                 }}
               />
-              <BigButton label={t("warm.cancel")} selected={false} onPress={() => setWarmOpen(false)} />
+              <BigButton label={t("warm.cancel")} selected={false} onPress={() => setWarmOpen(null)} />
             </View>
           ) : (
-            <BigButton label={t("warm.add")} selected={false} onPress={() => setWarmOpen(true)} />
+            <BigButton label={t("warm.add")} selected={false} onPress={() => setWarmOpen(ex.exerciseId)} />
           )
-        ) : warmDone === ex.exerciseId ? null : exSets.length === 0 && offer.reason !== "already_started" ? (
+        ) : warmDone[ex.exerciseId] ? null : exSets.length === 0 && offer.reason !== "already_started" ? (
           <AppText style={{ color: p.muted, fontSize: 13 }}>{t(`warm.none.${offer.reason}` as never)}</AppText>
         ) : null}
-        {warmDone === ex.exerciseId ? <AppText style={{ color: p.muted }}>✓ {t("warm.added")}</AppText> : null}
-        <View style={{ flexDirection: "row", gap: space.sm }}>
-          <View style={{ flex: 1 }}>
-            <BigButton label={t("workout.working")} selected={!draft.warmup} onPress={() => setDraft((d) => ({ ...d, warmup: false }))} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <BigButton label={t("workout.warmup")} selected={draft.warmup} onPress={() => setDraft((d) => ({ ...d, warmup: true }))} />
-          </View>
-        </View>
-        <TypedStepper
-          field={
-            <NumField<number>
-              label={`${t("workout.load")} (${unitText})`}
-              value={draft.load}
-              format={(v) => weightText(v, unit)}
-              parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
-              onValue={(v) => setDraft((d) => ({ ...d, load: v }))}
-              decimal
-            />
-          }
-          onLess={() => loadStep(-1)}
-          onMore={() => loadStep(1)}
-          lessLabel={t("workout.less")}
-          moreLabel={t("workout.more")}
-        />
+        {warmDone[ex.exerciseId] ? <AppText style={{ color: p.muted }}>✓ {t("warm.added")}</AppText> : null}
+
         {!spec ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.stepFallback")}</AppText> : null}
-        <TypedStepper
-          field={<NumField<number> label={t("workout.reps")} value={draft.reps} format={(v) => String(v)} parse={(txt) => parseRepsInput(txt)} onValue={(v) => setDraft((d) => ({ ...d, reps: v }))} />}
-          onLess={() => setDraft((d) => ({ ...d, reps: stepReps(d.reps, -1) }))}
-          onMore={() => setDraft((d) => ({ ...d, reps: stepReps(d.reps, 1) }))}
-          lessLabel={t("workout.less")}
-          moreLabel={t("workout.more")}
-        />
-        <AppText style={{ color: p.muted }}>{t("workout.effort")}</AppText>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          {RIR_CHOICES.map((c) => (
-            <View key={String(c)} style={{ minWidth: 88 }}>
-              <BigButton label={c === null ? t("workout.effort.none") : t("workout.effort.n", { n: c })} selected={draft.rir === c} onPress={() => setDraft((d) => ({ ...d, rir: c }))} />
+        {list.map((row, i) => (
+          <View key={row.key} style={{ gap: space.xs, paddingTop: space.sm, borderTopWidth: 1, borderColor: p.border }}>
+            <View style={{ flexDirection: "row", alignItems: "flex-end", gap: space.sm }}>
+              <AppText ltr style={{ width: 30, fontSize: 20, fontWeight: "800", paddingBottom: space.sm }}>{numbering[i]}</AppText>
+              <View style={{ flex: 1.3 }}>
+                <NumField<number>
+                  label={`${t("workout.load")} (${unitText})`}
+                  value={row.load}
+                  format={(v) => weightText(v, unit)}
+                  parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
+                  onValue={(v) => patch(ex.exerciseId, row.key, { load: v })}
+                  decimal
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <NumField<number> label={t("workout.reps")} value={row.reps} format={(v) => String(v)} parse={(txt) => parseRepsInput(txt)} onValue={(v) => patch(ex.exerciseId, row.key, { reps: v })} />
+              </View>
             </View>
-          ))}
+            {steppers ? (
+              <View style={{ flexDirection: "row", gap: space.sm, paddingStart: 30 + space.sm }}>
+                <View style={{ flex: 1.3, flexDirection: "row", gap: space.xs }}>
+                  <Mini label="−" hint={`${t("workout.load")} ${t("workout.less")}`} onPress={() => patch(ex.exerciseId, row.key, { load: stepLoad(spec, row.load, -1, ex.setup, unit).load })} />
+                  <Mini label="+" hint={`${t("workout.load")} ${t("workout.more")}`} onPress={() => patch(ex.exerciseId, row.key, { load: stepLoad(spec, row.load, 1, ex.setup, unit).load })} />
+                </View>
+                <View style={{ flex: 1, flexDirection: "row", gap: space.xs }}>
+                  <Mini label="−" hint={`${t("workout.reps")} ${t("workout.less")}`} onPress={() => patch(ex.exerciseId, row.key, { reps: stepReps(row.reps, -1) })} />
+                  <Mini label="+" hint={`${t("workout.reps")} ${t("workout.more")}`} onPress={() => patch(ex.exerciseId, row.key, { reps: stepReps(row.reps, 1) })} />
+                </View>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.sm }}>
+              <Chip label={t("workout.warmup")} selected={row.warmup} onPress={() => patch(ex.exerciseId, row.key, { warmup: !row.warmup })} />
+              {ex.trackEffort ? (
+                <View style={{ width: 96 }}>
+                  <NumField<number>
+                    label={t("workout.rir")}
+                    value={row.rir}
+                    format={(v) => String(v)}
+                    parse={(txt) => parseRirInput(txt)}
+                    onValue={(v) => patch(ex.exerciseId, row.key, { rir: v })}
+                    fontSize={18}
+                  />
+                </View>
+              ) : null}
+              <View style={{ flex: 1, minWidth: 120 }}>
+                <BigButton
+                  label={row.saved ? (row.dirty ? t("workout.updateSet") : `✓ ${t("workout.logged")}`) : t("workout.logSet")}
+                  selected={!row.saved || row.dirty}
+                  disabled={!rowReady(row) || busy !== null || (row.saved && !row.dirty)}
+                  onPress={() => void logRow(ex, row)}
+                />
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel={t("workout.removeSet")} onPress={() => void dropRow(ex, row)} style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, alignItems: "center", justifyContent: "center", borderRadius: 14, borderWidth: 2, borderColor: p.border }}>
+                <AppText style={{ fontSize: 20 }}>✕</AppText>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+        <BigButton label={t("workout.addSet")} selected={false} onPress={() => setRows((r) => ({ ...r, [ex.exerciseId]: addRow(r[ex.exerciseId] ?? [], info.prefill, () => Crypto.randomUUID()) }))} />
+      </Card>
+    );
+  };
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 3 }} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[0]}>
+      <View style={{ backgroundColor: p.card, borderColor: p.border, borderWidth: 1, borderRadius: 16, padding: space.sm, gap: space.xs }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+          <AppText ltr style={{ fontSize: 32, fontWeight: "800", minWidth: 96 }}>{formatClock(remainingMs(timer, now))}</AppText>
+          <View style={{ flex: 1, flexDirection: "row", gap: space.xs }}>
+            <Mini label="−15" hint="−15" onPress={() => setTimer((tm) => adjustTimer(tm, -15, Date.now()))} />
+            <Mini label="+15" hint="+15" onPress={() => setTimer((tm) => adjustTimer(tm, 15, Date.now()))} />
+          </View>
+          <View style={{ flex: 1.2 }}>
+            <BigButton
+              label={timerRunning ? t("workout.rest.stop") : t("workout.rest.start")}
+              selected={false}
+              onPress={() => {
+                setRestOver(false);
+                setTimer((tm) => (tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm)));
+              }}
+            />
+          </View>
         </View>
-        <BigButton label={t("workout.log")} disabled={!canLog(draft) || saving} onPress={() => void save(draft)} />
-        <BigButton label={t("workout.repeat")} selected={false} disabled={!last || saving} onPress={() => last && void save({ ...last })} />
-        <AppText accessibilityLiveRegion="polite" style={{ color: p.muted }}>
+        {restOver && !timerRunning ? <AppText>{t("workout.rest.done")}</AppText> : null}
+      </View>
+      {loaded.resumed ? <AppText style={{ color: p.muted }}>{t("workout.resumed")}</AppText> : null}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+        <Chip label={t("workout.steppers")} selected={steppers} onPress={() => setSteppers((s) => !s)} />
+        <AppText accessibilityLiveRegion="polite" style={{ color: p.muted, flex: 1 }}>
           {savedAt ? `✓ ${t("workout.saved", { time: clock(savedAt) })}` : t("workout.notSaved")}
         </AppText>
-      </Card>
-
-      <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("workout.setsToday")}</AppText>
-        {exSets.map((s) => (
-          <AppText key={s.id} ltr={false}>
-            {isolateLtr(`${s.position}.`)} {formatLoad(s.load, lang, unit)} × {isolateLtr(String(s.reps))}
-            {s.rir !== null ? ` · ${t("workout.effort.n", { n: s.rir })}` : ""}
-            {s.warmup ? ` · ${t("workout.warmupTag")}` : ""}
-            {s.outlierStatus === "unconfirmed" ? ` · ${t("workout.unconfirmedTag")}` : ""} ✓
-          </AppText>
-        ))}
-        <BigButton
-          label={t("workout.undo")}
-          selected={false}
-          disabled={exSets.length === 0}
-          onPress={async () => {
-            const lastSet = exSets[exSets.length - 1];
-            if (!lastSet) return;
-            await workout.deleteSet(lastSet.id);
-            setSets(await workout.listSessionSets(loaded.sessionId));
-          }}
-        />
-      </Card>
-
-      <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("workout.rest")}</AppText>
-        <AppText ltr style={{ fontSize: 44, fontWeight: "800", textAlign: "center" }}>
-          {formatClock(remainingMs(timer, now))}
-        </AppText>
-        {restOver && !timerRunning ? <AppText>{t("workout.rest.done")}</AppText> : null}
-        <View style={{ flexDirection: "row", gap: space.sm }}>
-          <View style={{ flex: 1 }}>
-            <BigButton label="−15" selected={false} onPress={() => setTimer((tm) => adjustTimer(tm, -15, Date.now()))} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <BigButton label="+15" selected={false} onPress={() => setTimer((tm) => adjustTimer(tm, 15, Date.now()))} />
-          </View>
-        </View>
-        <BigButton
-          label={timerRunning ? t("workout.rest.stop") : t("workout.rest.start")}
-          selected={false}
-          onPress={() => {
-            setRestOver(false);
-            setTimer((tm) => (tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm)));
-          }}
-        />
-      </Card>
-
-      <View style={{ flexDirection: "row", gap: space.sm }}>
-        <View style={{ flex: 1 }}>
-          <BigButton label={t("workout.prev")} selected={false} disabled={idx === 0} onPress={() => setIdx((i) => Math.max(0, i - 1))} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <BigButton label={t("workout.next")} selected={false} disabled={idx >= loaded.exercises.length - 1} onPress={() => setIdx((i) => i + 1)} />
-        </View>
       </View>
+      {loaded.exercises.map(renderExercise)}
+      <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.finishNote")}</AppText>
+      {unlogged > 0 ? <AppText style={{ fontWeight: "600" }}>{t("workout.unlogged", { n: unlogged })}</AppText> : null}
       <BigButton
         label={t("workout.finish")}
+        disabled={finishing}
         onPress={async () => {
-          await workout.finishSession(loaded.sessionId);
-          navigation.dispatch(StackActions.replace("Finish", { sessionId: loaded.sessionId }));
+          setFinishing(true);
+          try {
+            await workout.finishSession(loaded.sessionId);
+            navigation.dispatch(StackActions.replace("Finish", { sessionId: loaded.sessionId }));
+          } catch (e) {
+            setFinishing(false);
+            throw e;
+          }
         }}
       />
     </ScrollView>

@@ -17,6 +17,8 @@ import { createOnboardingRepo } from "./src/db/onboardingRepo";
 import { createImportRepo } from "./src/db/importRepo";
 import { createProgrammeRepo } from "./src/db/programmeRepo";
 import { createRepos } from "./src/db/repos";
+import { loadReminderSettings, reminderText, syncReminders } from "./src/logic/reminders";
+import { createReminders } from "./src/notifications/reminders";
 import { createRestAlerts } from "./src/notifications/restAlerts";
 import { createDataRepo } from "./src/db/dataRepo";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
@@ -188,8 +190,14 @@ export default function App() {
       const sync = createSyncEngine(db, deps, createFetchTransport());
       const auto = createAutoSync(sync);
       const autoSync = (force?: boolean) => void auto.run(force);
+      const reminders = createReminders();
+      // Put the scheduled reminders back in step with the settings (and the language). Does nothing when they are off.
+      void (async () => {
+        const rs = await loadReminderSettings(repos);
+        if (rs.on) await syncReminders(reminders, rs, reminderText(await repos.getLanguage()));
+      })().catch(() => undefined);
       autoSync(true); // does one local read and nothing else unless the lifter turned Back up and sync on
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
       setBoot("error");

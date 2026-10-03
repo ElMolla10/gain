@@ -9,7 +9,7 @@ import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { checkForUpdate, shaMatches, toHex, type FetchLike, type UpdateResult } from "../logic/updateCheck";
 import { usePalette } from "../theme";
-import { AppText, BigButton, Card } from "../ui";
+import { AppText, BigButton, Card, InlineStatus } from "../ui";
 
 type Phase = "idle" | "checking" | "downloading" | "verifying" | "launched";
 const PACKAGE = "app.gain.mobile";
@@ -72,15 +72,15 @@ export function UpdateCard() {
   const busy = phase === "checking" || phase === "downloading" || phase === "verifying";
   return (
     <Card>
-      <AppText style={{ fontWeight: "700" }}>{t("update.title")}</AppText>
+      <AppText style={{ fontWeight: "600" }}>{t("update.title")}</AppText>
       <AppText style={{ color: p.muted }}>{t("update.current", { v: installed })}</AppText>
       {Platform.OS !== "android" ? <AppText style={{ color: p.muted }}>{t("update.androidOnly")}</AppText> : null}
-      <BigButton label={phase === "checking" ? t("update.checking") : t("update.check")} selected={false} disabled={busy || Platform.OS !== "android"} onPress={() => void check()} />
-      {result?.kind === "up_to_date" ? <AppText>✓ {t("update.upToDate", { v: result.installed })}</AppText> : null}
-      {result?.kind === "error" ? <AppText style={{ fontWeight: "600" }}>⚠ {t(`update.err.${result.reason}` as StringKey)}</AppText> : null}
+      <BigButton label={phase === "checking" ? t("update.checking") : t("update.check")} variant="secondary" loading={phase === "checking"} disabled={busy || Platform.OS !== "android"} onPress={() => void check()} />
+      {result?.kind === "up_to_date" ? <InlineStatus kind="success" text={t("update.upToDate", { v: result.installed })} /> : null}
+      {result?.kind === "error" ? <InlineStatus kind="error" text={t(`update.err.${result.reason}` as StringKey)} /> : null}
       {result?.kind === "available" ? (
         <>
-          <AppText style={{ fontSize: 18, fontWeight: "800" }}>{t("update.available", { v: result.version })}</AppText>
+          <AppText style={{ fontSize: 16, fontWeight: "600" }}>{t("update.available", { v: result.version })}</AppText>
           {result.prerelease ? <AppText style={{ color: p.muted }}>{t("update.pre")}</AppText> : null}
           {result.size ? <AppText style={{ color: p.muted }}>{t("update.size", { mb: fmt(Math.round(result.size / 1_000_000)) })}</AppText> : null}
           {result.notes ? <AppText style={{ color: p.muted, fontSize: 14 }}>{result.notes}</AppText> : null}
@@ -91,11 +91,11 @@ export function UpdateCard() {
             onPress={() => void install(result)}
           />
           {phase === "launched" ? <AppText>{t("update.launched")}</AppText> : null}
-          <BigButton label={t("update.allow")} selected={false} onPress={() => void allowInstalls()} />
+          <BigButton variant="quiet" label={t("update.allow")} onPress={() => void allowInstalls()} />
           <AppText style={{ color: p.muted, fontSize: 13 }}>{t("update.keepData")}</AppText>
         </>
       ) : null}
-      {problem ? <AppText style={{ fontWeight: "600" }}>⚠ {t(problem)}</AppText> : null}
+      {problem ? <InlineStatus kind="error" text={t(problem)} /> : null}
     </Card>
   );
 }

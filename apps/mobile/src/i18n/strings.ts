@@ -11,6 +11,7 @@ import { arData, enData } from "./strings.data";
 import { arDecisions, enDecisions } from "./strings.decisions";
 import { arGoals, enGoals } from "./strings.goals";
 import { arHistory, enHistory } from "./strings.history";
+import { arDesign, enDesign } from "./strings.design";
 import { arFixes, enFixes } from "./strings.fixes";
 import { arImport, enImport } from "./strings.import";
 import { arOnboarding, enOnboarding } from "./strings.onboarding";
@@ -39,7 +40,7 @@ export const en = {
   "today.start": "Start workout",
   "today.startSoon": "The workout logger arrives in the next step.",
   "today.empty": "No programme yet.",
-  "today.sampleNote": "Sample data: the exercises and programme are placeholders. Edit them to match yours.",
+  "today.starterNote": "Starter programme · Edit it to match your routine.",
   "today.reps": "{min}-{max} reps",
   "today.goalTag": "Goal lift",
   "settings.title": "Settings",
@@ -204,6 +205,7 @@ export const en = {
   ...enOnboarding,
   ...enImport,
   ...enFixes,
+  ...enDesign,
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -223,7 +225,7 @@ export const ar: Record<StringKey, string> = {
   "today.start": "ابدأ التمرين",
   "today.startSoon": "شاشة تسجيل التمرين جاية في الخطوة الجاية.",
   "today.empty": "لسه مفيش برنامج.",
-  "today.sampleNote": "بيانات تجريبية: التمارين والبرنامج أمثلة. عدّلهم عشان يطابقوا بتاعك.",
+  "today.starterNote": "برنامج مبدئي · عدّله عشان يناسب روتينك.",
   "today.reps": "{min}-{max} عدّة",
   "today.goalTag": "تمرين الهدف",
   "settings.title": "الإعدادات",
@@ -388,4 +390,5 @@ export const ar: Record<StringKey, string> = {
   ...arOnboarding,
   ...arImport,
   ...arFixes,
+  ...arDesign,
 };

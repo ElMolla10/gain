@@ -1,7 +1,7 @@
 import { File } from "expo-file-system";
 import { ImportParseError, parseImport, toKilograms, type EquipmentType, type ImportParse, type SetupType, type WeightUnit } from "@gain/engine";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
 import type { BatchInfo, ImportPreview, ImportResult, TitlePreview } from "../db/importRepo";
@@ -12,7 +12,7 @@ import { PATTERNS } from "../logic/exposure";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { applyEquipmentToUnresolved, dateRange, heaviestLoad, resolveAll, type Override } from "../logic/importFlow";
 import { space, usePalette } from "../theme";
-import { AppText, ArDraftNote, BigButton, Card, Chip } from "../ui";
+import { AppText, ArDraftNote, BigButton, Card, Chip, InlineStatus, Notice, Screen, SectionTitle } from "../ui";
 
 const SETUPS: SetupType[] = ["free", "assisted", "bodyweight_plus_added"];
 
@@ -33,12 +33,12 @@ function TitleCard(props: { row: ReturnType<typeof resolveAll>["rows"][number]; 
   const set = (o: Override) => props.onChange({ ...override, ...o });
   return (
     <Card>
-      <AppText ltr style={{ fontWeight: "700" }}>{row.title.title}</AppText>
+      <AppText ltr style={{ fontWeight: "600" }}>{row.title.title}</AppText>
       <AppText style={{ color: p.muted }}>{t("import.ex.counts", { workouts: row.title.workouts, sets: row.title.sets })}</AppText>
-      <AppText style={{ color: p.text, fontWeight: "600" }}>{c ? "✓ " : "! "}{status}</AppText>
+      <InlineStatus kind={c ? "success" : "warn"} text={status} />
       {open ? (
         <View style={{ gap: space.sm }}>
-          <BigButton label={t("import.ex.useExisting")} selected={false} onPress={props.onPickExisting} />
+          <BigButton label={t("import.ex.useExisting")} variant="secondary" onPress={props.onPickExisting} />
           <BigButton label={t("import.ex.createNew")} selected={!!override?.createNew || (c?.kind === "new")} onPress={() => props.onChange({ ...override, exerciseId: undefined, createNew: true })} />
           {c?.kind === "new" || s.kind === "new" || override?.createNew ? (
             <>
@@ -63,10 +63,10 @@ function TitleCard(props: { row: ReturnType<typeof resolveAll>["rows"][number]; 
               </View>
             </>
           ) : null}
-          <BigButton label={t("import.ex.done")} selected={false} onPress={() => setOpen(false)} />
+          <BigButton label={t("import.ex.done")} variant="secondary" onPress={() => setOpen(false)} />
         </View>
       ) : (
-        <BigButton label={t("import.ex.change")} selected={false} onPress={() => setOpen(true)} />
+        <BigButton label={t("import.ex.change")} variant="secondary" onPress={() => setOpen(true)} />
       )}
     </Card>
   );
@@ -170,31 +170,31 @@ export function ImportScreen() {
 
   const unitFromFile = parsed && parsed.parse.unit !== "unknown";
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 3 }}>
+    <Screen>
       <ArDraftNote />
       <AppText style={{ color: p.muted }}>{t("import.intro")}</AppText>
       <BigButton label={parsed ? t("import.pickAnother") : t("import.pick")} selected={!parsed} disabled={!!busy} onPress={() => void choose()} />
-      {busy ? <AppText style={{ color: p.muted }}>{busy}</AppText> : null}
-      {error ? <AppText style={{ color: p.text, fontWeight: "600" }}>{error}</AppText> : null}
-      {undone !== null ? <AppText style={{ fontWeight: "700" }}>{t("import.undone", { workouts: undone })}</AppText> : null}
+      {busy ? <InlineStatus kind="info" text={busy} /> : null}
+      {error ? <Notice kind="error">{error}</Notice> : null}
+      {undone !== null ? <InlineStatus kind="success" text={t("import.undone", { workouts: undone })} /> : null}
 
       {result ? (
         <Card>
-          <AppText style={{ fontSize: 20, fontWeight: "800" }}>✓ {t("import.done.title")}</AppText>
+          <InlineStatus kind="success" text={t("import.done.title")} />
           <AppText>{t("import.done.body", { workouts: result.workouts, sets: result.sets, exercises: result.newExercises })}</AppText>
           {result.skippedSets > 0 ? <AppText style={{ color: p.muted }}>{t("import.done.skipped", { n: result.skippedSets })}</AppText> : null}
-          {result.batchId ? <BigButton label={t("import.undo")} selected={false} onPress={() => void undo(result.batchId!)} /> : null}
+          {result.batchId ? <BigButton label={t("import.undo")} variant="secondary" onPress={() => void undo(result.batchId!)} /> : null}
         </Card>
       ) : null}
 
       {parsed ? (
         <Card>
-          <AppText ltr style={{ fontWeight: "700" }}>{t("import.fileInfo", { name: parsed.name, source: t(`import.source.${parsed.parse.source}` as StringKey) })}</AppText>
+          <AppText ltr style={{ fontWeight: "600" }}>{t("import.fileInfo", { name: parsed.name, source: t(`import.source.${parsed.parse.source}` as StringKey) })}</AppText>
           {unitFromFile ? (
             <AppText style={{ color: p.muted }}>{t("import.unit.fromFile", { unit: parsed.parse.unit })}</AppText>
           ) : (
             <>
-              <AppText style={{ fontWeight: "700" }}>{t("import.unit.title")}</AppText>
+              <AppText style={{ fontWeight: "600" }}>{t("import.unit.title")}</AppText>
               <AppText style={{ color: p.muted }}>{t("import.unit.note")}</AppText>
               <BigButton label={t("import.unit.kg")} selected={unit === "kg"} onPress={() => setUnit("kg")} />
               <BigButton label={t("import.unit.lb")} selected={unit === "lb"} onPress={() => setUnit("lb")} />
@@ -206,7 +206,7 @@ export function ImportScreen() {
       {preview ? (
         <>
           <Card>
-            <AppText style={{ fontWeight: "700" }}>{t("import.preview.title")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("import.preview.title")}</AppText>
             {preview.newWorkouts > 0 ? (
               <>
                 <AppText>{t("import.preview.workouts", { n: preview.newWorkouts, sets: preview.newSets })}</AppText>
@@ -223,11 +223,11 @@ export function ImportScreen() {
 
           {preview.newWorkouts > 0 ? (
             <>
-              <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("import.ex.title")}</AppText>
+              <SectionTitle>{t("import.ex.title")}</SectionTitle>
               <AppText style={{ color: p.muted }}>{t("import.ex.note", { n: titles.length })}</AppText>
               {titles.some((x) => res.rows.find((r) => r.title === x)?.missing.includes("equipment")) ? (
                 <Card>
-                  <AppText style={{ fontWeight: "700" }}>{t("import.bulk.title", { n: res.rows.filter((r) => r.missing.includes("equipment")).length })}</AppText>
+                  <AppText style={{ fontWeight: "600" }}>{t("import.bulk.title", { n: res.rows.filter((r) => r.missing.includes("equipment")).length })}</AppText>
                   <AppText style={{ color: p.muted }}>{t("import.bulk.note")}</AppText>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
                     {GYM_EQUIPMENT.map((e) => (
@@ -246,8 +246,8 @@ export function ImportScreen() {
                   onPickExisting={() => setPickFor(row.title.title)}
                 />
               ))}
-              {!res.ready ? <AppText style={{ color: p.muted }}>{t("import.go.blocked")}</AppText> : null}
-              <BigButton label={t("import.go", { n: preview.newWorkouts })} disabled={!canImport} onPress={() => void run()} />
+              {!res.ready ? <InlineStatus kind="info" text={t("import.go.blocked")} /> : null}
+              <BigButton hero label={t("import.go", { n: preview.newWorkouts })} disabled={!canImport} onPress={() => void run()} />
             </>
           ) : null}
         </>
@@ -255,12 +255,12 @@ export function ImportScreen() {
 
       {batches.length > 0 ? (
         <Card>
-          <AppText style={{ fontWeight: "700" }}>{t("import.history.title")}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t("import.history.title")}</AppText>
           {batches.map((b) => (
             <View key={b.id} style={{ gap: space.xs }}>
               <AppText>{t("import.history.row", { source: t(`import.source.${b.source}` as StringKey), workouts: b.workouts, sets: b.sets })}</AppText>
               <AppText ltr style={{ color: p.muted, fontSize: 13 }}>{new Date(b.createdAt).toISOString().slice(0, 10)}{b.fileName ? ` · ${b.fileName}` : ""}</AppText>
-              <BigButton label={t("import.undo")} selected={false} onPress={() => void undo(b.id)} />
+              <BigButton label={t("import.undo")} variant="secondary" onPress={() => void undo(b.id)} />
             </View>
           ))}
         </Card>
@@ -280,6 +280,6 @@ export function ImportScreen() {
           return id;
         }}
       />
-    </ScrollView>
+    </Screen>
   );
 }

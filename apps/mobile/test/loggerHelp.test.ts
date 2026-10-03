@@ -13,15 +13,18 @@ describe("P10 logger: instructions behind a help button, compact wrapping target
       expect(help, k).toContain(`"${k}"`);
     }
     expect(screen).toContain("<WorkoutHelp");
-    expect(screen).toMatch(/accessibilityLabel=\{t\("workout\.help\.button"\)\}/);
+    expect(screen).toMatch(/(accessibilityLabel|label)=\{t\("workout\.help\.button"\)\}/);
   });
-  it("the target line is 'Target: <target>' with a small Why button and wraps instead of truncating", () => {
-    const i = screen.indexOf("Compact target line");
-    const block = screen.slice(i, screen.indexOf("</View>\n\n", i));
-    expect(block).toContain('t("workout.nextTarget")');
+  it("the target is one compact line 'Target <value> Why' (TargetLine) that wraps instead of truncating", () => {
+    const parts = readFileSync(join(__dirname, "..", "src/components/LogParts.tsx"), "utf8");
+    const block = parts.slice(parts.indexOf("export function TargetLine"), parts.indexOf("export function RestToggle"));
+    expect(screen).toContain("<TargetLine");
+    expect(screen).toContain('t("workout.nextTarget")');
+    expect(screen).toContain('t("workout.whyShort")');
+    expect(screen).not.toContain("fontSize: 28"); // the big target card is gone
     expect(block).toContain('flexWrap: "wrap"');
     expect(block).not.toContain("numberOfLines");
-    expect(block).toContain('t("workout.whyShort")');
+    expect(block).toContain("<QuietAction"); // quiet, and QuietAction keeps the 48 dp touch area (see logger refinement tests)
   });
   it("previous and target stay next to the inputs (PREVIOUS column + ghost target in the boxes)", () => {
     expect(screen).toContain("workout.col.prev");

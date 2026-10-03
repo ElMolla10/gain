@@ -1,45 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Modal, PanResponder, Pressable, ScrollView, TextInput, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, PanResponder, Pressable, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 import { useI18n } from "../i18n";
-import { useLogPalette } from "../theme";
-import { AppText } from "../ui";
+import { Icon } from "./Icon";
+import { INPUT_HEIGHT, radius, space, type as ty, useLogPalette } from "../theme";
+import { AppText, QuietAction, Sheet, useInputFont } from "../ui";
 
 /**
- * Small building blocks of the active workout screen. Icons are drawn with Views (no icon font to ship, and they flip cleanly in RTL).
+ * Small building blocks of the active workout screen (icons live in components/Icon.tsx).
  */
-
-/** Chevron pointing down (the "collapse" button). */
-export function ChevronDown({ size = 12, color }: { size?: number; color: string }) {
-  return <View style={{ width: size, height: size, borderRightWidth: 2.5, borderBottomWidth: 2.5, borderColor: color, transform: [{ rotate: "45deg" }, { translateY: -size / 5 }, { translateX: -size / 5 }] }} />;
-}
-
-/** Vertical three dots. */
-export function Dots({ color }: { color: string }) {
-  return (
-    <View style={{ gap: 3.5, alignItems: "center" }}>
-      {[0, 1, 2].map((i) => (
-        <View key={i} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: color }} />
-      ))}
-    </View>
-  );
-}
-
-/** A small stopwatch: ring, crown and a hand. */
-export function Stopwatch({ size = 18, color }: { size?: number; color: string }) {
-  return (
-    <View style={{ width: size, height: size + 3, alignItems: "center", justifyContent: "flex-end" }}>
-      <View style={{ position: "absolute", top: 0, width: size * 0.35, height: 2.5, backgroundColor: color, borderRadius: 1 }} />
-      <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color, alignItems: "center" }}>
-        <View style={{ marginTop: 2, width: 2, height: size * 0.3, backgroundColor: color, borderRadius: 1 }} />
-      </View>
-    </View>
-  );
-}
-
-/** A tick drawn with two borders (no font dependence). */
-export function Tick({ size = 14, color }: { size?: number; color: string }) {
-  return <View style={{ width: size * 0.55, height: size, borderRightWidth: 3, borderBottomWidth: 3, borderColor: color, transform: [{ rotate: "45deg" }, { translateY: -size * 0.12 }] }} />;
-}
 
 /**
  * A number the lifter types straight into the table cell: no label, no steppers. Keeps the text while typing ("62." on the way to "62.5"),
@@ -53,10 +21,17 @@ export function CellInput<T extends number>(props: {
   onValue: (v: T | null) => void;
   placeholder?: string;
   decimal?: boolean;
+  /** The row is ticked: the box loses its well so the row reads as finished, not as a form still to fill. */
   done?: boolean;
+  /** The set the lifter is on: the box gets an outline so it stands out from the wash behind it. */
+  current?: boolean;
+  /** A small caption above the box (unit or column name); used when the row is laid out in two lines at large font sizes. */
+  unitLabel?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const p = useLogPalette();
+  const font = useInputFont("600");
+  const [focused, setFocused] = useState(false);
   const [text, setText] = useState(props.value === null ? "" : props.format(props.value));
   const seen = useRef<T | null>(props.value);
   useEffect(() => {
@@ -68,7 +43,8 @@ export function CellInput<T extends number>(props: {
   }, [props.value]);
   const bad = text.trim() !== "" && props.parse(text, props.value) === null;
   return (
-    <View style={[{ flex: 1 }, props.style]}>
+    <View style={[{ flex: 1, gap: 2 }, props.style]}>
+      {props.unitLabel ? <AppText style={{ color: p.muted, fontSize: 13, textAlign: "center" }}>{props.unitLabel}</AppText> : null}
       <TextInput
         accessibilityLabel={props.a11y}
         value={text}
@@ -82,15 +58,17 @@ export function CellInput<T extends number>(props: {
         selectTextOnFocus
         placeholder={props.placeholder ?? "—"}
         placeholderTextColor={p.muted}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         style={{
-          height: 48,
-          borderRadius: 8,
-          borderWidth: bad ? 2 : 0,
-          borderColor: p.warn,
+          ...font,
+          height: INPUT_HEIGHT,
+          borderRadius: radius.input,
+          borderWidth: bad || focused ? 2 : props.current ? 1.5 : 0,
+          borderColor: bad ? p.warn : focused ? p.accent : p.edge,
           paddingHorizontal: 4,
           paddingVertical: 0,
           fontSize: 16,
-          fontWeight: "700",
           color: p.text,
           backgroundColor: props.done ? "transparent" : p.field,
           textAlign: "center",
@@ -139,7 +117,7 @@ export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string
     <View style={{ overflow: "hidden" }}>
       <View style={{ position: "absolute", top: 0, bottom: 0, end: 0, width: W, backgroundColor: p.danger, alignItems: "center", justifyContent: "center" }}>
         <Pressable accessibilityRole="button" accessibilityLabel={props.deleteLabel} onPress={props.onDelete} style={{ flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center" }}>
-          <AppText style={{ color: p.onDanger, fontWeight: "700", fontSize: 14 }}>{props.deleteLabel}</AppText>
+          <AppText style={{ color: p.onDanger, fontWeight: "600", fontSize: 14 }}>{props.deleteLabel}</AppText>
         </Pressable>
       </View>
       <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: x }], backgroundColor: props.background }}>
@@ -149,33 +127,61 @@ export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string
   );
 }
 
-/** A small action sheet: tap outside to close. */
-export function MenuSheet(props: { visible: boolean; title: string; /** Let a long title wrap instead of cutting it off. */ wrapTitle?: boolean; onClose: () => void; items: { label: string; danger?: boolean; onPress: () => void }[] }) {
+/**
+ * An action sheet built on the shared Sheet: heading, explicit close button, Android back dismisses. Ordinary choices are rows in the
+ * body; destructive ones (danger) are set apart in the footer.
+ */
+export function MenuSheet(props: { visible: boolean; title: string; /** Kept for callers: sheet headings always wrap. */ wrapTitle?: boolean; onClose: () => void; items: { label: string; danger?: boolean; selected?: boolean; onPress: () => void }[] }) {
   const p = useLogPalette();
-  const { t } = useI18n();
-  const { height } = useWindowDimensions();
+  const row = (it: { label: string; danger?: boolean; selected?: boolean; onPress: () => void }, i: number) => (
+    <Pressable
+      key={`${i}:${it.label}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!it.selected }}
+      onPress={() => {
+        props.onClose();
+        it.onPress();
+      }}
+      style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
+    >
+      <AppText style={{ flex: 1, fontSize: 16, fontWeight: it.selected ? "600" : "400", color: it.danger ? p.danger : p.text }}>{it.label}</AppText>
+      {it.selected ? <Icon name="check" color={p.accent} size={22} /> : null}
+    </Pressable>
+  );
+  const normal = props.items.filter((x) => !x.danger);
+  const danger = props.items.filter((x) => x.danger);
   return (
-    <Modal visible={props.visible} transparent animationType="fade" onRequestClose={props.onClose}>
-      <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={props.onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
-        <View style={{ backgroundColor: p.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 12, paddingBottom: 28, gap: 4 }}>
-          <AppText numberOfLines={props.wrapTitle ? undefined : 1} style={{ color: props.wrapTitle ? p.text : p.muted, fontSize: 14, paddingHorizontal: 12, paddingVertical: 8 }}>{props.title}</AppText>
-          <ScrollView style={{ maxHeight: height * 0.6 }} keyboardShouldPersistTaps="handled">
-          {props.items.map((it, i) => (
-            <Pressable
-              key={`${i}:${it.label}`}
-              accessibilityRole="button"
-              onPress={() => {
-                props.onClose();
-                it.onPress();
-              }}
-              style={{ minHeight: 52, justifyContent: "center", paddingHorizontal: 12, borderRadius: 10 }}
-            >
-              <AppText style={{ fontSize: 16, fontWeight: "600", color: it.danger ? p.danger : p.text }}>{it.label}</AppText>
-            </Pressable>
-          ))}
-          </ScrollView>
-        </View>
-      </Pressable>
-    </Modal>
+    <Sheet visible={props.visible} title={props.title} onClose={props.onClose} footer={danger.length > 0 ? <>{danger.map((d, i) => row(d, i))}</> : undefined}>
+      <View style={{ gap: 2 }}>{normal.map((it, i) => row(it, i))}</View>
+    </Sheet>
+  );
+}
+
+/**
+ * The target of one exercise as a single compact line: "Target  55 kg × 9  [Why]". It wraps onto a second line when the text is large and
+ * is never cut off. "Why" is quiet (accent text, no frame) but keeps a 48 dp touch area. `reason` shows under the line while `expanded`.
+ */
+export function TargetLine(props: { label: string; value: string; whyLabel: string; whyA11y: string; onWhy: () => void; onWhyLong?: () => void; expanded?: boolean; reason?: string }) {
+  const p = useLogPalette();
+  return (
+    <View style={{ gap: 2 }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: space.sm }}>
+        <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.label}</AppText>
+        <AppText style={{ fontSize: ty.section, fontWeight: "600", flexShrink: 1 }}>{props.value}</AppText>
+        <QuietAction label={props.whyLabel} icon="why" accessibilityLabel={props.whyA11y} expanded={props.expanded} onPress={props.onWhy} onLongPress={props.onWhyLong} />
+      </View>
+      {props.expanded && props.reason ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.reason}</AppText> : null}
+    </View>
+  );
+}
+
+/** The per-exercise rest-timer switch: timer icon + the length (or "Off"). The spoken label says it all; 48 dp tall. */
+export function RestToggle(props: { text: string; off: boolean; a11y: string; onPress: () => void }) {
+  const p = useLogPalette();
+  return (
+    <Pressable accessibilityRole="switch" accessibilityLabel={props.a11y} accessibilityState={{ checked: !props.off }} onPress={props.onPress} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}>
+      <Icon name="timer" color={props.off ? p.muted : p.accent} size={18} />
+      <AppText ltr={!props.off} style={{ color: props.off ? p.muted : p.accent, fontWeight: "600", fontSize: ty.label }}>{props.text}</AppText>
+    </Pressable>
   );
 }

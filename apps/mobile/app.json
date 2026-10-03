@@ -2,10 +2,10 @@
   "expo": {
     "name": "GAIN",
     "slug": "gain",
-    "version": "0.15.0",
+    "version": "0.16.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "backgroundColor": "#000000",
+    "backgroundColor": "#10120E",
     "userInterfaceStyle": "automatic",
     "scheme": "gain",
     "plugins": [
@@ -18,12 +18,31 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#10120E"
         }
       ],
       "expo-sharing",
-      "expo-notifications",
-      "expo-secure-store"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#B7F51B"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/IBMPlexSans_400Regular.ttf",
+            "./assets/fonts/IBMPlexSans_600SemiBold.ttf",
+            "./assets/fonts/IBMPlexSans_700Bold.ttf",
+            "./assets/fonts/IBMPlexSansArabic_400Regular.ttf",
+            "./assets/fonts/IBMPlexSansArabic_600SemiBold.ttf",
+            "./assets/fonts/IBMPlexSansArabic_700Bold.ttf"
+          ]
+        }
+      ]
     ],
     "ios": {
       "bundleIdentifier": "app.gain.mobile",
@@ -31,13 +50,13 @@
     },
     "android": {
       "package": "app.gain.mobile",
-      "versionCode": 15,
+      "versionCode": 16,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": ["REQUEST_INSTALL_PACKAGES"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "monochromeImage": "./assets/adaptive-icon-monochrome.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#10120E"
       }
     },
     "web": {

@@ -3,8 +3,8 @@
  * ARABIC IS A DRAFT TRANSLATION (Egyptian-leaning): needs review by Egyptian lifters.
  */
 export const enHistory = {
-  "tab.history": "History",
-  "history.title": "History",
+  "tab.history": "Progress",
+  "history.title": "Progress",
   "history.sessions": "Sessions",
   "history.lifts": "Lifts",
   "history.empty": "No finished workouts yet. They show up here when you finish one.",
@@ -60,8 +60,8 @@ export const enHistory = {
 } as const;
 
 export const arHistory: Record<keyof typeof enHistory, string> = {
-  "tab.history": "السجل",
-  "history.title": "السجل",
+  "tab.history": "التقدّم",
+  "history.title": "التقدّم",
   "history.sessions": "التمارين",
   "history.lifts": "الحركات",
   "history.empty": "لسه مفيش تمارين خلصت. هتظهر هنا لما تخلّص واحدة.",

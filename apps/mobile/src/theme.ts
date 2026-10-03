@@ -1,13 +1,14 @@
 import { useSyncExternalStore } from "react";
 import { useColorScheme } from "react-native";
 
+import { gainTokens } from "./design/tokens";
 import { APPEARANCES, parseAppearance, type Appearance, darkPalette, lightPalette, logDarkPalette, logLightPalette, type LogPalette, type Palette } from "./palettes";
 export type { LogPalette, Palette };
 
 /**
- * One visual identity: charcoal background with a mint-green accent, in the logger, the navigation and every screen. Dark is the default;
- * the lifter can switch to light or follow the system in Settings > Display. Other colours are for warnings and status only.
- * Colour is never the only status: labels always carry the meaning.
+ * One visual identity (GAIN identity v1): electric lime on ink in dark, ink on bone with lime fills in light. Dark is the default;
+ * the lifter can switch to light or follow the system in Settings > Display. Lime is the single accent; status colours are for status only.
+ * Colour is never the only status: labels and icons always carry the meaning.
  */
 export { APPEARANCES, parseAppearance, type Appearance };
 
@@ -40,15 +41,36 @@ export function usePalette(): Palette {
   return useIsDark() ? darkPalette : lightPalette;
 }
 
-/**
- * Spacing: tighter than before (less padding, less copy) so a screen shows more at once. Touch targets stay at 48 dp or more.
- */
-export const space = { xs: 4, sm: 8, md: 12, lg: 18, xl: 28 };
-export const MIN_TOUCH = 48;
-
-/** Type scale (dp, before the user's font scaling, which is always honoured): titles 28-32, sections 18-20, body 15-16, secondary 12-14. */
-export const type = { title: 28, titleLarge: 32, section: 19, sectionSmall: 18, body: 16, bodySmall: 15, secondary: 13, caption: 12 };
-
 export function useLogPalette(): LogPalette {
   return useIsDark() ? logDarkPalette : logLightPalette;
 }
+
+/** Spacing: 4 px base; 16 gutters; 24 between sections (kit tokens). `lg` and `xl` are the gutter and the section gap. */
+export const space = gainTokens.spacing;
+/** Corners: inputs 8, actions 12, cards 16, sheets 24 (kit tokens). */
+export const radius = gainTokens.radius;
+export const MIN_TOUCH = gainTokens.interaction.minTouchTarget;
+export const INPUT_HEIGHT = gainTokens.interaction.inputHeight;
+export const PRIMARY_HEIGHT = gainTokens.interaction.primaryButtonHeight;
+/** Motion (ms). Zero when the lifter asked for reduced motion; see useReducedMotion in ui.tsx. */
+export const motion = gainTokens.interaction.motionMs;
+
+/**
+ * Type scale (dp, before the user's font scaling, which is always honoured): display 48, load 36, screen title 28, section 20,
+ * body 16, label 14, caption 13. The older names are aliases so every screen draws from the same seven sizes.
+ */
+export const type = {
+  display: gainTokens.type.display.size,
+  load: gainTokens.type.load.size,
+  title: gainTokens.type.screen.size,
+  titleLarge: gainTokens.type.screen.size,
+  section: gainTokens.type.section.size,
+  sectionSmall: gainTokens.type.body.size,
+  body: gainTokens.type.body.size,
+  bodySmall: gainTokens.type.label.size,
+  label: gainTokens.type.label.size,
+  secondary: gainTokens.type.caption.size,
+  caption: gainTokens.type.caption.size,
+};
+/** Every font size the app may draw (kit scale + Arabic body 17). Enforced by test/design.test.ts. */
+export const TYPE_SIZES: readonly number[] = [13, 14, 16, 17, 20, 28, 36, 48];

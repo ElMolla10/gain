@@ -8,7 +8,7 @@ import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { space, usePalette } from "../theme";
 import { DateSelect } from "./DateSelect";
-import { AppText, BigButton, Card } from "../ui";
+import { AppText, BigButton, Card, InlineStatus } from "../ui";
 
 export const changeText = (c: WeeklyChange, t: (k: StringKey, p?: Record<string, string | number>) => string): string =>
   c.kind === "move_date" ? t("weekly.change.move_date", { date: c.newDate }) : t(`weekly.change.${c.kind}` as StringKey);
@@ -46,19 +46,19 @@ export function WeeklyReviewCard() {
 
   return (
     <Card>
-      <AppText style={{ fontWeight: "800", fontSize: 18 }}>{t("weekly.title")}</AppText>
+      <AppText style={{ fontWeight: "600", fontSize: 16 }}>{t("weekly.title")}</AppText>
       <AppText style={{ color: p.muted }}>{t("weekly.week", { date: review.weekStart })}</AppText>
-      <AppText style={{ fontWeight: "700" }}>{t("weekly.observed")}</AppText>
+      <AppText style={{ fontWeight: "600" }}>{t("weekly.observed")}</AppText>
       <AppText>{o.plannedSessions !== null ? t("weekly.sessions", { done: o.sessionsDone, planned: o.plannedSessions }) : t("weekly.sessionsNoPlan", { done: o.sessionsDone })}</AppText>
       {o.goalStatus ? <AppText>{t("weekly.goalStatus", { status: t(`pace.status.${o.goalStatus}` as StringKey) })}</AppText> : null}
-      {review.thin ? <AppText style={{ fontWeight: "600" }}>{t("weekly.thin")}</AppText> : null}
-      <AppText style={{ fontWeight: "700" }}>{t("weekly.proposal")}</AppText>
+      {review.thin ? <InlineStatus kind="info" text={t("weekly.thin")} /> : null}
+      <AppText style={{ fontWeight: "600" }}>{t("weekly.proposal")}</AppText>
       <AppText style={{ fontSize: 16 }}>{changeText(c, t)}</AppText>
       <AppText style={{ color: p.muted }}>{t(`weekly.reason.${review.reason}` as StringKey)}</AppText>
       {asking ? (
         <View style={{ gap: space.sm }}>
           <DateSelect label={t("weekly.dateField")} value={dateText} onChange={(s) => { setBad(false); setDateText(s); }} years="future" span={5} />
-          {bad ? <AppText style={{ fontWeight: "600" }}>⚠ {t("weekly.dateBad")}</AppText> : null}
+          {bad ? <InlineStatus kind="error" text={t("weekly.dateBad")} /> : null}
           <BigButton
             label={t("weekly.dateSave")}
             onPress={() =>
@@ -72,8 +72,8 @@ export function WeeklyReviewCard() {
       ) : (
         <View style={{ gap: space.sm }}>
           <BigButton label={c.kind === "keep" || c.kind === "new_goal" ? t("weekly.acceptNote") : t("weekly.accept")} onPress={() => void done(() => weekly.accept(due.id))} />
-          {c.kind === "move_date" ? <BigButton label={t("weekly.editDate")} selected={false} onPress={() => setAsking(true)} /> : null}
-          <BigButton label={t("weekly.skip")} selected={false} onPress={() => void done(() => weekly.skip(due.id))} />
+          {c.kind === "move_date" ? <BigButton variant="secondary" label={t("weekly.editDate")} onPress={() => setAsking(true)} /> : null}
+          <BigButton variant="quiet" label={t("weekly.skip")} onPress={() => void done(() => weekly.skip(due.id))} />
         </View>
       )}
       {note ? <AppText style={{ color: p.muted }}>{t(note)}</AppText> : null}

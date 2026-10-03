@@ -2,7 +2,7 @@ import type { Measure } from "@gain/engine";
 import { isTimed, parseQuantityInput, setQuantity, targetPhrase } from "../logic/quantity";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useServices } from "../AppContext";
 import { HistoryInvalid, type HistorySetRow, type SessionDetail } from "../db/historyRepo";
 import { useI18n } from "../i18n";
@@ -11,8 +11,8 @@ import type { StringKey } from "../i18n/strings";
 import { parseNumber } from "../logic/gymInput";
 import { localDateText } from "../logic/trendChart";
 import { editedKg, kgToUnit } from "../logic/units";
-import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Field } from "../ui";
+import { space, type as ty, usePalette } from "../theme";
+import { AppText, BigButton, Card, EmptyState, Field, InlineStatus, LoadingState, Screen } from "../ui";
 
 interface EditState {
   setId: string;
@@ -40,8 +40,8 @@ export function SessionDetailScreen() {
     }, [refresh]),
   );
 
-  if (detail === null) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
-  if (detail === "none") return <AppText style={{ padding: space.lg }}>{t("history.err.missing")}</AppText>;
+  if (detail === null) return <LoadingState />;
+  if (detail === "none") return <EmptyState icon="progress" title={t("history.err.missing")} />;
 
   const startEdit = (s: HistorySetRow) => {
     setErr(null);
@@ -70,37 +70,37 @@ export function SessionDetailScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
-      <AppText ltr style={{ fontWeight: "700" }}>{localDateText(detail.finishedAt)}</AppText>
-      <AppText style={{ fontSize: 20, fontWeight: "800" }}>{detail.imported ? t("history.imported") : detail.dayName}</AppText>
-      <AppText style={{ color: p.muted, fontSize: 13 }}>{t("history.editNote")}</AppText>
+    <Screen title={detail.imported ? t("history.imported") : detail.dayName}>
+      <AppText ltr style={{ color: p.muted, fontWeight: "600" }}>{localDateText(detail.finishedAt)}</AppText>
+      <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("history.editNote")}</AppText>
       {detail.exercises.map((ex) => (
         <Card key={ex.exerciseId}>
-          <AppText style={{ fontSize: 18, fontWeight: "800" }}>{exerciseLabels(ex, lang).primary}</AppText>
+          <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{exerciseLabels(ex, lang).primary}</AppText>
           {ex.sets.map((s) => (
-            <View key={s.id} style={{ gap: space.xs, paddingVertical: space.xs }}>
-              <AppText style={{ fontSize: 18 }}>
+            <View key={s.id} style={{ gap: space.xs, paddingVertical: space.sm, borderTopWidth: 1, borderColor: p.border }}>
+              <AppText ltr style={{ fontSize: ty.section, fontWeight: "600" }}>
                 {isTimed(ex.measure) ? isolateLtr(targetPhrase(s.load, setQuantity(s, ex.measure), ex.measure, fmt, { s: t("qty.s"), m: t("qty.m") })) : <>{fmt(s.load)} × {isolateLtr(String(s.reps))}</>}
                 {s.rir !== null ? `  ·  ${t("history.rir", { n: s.rir })}` : ""}
               </AppText>
               {s.warmup ? <AppText style={{ color: p.muted }}>{t("history.warmup")}</AppText> : null}
               {!s.warmup && s.tags.includes("drop") ? <AppText style={{ color: p.muted }}>{t("history.drop")}</AppText> : null}
               {!s.warmup && s.tags.includes("failure") ? <AppText style={{ color: p.muted }}>{t("history.failure")}</AppText> : null}
-              {s.outlierStatus === "unconfirmed" ? <AppText style={{ color: p.danger }}>{t("history.unconfirmed")}</AppText> : null}
+              {s.outlierStatus === "unconfirmed" ? <InlineStatus kind="warn" text={t("history.unconfirmed")} /> : null}
               {s.outlierStatus === "confirmed" ? <AppText style={{ color: p.muted }}>{t("history.confirmed")}</AppText> : null}
               {edit?.setId === s.id ? (
                 <View style={{ gap: space.sm }}>
                   <Field label={t("history.field.load", { unit: unitText })} value={edit.load} onChangeText={(v) => setEdit({ ...edit, load: v })} numeric keyboardType="decimal-pad" />
                   <Field label={ex.measure === "time" ? t("history.field.seconds") : ex.measure === "distance" ? t("history.field.metres") : t("history.field.reps")} value={edit.reps} onChangeText={(v) => setEdit({ ...edit, reps: v })} numeric keyboardType="number-pad" />
                   {isTimed(ex.measure) ? null : <Field label={t("history.field.rir")} value={edit.rir} onChangeText={(v) => setEdit({ ...edit, rir: v })} numeric keyboardType="decimal-pad" />}
-                  {err ? <AppText style={{ color: p.danger }}>{t(err)}</AppText> : null}
+                  {err ? <InlineStatus kind="error" text={t(err)} /> : null}
                   <BigButton label={t("history.save")} onPress={() => void save(ex.measure)} />
-                  <BigButton label={t("history.cancel")} selected={false} onPress={() => { setEdit(null); setErr(null); }} />
+                  <BigButton variant="secondary" label={t("history.cancel")} onPress={() => { setEdit(null); setErr(null); }} />
                 </View>
               ) : asking === s.id ? (
                 <View style={{ gap: space.sm }}>
                   <AppText>{t("history.deleteAsk")}</AppText>
                   <BigButton
+                    variant="danger"
                     label={t("history.deleteYes")}
                     onPress={async () => {
                       try {
@@ -112,18 +112,18 @@ export function SessionDetailScreen() {
                       await refresh();
                     }}
                   />
-                  <BigButton label={t("history.cancel")} selected={false} onPress={() => setAsking(null)} />
+                  <BigButton variant="secondary" label={t("history.cancel")} onPress={() => setAsking(null)} />
                 </View>
               ) : (
                 <View style={{ flexDirection: "row", gap: space.sm }}>
-                  <View style={{ flex: 1 }}><BigButton label={t("history.edit")} selected={false} onPress={() => startEdit(s)} /></View>
-                  <View style={{ flex: 1 }}><BigButton label={t("history.delete")} selected={false} onPress={() => { setEdit(null); setAsking(s.id); }} /></View>
+                  <View style={{ flex: 1 }}><BigButton variant="secondary" icon="edit" label={t("history.edit")} onPress={() => startEdit(s)} /></View>
+                  <View style={{ flex: 1 }}><BigButton variant="quiet" label={t("history.delete")} onPress={() => { setEdit(null); setAsking(s.id); }} /></View>
                 </View>
               )}
             </View>
           ))}
         </Card>
       ))}
-    </ScrollView>
+    </Screen>
   );
 }

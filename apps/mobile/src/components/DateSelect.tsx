@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { FlatList, Modal, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Icon } from "./Icon";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { dayOptions, joinIso, monthOptions, setPart, splitIso, yearOptions, type DateParts } from "../logic/datePick";
-import { MIN_TOUCH, space, usePalette } from "../theme";
-import { AppText, BigButton } from "../ui";
+import { MIN_TOUCH, radius, space, usePalette } from "../theme";
+import { AppText, BigButton, Sheet } from "../ui";
 
 type Part = keyof DateParts;
 
@@ -39,9 +40,9 @@ export function DateSelect(props: { label: string; value: string; onChange: (iso
       accessibilityRole="button"
       accessibilityLabel={`${props.label}: ${partName(part)}`}
       onPress={() => setOpen(part)}
-      style={{ flex: grow, minHeight: MIN_TOUCH, borderWidth: 2, borderColor: p.edge, borderRadius: 12, backgroundColor: p.card, justifyContent: "center", paddingHorizontal: space.sm }}
+      style={{ flex: grow, minHeight: MIN_TOUCH, borderWidth: 1.5, borderColor: p.edge, borderRadius: radius.button, backgroundColor: p.raised, justifyContent: "center", paddingHorizontal: space.sm }}
     >
-      <AppText style={{ color: parts[part] === null ? p.muted : p.text, fontWeight: "700", textAlign: "center" }} numberOfLines={1}>
+      <AppText style={{ color: parts[part] === null ? p.muted : p.text, fontWeight: "600", textAlign: "center" }} numberOfLines={1}>
         {parts[part] === null ? partName(part) : shown(part, parts[part]!)}
       </AppText>
     </Pressable>
@@ -59,35 +60,32 @@ export function DateSelect(props: { label: string; value: string; onChange: (iso
       {parts.y !== null || parts.m !== null || parts.d !== null ? (
         <BigButton
           label={t("date.clear")}
-          selected={false}
+          variant="quiet"
           onPress={() => {
             setParts({ y: null, m: null, d: null });
             props.onChange("");
           }}
         />
       ) : null}
-      <Modal visible={open !== null} transparent animationType="fade" onRequestClose={() => setOpen(null)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: space.lg }}>
-          <View style={{ backgroundColor: p.card, borderRadius: 16, padding: space.md, maxHeight: "80%", gap: space.sm }}>
-            {open ? (
-              <>
-                <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("date.choose", { part: partName(open) })}</AppText>
-                <FlatList
-                  data={options(open)}
-                  keyExtractor={(n) => String(n)}
-                  initialNumToRender={20}
-                  renderItem={({ item }) => (
-                    <Pressable accessibilityRole="button" onPress={() => change(open, item)} style={{ minHeight: MIN_TOUCH, justifyContent: "center", paddingHorizontal: space.sm, borderBottomWidth: 1, borderColor: p.border, backgroundColor: parts[open] === item ? p.accent : "transparent" }}>
-                      <AppText style={{ fontSize: 18, fontWeight: parts[open] === item ? "800" : "500", color: parts[open] === item ? p.accentText : p.text }}>{shown(open, item)}</AppText>
-                    </Pressable>
-                  )}
-                />
-                <BigButton label={t("common.cancel")} selected={false} onPress={() => setOpen(null)} />
-              </>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+      <Sheet visible={open !== null} title={open ? t("date.choose", { part: partName(open) }) : ""} onClose={() => setOpen(null)}>
+        {open
+          ? options(open).map((item) => {
+              const on = parts[open] === item;
+              return (
+                <Pressable
+                  key={item}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  onPress={() => change(open, item)}
+                  style={({ pressed }) => ({ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: on ? p.fill : pressed ? p.raised : "transparent" })}
+                >
+                  <AppText style={{ fontWeight: on ? "700" : "400", color: on ? p.onFill : p.text, flex: 1 }}>{shown(open, item)}</AppText>
+                  {on ? <Icon name="check" color={p.onFill} size={20} /> : null}
+                </Pressable>
+              );
+            })
+          : null}
+      </Sheet>
     </View>
   );
 }

@@ -1,12 +1,11 @@
 import { useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
-import { ScrollView } from "react-native";
 import { useServices } from "../AppContext";
 import type { StringKey } from "../i18n/strings";
 import { useI18n } from "../i18n";
 import { describeDecisionSafe, type WhySection } from "../logic/why";
 import { space, usePalette } from "../theme";
-import { AppText, Card } from "../ui";
+import { AppText, Card, EmptyState, LoadingState, Screen } from "../ui";
 
 export function WhyScreen() {
   const { finish } = useServices();
@@ -25,18 +24,18 @@ export function WhyScreen() {
     })().catch(() => setSections("missing"));
   }, [finish, targetId, t, lang, unit]);
 
-  if (sections === null) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
-  if (sections === "missing") return <AppText style={{ padding: space.lg }}>{t("why.missing")}</AppText>;
+  if (sections === null) return <LoadingState />;
+  if (sections === "missing") return <EmptyState icon="why" title={t("why.missing")} />;
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
+    <Screen>
       {sections.map((s) => (
         <Card key={s.title}>
-          <AppText style={{ fontWeight: "800", fontSize: 18 }}>{s.title}</AppText>
+          <AppText style={{ fontWeight: "600", fontSize: 20 }} accessibilityRole="header">{s.title}</AppText>
           {s.lines.map((l, i) => (
             <AppText key={i} style={i === 0 && s.title === t("why.sentence") ? {} : { color: p.text }}>{l}</AppText>
           ))}
         </Card>
       ))}
-    </ScrollView>
+    </Screen>
   );
 }

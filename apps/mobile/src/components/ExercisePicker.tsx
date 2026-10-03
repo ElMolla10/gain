@@ -8,8 +8,9 @@ import type { StringKey } from "../i18n/strings";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { PATTERNS } from "../logic/exposure";
 import { buildSearchIndex, GEARS, metaOf, MUSCLE_GROUPS, PICKER_PAGE, searchExercises, type Gear, type LibraryGroup } from "../logic/exerciseSearch";
-import { space, usePalette } from "../theme";
-import { AppText, ArDraftNote, BigButton, Card, Chip, Field } from "../ui";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { space, type as ty, usePalette } from "../theme";
+import { AppText, ArDraftNote, BigButton, Card, Chip, EmptyState, Field, FilterPanel, IconButton, InlineStatus } from "../ui";
 
 const SETUPS: SetupType[] = ["free", "assisted", "bodyweight_plus_added"];
 
@@ -32,6 +33,7 @@ export function ExercisePicker(props: {
 }) {
   const { t, lang } = useI18n();
   const p = usePalette();
+  const insets = useSafeAreaInsets();
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const [nameEn, setNameEn] = useState("");
@@ -60,9 +62,12 @@ export function ExercisePicker(props: {
 
   return (
     <Modal visible={props.visible} animationType="slide" onRequestClose={props.onClose}>
-      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: space.xl }}>
-        <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }} keyboardShouldPersistTaps="handled">
-          <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("pick.title")}</AppText>
+      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+        <View style={{ flexDirection: "row", alignItems: "center", paddingStart: space.lg, paddingEnd: space.xs, gap: space.sm }}>
+          <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", flex: 1 }}>{t("pick.title")}</AppText>
+          <IconButton icon="close" label={t("pick.close")} onPress={props.onClose} />
+        </View>
+        <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl + insets.bottom }} keyboardShouldPersistTaps="handled">
           {creating ? (
             <Card>
               <Field label={t("pick.name")} value={nameEn} onChangeText={setNameEn} />
@@ -93,51 +98,63 @@ export function ExercisePicker(props: {
                   <Chip key={x} label={t(`setup.${x}` as StringKey)} selected={setup === x} onPress={() => setSetup(x)} />
                 ))}
               </View>
-              {error ? <AppText style={{ fontWeight: "600" }}>⚠ {error}</AppText> : null}
+              {error ? <InlineStatus kind="error" text={error} /> : null}
               <BigButton label={t("pick.save")} onPress={() => void create()} />
-              <BigButton label={t("common.cancel")} selected={false} onPress={() => setCreating(false)} />
+              <BigButton variant="secondary" label={t("common.cancel")} onPress={() => setCreating(false)} />
             </Card>
           ) : (
             <>
               <Field label={t("pick.search")} value={q} onChangeText={(v) => { setQ(v); setLimit(PICKER_PAGE); }} />
-              <AppText style={{ fontWeight: "600" }}>{t("pick.filter.muscle")}</AppText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-                <Chip label={t("pick.all")} selected={group === null} onPress={() => { setGroup(null); setLimit(PICKER_PAGE); }} />
-                {MUSCLE_GROUPS.map((x) => (
-                  <Chip key={x} label={t(`group.${x}` as StringKey)} selected={group === x} onPress={() => { setGroup(group === x ? null : x); setLimit(PICKER_PAGE); }} />
-                ))}
-              </ScrollView>
-              <AppText style={{ fontWeight: "600" }}>{t("pick.filter.gear")}</AppText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-                <Chip label={t("pick.all")} selected={gear === null} onPress={() => { setGear(null); setLimit(PICKER_PAGE); }} />
-                {GEARS.map((x) => (
-                  <Chip key={x} label={t(`gear.${x}` as StringKey)} selected={gear === x} onPress={() => { setGear(gear === x ? null : x); setLimit(PICKER_PAGE); }} />
-                ))}
-              </ScrollView>
-              <AppText style={{ color: p.muted, fontSize: 13 }}>{t("pick.count", { n: found.length })}</AppText>
-              {shown.length === 0 ? <AppText style={{ color: p.muted }}>{t("pick.none")}</AppText> : null}
-              {shown.map((e) => {
-                const l = exerciseLabels(e, lang);
-                const m = metaOf(e);
-                return (
-                  <Pressable key={e.id} accessibilityRole="button" onPress={() => props.onPick(e.id)} style={{ minHeight: 56, paddingVertical: space.sm, borderBottomWidth: 1, borderColor: p.border }}>
-                    <AppText style={{ fontWeight: "600" }}>{l.primary}</AppText>
-                    <AppText style={{ color: p.muted, fontSize: 13 }}>
-                      {l.secondary}
-                      {e.isCustom ? ` · ${t("pick.own")}` : ""}
-                    </AppText>
-                    <AppText style={{ color: p.muted, fontSize: 12 }}>
-                      {m.group ? `${t(`group.${m.group}` as StringKey)} · ` : ""}
-                      {t(`gear.${m.gear}` as StringKey)}
-                    </AppText>
-                  </Pressable>
-                );
-              })}
-              {found.length > shown.length ? <BigButton label={t("pick.more", { n: found.length - shown.length })} selected={false} onPress={() => setLimit(limit + PICKER_PAGE)} /> : null}
-              <BigButton label={t("pick.create")} selected={false} onPress={() => setCreating(true)} />
+              <FilterPanel
+                title={t("pick.filters")}
+                activeCount={(group ? 1 : 0) + (gear ? 1 : 0)}
+                clearLabel={t("tpl.clear")}
+                onClear={() => {
+                  setGroup(null);
+                  setGear(null);
+                  setLimit(PICKER_PAGE);
+                }}
+              >
+                <AppText style={{ fontWeight: "600" }}>{t("pick.filter.muscle")}</AppText>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+                  <Chip label={t("pick.all")} selected={group === null} onPress={() => { setGroup(null); setLimit(PICKER_PAGE); }} />
+                  {MUSCLE_GROUPS.map((x) => (
+                    <Chip key={x} label={t(`group.${x}` as StringKey)} selected={group === x} onPress={() => { setGroup(group === x ? null : x); setLimit(PICKER_PAGE); }} />
+                  ))}
+                </View>
+                <AppText style={{ fontWeight: "600" }}>{t("pick.filter.gear")}</AppText>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+                  <Chip label={t("pick.all")} selected={gear === null} onPress={() => { setGear(null); setLimit(PICKER_PAGE); }} />
+                  {GEARS.map((x) => (
+                    <Chip key={x} label={t(`gear.${x}` as StringKey)} selected={gear === x} onPress={() => { setGear(gear === x ? null : x); setLimit(PICKER_PAGE); }} />
+                  ))}
+                </View>
+              </FilterPanel>
+              <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("pick.count", { n: found.length })}</AppText>
+              {shown.length === 0 ? <EmptyState icon="dumbbell" title={t("pick.none")} actionLabel={t("pick.create")} onAction={() => setCreating(true)} /> : null}
+              <View>
+                {shown.map((e) => {
+                  const l = exerciseLabels(e, lang);
+                  const m = metaOf(e);
+                  return (
+                    <Pressable key={e.id} accessibilityRole="button" onPress={() => props.onPick(e.id)} style={({ pressed }) => ({ minHeight: 56, paddingVertical: space.sm, borderBottomWidth: 1, borderColor: p.border, backgroundColor: pressed ? p.raised : "transparent" })}>
+                      <AppText style={{ fontWeight: "600" }}>{l.primary}</AppText>
+                      <AppText style={{ color: p.muted, fontSize: ty.caption }}>
+                        {l.secondary}
+                        {e.isCustom ? ` · ${t("pick.own")}` : ""}
+                      </AppText>
+                      <AppText style={{ color: p.muted, fontSize: ty.caption }}>
+                        {m.group ? `${t(`group.${m.group}` as StringKey)} · ` : ""}
+                        {t(`gear.${m.gear}` as StringKey)}
+                      </AppText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {found.length > shown.length ? <BigButton variant="secondary" label={t("pick.more", { n: found.length - shown.length })} onPress={() => setLimit(limit + PICKER_PAGE)} /> : null}
+              {shown.length > 0 ? <BigButton variant="secondary" icon="plus" label={t("pick.create")} onPress={() => setCreating(true)} /> : null}
             </>
           )}
-          <BigButton label={t("pick.close")} selected={false} onPress={props.onClose} />
           <ArDraftNote />
         </ScrollView>
       </View>

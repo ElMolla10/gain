@@ -1,6 +1,7 @@
 import type { EquipmentType } from "@gain/engine";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
+import { BrandLogo } from "../BrandLogo";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { DateSelect } from "../components/DateSelect";
@@ -18,8 +19,8 @@ import { dayTitles, draftHasExercise, markGoalLift, DAYS_OPTIONS, MINUTES_OPTION
 import { buildProfile, emptyOnboardingForm, STEPS, stepProblems, type OnboardingForm, type Step } from "../logic/onboardingForm";
 import { validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
 import { instantiateTemplate, templatesForDays, type Instantiated, type TemplateOffer } from "../logic/templates";
-import { space, usePalette } from "../theme";
-import { AppText, ArDraftNote, BigButton, Card, Chip, Field } from "../ui";
+import { space, type as ty, usePalette } from "../theme";
+import { AppText, ArDraftNote, BigButton, Card, Chip, Field, InlineStatus, Notice, Screen } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { TemplateBrowser } from "../components/TemplateBrowser";
 
@@ -126,7 +127,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
     }
   }
 
-  const problemLines = (codes: string[]) => (touched ? codes.map((c, i) => <AppText key={i} style={{ fontWeight: "600" }}>⚠ {t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })}</AppText>) : null);
+  const problemLines = (codes: string[]) => (touched ? codes.map((c, i) => <InlineStatus key={i} kind="error" text={t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })} />) : null);
   const chipRow = (children: React.ReactNode) => <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>{children}</View>;
   const goalName = form.goalExerciseId ? (byId.get(form.goalExerciseId) ? exerciseLabels(byId.get(form.goalExerciseId)!, lang).primary : "") : "";
 
@@ -135,10 +136,11 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
       case "language":
         return (
           <>
-            <AppText style={{ fontSize: 28, fontWeight: "800" }}>{t("ob.welcome")}</AppText>
+            <BrandLogo size={64} />
+            <AppText accessibilityRole="header" style={{ fontSize: ty.load, fontWeight: "600" }}>{t("ob.welcome")}</AppText>
             <AppText style={{ color: p.muted }}>{t("ob.welcomeBody")}</AppText>
             <HealthNote />
-            <AppText style={{ fontWeight: "700" }}>{t("ob.language")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("ob.language")}</AppText>
             <BigButton label={t("settings.language.en")} selected={lang === "en"} onPress={() => { setLang("en"); set({ language: "en" }); }} />
             <BigButton label={t("settings.language.ar")} selected={lang === "ar"} onPress={() => { setLang("ar"); set({ language: "ar" }); }} />
           </>
@@ -146,7 +148,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
       case "units":
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.units")}</AppText>
+            <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.units")}</AppText>
             <BigButton label={t("ob.units.kg")} selected={form.units === "kg"} onPress={() => { setUnit("kg"); set({ units: "kg" }); }} />
             <BigButton label={t("ob.units.lb")} selected={form.units === "lb"} onPress={() => { setUnit("lb"); set({ units: "lb" }); }} />
             <AppText style={{ color: p.muted }}>{t("ob.units.note")}</AppText>
@@ -155,10 +157,10 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
       case "basics":
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.basics")}</AppText>
-            <AppText style={{ fontWeight: "700" }}>{t("ob.days")}</AppText>
+            <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.basics")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("ob.days")}</AppText>
             {chipRow(DAYS_OPTIONS.map((d) => <Chip key={d} label={String(d)} selected={form.days === d} onPress={() => set({ days: d })} />))}
-            <AppText style={{ fontWeight: "700" }}>{t("ob.minutes")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t("ob.minutes")}</AppText>
             {chipRow(MINUTES_OPTIONS.map((m) => <Chip key={m} label={t("ob.minutesValue", { n: m })} selected={form.minutes === m} onPress={() => set({ minutes: m })} />))}
             {problemLines(problems)}
           </>
@@ -166,12 +168,12 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
       case "goal":
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.goal")}</AppText>
+            <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.goal")}</AppText>
             <AppText style={{ color: p.muted }}>{t("ob.goalNote")}</AppText>
             {chipRow((["none", "lift", "bodyweight", "muscle"] as const).map((k) => <Chip key={k} label={t(`ob.goal.${k}` as StringKey)} selected={form.goalKind === k} onPress={() => set({ goalKind: k })} />))}
             {form.goalKind === "lift" ? (
               <>
-                <BigButton label={goalName || t("ob.goal.chooseExercise")} selected={false} onPress={() => setPicker(true)} />
+                <BigButton variant="secondary" icon="dumbbell" label={goalName || t("ob.goal.chooseExercise")} onPress={() => setPicker(true)} />
                 <Field label={t("ob.goal.load", { unit: unitText })} value={form.goalLoadText} onChangeText={(s) => set({ goalLoadText: s })} numeric />
                 <Field label={t("ob.goal.reps")} value={form.goalRepsText} onChangeText={(s) => set({ goalRepsText: s })} numeric />
                 <DateSelect label={t("ob.goal.date")} value={form.goalDateText} onChange={(s) => set({ goalDateText: s })} years="future" span={10} />
@@ -185,11 +187,11 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
             ) : null}
             {form.goalKind === "muscle" ? (
               <>
-                <AppText style={{ fontWeight: "700" }}>{t("ob.goal.muscle.pick")}</AppText>
+                <AppText style={{ fontWeight: "600" }}>{t("ob.goal.muscle.pick")}</AppText>
                 {chipRow(MUSCLE_GROUPS.filter((m) => m !== "other").map((m) => <Chip key={m} label={t(`muscle.${m}` as StringKey)} selected={form.goalMuscle === m} onPress={() => set({ goalMuscle: m })} />))}
               </>
             ) : null}
-            <AppText style={{ fontWeight: "700", marginTop: space.md }}>{t("ob.body")}</AppText>
+            <AppText style={{ fontWeight: "600", marginTop: space.md }}>{t("ob.body")}</AppText>
             <Field label={t("ob.body.height")} value={form.heightText} onChangeText={(s) => set({ heightText: s })} numeric />
             <DateSelect label={t("ob.body.birth")} value={form.birthDateText} onChange={(s) => set({ birthDateText: s })} years="past" span={100} minAge={10} />
             <Field label={t("ob.body.weight", { unit: unitText })} hint={form.goalKind === "bodyweight" ? t("ob.body.weightRequired") : undefined} value={form.bodyweightText} onChangeText={(s) => set({ bodyweightText: s })} numeric />
@@ -211,7 +213,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
         const offers = form.days ? templatesForDays(form.days) : [];
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.programme")}</AppText>
+            <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.programme")}</AppText>
             {chipRow(
               <>
                 <Chip label={t("ob.programme.template")} selected={mode === "template"} onPress={() => { setMode("template"); setDraft(null); setOffer(null); setDropped([]); }} />
@@ -241,12 +243,12 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
             {mode === "template" && draft && offer ? (
               <>
                 <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
-                <BigButton label={t("ob.programme.change")} selected={false} onPress={() => { setDraft(null); setOffer(null); setDropped([]); }} />
+                <BigButton variant="secondary" label={t("ob.programme.change")} onPress={() => { setDraft(null); setOffer(null); setDropped([]); }} />
               </>
             ) : null}
             {dropped.length > 0 ? (
               <Card>
-                <AppText style={{ fontWeight: "700" }}>{t("ob.programme.dropped")}</AppText>
+                <AppText style={{ fontWeight: "600" }}>{t("ob.programme.dropped")}</AppText>
                 {dropped.map((d, i) => {
                   const nm = library.find((e) => e.seedKey === d.key);
                   const lift = nm ? exerciseLabels(nm, lang).primary : d.key;
@@ -256,13 +258,13 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
             ) : null}
             {draft ? (
               <>
-                {form.goalKind === "lift" && form.goalExerciseId && !draftHasExercise(draft, form.goalExerciseId) ? <AppText style={{ fontWeight: "600" }}>ℹ {t("ob.programme.goalMissing")}</AppText> : null}
+                {form.goalKind === "lift" && form.goalExerciseId && !draftHasExercise(draft, form.goalExerciseId) ? <InlineStatus kind="info" text={t("ob.programme.goalMissing")} /> : null}
                 {mode === "template" ? (
                   <>
                     <Card>
-                      <AppText style={{ fontWeight: "700" }}>{t("ob.programme.days", { n: draft.days.length })}</AppText>
+                      <AppText style={{ fontWeight: "600" }}>{t("ob.programme.days", { n: draft.days.length })}</AppText>
                       {dayTitles(draft).map((title, i) => (
-                        <AppText key={i} style={{ fontSize: 18 }}>
+                        <AppText key={i} style={{ fontSize: ty.body }}>
                           {i + 1}. {title}
                         </AppText>
                       ))}
@@ -276,7 +278,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
                     <ProgrammeEditorView draft={draft} onChange={setDraft} baseline={null} library={library} daysPerWeek={form.days} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} />
                   </>
                 )}
-                {touched ? validateDraft(draft).map((pr, i) => <AppText key={i} style={{ fontWeight: "600" }}>⚠ {t(`prog.problem.${pr.code}` as StringKey, { day: (pr.day ?? 0) + 1 })}</AppText>) : null}
+                {touched ? validateDraft(draft).map((pr, i) => <InlineStatus key={i} kind="error" text={t(`prog.problem.${pr.code}` as StringKey, { day: (pr.day ?? 0) + 1 })} />) : null}
               </>
             ) : null}
           </>
@@ -287,41 +289,49 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
         const g = form.goalKind === "none" ? t("ob.review.goal.none") : form.goalKind === "lift" ? t("ob.review.goal.lift", { name: goalName, load: `${form.goalLoadText} ${unitText}`, reps: form.goalRepsText }) : form.goalKind === "bodyweight" ? t("ob.review.goal.bodyweight", { weight: `${form.goalWeightText} ${unitText}` }) : form.goalMuscle ? t("ob.review.goal.muscle", { muscle: t(`muscle.${form.goalMuscle}` as StringKey) }) : "";
         return (
           <>
-            <AppText style={{ fontSize: 19, fontWeight: "800" }}>{t("ob.review")}</AppText>
+            <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.review")}</AppText>
             <Card>
               <AppText>{t("ob.review.line.days", { n: form.days ?? 0, min: form.minutes ?? 0 })}</AppText>
               <AppText>{t("ob.review.line.programme", { name: draft?.name ?? "" })}</AppText>
               <AppText>{t("ob.review.line.goal", { goal: isolateLtr(g) })}</AppText>
             </Card>
             <AppText style={{ color: p.muted }}>{t("ob.review.note")}</AppText>
-            {error ? <AppText style={{ fontWeight: "700" }}>⚠ {error}</AppText> : null}
+            {error ? <Notice kind="error">{error}</Notice> : null}
             {built.problems.length > 0 ? problemLines(built.problems) : null}
-            <BigButton label={saving ? t("ob.saving") : t("ob.finish")} disabled={saving} onPress={() => void finish()} />
+            <BigButton hero label={t("ob.finish")} loading={saving} onPress={() => void finish()} />
           </>
         );
       }
     }
   })();
 
+  const first = step === "language" && !props.rerun;
+  const footer = first ? (
+    <>
+      <BigButton hero label={t("ob.setup")} onPress={next} />
+      <BigButton variant="secondary" label={t("ob.skip")} onPress={() => void onboarding.skip().then(() => props.onDone())} />
+      <BigButton variant="quiet" label={t("ob.importFirst")} onPress={() => void onboarding.skip().then(() => props.onDone(true))} />
+    </>
+  ) : (
+    <>
+      {step !== "review" ? <BigButton hero label={t("common.next")} onPress={next} /> : null}
+      {idx > 0 ? <BigButton variant={step === "review" ? "secondary" : "quiet"} label={t("common.back")} onPress={() => goTo(STEPS[idx - 1]!)} /> : null}
+    </>
+  );
+
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, paddingTop: space.xl * 2, gap: space.md, paddingBottom: space.xl * 3 }} keyboardShouldPersistTaps="handled">
-      <AppText style={{ color: p.muted }}>{t("ob.progress", { i: idx + 1, n: STEPS.length })}</AppText>
-      {body}
-      <View style={{ gap: space.sm, marginTop: space.md }}>
-        {step === "language" && !props.rerun ? (
-          <>
-            <BigButton label={t("ob.skip")} onPress={() => void onboarding.skip().then(() => props.onDone())} />
-            <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.skipNote")}</AppText>
-            <BigButton label={t("ob.setup")} selected={false} onPress={next} />
-            <BigButton label={t("ob.importFirst")} selected={false} onPress={() => void onboarding.skip().then(() => props.onDone(true))} />
-          </>
-        ) : step !== "review" ? (
-          <BigButton label={t("common.next")} onPress={next} />
-        ) : null}
-        {idx > 0 ? <BigButton label={t("common.back")} selected={false} onPress={() => goTo(STEPS[idx - 1]!)} /> : null}
-        {step === "language" && props.rerun ? <BigButton label={t("common.next")} onPress={next} /> : null}
+    <Screen footer={footer} contentStyle={{ paddingTop: space.xl }}>
+      <View accessible accessibilityRole="progressbar" accessibilityLabel={t("ob.progress", { i: idx + 1, n: STEPS.length })} accessibilityValue={{ min: 1, max: STEPS.length, now: idx + 1 }} style={{ gap: space.xs }}>
+        <View style={{ flexDirection: "row", gap: 4 }}>
+          {STEPS.map((_, i) => (
+            <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: i <= idx ? p.fill : p.border }} />
+          ))}
+        </View>
+        <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("ob.progress", { i: idx + 1, n: STEPS.length })}</AppText>
       </View>
+      {body}
+      {first ? <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("ob.skipNote")}</AppText> : null}
       <ArDraftNote />
-    </ScrollView>
+    </Screen>
   );
 }

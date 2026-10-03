@@ -2,11 +2,12 @@ import { StackActions, useNavigation, useRoute } from "@react-navigation/native"
 import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, TextInput, Vibration, View, type TextStyle } from "react-native";
+import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, Vibration, View, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
-import { CellInput, ChevronDown, Dots, MenuSheet, Stopwatch, SwipeRow, Tick } from "../components/LogParts";
+import { CellInput, MenuSheet, RestToggle, SwipeRow, TargetLine } from "../components/LogParts";
+import { Icon } from "../components/Icon";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { WorkoutHelp } from "../components/WorkoutHelp";
 import type { TargetRow } from "../db/finishRepo";
@@ -25,10 +26,11 @@ import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type Jump
 import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
-import { acceptGhost, addRow, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { acceptGhost, addRow, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
-import { useLogPalette } from "../theme";
-import { AppText } from "../ui";
+import { radius, space, type as ty, useLogPalette } from "../theme";
+import { AppText, BigButton, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 
 type DayEx = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>[number];
 /** What is shown for one programme slot today: the programme's exercise, or the one swapped in for today. `slot` = the programme's exercise id. */
@@ -72,7 +74,7 @@ const RestClock = memo(function RestClock({ timer, style }: { timer: RestTimer; 
     return () => clearInterval(h);
   }, [timer.endsAt]);
   return (
-    <AppText ltr style={style}>
+    <AppText ltr accessibilityRole="timer" style={style}>
       {formatClock(remainingMs(timer, now))}
     </AppText>
   );
@@ -87,7 +89,7 @@ function LiveDuration({ startedAt, color }: { startedAt: number; color: string }
     return () => clearInterval(h);
   }, []);
   return (
-    <AppText ltr style={{ fontSize: 19, fontWeight: "700", color }}>
+    <AppText ltr style={{ fontSize: 20, fontWeight: "600", color }}>
       {formatDuration(now - startedAt, { h: t("workout.dur.h"), m: t("workout.dur.m"), s: t("workout.dur.s") })}
     </AppText>
   );
@@ -114,6 +116,7 @@ export function WorkoutScreen() {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
   const route = useRoute();
   const navigation = useNavigation();
   const dayId = (route.params as { dayId: string }).dayId;
@@ -131,6 +134,10 @@ export function WorkoutScreen() {
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const [outliers, setOutliers] = useState<Record<string, OutlierResult>>({});
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  /** The last save failed (shown in the header until a save succeeds); the alert alone would be easy to miss. */
+  const [saveError, setSaveError] = useState(false);
+  /** "Resumed your open workout": a confirmation that goes away by itself. */
+  const [resumeNote, setResumeNote] = useState(false);
   const [warmOpen, setWarmOpen] = useState<string | null>(null);
   const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
   const [whyOpen, setWhyOpen] = useState<Record<string, boolean>>({});
@@ -146,6 +153,8 @@ export function WorkoutScreen() {
   const [finishing, setFinishing] = useState(false);
   const [timer, setTimer] = useState<RestTimer>(() => newTimer());
   const [timerOpen, setTimerOpen] = useState(false);
+  /** The exercise the running (or just finished) rest belongs to, shown in the rest dock. */
+  const [restFor, setRestFor] = useState<string | null>(null);
   const [rest, setRest] = useState<RestSettings>(defaultRestSettings());
   const [restOver, setRestOver] = useState(false);
   const [jumpThreshold, setJumpThreshold] = useState(10);
@@ -226,12 +235,19 @@ export function WorkoutScreen() {
       setSets(all);
       setRows(initial);
       setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), gym, slots, info });
+      if (resumed) setResumeNote(true);
     })().catch((e) => {
       diagnostics.record("error", "open workout", e);
       startedRef.current = false;
       setLoadError(true);
     });
   }, [repos, workout, programmes, dayId, makeDisp, buildInfo, attempt]);
+
+  useEffect(() => {
+    if (!resumeNote) return;
+    const h = setTimeout(() => setResumeNote(false), RESUMED_NOTE_MS);
+    return () => clearTimeout(h);
+  }, [resumeNote]);
 
   useEffect(() => {
     void repos.getSetting(JUMP_SETTING_KEY).then((v) => setJumpThreshold(parseJumpThreshold(v)));
@@ -335,6 +351,7 @@ export function WorkoutScreen() {
         // In a superset the rest comes after the last exercise of the round only.
         if (!row.warmup && !isDropRow(row) && !exState[ex.slot]?.restOff && restAfterSet(order, exState, ex.slot)) {
           setRestOver(false);
+          setRestFor(exerciseLabels(ex, lang).primary);
           setTimer((tm) => startTimer(tm, Date.now()));
         }
       } else if (row.dirty) {
@@ -344,9 +361,11 @@ export function WorkoutScreen() {
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
+      setSaveError(false);
     } catch (e) {
       // Storage full or the database failed: the row stays un-ticked (nothing half-saved) and the lifter is told, never left guessing.
       diagnostics.record("error", "save set", e);
+      setSaveError(true);
       Alert.alert(t("workout.saveFailed.title"), t("workout.saveFailed.body"));
     } finally {
       setBusy(null);
@@ -366,6 +385,7 @@ export function WorkoutScreen() {
       setRows((r) => ({ ...r, [ex.exerciseId]: unlogRow(r[ex.exerciseId] ?? [], row.key, Crypto.randomUUID()) }));
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
+      setSaveError(false);
     } finally {
       setBusy(null);
     }
@@ -507,30 +527,34 @@ export function WorkoutScreen() {
 
   if (loaded === null && loadError) {
     return (
-      <View style={{ flex: 1, padding: 24, paddingTop: insets.top + 24, gap: 12, backgroundColor: p.bg }}>
-        <AppText style={{ fontSize: 20, fontWeight: "700" }}>{t("workout.loadError.title")}</AppText>
-        <AppText style={{ color: p.muted }}>{t("workout.loadError.body")}</AppText>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
+      <View style={{ flex: 1, padding: space.lg, paddingTop: insets.top + space.lg, gap: space.md, backgroundColor: p.bg }}>
+        <ErrorState
+          title={t("workout.loadError.title")}
+          body={t("workout.loadError.body")}
+          retryLabel={t("today.error.retry")}
+          onRetry={() => {
             setLoadError(false);
             setAttempt((n) => n + 1);
           }}
-          style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
-        >
-          <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>{t("today.error.retry")}</AppText>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => navigation.goBack()} style={{ minHeight: 52, borderRadius: 12, borderWidth: 2, borderColor: p.edge, alignItems: "center", justifyContent: "center" }}>
-          <AppText style={{ fontWeight: "700" }}>{t("common.close")}</AppText>
-        </Pressable>
+        />
+        <BigButton variant="secondary" label={t("common.close")} onPress={() => navigation.goBack()} />
       </View>
     );
   }
-  if (loaded === null) return <AppText style={{ padding: 24 }}>{t("common.loading")}</AppText>;
-  if (loaded === "nogym") return <AppText style={{ padding: 24 }}>{t("workout.noGym")}</AppText>;
+  if (loaded === null) return <LoadingState />;
+  if (loaded === "nogym") return <View style={{ flex: 1, backgroundColor: p.bg }}><Notice kind="error">{t("workout.noGym")}</Notice></View>;
 
   const timerRunning = timer.endsAt !== null;
   const unlogged = Object.values(rows).reduce((n, list) => n + unloggedFilled(list), 0);
+  const unsavedRows = Object.values(rows).reduce((n, list) => n + pendingCount(list), 0);
+  const statusKind = saveStatusKind({ failed: saveError, saving: busy !== null, pending: unsavedRows, resumedNote: resumeNote, savedSets: sets.length });
+  const status =
+    statusKind === "failed" ? ({ kind: "error", icon: "alert", text: t("workout.status.failed") } as const)
+    : statusKind === "saving" ? ({ kind: "info", icon: "phone", text: t("workout.status.saving") } as const)
+    : statusKind === "unsaved" ? ({ kind: "info", icon: "edit", text: t("workout.status.unsaved", { n: unsavedRows }) } as const)
+    : statusKind === "resumed" ? ({ kind: "success", icon: "check", text: t("workout.resumed") } as const)
+    : statusKind === "saved" ? ({ kind: "info", icon: "phone", text: savedAt ? t("workout.saved", { time: clock(savedAt) }) : t("status.savedLocal") } as const)
+    : ({ kind: "info", icon: "why", text: t("workout.notSaved") } as const);
   const programmeIds = loaded.slots.filter((s) => !exState[s.exerciseId]?.added).map((s) => s.exerciseId);
   const order = orderSlots(programmeIds, exState);
   const ssLabel = supersetLabels(order, exState);
@@ -585,8 +609,6 @@ export function WorkoutScreen() {
     ]);
   }
 
-  const circle = { width: 48, height: 48, borderRadius: 24, backgroundColor: p.field, alignItems: "center" as const, justifyContent: "center" as const };
-
   const renderExercise = (ex: Disp, position: number) => {
     const info = loaded.info[ex.exerciseId];
     if (!info) return null;
@@ -617,132 +639,158 @@ export function WorkoutScreen() {
 
     const colSet = { width: 48, alignItems: "center" as const };
     const colTick = { width: 48, alignItems: "center" as const };
-    const head = { color: p.muted, fontSize: 12, fontWeight: "700" as const, textAlign: "center" as const };
+    const head = { color: p.muted, fontSize: 13, fontWeight: "600" as const, textAlign: "center" as const };
+    // At large font sizes the five columns no longer fit side by side: the row becomes two lines (set, previous, tick / weight, reps).
+    const stacked = fontScale > 1.3;
 
     return (
-      <View key={ex.id} style={{ gap: 8, paddingTop: 18, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.blueFill }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 }}>
+      <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.fill }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, paddingStart: space.lg, paddingEnd: space.xs }}>
           <View style={{ flex: 1 }}>
             {ssLabel[ex.slot] ? (
-              <AppText style={{ color: p.blue, fontSize: 12, fontWeight: "800" }}>{t("workout.superset.label", { letter: ssLabel[ex.slot]! })}</AppText>
+              <AppText style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}>{t("workout.superset.label", { letter: ssLabel[ex.slot]! })}</AppText>
             ) : null}
-            <AppText style={{ fontSize: 19, fontWeight: "700", color: p.blue }}>{labels.primary}</AppText>
+            <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
             {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={`${t("workout.menu.title")}: ${labels.primary}`} onPress={() => setMenuFor(ex.slot)} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}>
-            <Dots color={p.muted} />
-          </Pressable>
+          {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
+          <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(timer.durationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}: ${labels.primary}`} onPress={() => void toggleRest(ex.slot)} />
+          <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => setMenuFor(ex.slot)} />
         </View>
 
-        <TextInput
-          ref={(r) => {
-            noteInputs.current[ex.slot] = r;
-          }}
-          accessibilityLabel={`${t("workout.menu.notes")}: ${labels.primary}`}
-          defaultValue={st.note}
-          onChangeText={(txt) => saveNote(ex.slot, txt)}
-          onEndEditing={(e) => saveNote(ex.slot, e.nativeEvent.text, true)}
-          placeholder={t("workout.notes.placeholder")}
-          placeholderTextColor={p.muted}
-          multiline
-          style={{ paddingHorizontal: 14, paddingVertical: 4, fontSize: 15, color: p.text, textAlign: lang === "ar" ? "right" : "left" }}
-        />
-
-        <Pressable accessibilityRole="button" accessibilityLabel={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}: ${labels.primary}`} hitSlop={{ top: 8, bottom: 8 }} onPress={() => void toggleRest(ex.slot)} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, minHeight: 32 }}>
-          <Stopwatch size={14} color={p.blue} />
-          <AppText style={{ color: p.blue, fontWeight: "600", fontSize: 15 }}>{st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}</AppText>
-        </Pressable>
-
-        {/* Compact target line: "Target: 90 kg × 12" with a small Why button. It wraps onto a second line when it is long and is never cut off. */}
-        <View style={{ marginHorizontal: 12, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: p.field, borderStartWidth: 3, borderStartColor: p.blueFill, gap: 4 }}>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 2 }}>
-            <AppText style={{ flexShrink: 1, fontSize: 18, fontWeight: "800" }}>
-              {t("workout.nextTarget")}: {targetText}
-            </AppText>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${t("workout.whyShort")}: ${labels.primary}`}
-              onPress={() => (info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id })) : setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded })))}
-              onLongPress={() => setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded }))}
-              hitSlop={{ top: 8, bottom: 8 }}
-              style={{ minHeight: 32, minWidth: 48, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: p.blue }}
-            >
-              <AppText style={{ fontSize: 13, fontWeight: "700", color: p.blue }}>{t("workout.whyShort")}</AppText>
-            </Pressable>
-          </View>
-          {expanded ? <AppText style={{ fontSize: 14, color: p.muted }}>{reasonText}</AppText> : null}
+        {/* Tight vertical rhythm (spacing tokens): exercise block starts space.md below the previous one; heading, target line and set table sit directly on each other (the 48 dp controls already carry the breathing room), with space.xs above the column heads. */}
+        {/* Compact target line: "Target 55 kg × 9 · Why". It wraps onto a second line when it is long and is never cut off. */}
+        <View style={{ paddingHorizontal: space.lg }}>
+          <TargetLine
+            label={t("workout.nextTarget")}
+            value={targetText}
+            whyLabel={t("workout.whyShort")}
+            whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
+            expanded={info.stored ? undefined : expanded}
+            reason={reasonText}
+            onWhy={() => (info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id })) : setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded })))}
+            onWhyLong={() => setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded }))}
+          />
+          {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingTop: 4 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, marginTop: space.xs }}>
           <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
           <View style={{ flex: 1.3 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>
-          <View style={{ flex: 1 }}><AppText style={head}>{unitText.toUpperCase()}</AppText></View>
-          <View style={{ flex: 1 }}><AppText style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
-          {ex.trackEffort ? <View style={{ width: 52 }}><AppText style={head}>{t("workout.col.rir").toUpperCase()}</AppText></View> : null}
-          <View style={colTick}><Tick size={11} color={p.muted} /></View>
+          {stacked ? null : (
+            <>
+              <View style={{ flex: 1 }}><AppText style={head}>{unitText.toUpperCase()}</AppText></View>
+              <View style={{ flex: 1 }}><AppText style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
+              {ex.trackEffort ? <View style={{ width: 52 }}><AppText style={head}>{t("workout.col.rir").toUpperCase()}</AppText></View> : null}
+            </>
+          )}
+          <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
         </View>
 
         <View>
           {list.map((row, i) => {
             const done = row.saved && !row.dirty;
             const canTick = rowCanLog(row);
-            const bg = done ? p.doneBg : p.bg;
+            const current = currentRowKey(list) === row.key;
+            // Ticked rows get only a quiet wash (the muted green check says "done"; lime stays for the current set and primary actions); the set being worked on is the one with the strong wash, bar and outlined boxes.
+            const bg = done ? p.doneBg : current ? p.activeBg : p.bg;
             // Every small control says which exercise and which set it belongs to (a screen reader hears a list of identical boxes otherwise).
             const ctx = t("workout.setContext", { exercise: labels.primary, n: numbering[i] ?? i + 1 });
+            const setButton = (
+              <View style={colSet}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("workout.kind.title")}: ${t(`workout.kind.${kindOf(row)}` as never)}. ${ctx}`}
+                  accessibilityState={{ selected: kindOf(row) !== "normal" }}
+                  onPress={() => setKindFor({ exId: ex.exerciseId, key: row.key })}
+                  onLongPress={() => askDrop(ex, row)}
+                  style={{ width: 48, height: 48, borderRadius: radius.button, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}
+                >
+                  <AppText ltr style={{ fontWeight: "600", fontSize: 14, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.accent }}>{numbering[i]}</AppText>
+                </Pressable>
+              </View>
+            );
+            // Previous performance wraps instead of shrinking or cutting off.
+            const previous = (
+              <View style={{ flex: 1.3 }}>
+                <AppText ltr style={{ color: p.muted, fontSize: 14, textAlign: "center" }}>
+                  {isolateLtr(timed ? previousQuantityText(info.last?.sets ?? null, widx[i] ?? null, ex.measure, (kg) => `${weightText(kg, unit)}${unitText}`, qUnits) : previousText(info.last?.sets ?? null, widx[i] ?? null, unit, unitText))}
+                </AppText>
+              </View>
+            );
+            const loadCell = (
+              <CellInput<number>
+                a11y={`${t("workout.load")} (${unitText}). ${ctx}`}
+                value={row.load}
+                format={(v) => weightText(v, unit)}
+                parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
+                onValue={(v) => patch(ex.exerciseId, row.key, { load: v })}
+                placeholder={row.ghostLoad !== null ? weightText(row.ghostLoad, unit) : undefined}
+                unitLabel={stacked ? unitText : undefined}
+                decimal
+                done={done}
+                current={current}
+              />
+            );
+            const repsCell = (
+              <CellInput<number>
+                a11y={`${timed ? (ex.measure === "time" ? t("workout.seconds") : t("workout.metres")) : t("workout.reps")}. ${ctx}`}
+                value={row.reps}
+                format={(v) => String(v)}
+                parse={(txt) => (timed ? parseQuantityInput(txt, ex.measure) : parseRepsInput(txt))}
+                decimal={ex.measure === "distance"}
+                onValue={(v) => patch(ex.exerciseId, row.key, { reps: v })}
+                placeholder={row.ghostReps !== null ? String(row.ghostReps) : undefined}
+                unitLabel={stacked ? (timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")) : undefined}
+                done={done}
+                current={current}
+              />
+            );
+            const rirCell = ex.trackEffort ? (
+              <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: stacked ? 96 : 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v) => patch(ex.exerciseId, row.key, { rir: v })} unitLabel={stacked ? t("workout.col.rir") : undefined} done={done} current={current} />
+            ) : null;
+            const bar = current ? <View pointerEvents="none" style={{ position: "absolute", start: 0, top: 6, bottom: 6, width: 4, borderRadius: 2, backgroundColor: p.accent }} /> : null;
+            const tick = (
+              <View style={colTick}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: done, disabled: !done && !canTick }}
+                  accessibilityLabel={`${done ? t("workout.untick") : row.saved ? t("workout.tickUpdate") : t("workout.tick")}. ${ctx}`}
+                  disabled={busy !== null || (!row.saved && !canTick)}
+                  onPress={() => (done ? void untick(ex, row) : void logRow(ex, row))}
+                  style={{ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.doneFill : p.field, borderWidth: done ? 1.5 : current ? 2 : 1.5, borderColor: done ? p.doneEdge : (row.saved && row.dirty) || current ? p.accent : p.edge, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
+                >
+                  {row.saved && row.dirty ? <Icon name="edit" color={p.accent} size={20} /> : <Icon name="check" color={done ? p.onDone : p.muted} size={22} />}
+                </Pressable>
+              </View>
+            );
             return (
               <SwipeRow key={row.key} background={bg} deleteLabel={t("workout.deleteSet")} onDelete={() => void dropRow(ex, row)}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 2 }}>
-                  <View style={colSet}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`${t("workout.kind.title")}: ${t(`workout.kind.${kindOf(row)}` as never)}. ${ctx}`}
-                      accessibilityState={{ selected: kindOf(row) !== "normal" }}
-                      onPress={() => setKindFor({ exId: ex.exerciseId, key: row.key })}
-                      onLongPress={() => askDrop(ex, row)}
-                      style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}
-                    >
-                      <AppText ltr style={{ fontWeight: "800", fontSize: 15, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.blue }}>{numbering[i]}</AppText>
-                    </Pressable>
+                {stacked ? (
+                  <View style={{ gap: space.xs, paddingHorizontal: space.md, paddingVertical: space.xs }}>
+                    {bar}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      {setButton}
+                      {previous}
+                      {tick}
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      {loadCell}
+                      {repsCell}
+                      {rirCell}
+                    </View>
                   </View>
-                  <View style={{ flex: 1.3 }}>
-                    <AppText ltr numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: p.muted, fontSize: 14, textAlign: "center" }}>
-                      {isolateLtr(timed ? previousQuantityText(info.last?.sets ?? null, widx[i] ?? null, ex.measure, (kg) => `${weightText(kg, unit)}${unitText}`, qUnits) : previousText(info.last?.sets ?? null, widx[i] ?? null, unit, unitText))}
-                    </AppText>
+                ) : (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 2 }}>
+                    {bar}
+                    {setButton}
+                    {previous}
+                    {loadCell}
+                    {repsCell}
+                    {rirCell}
+                    {tick}
                   </View>
-                  <CellInput<number>
-                    a11y={`${t("workout.load")} (${unitText}). ${ctx}`}
-                    value={row.load}
-                    format={(v) => weightText(v, unit)}
-                    parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
-                    onValue={(v) => patch(ex.exerciseId, row.key, { load: v })}
-                    placeholder={row.ghostLoad !== null ? weightText(row.ghostLoad, unit) : undefined}
-                    decimal
-                  />
-                  <CellInput<number>
-                    a11y={`${timed ? (ex.measure === "time" ? t("workout.seconds") : t("workout.metres")) : t("workout.reps")}. ${ctx}`}
-                    value={row.reps}
-                    format={(v) => String(v)}
-                    parse={(txt) => (timed ? parseQuantityInput(txt, ex.measure) : parseRepsInput(txt))}
-                    decimal={ex.measure === "distance"}
-                    onValue={(v) => patch(ex.exerciseId, row.key, { reps: v })}
-                    placeholder={row.ghostReps !== null ? String(row.ghostReps) : undefined}
-                  />
-                  {ex.trackEffort ? (
-                    <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v) => patch(ex.exerciseId, row.key, { rir: v })} />
-                  ) : null}
-                  <View style={colTick}>
-                    <Pressable
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: done, disabled: !done && !canTick }}
-                      accessibilityLabel={`${done ? t("workout.untick") : row.saved ? t("workout.tickUpdate") : t("workout.tick")}. ${ctx}`}
-                      disabled={busy !== null || (!row.saved && !canTick)}
-                      onPress={() => (done ? void untick(ex, row) : void logRow(ex, row))}
-                      style={{ width: 48, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.blueFill : p.field, borderWidth: row.saved && row.dirty ? 2 : 0, borderColor: p.blue, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
-                    >
-                      {row.saved && row.dirty ? <AppText style={{ color: p.blue, fontWeight: "800", fontSize: 18 }}>↻</AppText> : <Tick size={13} color={done ? p.onBlue : p.muted} />}
-                    </Pressable>
-                  </View>
-                </View>
+                )}
               </SwipeRow>
             );
           })}
@@ -751,145 +799,192 @@ export function WorkoutScreen() {
         {pending.map((s) => {
           const o = outliers[s.id];
           return (
-            <View key={s.id} style={{ marginHorizontal: 12, padding: 12, gap: 6, borderRadius: 12, borderWidth: 2, borderColor: p.warn, backgroundColor: p.card }}>
-              <AppText style={{ fontWeight: "800" }}>⚠ {t("workout.outlier.title")}</AppText>
-              <AppText>
-                {timed
-                  ? isolateLtr(quantityText(setQuantity(s, ex.measure), ex.measure, qUnits))
-                  : isolateLtr(`${weightText(s.load, unit)} ${unitText} × ${s.reps}`)} · {timed ? t("workout.outlier.bodyTimed") : t("workout.outlier.body", { load: o?.expected ? fmt(o.expected.medianLoad) : "?", reps: o?.expected?.medianReps ?? "?" })}
-              </AppText>
-              <AppText style={{ color: p.muted }}>{t("workout.outlier.note")}</AppText>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={async () => {
-                    await workout.setOutlierStatus(s.id, "confirmed");
-                    await reload(loaded.sessionId);
-                  }}
-                  style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }}
-                >
-                  <AppText style={{ color: p.onBlue, fontWeight: "700", textAlign: "center" }}>{t("workout.outlier.confirm")}</AppText>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={async () => {
-                    await workout.setOutlierStatus(s.id, "rejected");
-                    setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], s.id) }));
-                    await reload(loaded.sessionId);
-                  }}
-                  style={{ flex: 1, minHeight: 48, borderRadius: 10, borderWidth: 2, borderColor: p.blueFill, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }}
-                >
-                  <AppText style={{ fontWeight: "700", textAlign: "center" }}>{t("workout.outlier.reject")}</AppText>
-                </Pressable>
-              </View>
+            <View key={s.id} style={{ marginHorizontal: space.md }}>
+              <Notice kind="warn" title={t("workout.outlier.title")}>
+                <AppText>
+                  {timed
+                    ? isolateLtr(quantityText(setQuantity(s, ex.measure), ex.measure, qUnits))
+                    : isolateLtr(`${weightText(s.load, unit)} ${unitText} × ${s.reps}`)} · {timed ? t("workout.outlier.bodyTimed") : t("workout.outlier.body", { load: o?.expected ? fmt(o.expected.medianLoad) : "?", reps: o?.expected?.medianReps ?? "?" })}
+                </AppText>
+                <AppText style={{ color: p.muted }}>{t("workout.outlier.note")}</AppText>
+                <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                  <View style={{ flexGrow: 1, flexBasis: 140 }}>
+                    <BigButton
+                      label={t("workout.outlier.confirm")}
+                      onPress={async () => {
+                        await workout.setOutlierStatus(s.id, "confirmed");
+                        await reload(loaded.sessionId);
+                      }}
+                    />
+                  </View>
+                  <View style={{ flexGrow: 1, flexBasis: 140 }}>
+                    <BigButton
+                      variant="secondary"
+                      label={t("workout.outlier.reject")}
+                      onPress={async () => {
+                        await workout.setOutlierStatus(s.id, "rejected");
+                        setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], s.id) }));
+                        await reload(loaded.sessionId);
+                      }}
+                    />
+                  </View>
+                </View>
+              </Notice>
             </View>
           );
         })}
 
         {offer.kind === "offer" ? (
           warmOpen === ex.exerciseId ? (
-            <View style={{ marginHorizontal: 12, padding: 12, gap: 6, borderRadius: 12, backgroundColor: p.card }}>
-              <AppText style={{ fontWeight: "700" }}>{t("warm.title", { load: fmt(offer.workingLoad) })}</AppText>
+            <View style={{ marginHorizontal: space.md, padding: space.md, gap: space.sm, borderRadius: radius.card, backgroundColor: p.card, borderWidth: 1, borderColor: p.line }}>
+              <AppText style={{ fontWeight: "600" }}>{t("warm.title", { load: fmt(offer.workingLoad) })}</AppText>
               {offer.sets.map((w, i) => (
-                <AppText key={i} style={{ fontSize: 16 }}>{fmt(w.load)} × {isolateLtr(String(w.reps))}</AppText>
+                <AppText key={i} ltr style={{ fontSize: 16 }}>{fmt(w.load)} × {isolateLtr(String(w.reps))}</AppText>
               ))}
               <AppText style={{ color: p.muted, fontSize: 13 }}>{t("warm.note")}</AppText>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={busy !== null}
-                  onPress={async () => {
-                    setBusy("warm");
-                    try {
-                      await workout.addWarmups(loaded.sessionId, ex.exerciseId, offer.sets, { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup });
-                      await reload(loaded.sessionId);
-                      setWarmOpen(null);
-                      setWarmDone((d) => ({ ...d, [ex.exerciseId]: true }));
-                    } finally {
-                      setBusy(null);
-                    }
-                  }}
-                  style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
-                >
-                  <AppText style={{ color: p.onBlue, fontWeight: "700" }}>{t("warm.confirm")}</AppText>
-                </Pressable>
-                <Pressable accessibilityRole="button" onPress={() => setWarmOpen(null)} style={{ flex: 1, minHeight: 48, borderRadius: 10, borderWidth: 2, borderColor: p.edge, alignItems: "center", justifyContent: "center" }}>
-                  <AppText style={{ fontWeight: "700" }}>{t("warm.cancel")}</AppText>
-                </Pressable>
+              <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                <View style={{ flexGrow: 1, flexBasis: 140 }}>
+                  <BigButton
+                    label={t("warm.confirm")}
+                    disabled={busy !== null}
+                    onPress={async () => {
+                      setBusy("warm");
+                      try {
+                        await workout.addWarmups(loaded.sessionId, ex.exerciseId, offer.sets, { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup });
+                        await reload(loaded.sessionId);
+                        setWarmOpen(null);
+                        setWarmDone((d) => ({ ...d, [ex.exerciseId]: true }));
+                      } finally {
+                        setBusy(null);
+                      }
+                    }}
+                  />
+                </View>
+                <View style={{ flexGrow: 1, flexBasis: 140 }}>
+                  <BigButton variant="secondary" label={t("warm.cancel")} onPress={() => setWarmOpen(null)} />
+                </View>
               </View>
             </View>
           ) : (
-            <Pressable accessibilityRole="button" onPress={() => setWarmOpen(ex.exerciseId)} style={{ paddingHorizontal: 14, minHeight: 48, justifyContent: "center" }}>
-              <AppText style={{ color: warmupsUsuallySkipped(position, ex.pattern) ? p.muted : p.blue, fontWeight: "600", fontSize: 15 }}>{warmupsUsuallySkipped(position, ex.pattern) ? t("warm.addAnyway") : t("warm.add")}</AppText>
-            </Pressable>
+            <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
+              <BigButton variant="quiet" icon="plus" label={warmupsUsuallySkipped(position, ex.pattern) ? t("warm.addAnyway") : t("warm.add")} onPress={() => setWarmOpen(ex.exerciseId)} />
+            </View>
           )
         ) : null}
-        {warmDone[ex.exerciseId] ? <AppText style={{ color: p.muted, paddingHorizontal: 14 }}>✓ {t("warm.added")}</AppText> : null}
-        {!spec ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.stepFallback")}</AppText> : null}
+        {warmDone[ex.exerciseId] ? <InlineStatus kind="success" text={t("warm.added")} /> : null}
+        {!spec ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: space.lg }}>{t("workout.stepFallback")}</AppText> : null}
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${t("workout.addSet")}: ${labels.primary}`}
-          onPress={() => setRows((r) => ({ ...r, [ex.exerciseId]: addRow(r[ex.exerciseId] ?? [], info.prefill, () => Crypto.randomUUID()) }))}
-          style={{ marginHorizontal: 12, minHeight: 48, borderRadius: 10, backgroundColor: p.field, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 }}
-        >
-          <AppText style={{ fontWeight: "700", fontSize: 16 }}>+ {t("workout.addSet")}</AppText>
-        </Pressable>
+        <View style={{ paddingHorizontal: space.md }}>
+          <BigButton
+            variant="secondary"
+            icon="plus"
+            label={t("workout.addSet")}
+            onPress={() => setRows((r) => ({ ...r, [ex.exerciseId]: addRow(r[ex.exerciseId] ?? [], info.prefill, () => Crypto.randomUUID()) }))}
+            accessibilityHint={labels.primary}
+          />
+        </View>
       </View>
     );
   };
 
   const menuEx = menuFor ? shown.find((e) => e.slot === menuFor) : undefined;
+  const dockVisible = timerOpen || timerRunning || restOver;
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
-      <View style={{ paddingTop: insets.top + 6, paddingBottom: 8, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: p.bg }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.collapse")} onPress={() => navigation.goBack()} style={circle}>
-          <ChevronDown color={p.text} />
+      {/* Compact header: back, title, rest timer, Finish. The numbers live in the stats row below, in the scroll. */}
+      <View style={{ paddingTop: insets.top + space.xs, paddingBottom: space.xs, paddingHorizontal: space.xs, flexDirection: "row", alignItems: "center", gap: space.xs, backgroundColor: p.bg }}>
+        <IconButton icon="chevron" back label={t("workout.collapse")} onPress={() => navigation.goBack()} />
+        <AppText accessibilityRole="header" style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{t("workout.header")}</AppText>
+        <IconButton icon="why" label={t("workout.help.button")} onPress={() => setHelpOpen(true)} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("workout.restTimerBtn")}
+          accessibilityState={{ expanded: dockVisible }}
+          onPress={() => {
+            setRestOver(false);
+            setTimerOpen((o) => !o);
+          }}
+          style={{ minHeight: 48, minWidth: 48, paddingHorizontal: space.sm, flexDirection: "row", gap: 6, borderRadius: radius.button, backgroundColor: timerRunning ? p.field : "transparent", alignItems: "center", justifyContent: "center" }}
+        >
+          <Icon name="timer" color={timerRunning ? p.accent : p.text} size={24} />
+          {timerRunning ? <RestClock timer={timer} style={{ color: p.accent, fontWeight: "600", fontSize: 14 }} /> : null}
         </Pressable>
-        <AppText numberOfLines={1} style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: "700" }}>{t("workout.header")}</AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.help.button")} onPress={() => setHelpOpen(true)} style={circle}>
-          <AppText style={{ fontWeight: "800", fontSize: 18 }}>?</AppText>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.restTimerBtn")} accessibilityState={{ expanded: timerOpen }} onPress={() => setTimerOpen((o) => !o)} style={timerRunning ? { height: 48, minWidth: 48, paddingHorizontal: 12, flexDirection: "row", gap: 6, borderRadius: 24, backgroundColor: p.field, alignItems: "center", justifyContent: "center" } : circle}>
-          <Stopwatch size={16} color={timerRunning ? p.blue : p.text} />
-          {timerRunning ? <RestClock timer={timer} style={{ color: p.blue, fontWeight: "700", fontSize: 15 }} /> : null}
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.finishBtn")} disabled={finishing} onPress={() => askFinish(loaded)} style={{ minHeight: 48, paddingHorizontal: 20, borderRadius: 24, backgroundColor: finishing ? p.line : p.blueFill, alignItems: "center", justifyContent: "center" }}>
-          <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>{t("workout.finishBtn")}</AppText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("workout.finishBtn")}
+          disabled={finishing}
+          onPress={() => askFinish(loaded)}
+          style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: space.lg, marginStart: space.xs, borderRadius: radius.button, backgroundColor: finishing ? p.line : pressed ? p.fillPressed : p.fill, alignItems: "center", justifyContent: "center" })}
+        >
+          <AppText style={{ color: p.onFill, fontWeight: "600", fontSize: 16, textAlign: "center" }}>{t("workout.finishBtn")}</AppText>
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <View style={{ flexDirection: "row", gap: 18, paddingHorizontal: 14, paddingVertical: 10 }}>
+      {/* Save status: one line under the header, outside the scroll so it is always in view, in words + icon. Failures and unsaved work come before any friendlier message; "resumed" goes away after a few seconds. */}
+      <View accessibilityLiveRegion="polite" style={{ paddingHorizontal: space.lg, paddingBottom: space.xs }}>
+        <InlineStatus compact kind={status.kind} icon={status.icon} text={status.text} />
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+        <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, rowGap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
           <Stat label={t("workout.stat.duration")}>
-            <LiveDuration startedAt={loaded.startedAt} color={p.blue} />
+            <LiveDuration startedAt={loaded.startedAt} color={p.accent} />
           </Stat>
           <Stat label={t("workout.stat.volume")}>
-            <AppText ltr style={{ fontSize: 19, fontWeight: "700" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
+            <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
           </Stat>
           <Stat label={t("workout.stat.sets")}>
-            <AppText ltr style={{ fontSize: 19, fontWeight: "700" }}>{summary.sets}</AppText>
+            <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{summary.sets}</AppText>
           </Stat>
         </View>
 
         {finishFailed ? (
-          <View accessibilityLiveRegion="assertive" style={{ marginHorizontal: 12, marginBottom: 8, padding: 12, gap: 8, borderRadius: 12, borderWidth: 2, borderColor: p.danger, backgroundColor: p.card }}>
-            <AppText style={{ fontWeight: "800" }}>{t("workout.finishFailed.title")}</AppText>
-            <AppText style={{ color: p.muted }}>{t("workout.finishFailed.body")}</AppText>
-            <Pressable accessibilityRole="button" disabled={finishing} onPress={() => void doFinish(loaded)} style={{ minHeight: 52, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}>
-              <AppText style={{ color: p.onBlue, fontWeight: "800" }}>{t("workout.finishFailed.retry")}</AppText>
-            </Pressable>
+          <View accessibilityLiveRegion="assertive" style={{ marginHorizontal: space.md, marginBottom: space.sm }}>
+            <Notice kind="error" title={t("workout.finishFailed.title")} actionLabel={t("workout.finishFailed.retry")} onAction={() => void doFinish(loaded)}>
+              {t("workout.finishFailed.body")}
+            </Notice>
           </View>
         ) : null}
 
-        {timerOpen ? (
-          <View style={{ marginHorizontal: 12, marginBottom: 6, padding: 12, gap: 8, borderRadius: 12, backgroundColor: p.card }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <RestClock timer={timer} style={{ fontSize: 32, fontWeight: "800", minWidth: 92 }} />
-              {[-15, 15].map((d) => (
-                <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${d > 0 ? "+" : "−"}${Math.abs(d)}`} onPress={() => setTimer((tm) => adjustTimer(tm, d, Date.now()))} style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}>
-                  <AppText ltr style={{ fontWeight: "700", fontSize: 18 }}>{d > 0 ? `+${d}` : `−${-d}`}</AppText>
+        {shown.map((ex, i) => renderExercise(ex, i))}
+
+        <View style={{ paddingHorizontal: space.md, paddingTop: space.xl }}>
+          <BigButton variant="secondary" icon="plus" label={t("workout.add.button")} onPress={() => setAddOpen(true)} />
+        </View>
+
+        {removedSlots.length > 0 ? (
+          <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl, gap: space.xs }}>
+            <AppText style={{ color: p.muted, fontSize: 13, fontWeight: "600" }}>{t("workout.removed")}</AppText>
+            {removedSlots.map((s) => (
+              <View key={s.id} style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+                <AppText style={{ flex: 1, color: p.muted }}>{exerciseLabels(s, lang).primary}</AppText>
+                <BigButton variant="quiet" label={t("workout.restore")} onPress={() => void restore(s.exerciseId)} />
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl, gap: 4 }}>
+          {unlogged > 0 ? <InlineStatus kind="warn" text={t("workout.unlogged", { n: unlogged })} /> : null}
+        </View>
+      </ScrollView>
+
+      {/* Rest dock: sticky under the list (a layout child, not an overlay), so it never covers a row. Exercise, countdown, -15 / +30, start / stop. */}
+      {dockVisible ? (
+        <View style={{ backgroundColor: p.card, borderTopWidth: 1, borderColor: p.line, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, gap: space.xs }}>
+          {restFor ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs }}>
+              <Icon name="timer" color={p.muted} size={16} />
+              <AppText style={{ color: p.muted, fontSize: 13, flexShrink: 1 }}>{restFor}</AppText>
+            </View>
+          ) : null}
+          <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: space.sm, rowGap: space.sm }}>
+            <RestClock timer={timer} style={{ fontSize: 36, fontWeight: "600", minWidth: 110, color: restOver && !timerRunning ? p.accent : p.text }} />
+            <View style={{ flexDirection: "row", gap: space.sm, flexGrow: 1, flexBasis: 220 }}>
+              {[-15, 30].map((d) => (
+                <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${d > 0 ? "+" : "−"}${Math.abs(d)} ${t("qty.s")}`} onPress={() => setTimer((tm) => adjustTimer(tm, d, Date.now()))} style={({ pressed }) => ({ flex: 1, minHeight: 48, borderRadius: radius.button, borderWidth: 1.5, borderColor: p.edge, backgroundColor: pressed ? p.line : p.field, alignItems: "center", justifyContent: "center" })}>
+                  <AppText ltr style={{ fontWeight: "600", fontSize: 16 }}>{d > 0 ? `+${d}` : `−${-d}`}</AppText>
                 </Pressable>
               ))}
               <Pressable
@@ -898,53 +993,15 @@ export function WorkoutScreen() {
                   setRestOver(false);
                   setTimer((tm) => (tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm)));
                 }}
-                style={{ flex: 1.3, minHeight: 48, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
+                style={({ pressed }) => ({ flex: 1.4, minHeight: 48, borderRadius: radius.button, backgroundColor: pressed ? p.fillPressed : p.fill, alignItems: "center", justifyContent: "center", paddingHorizontal: space.sm })}
               >
-                <AppText style={{ color: p.onBlue, fontWeight: "700" }}>{timerRunning ? t("workout.rest.stop") : t("workout.rest.start")}</AppText>
+                <AppText style={{ color: p.onFill, fontWeight: "600", textAlign: "center" }}>{timerRunning ? t("workout.rest.stop") : t("workout.rest.start")}</AppText>
               </Pressable>
             </View>
-            {restOver && !timerRunning ? <AppText>{t("workout.rest.done")}</AppText> : null}
           </View>
-        ) : restOver && !timerRunning ? (
-          <AppText style={{ paddingHorizontal: 14, color: p.blue, fontWeight: "700" }}>{t("workout.rest.done")}</AppText>
-        ) : null}
-
-        <View style={{ paddingHorizontal: 14, gap: 2 }}>
-          {loaded.resumed ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.resumed")}</AppText> : null}
-          <AppText accessibilityLiveRegion="polite" style={{ color: p.muted, fontSize: 13 }}>
-            {savedAt ? `✓ ${t("workout.saved", { time: clock(savedAt) })}` : t("workout.notSaved")}
-          </AppText>
+          {restOver && !timerRunning ? <AppText accessibilityLiveRegion="polite" style={{ color: p.accent, fontWeight: "600" }}>{t("workout.rest.done")}</AppText> : null}
         </View>
-
-        {shown.map((ex, i) => renderExercise(ex, i))}
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("workout.add.button")}
-          onPress={() => setAddOpen(true)}
-          style={{ marginHorizontal: 12, marginTop: 22, minHeight: 50, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
-        >
-          <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>+ {t("workout.add.button")}</AppText>
-        </Pressable>
-
-        {removedSlots.length > 0 ? (
-          <View style={{ paddingHorizontal: 14, paddingTop: 22, gap: 6 }}>
-            <AppText style={{ color: p.muted, fontSize: 13, fontWeight: "700" }}>{t("workout.removed")}</AppText>
-            {removedSlots.map((s) => (
-              <View key={s.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <AppText style={{ flex: 1, color: p.muted }}>{exerciseLabels(s, lang).primary}</AppText>
-                <Pressable accessibilityRole="button" onPress={() => void restore(s.exerciseId)} style={{ minHeight: 48, paddingHorizontal: 14, borderRadius: 10, backgroundColor: p.field, justifyContent: "center" }}>
-                  <AppText style={{ fontWeight: "700", color: p.blue }}>{t("workout.restore")}</AppText>
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <View style={{ paddingHorizontal: 14, paddingTop: 22, gap: 4 }}>
-          {unlogged > 0 ? <AppText style={{ fontWeight: "600" }}>{t("workout.unlogged", { n: unlogged })}</AppText> : null}
-        </View>
-      </ScrollView>
+      ) : null}
 
       <WorkoutHelp visible={helpOpen} onClose={() => setHelpOpen(false)} />
       <MenuSheet
@@ -994,7 +1051,8 @@ export function WorkoutScreen() {
           const cur = kindFor ? (rows[kindFor.exId] ?? []).find((r) => r.key === kindFor.key) : undefined;
           const on = cur ? kindOf(cur) === k : false;
           return {
-            label: `${on ? "✓ " : ""}${t(`workout.kind.${k}` as never)}`,
+            label: t(`workout.kind.${k}` as never),
+            selected: on,
             onPress: () => {
               if (!kindFor || !cur) return;
               patch(kindFor.exId, kindFor.key, kindPatch(k, cur.tags));

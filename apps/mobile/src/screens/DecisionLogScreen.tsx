@@ -2,7 +2,7 @@ import { isTimed, targetPhrase, targetQuantity } from "../logic/quantity";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { renderReason } from "@gain/engine";
 import React, { useCallback, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useServices } from "../AppContext";
 import type { DecisionLift, DecisionListItem } from "../db/decisionRepo";
 import { useI18n } from "../i18n";
@@ -12,7 +12,7 @@ import { actionOf, hasNumber } from "../logic/decisionText";
 import { localDateText } from "../logic/trendChart";
 import { localizeReason } from "../logic/units";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip } from "../ui";
+import { AppText, BigButton, Card, Chip, EmptyState, FilterPanel, LoadingState, Screen } from "../ui";
 
 const PAGE = 40;
 
@@ -42,17 +42,19 @@ export function DecisionLogScreen() {
     }, [load, filter]),
   );
 
-  if (!items) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
+  if (!items) return <LoadingState />;
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
+    <Screen>
       <AppText style={{ color: p.muted }}>{t("dec.intro")}</AppText>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-        <Chip label={t("dec.all")} selected={filter === null} onPress={() => setFilter(null)} />
-        {lifts.map((l) => (
-          <Chip key={l.exerciseId} label={exerciseLabels(l, lang).primary} selected={filter === l.exerciseId} onPress={() => setFilter(l.exerciseId)} />
-        ))}
-      </View>
-      {items.length === 0 ? <AppText>{t("dec.empty")}</AppText> : null}
+      <FilterPanel title={t("pick.filters")} activeCount={filter === null ? 0 : 1} clearLabel={t("tpl.clear")} onClear={() => setFilter(null)}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+          <Chip label={t("dec.all")} selected={filter === null} onPress={() => setFilter(null)} />
+          {lifts.map((l) => (
+            <Chip key={l.exerciseId} label={exerciseLabels(l, lang).primary} selected={filter === l.exerciseId} onPress={() => setFilter(l.exerciseId)} />
+          ))}
+        </View>
+      </FilterPanel>
+      {items.length === 0 ? <EmptyState icon="why" title={t("dec.empty")} /> : null}
       {items.map((d) => {
         const a = actionOf(d);
         let sentence: string;
@@ -63,26 +65,26 @@ export function DecisionLogScreen() {
         }
         return (
           <Card key={d.targetId}>
-            <AppText ltr style={{ fontWeight: "700" }}>{localDateText(d.decidedAt)}</AppText>
-            <AppText style={{ fontSize: 18, fontWeight: "800" }}>{exerciseLabels(d, lang).primary}</AppText>
+            <AppText ltr style={{ fontWeight: "600" }}>{localDateText(d.decidedAt)}</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: "600" }}>{exerciseLabels(d, lang).primary}</AppText>
             <AppText style={{ color: p.muted }}>{t("dec.for", { day: d.dayName })}</AppText>
-            <AppText style={{ fontSize: 16 }}>
+            <AppText ltr style={{ fontSize: 16, fontWeight: "600" }}>
               {hasNumber(d)
                 ? isTimed(d.measure)
                   ? t("dec.targetTimed", { q: isolateLtr(targetPhrase(d.load!, targetQuantity(d, d.measure)!, d.measure, fmt, { s: t("qty.s"), m: t("qty.m") })) })
                   : t("dec.target", { load: fmt(d.load!), reps: isolateLtr(String(d.reps)) })
                 : t("dec.noTarget")}
             </AppText>
-            <AppText style={{ fontWeight: "700" }}>{t(a.key, a.editedLoad !== null ? { load: fmt(a.editedLoad) } : undefined)}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t(a.key, a.editedLoad !== null ? { load: fmt(a.editedLoad) } : undefined)}</AppText>
             <AppText style={{ color: p.muted }}>{sentence}</AppText>
             <AppText style={{ color: p.muted, fontSize: 13 }}>
               {t("dec.rule", { version: d.ruleVersion, path: t(`dec.path.${d.path === "model" ? "model" : "rule"}` as StringKey) })} · {t("dec.confidence", { c: t(`why.confidence.${d.confidence}` as StringKey) })}
             </AppText>
-            <BigButton label={t("dec.why")} selected={false} onPress={() => nav.navigate("Why", { targetId: d.targetId })} />
+            <BigButton label={t("dec.why")} variant="secondary" onPress={() => nav.navigate("Why", { targetId: d.targetId })} />
           </Card>
         );
       })}
-      {items.length < total ? <BigButton label={t("dec.more")} selected={false} onPress={() => load(filter, items.length + PAGE)} /> : null}
-    </ScrollView>
+      {items.length < total ? <BigButton label={t("dec.more")} variant="secondary" onPress={() => load(filter, items.length + PAGE)} /> : null}
+    </Screen>
   );
 }

@@ -45,22 +45,26 @@ describe("contrast of the palettes (WCAG 2.1 AA)", () => {
         expect(contrast(p.edge, bg)).toBeGreaterThanOrEqual(3);
         expect(contrast(p.warn, bg)).toBeGreaterThanOrEqual(3);
       }
-      expect(contrast(p.accentText, p.accent)).toBeGreaterThanOrEqual(4.5);
+      // The lime fill is the same in both themes; its label is ink. Status tints carry their own text colour.
+      expect(contrast(p.onFill, p.fill)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(p.onDisabled, p.disabled)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(p.onDanger, p.danger)).toBeGreaterThanOrEqual(4.5);
+      for (const [fg, bg] of [[p.success, p.successBg], [p.warn, p.warnBg], [p.danger, p.dangerBg], [p.text, p.tint], [p.accent, p.raised]] as const) expect(contrast(fg, bg), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
     });
   }
   for (const [name, p] of [["light", logLightPalette], ["dark", logDarkPalette]] as const) {
     it(`workout palette, ${name}: text 4.5:1, outlines 3:1`, () => {
-      for (const bg of [p.bg, p.card, p.field, p.doneBg]) {
+      for (const bg of [p.bg, p.card, p.field, p.doneBg, p.activeBg]) {
         expect(contrast(p.text, bg), `text on ${bg}`).toBeGreaterThanOrEqual(4.5);
         expect(contrast(p.muted, bg), `muted on ${bg}`).toBeGreaterThanOrEqual(4.5);
-        expect(contrast(p.blue, bg), `blue on ${bg}`).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(p.accent, bg), `blue on ${bg}`).toBeGreaterThanOrEqual(4.5);
       }
       for (const bg of [p.bg, p.card]) {
         expect(contrast(p.warn, bg)).toBeGreaterThanOrEqual(4.5);
         expect(contrast(p.danger, bg)).toBeGreaterThanOrEqual(4.5);
         expect(contrast(p.edge, bg)).toBeGreaterThanOrEqual(3);
       }
-      expect(contrast(p.onBlue, p.blueFill)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(p.onFill, p.fill)).toBeGreaterThanOrEqual(4.5);
       expect(contrast(p.onDanger, p.danger)).toBeGreaterThanOrEqual(4.5);
     });
   }

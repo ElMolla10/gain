@@ -10,7 +10,7 @@ describe("P09 navigation", () => {
   it("every tab declares an explicit icon (no default/broken glyph)", () => {
     const tabs = app.match(/<Tab\.Screen [^\n]*/g) ?? [];
     expect(tabs.length).toBe(4);
-    for (const t of tabs) expect(t).toMatch(/tabBarIcon: icon\("(today|plan|history|settings)"\)/);
+    for (const t of tabs) expect(t).toMatch(/tabBarIcon: icon\("(today|plan|progress|settings)"\)/);
   });
   it("the Programme tab is labelled Plan in English and has a short Arabic draft label", () => {
     expect(en["tab.programme"]).toBe("Plan");
@@ -20,10 +20,10 @@ describe("P09 navigation", () => {
   it("navigation and the workout logger share the one primary accent", () => {
     expect(navColors(lightPalette).primary).toBe(lightPalette.accent);
     expect(navColors(darkPalette).primary).toBe(darkPalette.accent);
-    expect(logLightPalette.blueFill).toBe(lightPalette.accent);
-    expect(logDarkPalette.blueFill).toBe(darkPalette.accent);
-    expect(logLightPalette.blue).toBe(lightPalette.accent);
-    expect(logDarkPalette.blue).toBe(darkPalette.accent);
+    expect(logLightPalette.fill).toBe(lightPalette.fill);
+    expect(logDarkPalette.fill).toBe(darkPalette.fill);
+    expect(logLightPalette.accent).toBe(lightPalette.accent);
+    expect(logDarkPalette.accent).toBe(darkPalette.accent);
   });
   it("the navigation container receives the palette theme, not the stock blue one", () => {
     expect(app).toContain("theme={navTheme}");

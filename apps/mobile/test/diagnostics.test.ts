@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendEntry, buildReport, createDiagnostics, installCrashHandler, makeEntry, memoryStore, MAX_ENTRIES, MAX_MESSAGE, parseDiagFile, redact, type DiagStore } from "../src/logic/diagnostics";
+import { appendEntry, buildFeedbackMessage, buildReport, createDiagnostics, installCrashHandler, makeEntry, memoryStore, MAX_ENTRIES, MAX_MESSAGE, parseDiagFile, redact, type DiagStore } from "../src/logic/diagnostics";
 
 const ctx = { appVersion: "0.10.0", platform: "android", osVersion: 34, language: "en", schemaVersion: 7 };
 let clock = Date.UTC(2026, 9, 3, 9, 0, 0);
@@ -125,5 +125,39 @@ describe("no network in the diagnostics code (the privacy text depends on this)"
       const src = readFileSync(join(__dirname, "..", f), "utf8");
       expect(src, f).not.toMatch(/fetch\s*\(|XMLHttpRequest|WebSocket|https?:\/\/|expo-network|@?\bsentry\b|firebase|crashlytics|analytics/i);
     }
+  });
+});
+
+describe("feedback message (text through the share sheet, edited by the lifter)", () => {
+  const labels = { title: "GAIN feedback", did: "What did you do?", expected: "Expected / happened?", lost: "Lost sets?", tech: "About this phone", crashNotes: "Crash notes saved", latest: "Latest crash notes" };
+  it("has the three questions, the phone facts and no stack trace or workout data", () => {
+    const err = new Error("boom");
+    err.stack = "Error: boom\n    at secretFn (file:///data/user/0/app.gain.mobile/x.js:1:1)";
+    const e1 = makeEntry("crash", "render", err, 1);
+    expect(e1.stack).toContain("secretFn"); // the entry keeps a trimmed stack; the feedback message must not
+    const text = buildFeedbackMessage([e1], ctx, labels);
+    expect(text).toContain("1. What did you do?");
+    expect(text).toContain("2. Expected / happened?");
+    expect(text).toContain("3. Lost sets?");
+    expect(text).toContain("App version: 0.10.0");
+    expect(text).toContain("Platform: android 34");
+    expect(text).toContain("Crash notes saved: 1");
+    expect(text).toContain("- CRASH at render: Error: boom");
+    expect(text).not.toContain("secretFn");
+    expect(text).not.toContain("file://");
+  });
+  it("with an empty log it says 0 and lists nothing; with many entries it lists only the latest three", () => {
+    expect(buildFeedbackMessage([], ctx, labels)).toContain("Crash notes saved: 0");
+    expect(buildFeedbackMessage([], ctx, labels)).not.toContain("Latest crash notes:");
+    const many = Array.from({ length: 6 }, (_, i) => makeEntry("error", `w${i}`, new Error(`m${i}`), i));
+    const text = buildFeedbackMessage(many, ctx, labels);
+    expect(text).toContain("Crash notes saved: 6");
+    expect(text.match(/^- ERROR at /gm)).toHaveLength(3);
+    expect(text).toContain("w5");
+    expect(text).not.toContain("w2:");
+  });
+  it("long messages are cut to one short line", () => {
+    const text = buildFeedbackMessage([makeEntry("error", "w", new Error("y".repeat(500)), 1)], ctx, labels);
+    expect(text.split("\n").find((l) => l.startsWith("- ERROR"))!.length).toBeLessThan(160);
   });
 });

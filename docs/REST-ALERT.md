@@ -16,3 +16,6 @@ Status: compiles; unit-tested only for the settings and scheduling logic; NOT de
 - Optional training-day reminders: not built.
 - Two phone makers must be tried before this step can be called done (plan requirement).
 - No custom dev build is needed (expo-notifications works in a prebuilt app); Expo Go cannot be used for it.
+
+## Decision for the v0.10.0 batch
+The foreground-service/lock-screen countdown and the training-day reminders were **not built**: the first needs a native-module spike and a real phone to know whether it works under battery savers; the second needs a decision (the rotation is not tied to weekdays, so which days and what time?) and a phone to test delivery. Neither can be judged from unit tests.

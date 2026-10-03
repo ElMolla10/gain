@@ -279,7 +279,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
           }
         }
       }
-      await db.run("UPDATE import_batch SET workouts = ?, sets = ? WHERE id = ?", [fresh.length, sets, batchId]);
+      await db.run("UPDATE import_batch SET workouts = ?, sets = ?, updated_at = ? WHERE id = ?", [fresh.length, sets, deps.now(), batchId]);
       for (const title of need) {
         const ex = exerciseOf.get(title)!;
         await db.run(

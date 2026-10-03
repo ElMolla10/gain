@@ -36,7 +36,8 @@ export function createDataRepo(db: Db, deps: Deps) {
   async function exportJson(nowMs: number = deps.now()): Promise<string> {
     const v = await db.get<{ user_version: number }>("PRAGMA user_version");
     const tables: BackupFile["tables"] = {};
-    for (const name of await userTables()) tables[name] = await db.all(`SELECT * FROM ${name}`);
+    // sync_* is bookkeeping and holds the account token: it never goes into a file the lifter may share.
+    for (const name of await userTables()) if (!name.startsWith("sync_")) tables[name] = await db.all(`SELECT * FROM ${name}`);
     const file: BackupFile = { app: BACKUP_APP, format: BACKUP_FORMAT, schemaVersion: Number(v?.user_version ?? LATEST_VERSION), exportedAt: new Date(nowMs).toISOString(), tables };
     return JSON.stringify(file);
   }

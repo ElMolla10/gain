@@ -40,6 +40,7 @@ import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { LiftTrendScreen } from "./src/screens/LiftTrendScreen";
 import { SessionDetailScreen } from "./src/screens/SessionDetailScreen";
 import { ProgrammeEditScreen } from "./src/screens/ProgrammeEditScreen";
+import { ProgrammeSwitchScreen } from "./src/screens/ProgrammeSwitchScreen";
 import { ProgrammeScreen } from "./src/screens/ProgrammeScreen";
 import { StoppedSuggestionsScreen } from "./src/screens/StoppedSuggestionsScreen";
 import { ShortWeekScreen } from "./src/screens/ShortWeekScreen";
@@ -86,6 +87,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title") }} />
           <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false }} />
           <Stack.Screen name="ProgrammeEdit" component={ProgrammeEditScreen} options={{ title: t("prog.edit.title") }} />
+          <Stack.Screen name="ProgrammeSwitch" component={ProgrammeSwitchScreen} options={{ title: t("prog.switch.title") }} />
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />

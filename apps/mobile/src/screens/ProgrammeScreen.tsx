@@ -11,7 +11,7 @@ import type { ProgrammeDraft } from "../logic/programmeDraft";
 import { space, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card } from "../ui";
 
-type Nav = { navigate: (name: "ProgrammeEdit", params?: { versionId?: string; programmeId?: string }) => void };
+type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch", params?: { versionId?: string; programmeId?: string }) => void };
 
 interface Data {
   programmeId: string;
@@ -52,7 +52,8 @@ export function ProgrammeScreen() {
     return (
       <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
         <AppText>{t("prog.none")}</AppText>
-        <BigButton label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
+        <BigButton label={t("prog.switch.entry")} onPress={() => nav.navigate("ProgrammeSwitch")} />
+        <BigButton label={t("prog.new")} selected={false} onPress={() => nav.navigate("ProgrammeEdit")} />
       </ScrollView>
     );
 
@@ -85,6 +86,7 @@ export function ProgrammeScreen() {
           </Card>
         ))}
       </Card>
+      <BigButton label={t("prog.switch.entry")} selected={false} onPress={() => nav.navigate("ProgrammeSwitch")} />
       <BigButton label={t("prog.new")} selected={false} onPress={() => nav.navigate("ProgrammeEdit")} />
       <ArDraftNote />
     </ScrollView>

@@ -289,6 +289,18 @@ CREATE TABLE session_exercise (
 CREATE UNIQUE INDEX session_exercise_slot ON session_exercise(session_id, slot_exercise_id) WHERE deleted_at IS NULL;
 `,
   },
+  {
+    version: 7,
+    name: "added exercises and supersets",
+    sql: `
+-- added = 1: an exercise the lifter added to today's workout that is not in the programme day (slot_exercise_id is then the exercise itself;
+-- position orders the added ones). superset_group: exercises of one workout that share the same value are a superset (shown next to each
+-- other; the rest timer starts after the last one). Neither changes the programme.
+ALTER TABLE session_exercise ADD COLUMN added INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE session_exercise ADD COLUMN position INTEGER;
+ALTER TABLE session_exercise ADD COLUMN superset_group TEXT;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

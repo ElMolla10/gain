@@ -15,6 +15,7 @@ import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { warmupOffer } from "../logic/warmups";
+import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
@@ -49,7 +50,7 @@ const clock = (ms: number) => {
 };
 
 const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags });
-const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, replacedBy: null, note: "", restOff: false });
+const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, replacedBy: null, note: "", restOff: false, added: false, position: null, superset: null });
 
 /** Ticks once a second on its own, so the rest of the screen does not re-render every second. */
 function LiveDuration({ startedAt, color }: { startedAt: number; color: string }) {
@@ -104,6 +105,9 @@ export function WorkoutScreen() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [pickFor, setPickFor] = useState<string | null>(null);
   /** The row whose type (normal / warm-up / drop / failure) is being chosen. */
+  const [addOpen, setAddOpen] = useState(false);
+  /** The exercise for which "Superset with ..." is being chosen. */
+  const [ssFor, setSsFor] = useState<string | null>(null);
   const [kindFor, setKindFor] = useState<{ exId: string; key: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
@@ -157,11 +161,19 @@ export function WorkoutScreen() {
       const gym = await repos.loadGymFingerprint(gymId);
       const { id, resumed } = await workout.startOrResumeSession(dayId, gymId);
       sessionRef.current = id;
-      const slots = await repos.listDayExercises(dayId);
+      const programmeSlots = await repos.listDayExercises(dayId);
       libRef.current = await programmes.listExercises();
       setLibrary(libRef.current);
       const states: Record<string, ExerciseState> = {};
-      for (const st of await workout.listExerciseState(id)) states[st.slot] = st;
+      const stateList = await workout.listExerciseState(id);
+      for (const st of stateList) states[st.slot] = st;
+      // Exercises added to this workout earlier (the workout was resumed) come back after the programme's own.
+      const addedSlots: DayEx[] = [];
+      for (const st of stateList.filter((x) => x.added)) {
+        const ad = await repos.adHocDayExercise(st.slot);
+        if (ad) addedSlots.push(ad);
+      }
+      const slots = [...programmeSlots, ...addedSlots];
       const info: Record<string, ExInfo> = {};
       const all = await workout.listSessionSets(id);
       const initial: Record<string, SetRowDraft[]> = {};
@@ -262,7 +274,8 @@ export function WorkoutScreen() {
         const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, reps, rir: row.rir, warmup: row.warmup, tags: row.tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
         // No rest timer after a warm-up or a drop set (the next set follows straight away).
-        if (!row.warmup && !isDropRow(row) && !exState[ex.slot]?.restOff) {
+        // In a superset the rest comes after the last exercise of the round only.
+        if (!row.warmup && !isDropRow(row) && !exState[ex.slot]?.restOff && restAfterSet(order, exState, ex.slot)) {
           setRestOver(false);
           setTimer((tm) => startTimer(tm, Date.now()));
         }
@@ -400,12 +413,48 @@ export function WorkoutScreen() {
     await showSlot(loaded, slot, st);
   }
 
+  async function addExerciseToday(exerciseId: string) {
+    if (!loaded || loaded === "nogym") return;
+    setAddOpen(false);
+    try {
+      const r = await workout.addExercise(loaded.sessionId, exerciseId);
+      const ad = await repos.adHocDayExercise(exerciseId);
+      if (!ad) return;
+      const states = await workout.listExerciseState(loaded.sessionId);
+      const mine = states.find((x) => x.slot === exerciseId) ?? NO_STATE(exerciseId);
+      const lo: Loaded = { ...loaded, slots: loaded.slots.some((x) => x.exerciseId === exerciseId) ? loaded.slots : [...loaded.slots, ad] };
+      setLoaded(lo);
+      setState(exerciseId, mine);
+      await showSlot(lo, exerciseId, mine);
+      if (r.restored) await reload(loaded.sessionId);
+    } catch {
+      Alert.alert(t("workout.add.blocked"));
+    }
+  }
+
+  /** Superset: the chosen exercises are saved with the same group, shown next to each other, and rest after the last one. */
+  async function applySuperset(change: Record<string, string | null>) {
+    if (!loaded || loaded === "nogym") return;
+    await workout.setSuperset(loaded.sessionId, change);
+    setExState((cur) => {
+      const next = { ...cur };
+      for (const [slot, g] of Object.entries(change)) next[slot] = { ...(next[slot] ?? NO_STATE(slot)), superset: g };
+      return next;
+    });
+  }
+
   if (loaded === null) return <AppText style={{ padding: 24 }}>{t("common.loading")}</AppText>;
   if (loaded === "nogym") return <AppText style={{ padding: 24 }}>{t("workout.noGym")}</AppText>;
 
   const timerRunning = timer.endsAt !== null;
   const unlogged = Object.values(rows).reduce((n, list) => n + unloggedFilled(list), 0);
-  const shown: Disp[] = loaded.slots.filter((s) => !exState[s.exerciseId]?.removed).map((s) => makeDisp(s, exState[s.exerciseId]));
+  const programmeIds = loaded.slots.filter((s) => !exState[s.exerciseId]?.added).map((s) => s.exerciseId);
+  const order = orderSlots(programmeIds, exState);
+  const ssLabel = supersetLabels(order, exState);
+  const shown: Disp[] = order.flatMap((slot) => {
+    const s = loaded.slots.find((x) => x.exerciseId === slot);
+    return s ? [makeDisp(s, exState[slot])] : [];
+  });
   const removedSlots = loaded.slots.filter((s) => exState[s.exerciseId]?.removed);
 
   async function doFinish(lo: Loaded) {
@@ -458,9 +507,12 @@ export function WorkoutScreen() {
     const head = { color: p.muted, fontSize: 12, fontWeight: "700" as const, textAlign: "center" as const };
 
     return (
-      <View key={ex.id} style={{ gap: 8, paddingTop: 18 }}>
+      <View key={ex.id} style={{ gap: 8, paddingTop: 18, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.blueFill }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 }}>
           <View style={{ flex: 1 }}>
+            {ssLabel[ex.slot] ? (
+              <AppText style={{ color: p.blue, fontSize: 12, fontWeight: "800" }}>{t("workout.superset.label", { letter: ssLabel[ex.slot]! })}</AppText>
+            ) : null}
             <AppText style={{ fontSize: 19, fontWeight: "700", color: p.blue }}>{labels.primary}</AppText>
             {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
           </View>
@@ -656,6 +708,8 @@ export function WorkoutScreen() {
         {warmDone[ex.exerciseId] ? <AppText style={{ color: p.muted, paddingHorizontal: 14 }}>✓ {t("warm.added")}</AppText> : null}
         {!spec ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.stepFallback")}</AppText> : null}
         {ex.exerciseId !== ex.slot ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.replace.note")}</AppText> : null}
+        {st.added ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.add.note")}</AppText> : null}
+        {ssLabel[ex.slot] ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.superset.note")}</AppText> : null}
 
         <Pressable
           accessibilityRole="button"
@@ -736,6 +790,15 @@ export function WorkoutScreen() {
 
         {shown.map(renderExercise)}
 
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("workout.add.button")}
+          onPress={() => setAddOpen(true)}
+          style={{ marginHorizontal: 12, marginTop: 22, minHeight: 50, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
+        >
+          <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>+ {t("workout.add.button")}</AppText>
+        </Pressable>
+
         {removedSlots.length > 0 ? (
           <View style={{ paddingHorizontal: 14, paddingTop: 22, gap: 6 }}>
             <AppText style={{ color: p.muted, fontSize: 13, fontWeight: "700" }}>{t("workout.removed")}</AppText>
@@ -764,7 +827,9 @@ export function WorkoutScreen() {
           menuEx
             ? [
                 { label: t("workout.menu.notes"), onPress: () => setTimeout(() => noteInputs.current[menuEx.slot]?.focus(), 150) },
-                { label: t("workout.menu.replace"), onPress: () => startReplace(menuEx) },
+                ...(exState[menuEx.slot]?.added ? [] : [{ label: t("workout.menu.replace"), onPress: () => startReplace(menuEx) }]),
+                ...(shown.length > 1 ? [{ label: t("workout.menu.superset"), onPress: () => setSsFor(menuEx.slot) }] : []),
+                ...(ssLabel[menuEx.slot] ? [{ label: t("workout.menu.supersetLeave"), onPress: () => void applySuperset(leaveSuperset(menuEx.slot)) }] : []),
                 { label: t("workout.menu.remove"), danger: true, onPress: () => askRemove(menuEx, exerciseLabels(menuEx, lang).primary) },
               ]
             : []
@@ -785,6 +850,30 @@ export function WorkoutScreen() {
             },
           };
         })}
+      />
+      <MenuSheet
+        visible={ssFor !== null}
+        title={t("workout.superset.pick")}
+        onClose={() => setSsFor(null)}
+        items={shown
+          .filter((e) => e.slot !== ssFor)
+          .map((e) => ({
+            label: exerciseLabels(e, lang).primary,
+            onPress: () => ssFor && void applySuperset(joinSuperset(exState, ssFor, e.slot)),
+          }))}
+      />
+      <ExercisePicker
+        visible={addOpen}
+        exercises={library}
+        exclude={[...loaded.slots.map((e) => e.exerciseId), ...Object.values(exState).flatMap((x) => (x.replacedBy ? [x.replacedBy] : []))]}
+        onClose={() => setAddOpen(false)}
+        onPick={(id) => void addExerciseToday(id)}
+        onCreate={async (input) => {
+          const id = await programmes.createExercise(input);
+          libRef.current = await programmes.listExercises();
+          setLibrary(libRef.current);
+          return id;
+        }}
       />
       <ExercisePicker
         visible={pickFor !== null}

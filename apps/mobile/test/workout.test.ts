@@ -240,7 +240,7 @@ describe("per-workout exercise changes (remove / replace / note / rest timer)", 
     const slot = exs[0]!.exerciseId;
     await workout.patchExerciseState(id, slot, { note: "belt on" });
     await workout.patchExerciseState(id, slot, { restOff: true });
-    expect(await workout.listExerciseState(id)).toEqual([{ slot, removed: false, replacedBy: null, note: "belt on", restOff: true }]);
+    expect(await workout.listExerciseState(id)).toEqual([{ slot, removed: false, replacedBy: null, note: "belt on", restOff: true, added: false, position: null, superset: null }]);
   });
   it("removing an exercise deletes its logged sets and restoring brings the slot back", async () => {
     const { workout, id, exs, dctx } = await open();

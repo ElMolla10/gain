@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useServices } from "../AppContext";
 import { SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
 import { ShortWeekActive, type ActiveShortWeek, type ShortWeekPreview } from "../db/shortWeekRepo";
@@ -8,7 +8,7 @@ import { exerciseLabels } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { FLOOR_SESSIONS, FLOOR_SETS, type Cut } from "../logic/shortWeek";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip } from "../ui";
+import { AppText, BigButton, Card, Chip, InlineStatus, Notice, Screen } from "../ui";
 
 const MINUTES = [30, 45, 60, 75, 90];
 
@@ -82,12 +82,12 @@ export function ShortWeekScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
+    <Screen>
       <AppText>{t("short.intro")}</AppText>
       {active ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("short.active", { days: active.days })}</AppText>
-          <BigButton label={t("short.undo")} selected={false} onPress={() => void undo()} />
+          <BigButton label={t("short.undo")} variant="secondary" onPress={() => void undo()} />
         </Card>
       ) : null}
       <Card>
@@ -109,8 +109,8 @@ export function ShortWeekScreen() {
             {preview.rebuild.draft.days.map((d, i) => (
               <AppText key={i}>{t("short.dayLine", { name: d.name, sets: d.exercises.reduce((n, e) => n + e.sets, 0), min: preview.rebuild.minutes[i]! })}</AppText>
             ))}
-            {preview.rebuild.overBudget && minutes !== null ? <AppText style={{ fontWeight: "600" }}>⚠ {t("short.overBudget", { min: minutes })}</AppText> : null}
-            {preview.rebuild.floorMissed.length > 0 ? <AppText style={{ fontWeight: "600" }}>⚠ {t("short.floorMissed", { muscles: preview.rebuild.floorMissed.map((m) => t(`muscle.${m}` as StringKey)).join(", ") })}</AppText> : null}
+            {preview.rebuild.overBudget && minutes !== null ? <InlineStatus kind="warn" text={t("short.overBudget", { min: minutes })} /> : null}
+            {preview.rebuild.floorMissed.length > 0 ? <InlineStatus kind="warn" text={t("short.floorMissed", { muscles: preview.rebuild.floorMissed.map((m) => t(`muscle.${m}` as StringKey)).join(", ") })} /> : null}
             <AppText style={{ color: p.muted, fontSize: 13 }}>{t("short.protected", { sets: FLOOR_SETS, sessions: FLOOR_SESSIONS })}</AppText>
           </Card>
           <Card>
@@ -127,10 +127,10 @@ export function ShortWeekScreen() {
               ))}
             </Card>
           ) : null}
-          {!active ? <BigButton label={t("short.apply")} onPress={() => void apply()} /> : null}
+          {!active ? <BigButton hero label={t("short.apply")} onPress={() => void apply()} /> : null}
         </>
       ) : null}
-      {msg ? <AppText style={{ fontWeight: "600" }}>{t(msg)}</AppText> : null}
-    </ScrollView>
+      {msg ? <Notice kind="info">{t(msg)}</Notice> : null}
+    </Screen>
   );
 }

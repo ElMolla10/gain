@@ -1,13 +1,12 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ScrollView } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { localDateText } from "../logic/trendChart";
 import type { SyncInfo } from "../sync/engine";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Field } from "../ui";
+import { AppText, BigButton, Card, Field, InlineStatus, Notice, Screen } from "../ui";
 
 type Step = "idle" | "code" | "choice";
 
@@ -124,18 +123,18 @@ export function SyncScreen() {
 
   const status = info?.status ?? "off";
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
-      <AppText style={{ color: p.danger, fontWeight: "600" }}>{t("sync.draft")}</AppText>
+    <Screen>
+      <Notice kind="warn">{t("sync.draft")}</Notice>
       <Card>
         <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.privacy.title")}</AppText>
         <AppText>{t("sync.privacy.body")}</AppText>
         <AppText>{t("sync.privacy.body2")}</AppText>
       </Card>
 
-      <AppText style={{ fontWeight: "600" }}>{t(`sync.status.${status}` as StringKey)}</AppText>
-      {busy ? <AppText>{t(busy)}</AppText> : null}
-      {msg ? <AppText style={{ fontWeight: "600" }}>✓ {msg}</AppText> : null}
-      {err ? <AppText style={{ color: p.danger }}>{err}</AppText> : null}
+      <InlineStatus kind={status === "on" && info && info.pendingOut === 0 && !info.lastError ? "success" : "info"} text={t(`sync.status.${status}` as StringKey)} />
+      {busy ? <InlineStatus kind="info" text={t(busy)} /> : null}
+      {msg ? <InlineStatus kind="success" text={msg} /> : null}
+      {err ? <Notice kind="error">{err}</Notice> : null}
 
       {step === "code" && code ? (
         <Card>
@@ -151,7 +150,7 @@ export function SyncScreen() {
           <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.choice.title")}</AppText>
           <AppText>{t("sync.choice.body")}</AppText>
           <BigButton label={t("sync.choice.use")} disabled={!!busy} onPress={useBackup} />
-          <BigButton label={t("sync.choice.cancel")} selected={false} disabled={!!busy} onPress={cancelChoice} />
+          <BigButton label={t("sync.choice.cancel")} variant="secondary" disabled={!!busy} onPress={cancelChoice} />
           <AppText style={{ color: p.muted, fontSize: 13 }}>{t("sync.choice.replaceNote")}</AppText>
         </Card>
       ) : null}
@@ -159,13 +158,13 @@ export function SyncScreen() {
       {status === "off" && step === "idle" ? (
         <>
           <Card>
-            <BigButton label={t("sync.on")} disabled={!!busy} onPress={() => turnOn()} />
+            <BigButton hero label={t("sync.on")} disabled={!!busy} onPress={() => turnOn()} />
           </Card>
           <Card>
             <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.restoreTitle")}</AppText>
             <AppText style={{ color: p.muted }}>{t("sync.restoreNote")}</AppText>
             <Field label={t("sync.codeField")} hint={t("sync.codeHint")} value={typed} onChangeText={setTyped} />
-            <BigButton label={t("sync.restore")} selected={false} disabled={!!busy || typed.trim().length < 10} onPress={() => turnOn(typed)} />
+            <BigButton label={t("sync.restore")} variant="secondary" disabled={!!busy || typed.trim().length < 10} onPress={() => turnOn(typed)} />
           </Card>
         </>
       ) : null}
@@ -173,7 +172,7 @@ export function SyncScreen() {
       {status === "pending" && step === "idle" ? (
         <Card>
           <BigButton label={t("sync.finish")} disabled={!!busy} onPress={() => turnOn()} />
-          <BigButton label={t("sync.choice.cancel")} selected={false} disabled={!!busy} onPress={cancelChoice} />
+          <BigButton label={t("sync.choice.cancel")} variant="secondary" disabled={!!busy} onPress={cancelChoice} />
         </Card>
       ) : null}
 
@@ -182,34 +181,34 @@ export function SyncScreen() {
           <Card>
             <AppText>{info?.lastSyncAt ? t("sync.last", { when: `${localDateText(info.lastSyncAt)} ${new Date(info.lastSyncAt).toTimeString().slice(0, 5)}` }) : t("sync.never")}</AppText>
             <AppText>{info && info.pendingOut > 0 ? t("sync.pending", { n: info.pendingOut }) : t("sync.nothingPending")}</AppText>
-            {info && info.parked.conflict > 0 ? <AppText style={{ color: p.danger }}>{t("sync.parked.conflict", { n: info.parked.conflict })}</AppText> : null}
+            {info && info.parked.conflict > 0 ? <InlineStatus kind="error" text={t("sync.parked.conflict", { n: info.parked.conflict })} /> : null}
             {info && info.parked.waiting_parent > 0 ? <AppText>{t("sync.parked.waiting", { n: info.parked.waiting_parent })}</AppText> : null}
-            {info && info.parked.newer_app > 0 ? <AppText style={{ color: p.danger }}>{t("sync.parked.newer", { n: info.parked.newer_app })}</AppText> : null}
+            {info && info.parked.newer_app > 0 ? <InlineStatus kind="error" text={t("sync.parked.newer", { n: info.parked.newer_app })} /> : null}
             {info && info.rejectedTotal > 0 ? <AppText>{t("sync.rejected", { n: info.rejectedTotal })}</AppText> : null}
-            {info?.lastError ? <AppText style={{ color: p.danger }}>{t(`sync.err.${info.lastError.split(":")[0]}` as StringKey)}</AppText> : null}
-            <BigButton label={t("sync.syncNow")} disabled={!!busy} onPress={syncNow} />
+            {info?.lastError ? <Notice kind="error" actionLabel={t("sync.syncNow")} onAction={syncNow}>{t(`sync.err.${info.lastError.split(":")[0]}` as StringKey)}</Notice> : null}
+            <BigButton icon="cloud" label={t("sync.syncNow")} disabled={!!busy} onPress={syncNow} />
           </Card>
           <Card>
             {step === "code" ? (
-              <BigButton label={t("sync.code.hide")} selected={false} onPress={() => setStep("idle")} />
+              <BigButton label={t("sync.code.hide")} variant="secondary" onPress={() => setStep("idle")} />
             ) : (
-              <BigButton label={t("sync.code.show")} selected={false} onPress={showCode} />
+              <BigButton label={t("sync.code.show")} variant="secondary" onPress={showCode} />
             )}
           </Card>
           <Card>
-            <BigButton label={t("sync.off")} selected={false} disabled={!!busy} onPress={() => turnOff(false)} />
+            <BigButton label={t("sync.off")} variant="secondary" disabled={!!busy} onPress={() => turnOff(false)} />
             {askDelete ? (
               <>
                 <AppText>{t("sync.offDelete.warn")}</AppText>
-                <BigButton label={t("sync.offDelete.confirm")} disabled={!!busy} onPress={() => turnOff(true)} />
-                <BigButton label={t("sync.offDelete.cancel")} selected={false} onPress={() => setAskDelete(false)} />
+                <BigButton variant="danger" label={t("sync.offDelete.confirm")} disabled={!!busy} onPress={() => turnOff(true)} />
+                <BigButton label={t("sync.offDelete.cancel")} variant="secondary" onPress={() => setAskDelete(false)} />
               </>
             ) : (
-              <BigButton label={t("sync.offDelete")} selected={false} disabled={!!busy} onPress={() => setAskDelete(true)} />
+              <BigButton label={t("sync.offDelete")} variant="danger" disabled={!!busy} onPress={() => setAskDelete(true)} />
             )}
           </Card>
         </>
       ) : null}
-    </ScrollView>
+    </Screen>
   );
 }

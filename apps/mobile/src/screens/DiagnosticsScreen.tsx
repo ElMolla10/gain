@@ -2,14 +2,14 @@ import Constants from "expo-constants";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useState } from "react";
-import { Platform, ScrollView, View } from "react-native";
+import { Platform, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
 import { localDateText } from "../logic/trendChart";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip } from "../ui";
+import { AppText, BigButton, Card, Chip, InlineStatus, Screen } from "../ui";
 
 /**
  * Diagnostics (Step 18, draft): a crash log kept ON THIS PHONE (on by default, can be switched off and cleared) and a report the lifter can
@@ -57,7 +57,7 @@ export function DiagnosticsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
+    <Screen>
       <Card>
         <AppText style={{ fontWeight: "600" }}>{t("diag.title")}</AppText>
         <AppText style={{ color: p.muted }}>{t("diag.intro")}</AppText>
@@ -73,17 +73,17 @@ export function DiagnosticsScreen() {
         </View>
       </Card>
       <Card>
-        <BigButton label={t("diag.preview")} selected={false} onPress={() => void build().then(setReport)} />
+        <BigButton label={t("diag.preview")} variant="secondary" onPress={() => void build().then(setReport)} />
         {report ? (
           <AppText ltr selectable style={{ fontSize: 13, color: p.text }}>
             {report}
           </AppText>
         ) : null}
-        <BigButton label={t("diag.share")} selected={false} onPress={() => void share()} />
+        <BigButton label={t("diag.share")} variant="secondary" onPress={() => void share()} />
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("diag.shareNote")}</AppText>
         <BigButton
           label={t("diag.clear")}
-          selected={false}
+          variant="danger"
           onPress={() => {
             diagnostics.clear();
             setCount(0);
@@ -91,8 +91,8 @@ export function DiagnosticsScreen() {
             setMsg(t("diag.cleared"));
           }}
         />
-        {msg ? <AppText style={{ color: p.muted }}>{msg}</AppText> : null}
+        {msg ? <InlineStatus kind="info" text={msg} /> : null}
       </Card>
-    </ScrollView>
+    </Screen>
   );
 }

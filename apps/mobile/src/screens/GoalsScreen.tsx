@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
 import type { LibraryExercise } from "../db/programmeRepo";
@@ -17,7 +17,7 @@ import { MUSCLE_GROUPS } from "../logic/exposure";
 import { describePace } from "../logic/paceText";
 import { kgToUnit, unitToKg } from "../logic/units";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, Field } from "../ui";
+import { AppText, BigButton, Card, Chip, Field, InlineStatus, Screen } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 
 /** Goals and pace: the one goal, how it stands, and weigh-ins. Pace is an estimate from the lifter's logs and says so. */
@@ -90,29 +90,29 @@ export function GoalsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }} keyboardShouldPersistTaps="handled">
+    <Screen>
       <Card>
         <AppText style={{ fontWeight: "600" }}>{t("goals.current")}</AppText>
         {text ? (
           <>
-            <AppText style={{ fontSize: 16, fontWeight: "600" }}>{pace?.kind === "none" ? t("goals.none") : text.headline}</AppText>
+            <AppText style={{ fontSize: 20, fontWeight: "600" }}>{pace?.kind === "none" ? t("goals.none") : text.headline}</AppText>
             {text.details.map((d, i) => (
               <AppText key={i}>{d}</AppText>
             ))}
           </>
         ) : null}
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("goals.estimate")}</AppText>
-        {saved ? <AppText style={{ fontWeight: "600" }}>✓ {t("goals.saved")}</AppText> : null}
+        {saved ? <InlineStatus kind="success" text={t("goals.saved")} /> : null}
       </Card>
 
       <Card>
-        <BigButton label={t("goals.edit")} selected={editing} onPress={() => setEditing((v) => !v)} />
+        <BigButton variant="secondary" icon="edit" label={t("goals.edit")} onPress={() => setEditing((v) => !v)} />
         {editing ? (
           <View style={{ gap: space.sm }}>
             {row((["lift", "bodyweight", "muscle"] as const).map((k) => <Chip key={k} label={t(`ob.goal.${k}` as StringKey)} selected={form.kind === k} onPress={() => set({ kind: k })} />))}
             {form.kind === "lift" ? (
               <>
-                <BigButton label={nameOf(form.exerciseId) || t("goals.chooseExercise")} selected={false} onPress={() => setPicker(true)} />
+                <BigButton label={nameOf(form.exerciseId) || t("goals.chooseExercise")} variant="secondary" onPress={() => setPicker(true)} />
                 <Field label={t("ob.goal.load", { unit: unitText })} value={form.loadText} onChangeText={(s) => set({ loadText: s })} numeric />
                 <Field label={t("ob.goal.reps")} value={form.repsText} onChangeText={(s) => set({ repsText: s })} numeric />
               </>
@@ -121,14 +121,12 @@ export function GoalsScreen() {
             {form.kind === "muscle" ? row(MUSCLE_GROUPS.filter((m) => m !== "other").map((m) => <Chip key={m} label={t(`muscle.${m}` as StringKey)} selected={form.muscle === m} onPress={() => set({ muscle: m })} />)) : null}
             {form.kind === "lift" || form.kind === "bodyweight" ? <DateSelect label={t("ob.goal.date")} value={form.dateText} onChange={(s) => set({ dateText: s })} years="future" span={10} /> : null}
             {problems.map((c, i) => (
-              <AppText key={i} style={{ fontWeight: "600" }}>
-                ⚠ {t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })}
-              </AppText>
+              <InlineStatus key={i} kind="error" text={t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })} />
             ))}
             <BigButton label={t("goals.save")} onPress={() => void save()} />
           </View>
         ) : null}
-        {pace && pace.kind !== "none" ? <BigButton label={t("goals.clear")} selected={false} onPress={() => void goals.clearGoal().then(refresh)} /> : null}
+        {pace && pace.kind !== "none" ? <BigButton label={t("goals.clear")} variant="quiet" onPress={() => void goals.clearGoal().then(refresh)} /> : null}
       </Card>
 
       <ExercisePicker
@@ -146,7 +144,7 @@ export function GoalsScreen() {
       <Card>
         <AppText style={{ fontWeight: "600" }}>{t("goals.weighIn")}</AppText>
         <Field label={t("goals.weighIn.field", { unit: unitText })} value={weighText} onChangeText={(s) => { setWeighBad(false); setWeighText(s); }} numeric />
-        {weighBad ? <AppText style={{ fontWeight: "600" }}>⚠ {t("goals.weighIn.bad", { min: fmt(30), max: fmt(300) })}</AppText> : null}
+        {weighBad ? <InlineStatus kind="error" text={t("goals.weighIn.bad", { min: fmt(30), max: fmt(300) })} /> : null}
         <BigButton label={t("goals.weighIn.save")} onPress={() => void weigh()} />
         <AppText style={{ fontWeight: "600" }}>{t("goals.weighIn.recent")}</AppText>
         {weighIns.length === 0 ? <AppText style={{ color: p.muted }}>{t("goals.weighIn.none")}</AppText> : null}
@@ -171,6 +169,6 @@ export function GoalsScreen() {
         ))}
       </Card>
       <HealthNote />
-    </ScrollView>
+    </Screen>
   );
 }

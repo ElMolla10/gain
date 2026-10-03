@@ -1,9 +1,8 @@
 import React from "react";
-import { ScrollView } from "react-native";
 import { useI18n } from "../i18n";
 import { FREE_FEATURES, PAID_FEATURES } from "../logic/plans";
 import { space } from "../theme";
-import { AppText, ArDraftNote, Card } from "../ui";
+import { AppText, ArDraftNote, Card, Notice, Screen } from "../ui";
 
 /**
  * What would be free and what would be paid, with the limit stated up front. A preview page: no price, no button that buys anything, no
@@ -12,25 +11,23 @@ import { AppText, ArDraftNote, Card } from "../ui";
 export function PlansScreen() {
   const { t, lang } = useI18n();
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
+    <Screen>
       {lang === "ar" ? <ArDraftNote /> : null}
+      <Notice kind="info">{t("plans.nothing")}</Notice>
       <Card>
-        <AppText style={{ fontWeight: "600" }}>{t("plans.nothing")}</AppText>
-      </Card>
-      <Card>
-        <AppText accessibilityRole="header" style={{ fontWeight: "600", fontSize: 16 }}>{t("plans.free.title")}</AppText>
+        <AppText accessibilityRole="header" style={{ fontWeight: "600", fontSize: 20 }}>{t("plans.free.title")}</AppText>
         {FREE_FEATURES.map((f) => (
           <AppText key={f}>• {t(`plans.f.${f}` as never)}</AppText>
         ))}
       </Card>
       <Card>
-        <AppText accessibilityRole="header" style={{ fontWeight: "600", fontSize: 16 }}>{t("plans.paid.title")}</AppText>
+        <AppText accessibilityRole="header" style={{ fontWeight: "600", fontSize: 20 }}>{t("plans.paid.title")}</AppText>
         {PAID_FEATURES.map((f) => (
           <AppText key={f}>• {t(`plans.f.${f}` as never)}</AppText>
         ))}
         <AppText>{t("plans.limit")}</AppText>
       </Card>
       <AppText>{t("plans.records")}</AppText>
-    </ScrollView>
+    </Screen>
   );
 }

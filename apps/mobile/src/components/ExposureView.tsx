@@ -5,7 +5,7 @@ import type { StringKey } from "../i18n/strings";
 import { diffExposure, goalLiftFrequency, type ExposureRow } from "../logic/exposure";
 import type { ProgrammeDraft } from "../logic/programmeDraft";
 import { space, usePalette } from "../theme";
-import { AppText, Card } from "../ui";
+import { AppText, Card, InlineStatus } from "../ui";
 
 const n = (x: number) => isolateLtr(String(x));
 const signed = (x: number) => isolateLtr(`${x > 0 ? "+" : ""}${x}`);
@@ -63,9 +63,7 @@ export function EffectView(props: { before: ExposureRow[]; after: ExposureRow[];
         );
       })}
       {goal.map(([id, c]) => (
-        <AppText key={id} style={{ fontWeight: "600" }}>
-          ⚠ {t("prog.effect.goal", { name: props.nameOf(id), before: n(c), after: n(fa.get(id) ?? 0) })}
-        </AppText>
+        <InlineStatus key={id} kind="warn" text={t("prog.effect.goal", { name: props.nameOf(id), before: n(c), after: n(fa.get(id) ?? 0) })} />
       ))}
     </Card>
   );

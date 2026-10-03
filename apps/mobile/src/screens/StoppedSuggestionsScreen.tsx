@@ -1,7 +1,6 @@
 import { REJECTION_THRESHOLD } from "@gain/engine";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ScrollView } from "react-native";
 import { useServices } from "../AppContext";
 import type { StoppedSuggestion } from "../db/rejectionRepo";
 import { useI18n } from "../i18n";
@@ -9,7 +8,7 @@ import { exerciseLabels } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { jumpKindText } from "../logic/jumpText";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card } from "../ui";
+import { AppText, BigButton, Card, EmptyState, InlineStatus, LoadingState, Screen } from "../ui";
 
 /** "Things I've stopped suggesting": every jump the lifter declined, how many times, and a way to bring it back (with undo). */
 export function StoppedSuggestionsScreen() {
@@ -26,9 +25,9 @@ export function StoppedSuggestionsScreen() {
     }, [refresh]),
   );
 
-  if (!items) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
+  if (!items) return <LoadingState />;
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
+    <Screen>
       <AppText style={{ color: p.muted }}>{t("stop.intro")}</AppText>
       {last ? (
         <Card>
@@ -36,7 +35,7 @@ export function StoppedSuggestionsScreen() {
           {last.msg === "stop.restored" ? (
             <BigButton
               label={t("stop.undo")}
-              selected={false}
+              variant="secondary"
               onPress={async () => {
                 const ok = await rejections.undoBringBack(last.id);
                 setLast({ id: last.id, msg: ok ? "stop.undone" : "stop.undoFailed" });
@@ -46,18 +45,16 @@ export function StoppedSuggestionsScreen() {
           ) : null}
         </Card>
       ) : null}
-      {items.length === 0 ? <AppText>{t("stop.empty")}</AppText> : null}
+      {items.length === 0 ? <EmptyState icon="settings" title={t("stop.empty")} /> : null}
       {items.map((it) => (
         <Card key={it.id}>
-          <AppText style={{ fontSize: 16, fontWeight: "600" }}>{jumpKindText(it.jumpKind, unit, t as never)}</AppText>
+          <AppText style={{ fontSize: 20, fontWeight: "600" }}>{jumpKindText(it.jumpKind, unit, t as never)}</AppText>
           <AppText>{exerciseLabels(it, lang).primary}</AppText>
-          <AppText style={{ fontWeight: "600", color: it.blocked ? p.danger : p.muted }}>
-            {it.blocked ? t("stop.stopped") : t("stop.counting", { count: it.count, max: REJECTION_THRESHOLD })}
-          </AppText>
+          <InlineStatus kind={it.blocked ? "warn" : "info"} text={it.blocked ? t("stop.stopped") : t("stop.counting", { count: it.count, max: REJECTION_THRESHOLD })} />
           <AppText style={{ color: p.muted }}>{t("stop.last", { date: new Date(it.lastRejectedAt).toISOString().slice(0, 10) })}</AppText>
           <BigButton
             label={t("stop.bringBack")}
-            selected={false}
+            variant="secondary"
             onPress={async () => {
               await rejections.bringBack(it.id);
               setLast({ id: it.id, msg: "stop.restored" });
@@ -66,6 +63,6 @@ export function StoppedSuggestionsScreen() {
           />
         </Card>
       ))}
-    </ScrollView>
+    </Screen>
   );
 }

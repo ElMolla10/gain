@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { TextInput, View } from "react-native";
 import { AppText } from "../ui";
-import { MIN_TOUCH, space, usePalette } from "../theme";
+import { INPUT_HEIGHT, radius, space, usePalette } from "../theme";
 
 /**
  * A number the lifter can type. The text lives here (so "6", "62." and "62.5" can be typed on the way) and the parent gets the parsed
@@ -48,15 +48,15 @@ export function NumField<T extends number>(props: {
         placeholder={props.placeholder ?? "—"}
         placeholderTextColor={p.muted}
         style={{
-          minHeight: MIN_TOUCH,
-          borderWidth: 2,
+          minHeight: INPUT_HEIGHT,
+          borderWidth: 1.5,
           borderColor: bad ? p.warn : p.edge,
-          borderRadius: 12,
+          borderRadius: radius.button,
           paddingHorizontal: space.sm,
           fontSize: props.fontSize ?? 24,
           fontWeight: "600",
           color: p.text,
-          backgroundColor: p.card,
+          backgroundColor: p.raised,
           textAlign: "center",
           writingDirection: "ltr",
         }}

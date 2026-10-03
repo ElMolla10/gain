@@ -1,7 +1,6 @@
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useState } from "react";
-import { ScrollView } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
@@ -12,7 +11,7 @@ import type { StringKey } from "../i18n/strings";
 import { BackupInvalid, type BackupFile } from "../logic/backup";
 import { localDateText } from "../logic/trendChart";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card } from "../ui";
+import { AppText, BigButton, Card, InlineStatus, Notice, Screen } from "../ui";
 
 /** Your data: export (JSON backup, CSV of sets), restore a backup, delete everything. Local only: nothing is uploaded. */
 export function DataScreen() {
@@ -156,29 +155,29 @@ export function DataScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
+    <Screen>
       <AppText style={{ color: p.muted }}>{t("data.intro")}</AppText>
       {counts ? <AppText>{t("data.counts", counts as unknown as Record<string, number>)}</AppText> : null}
-      {busy ? <AppText>{t(busy)}</AppText> : null}
-      {msg ? <AppText style={{ fontWeight: "600" }}>✓ {msg}</AppText> : null}
-      {err ? <AppText style={{ color: p.danger }}>{err}</AppText> : null}
+      {busy ? <InlineStatus kind="info" text={t(busy)} /> : null}
+      {msg ? <InlineStatus kind="success" text={msg} /> : null}
+      {err ? <Notice kind="error">{err}</Notice> : null}
 
       <Card>
         <BigButton label={t("data.exportJson")} disabled={!!busy} onPress={() => share(`gain-backup-${stamp()}.json`, "application/json", () => data.exportJson())} />
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.exportJsonNote")}</AppText>
-        <BigButton label={t("data.exportCsv")} selected={false} disabled={!!busy} onPress={() => share(`gain-sets-${stamp()}.csv`, "text/csv", () => data.exportCsv())} />
+        <BigButton label={t("data.exportCsv")} variant="secondary" disabled={!!busy} onPress={() => share(`gain-sets-${stamp()}.csv`, "text/csv", () => data.exportCsv())} />
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.exportCsvNote")}</AppText>
       </Card>
 
       <Card>
-        <BigButton label={t("data.restore")} selected={false} disabled={!!busy} onPress={pick} />
+        <BigButton label={t("data.restore")} variant="secondary" disabled={!!busy} onPress={pick} />
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.restoreNote")}</AppText>
         {found ? (
           <>
             <AppText style={{ fontWeight: "600" }}>{t("data.restore.found", { date: found.file.exportedAt.slice(0, 10), sessions: found.sessions, sets: found.sets })}</AppText>
             <AppText>{t("data.restore.warn")}</AppText>
-            <BigButton label={t("data.restore.confirm")} onPress={restore} />
-            <BigButton label={t("data.restore.cancel")} selected={false} onPress={() => setFound(null)} />
+            <BigButton variant="danger" label={t("data.restore.confirm")} onPress={restore} />
+            <BigButton label={t("data.restore.cancel")} variant="secondary" onPress={() => setFound(null)} />
           </>
         ) : null}
       </Card>
@@ -187,7 +186,7 @@ export function DataScreen() {
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("data.beforeRestore.title")}</AppText>
           <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.beforeRestore.note")}</AppText>
-          <BigButton label={t("data.safety.use")} selected={false} disabled={!!busy} onPress={() => void useSafetyCopy(PRE_RESTORE_FILE)} />
+          <BigButton label={t("data.safety.use")} variant="secondary" disabled={!!busy} onPress={() => void useSafetyCopy(PRE_RESTORE_FILE)} />
         </Card>
       ) : null}
 
@@ -195,7 +194,7 @@ export function DataScreen() {
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("data.safety.title")}</AppText>
           <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.safety.note")}</AppText>
-          <BigButton label={t("data.safety.use")} selected={false} disabled={!!busy} onPress={() => void useSafetyCopy()} />
+          <BigButton label={t("data.safety.use")} variant="secondary" disabled={!!busy} onPress={() => void useSafetyCopy()} />
         </Card>
       ) : null}
 
@@ -205,15 +204,15 @@ export function DataScreen() {
             <AppText style={{ fontWeight: "600" }}>{t("data.delete")}</AppText>
             <AppText>{t("data.delete.warn")}</AppText>
             {hasOnline ? <AppText>{t("data.delete.online")}</AppText> : null}
-            {onlineFailed ? <AppText style={{ color: p.danger }}>{t("data.delete.onlineFailed")}</AppText> : null}
-            <BigButton label={t("data.delete.ask")} onPress={() => wipe()} />
-            {onlineFailed ? <BigButton label={t("data.delete.localOnly")} selected={false} onPress={() => wipe(true)} /> : null}
-            <BigButton label={t("data.delete.cancel")} selected={false} onPress={() => setAskDelete(false)} />
+            {onlineFailed ? <InlineStatus kind="error" text={t("data.delete.onlineFailed")} /> : null}
+            <BigButton variant="danger" label={t("data.delete.ask")} onPress={() => wipe()} />
+            {onlineFailed ? <BigButton label={t("data.delete.localOnly")} variant="secondary" onPress={() => wipe(true)} /> : null}
+            <BigButton label={t("data.delete.cancel")} variant="secondary" onPress={() => setAskDelete(false)} />
           </>
         ) : (
-          <BigButton label={t("data.delete.first")} selected={false} onPress={() => setAskDelete(true)} />
+          <BigButton label={t("data.delete.first")} variant="danger" onPress={() => setAskDelete(true)} />
         )}
       </Card>
-    </ScrollView>
+    </Screen>
   );
 }

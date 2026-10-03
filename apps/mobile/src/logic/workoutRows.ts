@@ -132,8 +132,11 @@ export function rowLabels(rows: SetRowDraft[]): string[] {
 /** Rows that are filled in but not logged: what finishing would leave out (shown as a note, never saved silently). */
 export const unloggedFilled = (rows: SetRowDraft[]): number => rows.filter((r) => !r.saved && (r.load !== null || r.reps !== null) && rowCanLog(r)).length;
 
-/** Rows whose numbers are not in the database yet: typed but not ticked, or a ticked row edited since (needs "update"). Never hidden. */
-export const pendingCount = (rows: SetRowDraft[]): number => unloggedFilled(rows) + rows.filter((r) => r.saved && r.dirty).length;
+/**
+ * Rows whose numbers are not in the database yet: anything typed into a row that is not ticked (even if it cannot be ticked yet, e.g. a
+ * weight with no reps), and a ticked row edited since (it needs "update"). Counted so the save status never hides them.
+ */
+export const pendingCount = (rows: SetRowDraft[]): number => rows.filter((r) => (!r.saved && (r.load !== null || r.reps !== null)) || (r.saved && r.dirty)).length;
 
 /** The set the lifter is on: the first row that is not ticked. Null when every row is ticked. Only a visual emphasis; nothing depends on it. */
 export const currentRowKey = (rows: SetRowDraft[]): string | null => rows.find((r) => !r.saved)?.key ?? null;

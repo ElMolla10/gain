@@ -894,13 +894,7 @@ export function WorkoutScreen() {
       {/* Compact header: back, title, rest timer, Finish. The numbers live in the stats row below, in the scroll. */}
       <View style={{ paddingTop: insets.top + space.xs, paddingBottom: space.xs, paddingHorizontal: space.xs, flexDirection: "row", alignItems: "center", gap: space.xs, backgroundColor: p.bg }}>
         <IconButton icon="chevron" back label={t("workout.collapse")} onPress={() => navigation.goBack()} />
-        <View style={{ flex: 1, gap: 2, paddingHorizontal: space.xs }}>
-          <AppText accessibilityRole="header" style={{ fontSize: ty.body, fontWeight: "600" }}>{t("workout.header")}</AppText>
-          {/* Save status: always in view, in words + icon. Failures and unsaved work come before any friendlier message; "resumed" fades after a few seconds. */}
-          <View accessibilityLiveRegion="polite">
-            <InlineStatus compact kind={status.kind} icon={status.icon} text={status.text} />
-          </View>
-        </View>
+        <AppText accessibilityRole="header" style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{t("workout.header")}</AppText>
         <IconButton icon="why" label={t("workout.help.button")} onPress={() => setHelpOpen(true)} />
         <Pressable
           accessibilityRole="button"
@@ -924,6 +918,11 @@ export function WorkoutScreen() {
         >
           <AppText style={{ color: p.onFill, fontWeight: "600", fontSize: 16, textAlign: "center" }}>{t("workout.finishBtn")}</AppText>
         </Pressable>
+      </View>
+
+      {/* Save status: one line under the header, outside the scroll so it is always in view, in words + icon. Failures and unsaved work come before any friendlier message; "resumed" goes away after a few seconds. */}
+      <View accessibilityLiveRegion="polite" style={{ paddingHorizontal: space.lg, paddingBottom: space.xs }}>
+        <InlineStatus compact kind={status.kind} icon={status.icon} text={status.text} />
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">

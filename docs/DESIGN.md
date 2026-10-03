@@ -59,14 +59,8 @@ additions: close, plus, minus, alert, phone, cloud, play, edit) - `SettingsRows`
 
 - **Navigation.** Four tabs with SVG icons, always-visible labels (wrap, capped at 1.4x font scale so the bar stays usable), selected state = tinted pill behind the icon + bold label + accent colour (not colour alone), bottom safe area. The History tab is relabelled **Progress** (route name unchanged so saved
   navigation state and tests keep working). Tab screens draw their own title (`Screen tab title`).
-- **Today.** Session card first: day name, "N sets, about M min", then the one lime Start / Resume button (hero). The lead target is a
-  `TargetStrip`; exercises list planned sets x reps and, when a target exists, the target weight on its own line (stacks at large font
-  scale; no ellipsis anywhere). Weekly review and goal pace appear only when configured. Short-week is a quiet button.
-- **Workout logger.** One compact header row (back, title, help, rest timer, Finish). Stats row. Per exercise: name, a target block (28 sp value,
-  48 dp "Why" pill), rest line, then set rows with Set / Previous / load / reps / tick (all 48 dp). At font scale above 1.3 a row becomes two
-  lines with captions so numbers never shrink or clip. Completed sets get a lime tick and a tinted row (tick glyph, not colour only). The
-  rest timer is a docked bar (layout child, never covering inputs) with the countdown at 36 sp, -15 / +30 / Stop, `accessibilityRole="timer"`.
-  Instructions live in the Help sheet. The 250 ms tick stays isolated in `RestClock`.
+- **Today.** One session card: a "Suggested today" label (words, no star; "In progress" when a workout is open, "Your choice today" for any other day), the day name, programme - sets - minutes, the one lime Start / Resume hero button, then the sample-programme note (below the button). A compact quiet **Change workout** action opens `ChoiceSheet` (an accessible radio list in the shared `Sheet`, every day selectable, each row "name, badge, sets - minutes"). With a workout open, the button always resumes that workout ("Resume <day>" when another day is being looked at) and never plans or starts a second one (`sessionAction`). Below: the exercise list; the lead exercise (goal lift first, as before) is highlighted inside the list (tint, bar, "NEXT TARGET" caption, its target and a quiet **Why** action to the Why screen). There is no separate lead-target card. Weekly review and goal pace appear only when configured. Short-week is a quiet button.
+- **Workout logger.** One compact header row (back, title, help, rest timer, Finish), then one save-status line outside the scroll. The status says, in priority order: save failed / saving / "N not saved yet. Tick to save." (typed-but-unticked or edited rows) / "Resumed your open workout" (only for 6 s) / "Saved on this phone at HH:MM" / "Nothing logged yet" (`saveStatusKind`). Stats row. Per exercise: name with the rest control (timer icon + length or Off, 48 dp) and options menu on the same row, one wrapping target line `Target 55 kg x 9  [Why]` (`TargetLine`; Why is a `QuietAction`: accent text, no frame, 48 dp touch area), then set rows with Set / Previous / load / reps / tick (all 48 dp). The first unticked set of an exercise is the current set: strong wash, accent bar at the start edge, outlined boxes and tick. Ticked rows keep only a quiet wash and borderless boxes; the filled lime tick says "done". At font scale above 1.3 a row becomes two lines with captions so numbers never shrink or clip. The rest timer is a docked bar (layout child, never covering inputs) with the countdown at 36 sp, -15 / +30 / Stop, `accessibilityRole="timer"`. Instructions live in the Help sheet. The 250 ms tick stays isolated in `RestClock`.
 - **Finish.** Title + "saved on this phone", the counted-sets summary (an empty workout says so; no celebration), collapsed records,
   then one card per next target: the number large, a status line, **Accept** (primary) and **Edit weight** (secondary), a stepper editor, the
   jump-guard notice, and Why / Reject as quiet actions. **Done** is a sticky hero button.
@@ -98,7 +92,7 @@ additions: close, plus, minus, alert, phone, cloud, play, edit) - `SettingsRows`
 - **Progress rules, recommendations, billing: untouched.** No AI, no billing, no change to targets.
 - **Bug found while rendering and fixed.** Today compared a programme-slot id with a target's exercise id, so planned targets never showed
   next to exercises (also in v0.15.0). It now matches on `exerciseId`. No rule or number changed.
-- **Workout screen:** the "Saved on this phone" line now shows when a resumed workout already has saved sets (before, it said "Nothing logged yet").
+- **Workout screen:** the "Saved on this phone" line now shows when a resumed workout already has saved sets (before, it said "Nothing logged yet"). Unsaved rows and a failed save are now part of that line (the failure alert is still shown) instead of only an alert or a footnote.
 
 ## 5. Gaps and honest adaptations
 

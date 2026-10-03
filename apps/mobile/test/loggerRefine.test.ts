@@ -51,6 +51,9 @@ describe("logger rows: pending and current set (pure)", () => {
     const edited = editRow(r, r[0]!.key, { reps: 9 });
     expect(pendingCount(edited)).toBe(1);
     expect(pendingCount(markSaved(edited, r[0]!.key))).toBe(0);
+    const blank = initialRows([], 2, { load: null, reps: null }, (() => { let n = 0; return () => `b${++n}`; })());
+    expect(pendingCount(blank)).toBe(0); // empty boxes (even with a ghost target) are not "unsaved work"
+    expect(pendingCount(editRow(blank, blank[0]!.key, { load: 40 }))).toBe(1); // a weight with no reps yet is still unsaved, not hidden
   });
   it("the current set is the first one that is not ticked", () => {
     const r = rows();

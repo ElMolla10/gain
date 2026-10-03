@@ -33,11 +33,19 @@ export interface NamedExercise {
   nameAr: string;
 }
 
-/** Primary + secondary label: in Arabic the Arabic name leads and the English name is the (isolated) subtitle, and vice versa. */
-export function exerciseLabels(ex: NamedExercise, lang: Lang): { primary: string; secondary: string } {
-  return lang === "ar"
-    ? { primary: ex.nameAr, secondary: isolateLtr(ex.nameEn) }
-    : { primary: ex.nameEn, secondary: ex.nameAr };
+let showSecondDefault = false;
+/** Whether the other language's exercise name is shown as a subtitle (off by default; Settings > Display). */
+export function setShowSecondName(on: boolean): void {
+  showSecondDefault = on;
+}
+
+/**
+ * Primary + secondary label. In Arabic the Arabic name leads, in English the English one. The other language's name is the
+ * secondary subtitle, but it is empty unless the lifter turned "show both names" on (`showSecond` overrides that setting).
+ */
+export function exerciseLabels(ex: NamedExercise, lang: Lang, showSecond: boolean = showSecondDefault): { primary: string; secondary: string } {
+  if (lang === "ar") return { primary: ex.nameAr, secondary: showSecond ? isolateLtr(ex.nameEn) : "" };
+  return { primary: ex.nameEn, secondary: showSecond ? ex.nameAr : "" };
 }
 
 /** Normalise Arabic for search: strip diacritics/tatweel, unify alef/yaa/taa-marbuta forms, lower-case Latin. */

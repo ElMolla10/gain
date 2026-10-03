@@ -1,4 +1,5 @@
 import { isTimed, quantityText, targetPhrase, targetQuantity } from "../logic/quantity";
+import { shortReason, targetText } from "../logic/nextTarget";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -198,7 +199,7 @@ export function FinishScreen() {
         <Card><AppText>{t("finish.noNext")}</AppText></Card>
       ) : (
         <>
-          <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("finish.next", { day: next.dayName })}</AppText>
+          <AppText accessibilityRole="header" style={{ fontSize: 19, fontWeight: "800" }}>{t("finish.next", { day: next.dayName })}</AppText>
           <AppText style={{ color: p.muted }}>{t("finish.nextHint")}</AppText>
           {error ? <AppText style={{ color: p.danger }}>{error}</AppText> : null}
           {next.targets.map((tg) => {
@@ -207,19 +208,17 @@ export function FinishScreen() {
             const isEditing = editing?.targetId === tg.id;
             return (
               <Card key={tg.id}>
-                <AppText style={{ fontSize: 20, fontWeight: "800" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
+                <AppText style={{ fontSize: 18, fontWeight: "700" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
                 {tg.currency === "none" || tg.effectiveLoad === null && tg.status !== "rejected" ? (
                   <AppText>{t("finish.noTarget")}</AppText>
                 ) : tg.status === "rejected" ? (
                   <AppText>{t("finish.rejectedNote")}</AppText>
                 ) : (
-                  <AppText style={{ fontSize: 20, fontWeight: "800" }}>
-                    {isTimed(tg.measure)
-                      ? isolateLtr(targetPhrase(tg.effectiveLoad ?? 0, targetQuantity(tg, tg.measure) ?? 0, tg.measure, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") }))
-                      : <>{formatLoad(tg.effectiveLoad ?? 0, lang, unit)} × {isolateLtr(String(tg.reps ?? ""))}</>}
+                  <AppText ltr style={{ fontSize: 20, fontWeight: "800", color: p.accent }}>
+                    {t("today.nextSession", { target: isolateLtr(targetText(tg, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") })) })}
                   </AppText>
                 )}
-                <AppText style={{ color: p.muted }}>{renderReason(localizeReason(tg.reason, unit, lang), lang)}</AppText>
+                <AppText style={{ color: p.muted, fontSize: 14 }}>{shortReason(renderReason(localizeReason(tg.reason, unit, lang), lang))}</AppText>
                 <AppText style={{ color: p.muted }}>{t(`finish.status.${tg.status}` as never)}</AppText>
                 {notices[tg.id] ? <AppText style={{ fontWeight: "700" }}>{notices[tg.id]}</AppText> : null}
 

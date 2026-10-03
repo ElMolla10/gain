@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { directionFor, estimateMinutes, exerciseLabels, isolateLtr, LRI, matchesExercise, normalizeSearch, PDI, translate } from "../src/i18n/format";
+import { directionFor, estimateMinutes, exerciseLabels, isolateLtr, LRI, matchesExercise, normalizeSearch, PDI, setShowSecondName, translate } from "../src/i18n/format";
 import { ar, en } from "../src/i18n/strings";
 import { SAMPLE_EXERCISES } from "../src/db/seedData";
 
@@ -40,11 +40,20 @@ describe("numbers and names stay readable in RTL", () => {
   it("an unknown param stays visible", () => {
     expect(translate("en", "today.sets")).toBe("{n} sets");
   });
+  it("the other language's name is hidden by default and shown when asked for", () => {
+    const ex = { nameEn: "Barbell Bench Press", nameAr: "بنش برس بالبار" };
+    expect(exerciseLabels(ex, "en").secondary).toBe("");
+    expect(exerciseLabels(ex, "ar").secondary).toBe("");
+    expect(exerciseLabels(ex, "en", true).secondary).toBe("بنش برس بالبار");
+    setShowSecondName(true);
+    expect(exerciseLabels(ex, "ar").secondary).toBe(isolateLtr("Barbell Bench Press"));
+    setShowSecondName(false);
+  });
   it("Arabic leads with the Arabic name and isolates the English subtitle", () => {
-    const l = exerciseLabels({ nameEn: "Barbell Bench Press", nameAr: "بنش برس بالبار" }, "ar");
+    const l = exerciseLabels({ nameEn: "Barbell Bench Press", nameAr: "بنش برس بالبار" }, "ar", true);
     expect(l.primary).toBe("بنش برس بالبار");
     expect(l.secondary).toBe(isolateLtr("Barbell Bench Press"));
-    expect(exerciseLabels({ nameEn: "Barbell Bench Press", nameAr: "x" }, "en").primary).toBe("Barbell Bench Press");
+    expect(exerciseLabels({ nameEn: "Barbell Bench Press", nameAr: "x" }, "en", true).primary).toBe("Barbell Bench Press");
   });
 });
 

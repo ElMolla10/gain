@@ -83,6 +83,11 @@ export function describeDecision(
     L("why.ruleVersion", { version: meta.ruleVersion, path: meta.path }),
     L("why.range", { min: i.repRange.min, max: i.repRange.max }),
   ];
+  // The rule replaces the top of the programme's range with the rep ceiling. Say so whenever the two differ (never silent).
+  const pr = i.programmeRepRange;
+  if (pr && pr.max !== i.repRange.max && i.measure !== "time" && i.measure !== "distance") {
+    ruleLines.push(L("range.why", { pmin: pr.min, pmax: pr.max, max: i.repRange.max, source: L(i.policy.ceilingSource === "lift" ? "range.src.lift" : "range.src.default") }));
+  }
   if (i.trackEffort) ruleLines.push(L("why.effortTracked"));
   if (p.needsModel.needed) ruleLines.push(L("why.needsModel"));
   for (const w of p.warnings) ruleLines.push(L(`why.warning.${w}`));

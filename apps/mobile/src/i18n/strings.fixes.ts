@@ -15,6 +15,12 @@ export const enFixes = {
   "jump.repeat": "Repeat last time: {load} × {reps}",
   "jump.reps": "Same weight, one more rep: {load} × {reps}",
   "jump.micro": "Smaller step: {load} × {reps}",
+  "range.line": "Reps: {min}-{max}. Load goes up when every set reaches {max}.",
+  "range.override.lift": "Your programme says {pmin}-{pmax}, but this lift's own rep ceiling is {max}, so that is where load goes up.",
+  "range.override.default": "Your programme says {pmin}-{pmax}, but the default rep ceiling for this kind of lift is {max} (Settings), so that is where load goes up. Set a ceiling on the lift to change it.",
+  "range.why": "Programme range {pmin}-{pmax}; rep ceiling in force {max} ({source}).",
+  "range.src.lift": "this lift's own ceiling",
+  "range.src.default": "app-wide default for this kind of lift",
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
@@ -33,4 +39,10 @@ export const arFixes: Record<keyof typeof enFixes, string> = {
   "jump.repeat": "كرر المرة اللي فاتت: {load} × {reps}",
   "jump.reps": "نفس الوزن وعدّة زيادة: {load} × {reps}",
   "jump.micro": "خطوة أصغر: {load} × {reps}",
+  "range.line": "العدّات: {min}-{max}. الوزن بيزيد لما كل مجموعة توصل {max}.",
+  "range.override.lift": "برنامجك بيقول {pmin}-{pmax}، بس سقف العدّات للتمرين ده {max}، فهنا الوزن بيزيد.",
+  "range.override.default": "برنامجك بيقول {pmin}-{pmax}، بس السقف الافتراضي لنوع التمرين ده {max} (من الإعدادات)، فهنا الوزن بيزيد. حدد سقف للتمرين لو عايز تغيّره.",
+  "range.why": "نطاق البرنامج {pmin}-{pmax}؛ سقف العدّات المطبّق {max} ({source}).",
+  "range.src.lift": "سقف التمرين نفسه",
+  "range.src.default": "الافتراضي العام لنوع التمرين",
 };

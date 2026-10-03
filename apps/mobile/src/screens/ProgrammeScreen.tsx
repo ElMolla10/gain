@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import { ExposureView } from "../components/ExposureView";
 import type { LibraryExercise, VersionInfo } from "../db/programmeRepo";
@@ -10,6 +10,9 @@ import type { ExposureRow } from "../logic/exposure";
 import type { ProgrammeDraft } from "../logic/programmeDraft";
 import { space, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card } from "../ui";
+import { ceilingForName } from "../logic/ceilings";
+import { effectiveRange, rangeText } from "../logic/repRange";
+import type { RepCeilings } from "@gain/engine";
 
 type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch", params?: { versionId?: string; programmeId?: string }) => void };
 
@@ -22,10 +25,11 @@ interface Data {
   library: Map<string, LibraryExercise>;
   versions: VersionInfo[];
   exposure: ExposureRow[];
+  ceilings: RepCeilings;
 }
 
 export function ProgrammeScreen() {
-  const { programmes } = useServices();
+  const { programmes, repos } = useServices();
   const { t, lang } = useI18n();
   const p = usePalette();
   const nav = useNavigation<Nav>();
@@ -39,12 +43,13 @@ export function ProgrammeScreen() {
         if (!a) return alive && setData(null);
         const [draft, lib, versions] = await Promise.all([programmes.loadDraft(a.versionId), programmes.listExercises(), programmes.listVersions(a.programmeId)]);
         const exposure = await programmes.exposureOf(draft);
-        if (alive) setData({ programmeId: a.programmeId, name: a.programmeName, version: a.version, isSample: a.isSample, draft, library: new Map(lib.map((e) => [e.id, e])), versions, exposure });
+        const ceilings = await repos.getRepCeilingDefaults();
+        if (alive) setData({ ceilings, programmeId: a.programmeId, name: a.programmeName, version: a.version, isSample: a.isSample, draft, library: new Map(lib.map((e) => [e.id, e])), versions, exposure });
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
       };
-    }, [programmes]),
+    }, [programmes, repos]),
   );
 
   if (data === undefined) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
@@ -70,7 +75,14 @@ export function ProgrammeScreen() {
           <AppText style={{ color: p.muted }}>{t("prog.dayLine", { n: day.exercises.length, sets: day.exercises.reduce((n, e) => n + e.sets, 0) })}</AppText>
           {day.exercises.map((e) => {
             const ex = data.library.get(e.exerciseId);
-            return <AppText key={e.exerciseId}>{ex ? exerciseLabels(ex, lang).primary : e.exerciseId}{e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}</AppText>;
+            // Counted in reps: show the range that is really used, and say so when the rep ceiling replaces the top of the programme's range.
+            const range = ex && ex.measure === "reps" ? effectiveRange({ programmeMin: e.repMin, programmeMax: e.repMax, ceiling: e.repCeiling ?? ceilingForName(ex.nameEn, data.ceilings), source: e.repCeiling !== null ? "lift" : "default" }) : null;
+            return (
+              <View key={e.exerciseId}>
+                <AppText>{ex ? exerciseLabels(ex, lang).primary : e.exerciseId}{e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}</AppText>
+                {range ? <AppText style={{ color: p.muted, fontSize: 13 }}>{e.sets} × {rangeText(range, (k, params) => t(k, params))}</AppText> : null}
+              </View>
+            );
           })}
         </Card>
       ))}

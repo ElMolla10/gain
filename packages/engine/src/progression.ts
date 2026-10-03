@@ -156,6 +156,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     line,
     asOf: ctx.asOf,
     repRange,
+    programmeRepRange: { min: exercise.repRange.min, max: exercise.repRange.max },
     isGoalLift: !!exercise.isGoalLift,
     trackEffort: !!exercise.trackEffort,
     bodyweightKg: bw,

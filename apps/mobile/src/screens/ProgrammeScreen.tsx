@@ -1,20 +1,18 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
-import { ExposureView } from "../components/ExposureView";
-import type { LibraryExercise, VersionInfo } from "../db/programmeRepo";
+import type { LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
-import type { ExposureRow } from "../logic/exposure";
 import type { ProgrammeDraft } from "../logic/programmeDraft";
-import { space, usePalette } from "../theme";
+import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card } from "../ui";
 import { ceilingForName } from "../logic/ceilings";
 import { effectiveRange, rangeText } from "../logic/repRange";
 import type { RepCeilings } from "@gain/engine";
 
-type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch", params?: { versionId?: string; programmeId?: string }) => void };
+type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions", params?: { versionId?: string; programmeId?: string }) => void };
 
 interface Data {
   programmeId: string;
@@ -23,8 +21,6 @@ interface Data {
   isSample: boolean;
   draft: ProgrammeDraft;
   library: Map<string, LibraryExercise>;
-  versions: VersionInfo[];
-  exposure: ExposureRow[];
   ceilings: RepCeilings;
 }
 
@@ -34,6 +30,7 @@ export function ProgrammeScreen() {
   const p = usePalette();
   const nav = useNavigation<Nav>();
   const [data, setData] = useState<Data | null | undefined>(undefined);
+  const [open, setOpen] = useState<number | null>(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,10 +38,9 @@ export function ProgrammeScreen() {
       (async () => {
         const a = await programmes.getActive();
         if (!a) return alive && setData(null);
-        const [draft, lib, versions] = await Promise.all([programmes.loadDraft(a.versionId), programmes.listExercises(), programmes.listVersions(a.programmeId)]);
-        const exposure = await programmes.exposureOf(draft);
+        const [draft, lib] = await Promise.all([programmes.loadDraft(a.versionId), programmes.listExercises()]);
         const ceilings = await repos.getRepCeilingDefaults();
-        if (alive) setData({ ceilings, programmeId: a.programmeId, name: a.programmeName, version: a.version, isSample: a.isSample, draft, library: new Map(lib.map((e) => [e.id, e])), versions, exposure });
+        if (alive) setData({ ceilings, programmeId: a.programmeId, name: a.programmeName, version: a.version, isSample: a.isSample, draft, library: new Map(lib.map((e) => [e.id, e])) });
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
@@ -62,44 +58,66 @@ export function ProgrammeScreen() {
       </ScrollView>
     );
 
+  const linkRow = (label: string, onPress: () => void) => (
+    <Pressable accessibilityRole="button" onPress={onPress} style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderColor: p.edge }}>
+      <AppText style={{ fontSize: ty.body }}>{label}</AppText>
+      <AppText style={{ color: p.muted, fontSize: ty.body }}>›</AppText>
+    </Pressable>
+  );
+
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
-      <Card>
-        <AppText style={{ fontSize: 20, fontWeight: "800" }}>{data.name}</AppText>
-        <AppText style={{ color: p.muted }}>{t("prog.version", { v: data.version })}</AppText>
-        {data.isSample ? <AppText style={{ color: p.muted }}>{t("prog.sampleTag")}</AppText> : null}
-      </Card>
-      {data.draft.days.map((day, i) => (
-        <Card key={i}>
-          <AppText style={{ fontSize: 18, fontWeight: "700" }}>{day.name}</AppText>
-          <AppText style={{ color: p.muted }}>{t("prog.dayLine", { n: day.exercises.length, sets: day.exercises.reduce((n, e) => n + e.sets, 0) })}</AppText>
-          {day.exercises.map((e) => {
-            const ex = data.library.get(e.exerciseId);
-            // Counted in reps: show the range that is really used, and say so when the rep ceiling replaces the top of the programme's range.
-            const range = ex && ex.measure === "reps" ? effectiveRange({ programmeMin: e.repMin, programmeMax: e.repMax, ceiling: e.repCeiling ?? ceilingForName(ex.nameEn, data.ceilings), source: e.repCeiling !== null ? "lift" : "default" }) : null;
-            return (
-              <View key={e.exerciseId}>
-                <AppText>{ex ? exerciseLabels(ex, lang).primary : e.exerciseId}{e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}</AppText>
-                {range ? <AppText style={{ color: p.muted, fontSize: 13 }}>{e.sets} × {rangeText(range, (k, params) => t(k, params))}</AppText> : null}
-              </View>
-            );
-          })}
-        </Card>
-      ))}
-      <BigButton label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
-      <ExposureView rows={data.exposure} />
-      <Card>
-        <AppText style={{ fontWeight: "700" }}>{t("prog.versions")}</AppText>
-        <AppText style={{ color: p.muted, fontSize: 13 }}>{t("prog.versionsNote")}</AppText>
-        {data.versions.map((v) => (
-          <Card key={v.versionId} style={{ gap: space.xs }}>
-            <AppText>{t("prog.versionLine", { v: v.version, days: v.days, n: v.exercises, sessions: v.sessions })}</AppText>
-            {v.isCurrent ? <AppText style={{ color: p.accent, fontWeight: "700" }}>✓ {t("prog.current")}</AppText> : <BigButton label={t("prog.fromVersion")} selected={false} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId, versionId: v.versionId })} />}
+      <View style={{ gap: space.xs }}>
+        <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "800" }}>{data.name}</AppText>
+        <AppText style={{ color: p.muted, fontSize: ty.secondary }}>
+          {t("prog.version", { v: data.version })}
+          {data.isSample ? ` · ${t("prog.sampleTag")}` : ""}
+        </AppText>
+      </View>
+      {data.draft.days.map((day, i) => {
+        const expanded = open === i;
+        const sets = day.exercises.reduce((n, e) => n + e.sets, 0);
+        return (
+          <Card key={i} style={{ gap: space.sm }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+              onPress={() => setOpen(expanded ? null : i)}
+              style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}
+            >
+              <AppText style={{ fontSize: ty.section, fontWeight: "700", flex: 1 }}>{t("prog.dayCard", { day: day.name, n: day.exercises.length, sets })}</AppText>
+              <AppText style={{ color: p.muted, fontSize: ty.section }}>{expanded ? "▾" : "▸"}</AppText>
+            </Pressable>
+            {expanded
+              ? day.exercises.map((e) => {
+                  const ex = data.library.get(e.exerciseId);
+                  // Counted in reps: show the range that is really used, and say so when the rep ceiling replaces the top of the programme's range.
+                  const range = ex && ex.measure === "reps" ? effectiveRange({ programmeMin: e.repMin, programmeMax: e.repMax, ceiling: e.repCeiling ?? ceilingForName(ex.nameEn, data.ceilings), source: e.repCeiling !== null ? "lift" : "default" }) : null;
+                  const l = ex ? exerciseLabels(ex, lang) : null;
+                  return (
+                    <View key={e.exerciseId} style={{ minHeight: MIN_TOUCH, justifyContent: "center" }}>
+                      <AppText style={{ fontSize: ty.body }}>
+                        {l ? l.primary : e.exerciseId}
+                        {e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}
+                      </AppText>
+                      <AppText style={{ color: p.muted, fontSize: ty.secondary }}>
+                        {range ? `${e.sets} × ${rangeText(range, (k, params) => t(k, params))}` : `${e.sets} ×`}
+                        {l && l.secondary ? ` · ${l.secondary}` : ""}
+                      </AppText>
+                    </View>
+                  );
+                })
+              : null}
           </Card>
-        ))}
-      </Card>
-      <BigButton label={t("prog.switch.entry")} selected={false} onPress={() => nav.navigate("ProgrammeSwitch")} />
-      <BigButton label={t("prog.new")} selected={false} onPress={() => nav.navigate("ProgrammeEdit")} />
+        );
+      })}
+      <BigButton label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
+      <View>
+        {linkRow(t("prog.exposure.title"), () => nav.navigate("ProgrammeExposure"))}
+        {linkRow(t("prog.versions"), () => nav.navigate("ProgrammeVersions"))}
+        {linkRow(t("prog.switch.entry"), () => nav.navigate("ProgrammeSwitch"))}
+        {linkRow(t("prog.new"), () => nav.navigate("ProgrammeEdit"))}
+      </View>
       <ArDraftNote />
     </ScrollView>
   );

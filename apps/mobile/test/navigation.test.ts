@@ -30,3 +30,13 @@ describe("P09 navigation", () => {
     expect(app).not.toMatch(/#[0-9a-fA-F]{6}/);
   });
 });
+
+describe("Plan tab secondary views", () => {
+  it("exposure and versions are their own screens, not part of the Plan tab", () => {
+    const plan = readFileSync(join(__dirname, "..", "src", "screens", "ProgrammeScreen.tsx"), "utf8");
+    expect(app).toContain('name="ProgrammeExposure"');
+    expect(app).toContain('name="ProgrammeVersions"');
+    expect(plan).not.toContain("ExposureView");
+    expect(plan).toContain('navigate("ProgrammeExposure")');
+  });
+});

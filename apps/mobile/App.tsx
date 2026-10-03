@@ -5,6 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Pressable, Text, useColorScheme, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { navColors } from "./src/palettes";
+import { usePalette } from "./src/theme";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
@@ -21,6 +23,7 @@ import { loadReminderSettings, reminderText, syncReminders } from "./src/logic/r
 import { createReminders } from "./src/notifications/reminders";
 import { createRestAlerts } from "./src/notifications/restAlerts";
 import { createDataRepo } from "./src/db/dataRepo";
+import { TabIcon, type TabIconName } from "./src/components/TabIcon";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { diagnostics } from "./src/diagnostics";
 import { installCrashHandler } from "./src/logic/diagnostics";
@@ -70,12 +73,13 @@ const Stack = createNativeStackNavigator();
 
 function Tabs() {
   const { t } = useI18n();
+  const icon = (name: TabIconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabIcon name={name} color={color} size={focused ? 26 : 24} />;
   return (
     <Tab.Navigator screenOptions={{ tabBarLabelStyle: { fontSize: 14 }, tabBarStyle: { minHeight: 64 } }}>
-      <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today") }} />
-      <Tab.Screen name="Programme" component={ProgrammeScreen} options={{ title: t("prog.title"), tabBarLabel: t("tab.programme") }} />
-      <Tab.Screen name="History" component={HistoryScreen} options={{ title: t("history.title"), tabBarLabel: t("tab.history") }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: t("tab.settings") }} />
+      <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today"), tabBarIcon: icon("today") }} />
+      <Tab.Screen name="Programme" component={ProgrammeScreen} options={{ title: t("prog.title"), tabBarLabel: t("tab.programme"), tabBarIcon: icon("plan") }} />
+      <Tab.Screen name="History" component={HistoryScreen} options={{ title: t("history.title"), tabBarLabel: t("tab.history"), tabBarIcon: icon("history") }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: t("tab.settings"), tabBarIcon: icon("settings") }} />
     </Tab.Navigator>
   );
 }
@@ -88,6 +92,12 @@ function SetupRoute() {
 function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   const { t, direction } = useI18n();
   const scheme = useColorScheme();
+  const palette = usePalette();
+  // One primary accent for the tab bar, headers and the logger (the colours come from the same palette).
+  const navTheme = useMemo(() => {
+    const base = scheme === "dark" ? DarkTheme : DefaultTheme;
+    return { ...base, colors: { ...base.colors, ...navColors(palette) } };
+  }, [scheme, palette]);
   if (props.needsOnboarding) {
     return (
       <View style={{ flex: 1, direction }}>
@@ -99,7 +109,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   return (
     // `direction` on the root flips every flex row and the navigation chrome at once, without restarting the app.
     <View style={{ flex: 1, direction }}>
-      <NavigationContainer theme={scheme === "dark" ? DarkTheme : DefaultTheme} direction={direction}>
+      <NavigationContainer theme={navTheme} direction={direction}>
         <Stack.Navigator>
           <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title"), headerShown: false }} />
@@ -130,6 +140,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
 /** A screen that throws while drawing no longer blanks the app: it is logged locally and the lifter gets a way back. */
 function Guarded({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
+  const p = usePalette();
   return (
     <ErrorBoundary
       onError={(e) => diagnostics.record("crash", "render", e)}
@@ -137,8 +148,8 @@ function Guarded({ children }: { children: React.ReactNode }) {
         <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 12 }}>
           <Text style={{ fontSize: 20, fontWeight: "700" }}>{t("diag.crashed.title")}</Text>
           <Text style={{ fontSize: 16 }}>{t("diag.crashed.body")}</Text>
-          <Pressable accessibilityRole="button" onPress={reset} style={{ minHeight: 52, borderRadius: 12, backgroundColor: "#1f6feb", alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 17 }}>{t("diag.crashed.retry")}</Text>
+          <Pressable accessibilityRole="button" onPress={reset} style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.accent, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: p.accentText, fontWeight: "700", fontSize: 17 }}>{t("diag.crashed.retry")}</Text>
           </Pressable>
         </View>
       )}

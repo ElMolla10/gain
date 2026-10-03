@@ -20,6 +20,8 @@ export interface OnboardingForm {
   goalMuscle: MuscleGroup | null;
   heightText: string;
   bodyweightText: string;
+  /** Birthday as YYYY-MM-DD from the date selectors; "" = not given. */
+  birthDateText: string;
 }
 
 export const emptyOnboardingForm = (language: "en" | "ar", units: Unit = "kg"): OnboardingForm => ({
@@ -36,6 +38,7 @@ export const emptyOnboardingForm = (language: "en" | "ar", units: Unit = "kg"): 
   goalMuscle: null,
   heightText: "",
   bodyweightText: "",
+  birthDateText: "",
 });
 
 export type FormProblemCode = ProfileProblemCode | "goal_missing" | "goal_muscle_missing";
@@ -80,6 +83,7 @@ export function buildProfile(f: OnboardingForm, nowMs: number): BuildResult {
     goal: goal ?? { kind: "muscle", muscle: "other" },
     heightCm: height,
     bodyweightKg: bw,
+    birthDate: f.birthDateText.trim() === "" ? null : f.birthDateText.trim(),
   };
   problems.push(...validateProfile(profile, nowMs).map((p) => p.code));
   return { profile: problems.length === 0 ? profile : null, problems };
@@ -93,7 +97,7 @@ export const STEPS: Step[] = ["language", "units", "basics", "goal", "programme"
 export function stepProblems(step: Step, f: OnboardingForm, nowMs: number): FormProblemCode[] {
   const all = buildProfile(f, nowMs).problems;
   const basics: FormProblemCode[] = ["days_bad", "minutes_bad"];
-  const goal: FormProblemCode[] = ["goal_missing", "goal_muscle_missing", "goal_exercise_missing", "goal_load_bad", "goal_reps_bad", "goal_weight_bad", "goal_date_bad", "bodyweight_required", "bodyweight_bad", "height_bad"];
+  const goal: FormProblemCode[] = ["goal_missing", "goal_muscle_missing", "goal_exercise_missing", "goal_load_bad", "goal_reps_bad", "goal_weight_bad", "goal_date_bad", "bodyweight_required", "bodyweight_bad", "height_bad", "birth_bad"];
   if (step === "basics") return all.filter((p) => basics.includes(p));
   if (step === "goal") return all.filter((p) => goal.includes(p));
   return [];

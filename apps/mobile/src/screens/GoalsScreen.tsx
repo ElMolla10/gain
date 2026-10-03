@@ -6,6 +6,7 @@ import type { LibraryExercise } from "../db/programmeRepo";
 import type { PaceResult, WeighIn } from "../db/goalRepo";
 import type { StoredReview } from "../db/weeklyRepo";
 import { changeText } from "../components/WeeklyReviewCard";
+import { DateSelect } from "../components/DateSelect";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
@@ -117,7 +118,7 @@ export function GoalsScreen() {
             ) : null}
             {form.kind === "bodyweight" ? <Field label={t("ob.goal.weight", { unit: unitText })} value={form.weightText} onChangeText={(s) => set({ weightText: s })} numeric /> : null}
             {form.kind === "muscle" ? row(MUSCLE_GROUPS.filter((m) => m !== "other").map((m) => <Chip key={m} label={t(`muscle.${m}` as StringKey)} selected={form.muscle === m} onPress={() => set({ muscle: m })} />)) : null}
-            {form.kind === "lift" || form.kind === "bodyweight" ? <Field label={t("ob.goal.date")} value={form.dateText} onChangeText={(s) => set({ dateText: s })} keyboardType="numbers-and-punctuation" numeric /> : null}
+            {form.kind === "lift" || form.kind === "bodyweight" ? <DateSelect label={t("ob.goal.date")} value={form.dateText} onChange={(s) => set({ dateText: s })} years="future" span={10} /> : null}
             {problems.map((c, i) => (
               <AppText key={i} style={{ fontWeight: "600" }}>
                 ⚠ {t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })}

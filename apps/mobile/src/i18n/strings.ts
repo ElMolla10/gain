@@ -1,5 +1,6 @@
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
 import { arCommon, enCommon } from "./strings.common";
+import { arDate, enDate } from "./strings.date";
 import { arData, enData } from "./strings.data";
 import { arDecisions, enDecisions } from "./strings.decisions";
 import { arGoals, enGoals } from "./strings.goals";
@@ -166,6 +167,7 @@ export const en = {
   "why.missing": "No logged inputs were found for this target.",
   "why.oldFormat": "The stored inputs are in a format this version cannot show in full. The sentence and rule version above are what was stored.",
   ...enCommon,
+  ...enDate,
   ...enGoals,
   ...enWeekly,
   ...enShortWeek,
@@ -335,6 +337,7 @@ export const ar: Record<StringKey, string> = {
   "why.missing": "مفيش أرقام مسجلة للهدف ده.",
   "why.oldFormat": "الأرقام المخزنة بصيغة النسخة دي مش قادرة تعرضها كاملة. الجملة ونسخة القاعدة فوق هما اللي اتخزنوا.",
   ...arCommon,
+  ...arDate,
   ...arGoals,
   ...arWeekly,
   ...arShortWeek,

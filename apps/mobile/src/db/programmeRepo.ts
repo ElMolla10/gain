@@ -42,6 +42,19 @@ export interface VersionInfo {
   finishedSessions: number;
 }
 
+export interface ProgrammeInfo {
+  programmeId: string;
+  name: string;
+  isSample: boolean;
+  isActive: boolean;
+  /** Latest saved version number (older versions stay in the programme's history). */
+  version: number;
+  versions: number;
+  days: number;
+  finishedSessions: number;
+  createdAt: number;
+}
+
 export interface NewExerciseInput {
   nameEn: string;
   nameAr?: string;
@@ -153,6 +166,27 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     return out;
   }
 
+  /** Every programme the lifter has (the hidden Hevy-import history programme is not one), the active one marked. Nothing is deleted by switching. */
+  async function listProgrammes(): Promise<ProgrammeInfo[]> {
+    const active = await getActive();
+    const rows = await db.all<{ id: string; name: string; is_sample: number; created_at: number }>("SELECT id, name, is_sample, created_at FROM programme WHERE deleted_at IS NULL AND kind = 'user' ORDER BY created_at DESC");
+    const out: ProgrammeInfo[] = [];
+    for (const r of rows) {
+      const v = await db.get<{ id: string; version: number; n: number }>(
+        "SELECT id, version, (SELECT COUNT(*) FROM programme_version x WHERE x.programme_id = ? AND x.deleted_at IS NULL) AS n FROM programme_version WHERE programme_id = ? AND deleted_at IS NULL ORDER BY version DESC LIMIT 1",
+        [r.id, r.id],
+      );
+      if (!v) continue;
+      const d = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM programme_day WHERE programme_version_id = ? AND deleted_at IS NULL", [v.id]);
+      const s = await db.get<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM session s JOIN programme_version pv ON pv.id = s.programme_version_id WHERE pv.programme_id = ? AND s.status = 'finished' AND s.deleted_at IS NULL",
+        [r.id],
+      );
+      out.push({ programmeId: r.id, name: r.name, isSample: r.is_sample === 1, isActive: active?.programmeId === r.id, version: Number(v.version), versions: Number(v.n), days: Number(d?.n ?? 0), finishedSessions: Number(s?.n ?? 0), createdAt: r.created_at });
+    }
+    return out;
+  }
+
   /** Weekly exposure of a draft with the lifter's days per week (null = not told, so no weekly numbers are made up). */
   async function exposureOf(draft: ProgrammeDraft): Promise<ExposureRow[]> {
     const dpw = Number(await repos.getSetting("days_per_week"));
@@ -258,6 +292,6 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     await replan();
   }
 
-  return { listExercises, createExercise, seedKeyMap, getActive, loadDraft, listVersions, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
+  return { listExercises, createExercise, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
 }
 export type ProgrammeRepo = ReturnType<typeof createProgrammeRepo>;

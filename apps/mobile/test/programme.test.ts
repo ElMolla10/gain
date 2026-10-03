@@ -302,3 +302,44 @@ describe("custom exercises", () => {
     await expect(programmes.createExercise({ nameEn: "  ", pattern: "squat", equipment: "machine", setup: "free" })).rejects.toThrow(/empty/);
   });
 });
+
+describe("switching programme (v0.8.0)", () => {
+  async function seeded() {
+    const ctx = await freshDb();
+    await ctx.repos.seedIfNeeded();
+    const active = (await ctx.programmes.getActive())!;
+    return { ...ctx, ctx, active };
+  }
+  it("lists every programme, marks the active one, and switching keeps all versions and history", async () => {
+    const { programmes, active, db } = await seeded();
+    const exs = await programmes.listExercises();
+    const squat = exs.find((e) => e.seedKey === "back_squat")!;
+    const first = await programmes.listProgrammes();
+    expect(first.map((p) => p.programmeId)).toEqual([active.programmeId]);
+    expect(first[0]).toMatchObject({ isActive: true, version: 1, versions: 1 });
+    const draftB = { name: "Mine", days: [{ name: "Day 1", exercises: [newExercise(squat.id, { isGoalLift: true })] }] };
+    const made = await programmes.createProgramme(draftB);
+    await programmes.saveNewVersion(made.programmeId, { ...draftB, days: [{ name: "Day 1 edited", exercises: draftB.days[0]!.exercises }] });
+    const both = await programmes.listProgrammes();
+    expect(both).toHaveLength(2);
+    expect(both.find((p) => p.programmeId === made.programmeId)).toMatchObject({ isActive: true, version: 2, versions: 2 });
+    expect(both.find((p) => p.programmeId === active.programmeId)!.isActive).toBe(false);
+    await programmes.setActiveProgramme(active.programmeId);
+    const back = await programmes.listProgrammes();
+    expect(back.find((p) => p.programmeId === active.programmeId)!.isActive).toBe(true);
+    expect(back.find((p) => p.programmeId === made.programmeId)).toMatchObject({ isActive: false, versions: 2 });
+    // The other programme's versions are still all there and the next session is planned from the programme now active.
+    expect(await programmes.listVersions(made.programmeId)).toHaveLength(2);
+    const planned = await db.get<{ pv: string }>("SELECT programme_version_id AS pv FROM session WHERE status = 'planned' AND deleted_at IS NULL");
+    expect(planned!.pv).toBe((await programmes.getActive())!.versionId);
+  });
+  it("refuses to switch while a workout is open", async () => {
+    const { programmes, active, ctx } = await seeded();
+    const exs = await programmes.listExercises();
+    const made = await programmes.createProgramme({ name: "Other", days: [{ name: "D", exercises: [newExercise(exs[0]!.id)] }] });
+    const next = await ctx.repos.getNextDay();
+    await ctx.workout.startOrResumeSession(next!.day.id, (await ctx.repos.getActiveGymId())!);
+    await expect(programmes.setActiveProgramme(active.programmeId)).rejects.toThrow();
+    expect((await programmes.getActive())!.programmeId).toBe(made.programmeId);
+  });
+});

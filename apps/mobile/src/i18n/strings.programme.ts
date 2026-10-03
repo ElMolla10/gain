@@ -101,6 +101,15 @@ export const enProgramme = {
   "pick.save": "Add this exercise",
   "pick.close": "Close",
   "pick.nameMissing": "Type a name.",
+  "prog.switch.entry": "Choose a different programme",
+  "prog.switch.title": "Choose a programme",
+  "prog.switch.note": "Switch to one of your programmes or start a template. Nothing is deleted: the programme you leave stays here with all its versions and history, and you can come back to it.",
+  "prog.switch.mine": "Your programmes",
+  "prog.switch.line": "Version {v} · {days} days · {sessions} finished workouts",
+  "prog.switch.use": "Use this programme",
+  "prog.switch.templates": "Templates",
+  "prog.switch.startTemplate": "Start this template as a new programme",
+  "prog.switch.error": "Could not switch the programme. Nothing was changed.",
 } as const;
 
 export const arProgramme: Record<keyof typeof enProgramme, string> = {
@@ -202,4 +211,13 @@ export const arProgramme: Record<keyof typeof enProgramme, string> = {
   "pick.save": "ضيف التمرين ده",
   "pick.close": "قفل",
   "pick.nameMissing": "اكتب اسم.",
+  "prog.switch.entry": "اختار برنامج تاني",
+  "prog.switch.title": "اختار برنامج",
+  "prog.switch.note": "بدّل لواحد من برامجك أو ابدأ قالب. مفيش حاجة بتتمسح: البرنامج اللي بتسيبه بيفضل هنا بكل نسخه وتاريخه، وتقدر ترجعله.",
+  "prog.switch.mine": "برامجك",
+  "prog.switch.line": "النسخة {v} · {days} أيام · {sessions} تمرينة خلصت",
+  "prog.switch.use": "استخدم البرنامج ده",
+  "prog.switch.templates": "قوالب",
+  "prog.switch.startTemplate": "ابدأ القالب ده كبرنامج جديد",
+  "prog.switch.error": "معرفتش أبدّل البرنامج. مفيش حاجة اتغيرت.",
 };

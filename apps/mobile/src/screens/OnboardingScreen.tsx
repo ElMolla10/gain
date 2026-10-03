@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
+import { ExposureView } from "../components/ExposureView";
 import { ProgrammeEditorView } from "../components/ProgrammeEditorView";
 import { ProfileInvalid } from "../db/onboardingRepo";
 import { DraftInvalid, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
@@ -11,8 +12,8 @@ import { exerciseLabels, isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { ceilingForName } from "../logic/ceilings";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
-import { MUSCLE_GROUPS } from "../logic/exposure";
-import { draftHasExercise, markGoalLift, DAYS_OPTIONS, MINUTES_OPTIONS } from "../logic/onboarding";
+import { MUSCLE_GROUPS, type ExposureRow } from "../logic/exposure";
+import { dayTitles, draftHasExercise, markGoalLift, DAYS_OPTIONS, MINUTES_OPTIONS } from "../logic/onboarding";
 import { buildProfile, emptyOnboardingForm, STEPS, stepProblems, type OnboardingForm, type Step } from "../logic/onboardingForm";
 import { validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
 import { instantiateTemplate, templatesForDays, type Instantiated, type TemplateOffer } from "../logic/templates";
@@ -40,6 +41,7 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
   const [dropped, setDropped] = useState<Instantiated["dropped"]>([]);
   const [draft, setDraft] = useState<ProgrammeDraft | null>(null);
   const [picker, setPicker] = useState(false);
+  const [exposure, setExposure] = useState<ExposureRow[]>([]);
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,15 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
     programmes.seedKeyMap().then(setSeedKeys);
     repos.getRepCeilingDefaults().then(setCeilings);
   }, [programmes, repos, refreshLibrary]);
+
+  // A chosen template shows only its day titles and weekly exposure; the full split is edited later in the Programme tab.
+  useEffect(() => {
+    let alive = true;
+    if (mode === "template" && draft) programmes.exposureOf(draft).then((r) => alive && setExposure(r)).catch(() => alive && setExposure([]));
+    return () => {
+      alive = false;
+    };
+  }, [mode, draft, programmes]);
 
   const byId = useMemo(() => new Map(library.map((e) => [e.id, e])), [library]);
   const keyById = useMemo(() => new Map(library.filter((e) => e.seedKey).map((e) => [e.id, e.seedKey!])), [library]);
@@ -237,8 +248,25 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
             {draft ? (
               <>
                 {form.goalKind === "lift" && form.goalExerciseId && !draftHasExercise(draft, form.goalExerciseId) ? <AppText style={{ fontWeight: "600" }}>ℹ {t("ob.programme.goalMissing")}</AppText> : null}
-                <AppText style={{ color: p.muted }}>{t("ob.programme.edit")}</AppText>
-                <ProgrammeEditorView draft={draft} onChange={setDraft} baseline={null} library={library} daysPerWeek={form.days} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} />
+                {mode === "template" ? (
+                  <>
+                    <Card>
+                      <AppText style={{ fontWeight: "700" }}>{t("ob.programme.days", { n: draft.days.length })}</AppText>
+                      {dayTitles(draft).map((title, i) => (
+                        <AppText key={i} style={{ fontSize: 18 }}>
+                          {i + 1}. {title}
+                        </AppText>
+                      ))}
+                    </Card>
+                    <ExposureView rows={exposure} />
+                    <AppText style={{ color: p.muted }}>{t("ob.programme.later")}</AppText>
+                  </>
+                ) : (
+                  <>
+                    <AppText style={{ color: p.muted }}>{t("ob.programme.edit")}</AppText>
+                    <ProgrammeEditorView draft={draft} onChange={setDraft} baseline={null} library={library} daysPerWeek={form.days} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} />
+                  </>
+                )}
                 {touched ? validateDraft(draft).map((pr, i) => <AppText key={i} style={{ fontWeight: "600" }}>⚠ {t(`prog.problem.${pr.code}` as StringKey, { day: (pr.day ?? 0) + 1 })}</AppText>) : null}
               </>
             ) : null}

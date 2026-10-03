@@ -283,3 +283,16 @@ describe("onboarding without a gym step (silent default gym)", () => {
     expect(buildProfile({ ...f, bodyweightText: "abc" }, NOW).problems).toContain("bodyweight_bad");
   });
 });
+
+describe("template day titles (onboarding shows titles only)", () => {
+  it("lists each day's name in order, with no exercises", async () => {
+    const { dayTitles } = await import("../src/logic/onboarding");
+    const t = TEMPLATES.find((x) => x.id === "upper_lower_4")!;
+    const lib = { byKey: new Map(SAMPLE_EXERCISES.map((e) => [e.key, { exerciseId: `id-${e.key}`, equipment: e.equipment }])) };
+    const { draft } = instantiateTemplate(t, lib, { lang: "en", ceilingFor: () => 10 });
+    const titles = dayTitles(draft);
+    expect(titles).toHaveLength(4);
+    expect(titles).toEqual(draft.days.map((d) => d.name));
+    expect(titles.every((x) => typeof x === "string" && x.length > 0)).toBe(true);
+  });
+});

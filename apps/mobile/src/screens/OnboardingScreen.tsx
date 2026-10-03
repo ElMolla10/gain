@@ -282,7 +282,6 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
             <Card>
               <AppText>{t("ob.review.line.days", { n: form.days ?? 0, min: form.minutes ?? 0 })}</AppText>
               <AppText>{t("ob.review.line.programme", { name: draft?.name ?? "" })}</AppText>
-              <AppText>{t("ob.review.line.gym", { unit: unitText })}</AppText>
               <AppText>{t("ob.review.line.goal", { goal: isolateLtr(g) })}</AppText>
             </Card>
             <AppText style={{ color: p.muted }}>{t("ob.review.note")}</AppText>

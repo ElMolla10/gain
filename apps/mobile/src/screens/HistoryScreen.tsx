@@ -66,7 +66,7 @@ export function HistoryScreen() {
           {lifts.map((l) => (
             <Card key={l.lineId}>
               <AppText style={{ fontSize: 18, fontWeight: "800" }}>{exerciseLabels(l, lang).primary}</AppText>
-              <AppText style={{ color: p.muted }}>{t("history.liftLine", { gym: l.gymName, n: l.sessions })}</AppText>
+              <AppText style={{ color: p.muted }}>{t("history.liftLine", { n: l.sessions })}</AppText>
               <AppText style={{ color: p.muted }}>{t(`setup.${l.setup}` as never)}{l.hasImported ? ` · ${t("history.imported")}` : ""}</AppText>
               <BigButton label={t("trend.title")} selected={false} onPress={() => nav.navigate("LiftTrend", { lineId: l.lineId })} />
             </Card>

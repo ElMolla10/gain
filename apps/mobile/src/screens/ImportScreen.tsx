@@ -5,7 +5,6 @@ import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
 import type { BatchInfo, ImportPreview, ImportResult, TitlePreview } from "../db/importRepo";
-import type { GymSummary } from "../db/gymRepo";
 import type { LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
@@ -76,30 +75,27 @@ function TitleCard(props: { row: ReturnType<typeof resolveAll>["rows"][number]; 
 export function ImportScreen() {
   const { t, lang, fmt } = useI18n();
   const p = usePalette();
-  const { imports, gyms, programmes } = useServices();
+  const { imports, repos, programmes } = useServices();
   const [parsed, setParsed] = useState<{ name: string; parse: ImportParse } | null>(null);
   const [unit, setUnit] = useState<WeightUnit | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
-  const [gymList, setGymList] = useState<GymSummary[]>([]);
   const [gymId, setGymId] = useState<string | null>(null);
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [pickFor, setPickFor] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<(ImportResult & { gymName: string }) | null>(null);
+  const [result, setResult] = useState<(ImportResult) | null>(null);
   const [undone, setUndone] = useState<number | null>(null);
   const [batches, setBatches] = useState<BatchInfo[]>([]);
 
   const refreshBatches = useCallback(() => void imports.listBatches().then(setBatches), [imports]);
   useEffect(() => {
     refreshBatches();
-    void gyms.listGyms().then((l) => {
-      setGymList(l);
-      setGymId((cur) => cur ?? l.find((g) => g.isActive)?.id ?? l[0]?.id ?? null);
-    });
+    // No gym choice in the UI: imported workouts go to the silent default gym (the one in use).
+    void repos.getActiveGymId().then((id) => setGymId((cur) => cur ?? id));
     void programmes.listExercises().then(setLibrary);
-  }, [imports, gyms, programmes, refreshBatches]);
+  }, [imports, repos, programmes, refreshBatches]);
 
   /** The weights in kilograms; null until a file that does not state its unit has been given one. */
   const kgParse = useMemo(() => {
@@ -155,7 +151,7 @@ export function ImportScreen() {
     setError(null);
     try {
       const r = await imports.importHistory({ parse: kgParse, gymId, mappings: res.mappings, fileName: parsed?.name });
-      setResult({ ...r, gymName: gymList.find((g) => g.id === gymId)?.name ?? "" });
+      setResult(r);
       setParsed(null);
       setPreview(null);
       refreshBatches();
@@ -185,7 +181,7 @@ export function ImportScreen() {
       {result ? (
         <Card>
           <AppText style={{ fontSize: 20, fontWeight: "800" }}>✓ {t("import.done.title")}</AppText>
-          <AppText>{t("import.done.body", { workouts: result.workouts, sets: result.sets, gym: result.gymName, exercises: result.newExercises })}</AppText>
+          <AppText>{t("import.done.body", { workouts: result.workouts, sets: result.sets, exercises: result.newExercises })}</AppText>
           {result.skippedSets > 0 ? <AppText style={{ color: p.muted }}>{t("import.done.skipped", { n: result.skippedSets })}</AppText> : null}
           {result.batchId ? <BigButton label={t("import.undo")} selected={false} onPress={() => void undo(result.batchId!)} /> : null}
         </Card>
@@ -227,14 +223,6 @@ export function ImportScreen() {
 
           {preview.newWorkouts > 0 ? (
             <>
-              <Card>
-                <AppText style={{ fontWeight: "700" }}>{t("import.gym.title")}</AppText>
-                <AppText style={{ color: p.muted }}>{t("import.gym.note")}</AppText>
-                {gymList.map((g) => (
-                  <BigButton key={g.id} label={g.name} selected={gymId === g.id} onPress={() => setGymId(g.id)} />
-                ))}
-              </Card>
-
               <AppText style={{ fontSize: 20, fontWeight: "800" }}>{t("import.ex.title")}</AppText>
               <AppText style={{ color: p.muted }}>{t("import.ex.note", { n: titles.length })}</AppText>
               {titles.some((x) => res.rows.find((r) => r.title === x)?.missing.includes("equipment")) ? (
@@ -270,7 +258,7 @@ export function ImportScreen() {
           <AppText style={{ fontWeight: "700" }}>{t("import.history.title")}</AppText>
           {batches.map((b) => (
             <View key={b.id} style={{ gap: space.xs }}>
-              <AppText>{t("import.history.row", { source: t(`import.source.${b.source}` as StringKey), workouts: b.workouts, sets: b.sets, gym: b.gymName })}</AppText>
+              <AppText>{t("import.history.row", { source: t(`import.source.${b.source}` as StringKey), workouts: b.workouts, sets: b.sets })}</AppText>
               <AppText ltr style={{ color: p.muted, fontSize: 13 }}>{new Date(b.createdAt).toISOString().slice(0, 10)}{b.fileName ? ` · ${b.fileName}` : ""}</AppText>
               <BigButton label={t("import.undo")} selected={false} onPress={() => void undo(b.id)} />
             </View>

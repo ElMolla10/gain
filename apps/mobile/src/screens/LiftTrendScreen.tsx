@@ -36,7 +36,7 @@ export function LiftTrendScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
       <AppText style={{ fontSize: 24, fontWeight: "800" }}>{exerciseLabels(lift, lang).primary}</AppText>
-      <AppText style={{ color: p.muted }}>{t("trend.setupLine", { gym: lift.gymName, setup: t(`setup.${lift.setup}` as never) })}</AppText>
+      <AppText style={{ color: p.muted }}>{t("trend.setupLine", { setup: t(`setup.${lift.setup}` as never) })}</AppText>
       <Card>
         <AppText style={{ color: p.muted }}>{assisted ? t("trend.measureAssisted") : t("trend.measure")}</AppText>
         {trend.points.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : null}

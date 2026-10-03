@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { I18nManager } from "react-native";
-import { directionFor, translate, type Direction, type Lang, type RtlOverride } from "./format";
+import { directionFor, setShowSecondName, translate, type Direction, type Lang, type RtlOverride } from "./format";
 import { formatLoad } from "./format";
 import { unitLabel, type Unit } from "../logic/units";
 import type { StringKey } from "./strings";
@@ -20,6 +20,9 @@ interface I18nValue {
   fmt: (kg: number) => string;
   /** "kg" / "lb" (Arabic: كجم / باوند). */
   unitText: string;
+  /** Show the other language's exercise name under the name (off by default). */
+  showSecondName: boolean;
+  setShowSecond: (on: boolean) => void;
   setLang: (l: Lang) => void;
   setRtlOverride: (o: RtlOverride) => void;
 }
@@ -30,12 +33,17 @@ export function I18nProvider(props: {
   initialLang: Lang;
   initialOverride: RtlOverride;
   initialUnit?: Unit;
-  onChange: (key: "language" | "rtl_override" | "units", value: string) => void;
+  initialShowSecond?: boolean;
+  onChange: (key: "language" | "rtl_override" | "units" | "second_name", value: string) => void;
   children: React.ReactNode;
 }) {
   const [lang, setLangState] = useState<Lang>(props.initialLang);
   const [rtlOverride, setOverrideState] = useState<RtlOverride>(props.initialOverride);
   const [unit, setUnitState] = useState<Unit>(props.initialUnit ?? "kg");
+  const [showSecondName, setShowSecondState] = useState<boolean>(() => {
+    setShowSecondName(props.initialShowSecond ?? false);
+    return props.initialShowSecond ?? false;
+  });
   const direction = directionFor(lang, rtlOverride);
   const isRTL = direction === "rtl";
 
@@ -67,12 +75,20 @@ export function I18nProvider(props: {
     },
     [props],
   );
+  const setShowSecond = useCallback(
+    (on: boolean) => {
+      setShowSecondName(on); // before the re-render, so every label read in it already sees the new value
+      setShowSecondState(on);
+      props.onChange("second_name", on ? "1" : "0");
+    },
+    [props],
+  );
   const fmt = useCallback((kg: number) => formatLoad(kg, lang, unit), [lang, unit]);
   const t = useCallback((key: StringKey, params?: Record<string, string | number>) => translate(lang, key, params), [lang]);
 
   const value = useMemo<I18nValue>(
-    () => ({ lang, direction, isRTL, rtlOverride, needsRestart: I18nManager.isRTL !== isRTL, t, unit, setUnit, fmt, unitText: unitLabel(unit, lang), setLang, setRtlOverride }),
-    [lang, direction, isRTL, rtlOverride, t, unit, setUnit, fmt, setLang, setRtlOverride],
+    () => ({ lang, direction, isRTL, rtlOverride, needsRestart: I18nManager.isRTL !== isRTL, t, unit, setUnit, fmt, unitText: unitLabel(unit, lang), showSecondName, setShowSecond, setLang, setRtlOverride }),
+    [lang, direction, isRTL, rtlOverride, t, unit, setUnit, fmt, showSecondName, setShowSecond, setLang, setRtlOverride],
   );
   return <Ctx.Provider value={value}>{props.children}</Ctx.Provider>;
 }

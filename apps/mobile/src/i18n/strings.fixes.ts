@@ -1,5 +1,8 @@
 /** Strings added by the fixes-only release (error states and the like). Arabic is a draft. */
 export const enFixes = {
+  "today.hero": "{day} · {sets} sets · ~{min} min",
+  "today.nextSession": "Next session: {target}",
+  "today.exercisesHeading": "Exercises",
   "today.error.title": "Could not load your plan",
   "today.error.body": "Your data on this phone has not been changed. Try again; if it keeps failing, restart the app.",
   "today.error.retry": "Try again",
@@ -26,6 +29,9 @@ export const enFixes = {
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
+  "today.hero": "{day} · {sets} مجموعات · حوالي {min} د",
+  "today.nextSession": "الجلسة الجاية: {target}",
+  "today.exercisesHeading": "التمارين",
   "today.error.title": "معرفتش أفتح خطتك",
   "today.error.body": "بياناتك على الموبايل ما اتغيرتش. جرّب تاني، ولو لسه بتفشل اقفل التطبيق وافتحه.",
   "today.error.retry": "جرّب تاني",

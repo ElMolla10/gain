@@ -171,7 +171,7 @@ function Guarded({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; unit: Unit; needsOnboarding: boolean } | "error" | null>(null);
+  const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; unit: Unit; showSecond: boolean; needsOnboarding: boolean } | "error" | null>(null);
 
   const [epoch, setEpoch] = useState(0);
   const dbRef = useRef<Db | null>(null);
@@ -220,7 +220,7 @@ export default function App() {
         if (rs.on) await syncReminders(reminders, rs, reminderText(await repos.getLanguage()));
       })().catch(() => undefined);
       autoSync(true); // does one local read and nothing else unless the lifter turned Back up and sync on
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), showSecond: (await repos.getSetting("second_name")) === "1", needsOnboarding: (await onboarding.getState()) === null });
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
       setBoot("error");
@@ -237,7 +237,7 @@ export default function App() {
   }, [boot]);
 
   const onChange = useMemo(
-    () => (key: "language" | "rtl_override" | "units", value: string) => {
+    () => (key: "language" | "rtl_override" | "units" | "second_name", value: string) => {
       if (boot && boot !== "error") void boot.services.repos.setSetting(key, value);
     },
     [boot],
@@ -249,7 +249,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ServicesProvider value={boot.services}>
-        <I18nProvider initialLang={boot.lang} initialOverride={boot.override} initialUnit={boot.unit} onChange={onChange}>
+        <I18nProvider initialLang={boot.lang} initialOverride={boot.override} initialUnit={boot.unit} initialShowSecond={boot.showSecond} onChange={onChange}>
           <Guarded>
             <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" ? { ...b, needsOnboarding: false } : b))} />
           </Guarded>

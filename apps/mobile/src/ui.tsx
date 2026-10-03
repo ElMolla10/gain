@@ -19,7 +19,7 @@ export function Card({ children, style }: { children: React.ReactNode; style?: V
   );
 }
 
-export function BigButton(props: { label: string; onPress?: () => void; disabled?: boolean; selected?: boolean; accessibilityHint?: string }) {
+export function BigButton(props: { label: string; onPress?: () => void; disabled?: boolean; selected?: boolean; accessibilityHint?: string; /** The one primary action on a screen: taller, larger label. */ hero?: boolean }) {
   const p = usePalette();
   const filled = !props.disabled && (props.selected ?? true);
   return (
@@ -30,7 +30,7 @@ export function BigButton(props: { label: string; onPress?: () => void; disabled
       disabled={props.disabled}
       onPress={props.onPress}
       style={({ pressed }) => ({
-        minHeight: MIN_TOUCH,
+        minHeight: props.hero ? 64 : MIN_TOUCH,
         borderRadius: 14,
         paddingHorizontal: space.lg,
         alignItems: "center",
@@ -41,7 +41,7 @@ export function BigButton(props: { label: string; onPress?: () => void; disabled
         opacity: pressed ? 0.85 : 1,
       })}
     >
-      <AppText style={{ fontSize: 18, fontWeight: "700", color: filled ? p.accentText : p.text }}>{props.label}</AppText>
+      <AppText style={{ fontSize: props.hero ? 20 : 18, fontWeight: "700", color: filled ? p.accentText : p.text }}>{props.label}</AppText>
     </Pressable>
   );
 }

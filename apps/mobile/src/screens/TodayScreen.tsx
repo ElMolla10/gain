@@ -106,7 +106,7 @@ export function TodayScreen() {
             accessibilityRole="button"
             accessibilityState={{ selected: d.id === chosen.id }}
             onPress={() => setPicked(d.id)}
-            style={{ borderWidth: 2, borderColor: d.id === chosen.id ? p.accent : p.border, borderRadius: 14, padding: space.md, gap: space.xs, backgroundColor: d.id === chosen.id ? p.card : "transparent" }}
+            style={{ borderWidth: 2, borderColor: d.id === chosen.id ? p.accent : p.edge, borderRadius: 14, padding: space.md, gap: space.xs, backgroundColor: d.id === chosen.id ? p.card : "transparent" }}
           >
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space.sm }}>
               <AppText style={{ fontSize: 22, fontWeight: "800", flex: 1 }}>{d.id === chosen.id ? "✓ " : ""}{d.name}</AppText>

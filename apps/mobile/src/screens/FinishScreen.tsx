@@ -132,7 +132,7 @@ export function FinishScreen() {
         <>
           <AppText style={{ fontSize: 22, fontWeight: "800" }}>{t("finish.next", { day: next.dayName })}</AppText>
           <AppText style={{ color: p.muted }}>{t("finish.nextHint")}</AppText>
-          {error ? <AppText style={{ color: "#b00020" }}>{error}</AppText> : null}
+          {error ? <AppText style={{ color: p.danger }}>{error}</AppText> : null}
           {next.targets.map((tg) => {
             const info = next.equipment[tg.exerciseId];
             const spec = info ? findSpec(next.gym, info.equipment) : null;

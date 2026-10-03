@@ -139,7 +139,7 @@ function RestCard() {
           }}
         />
       </View>
-      {note ? <AppText style={{ color: "#b00020" }}>{t(note)}</AppText> : null}
+      {note ? <AppText style={{ color: p.danger }}>{t(note)}</AppText> : null}
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("rest.notifyNote")}</AppText>
     </Card>
   );

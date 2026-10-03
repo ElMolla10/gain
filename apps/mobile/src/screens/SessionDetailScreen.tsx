@@ -83,14 +83,14 @@ export function SessionDetailScreen() {
               {s.warmup ? <AppText style={{ color: p.muted }}>{t("history.warmup")}</AppText> : null}
               {!s.warmup && s.tags.includes("drop") ? <AppText style={{ color: p.muted }}>{t("history.drop")}</AppText> : null}
               {!s.warmup && s.tags.includes("failure") ? <AppText style={{ color: p.muted }}>{t("history.failure")}</AppText> : null}
-              {s.outlierStatus === "unconfirmed" ? <AppText style={{ color: "#b00020" }}>{t("history.unconfirmed")}</AppText> : null}
+              {s.outlierStatus === "unconfirmed" ? <AppText style={{ color: p.danger }}>{t("history.unconfirmed")}</AppText> : null}
               {s.outlierStatus === "confirmed" ? <AppText style={{ color: p.muted }}>{t("history.confirmed")}</AppText> : null}
               {edit?.setId === s.id ? (
                 <View style={{ gap: space.sm }}>
                   <Field label={t("history.field.load", { unit: unitText })} value={edit.load} onChangeText={(v) => setEdit({ ...edit, load: v })} numeric keyboardType="decimal-pad" />
                   <Field label={t("history.field.reps")} value={edit.reps} onChangeText={(v) => setEdit({ ...edit, reps: v })} numeric keyboardType="number-pad" />
                   <Field label={t("history.field.rir")} value={edit.rir} onChangeText={(v) => setEdit({ ...edit, rir: v })} numeric keyboardType="decimal-pad" />
-                  {err ? <AppText style={{ color: "#b00020" }}>{t(err)}</AppText> : null}
+                  {err ? <AppText style={{ color: p.danger }}>{t(err)}</AppText> : null}
                   <BigButton label={t("history.save")} onPress={save} />
                   <BigButton label={t("history.cancel")} selected={false} onPress={() => { setEdit(null); setErr(null); }} />
                 </View>

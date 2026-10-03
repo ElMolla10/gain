@@ -135,7 +135,7 @@ export function DataScreen() {
       {counts ? <AppText>{t("data.counts", counts as unknown as Record<string, number>)}</AppText> : null}
       {busy ? <AppText>{t(busy)}</AppText> : null}
       {msg ? <AppText style={{ fontWeight: "700" }}>✓ {msg}</AppText> : null}
-      {err ? <AppText style={{ color: "#b00020" }}>{err}</AppText> : null}
+      {err ? <AppText style={{ color: p.danger }}>{err}</AppText> : null}
 
       <Card>
         <BigButton label={t("data.exportJson")} disabled={!!busy} onPress={() => share(`gain-backup-${stamp()}.json`, "application/json", () => data.exportJson())} />

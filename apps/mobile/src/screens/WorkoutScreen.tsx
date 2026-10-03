@@ -635,10 +635,10 @@ export function WorkoutScreen() {
           <AppText style={{ color: p.blue, fontWeight: "600", fontSize: 15 }}>{st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}</AppText>
         </Pressable>
 
-        {/* Compact target line: "Next: 75 kg × 7 · Why". It wraps onto a second line when it is long and is never cut off. */}
+        {/* Compact target line: "Target: 90 kg × 12" with a small Why button. It wraps onto a second line when it is long and is never cut off. */}
         <View style={{ marginHorizontal: 12, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: p.field, borderStartWidth: 3, borderStartColor: p.blueFill, gap: 4 }}>
           <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 2 }}>
-            <AppText style={{ flexShrink: 1, fontSize: 15, fontWeight: "700" }}>
+            <AppText style={{ flexShrink: 1, fontSize: 18, fontWeight: "800" }}>
               {t("workout.nextTarget")}: {targetText}
             </AppText>
             <Pressable
@@ -647,9 +647,9 @@ export function WorkoutScreen() {
               onPress={() => (info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id })) : setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded })))}
               onLongPress={() => setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded }))}
               hitSlop={{ top: 8, bottom: 8 }}
-              style={{ minHeight: 32, justifyContent: "center" }}
+              style={{ minHeight: 32, minWidth: 48, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: p.blue }}
             >
-              <AppText style={{ fontSize: 14, fontWeight: "700", color: p.blue }}>· {t("workout.whyShort")} ›</AppText>
+              <AppText style={{ fontSize: 13, fontWeight: "700", color: p.blue }}>{t("workout.whyShort")}</AppText>
             </Pressable>
           </View>
           {expanded ? <AppText style={{ fontSize: 14, color: p.muted }}>{reasonText}</AppText> : null}

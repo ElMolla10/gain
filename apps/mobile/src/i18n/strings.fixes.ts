@@ -1,5 +1,7 @@
 /** Strings added by the fixes-only release (error states and the like). Arabic is a draft. */
 export const enFixes = {
+  "history.rowLine": "{min} min · {sets} sets",
+  "history.rowLineNoTime": "{sets} sets",
   "prog.dayCard": "{day} — {n} exercises · {sets} sets",
   "today.hero": "{day} · {sets} sets · ~{min} min",
   "today.nextSession": "Next session: {target}",
@@ -30,6 +32,8 @@ export const enFixes = {
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
+  "history.rowLine": "{min} د · {sets} مجموعات",
+  "history.rowLineNoTime": "{sets} مجموعات",
   "prog.dayCard": "{day} — {n} تمارين · {sets} مجموعات",
   "today.hero": "{day} · {sets} مجموعات · حوالي {min} د",
   "today.nextSession": "الجلسة الجاية: {target}",

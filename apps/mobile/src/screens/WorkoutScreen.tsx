@@ -20,6 +20,7 @@ import { warmupOffer } from "../logic/warmups";
 import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
 import { finishChoice } from "../logic/finishChoice";
+import { attemptFinish } from "../logic/loadState";
 import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
@@ -98,6 +99,9 @@ export function WorkoutScreen() {
   const dayId = (route.params as { dayId: string }).dayId;
 
   const [loaded, setLoaded] = useState<Loaded | null | "nogym">(null);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [finishFailed, setFinishFailed] = useState(false);
   const [rows, setRows] = useState<Record<string, SetRowDraft[]>>({});
   const [sets, setSets] = useState<SetRow[]>([]);
   const [exState, setExState] = useState<Record<string, ExerciseState>>({});
@@ -160,7 +164,8 @@ export function WorkoutScreen() {
     [workout, finish],
   );
 
-  // Open (or resume) the session exactly once; leaving and coming back never creates a second one.
+  // Open (or resume) the session exactly once; leaving and coming back never creates a second one. A failed open is an error with a
+  // retry (`attempt`), not "no gym".
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
@@ -198,8 +203,12 @@ export function WorkoutScreen() {
       setSets(all);
       setRows(initial);
       setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), gym, slots, info });
-    })().catch(() => setLoaded("nogym"));
-  }, [repos, workout, programmes, dayId, makeDisp, buildInfo]);
+    })().catch((e) => {
+      diagnostics.record("error", "open workout", e);
+      startedRef.current = false;
+      setLoadError(true);
+    });
+  }, [repos, workout, programmes, dayId, makeDisp, buildInfo, attempt]);
 
   // Rest settings: the default length (unless a rest is already running) and whether to vibrate / notify.
   useEffect(() => {
@@ -457,6 +466,27 @@ export function WorkoutScreen() {
     });
   }
 
+  if (loaded === null && loadError) {
+    return (
+      <View style={{ flex: 1, padding: 24, paddingTop: insets.top + 24, gap: 12, backgroundColor: p.bg }}>
+        <AppText style={{ fontSize: 20, fontWeight: "700" }}>{t("workout.loadError.title")}</AppText>
+        <AppText style={{ color: p.muted }}>{t("workout.loadError.body")}</AppText>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            setLoadError(false);
+            setAttempt((n) => n + 1);
+          }}
+          style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
+        >
+          <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>{t("today.error.retry")}</AppText>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => navigation.goBack()} style={{ minHeight: 52, borderRadius: 12, borderWidth: 2, borderColor: p.edge, alignItems: "center", justifyContent: "center" }}>
+          <AppText style={{ fontWeight: "700" }}>{t("common.close")}</AppText>
+        </Pressable>
+      </View>
+    );
+  }
   if (loaded === null) return <AppText style={{ padding: 24 }}>{t("common.loading")}</AppText>;
   if (loaded === "nogym") return <AppText style={{ padding: 24 }}>{t("workout.noGym")}</AppText>;
 
@@ -471,14 +501,18 @@ export function WorkoutScreen() {
   });
   const removedSlots = loaded.slots.filter((s) => exState[s.exerciseId]?.removed);
 
+  /** Finishing never throws out of the handler: on failure the workout stays open (sets are already saved) and a retry is offered. */
   async function doFinish(lo: Loaded) {
     setFinishing(true);
-    try {
-      await workout.finishSession(lo.sessionId);
-      navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId }));
-    } catch (e) {
+    setFinishFailed(false);
+    const r = await attemptFinish(
+      () => workout.finishSession(lo.sessionId),
+      () => navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId })),
+      (e) => diagnostics.record("error", "finish workout", e),
+    );
+    if (r === "failed") {
       setFinishing(false);
-      throw e;
+      setFinishFailed(true);
     }
   }
 
@@ -799,6 +833,16 @@ export function WorkoutScreen() {
             <AppText ltr style={{ fontSize: 19, fontWeight: "700" }}>{summary.sets}</AppText>
           </Stat>
         </View>
+
+        {finishFailed ? (
+          <View accessibilityLiveRegion="assertive" style={{ marginHorizontal: 12, marginBottom: 8, padding: 12, gap: 8, borderRadius: 12, borderWidth: 2, borderColor: p.danger, backgroundColor: p.card }}>
+            <AppText style={{ fontWeight: "800" }}>{t("workout.finishFailed.title")}</AppText>
+            <AppText style={{ color: p.muted }}>{t("workout.finishFailed.body")}</AppText>
+            <Pressable accessibilityRole="button" disabled={finishing} onPress={() => void doFinish(loaded)} style={{ minHeight: 52, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}>
+              <AppText style={{ color: p.onBlue, fontWeight: "800" }}>{t("workout.finishFailed.retry")}</AppText>
+            </Pressable>
+          </View>
+        ) : null}
 
         {timerOpen ? (
           <View style={{ marginHorizontal: 12, marginBottom: 6, padding: 12, gap: 8, borderRadius: 12, backgroundColor: p.card }}>

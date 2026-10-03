@@ -90,6 +90,7 @@ export function describeDecision(
   }
   if (i.trackEffort) ruleLines.push(L("why.effortTracked"));
   if (p.needsModel.needed) ruleLines.push(L("why.needsModel"));
+  if (i.measure === undefined || i.measure === "reps") ruleLines.push(L("why.weakestNote", { n: i.readiness.requiredSetsAtTop ?? 1 }));
   for (const w of p.warnings) ruleLines.push(L(`why.warning.${w}`));
   out.push({ title: L("why.rule"), lines: ruleLines });
 

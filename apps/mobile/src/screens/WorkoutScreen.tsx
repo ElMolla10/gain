@@ -149,7 +149,7 @@ export function WorkoutScreen() {
   const buildInfo = useCallback(
     async (ex: Disp, sessionId: string, gym: GymFingerprint): Promise<ExInfo> => {
       const { proposal, lineId, line } = await workout.liveProposal(
-        { exerciseId: ex.exerciseId, name: ex.nameEn, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, repCeiling: ex.repCeiling, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
+        { exerciseId: ex.exerciseId, name: ex.nameEn, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, programmeRepMin: ex.programmeRepMin, programmeRepMax: ex.programmeRepMax, repCeiling: ex.repCeiling, repCeilingIsCustom: ex.repCeilingIsCustom, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
         gym,
       );
       const last = await workout.lastPerformance(line, lineId);

@@ -87,6 +87,7 @@ function summarize(
     repsAtTop: Math.min(...atTop.map((x) => x.reps)),
     lastSetReps: atTop[atTop.length - 1]!.reps,
     setsAtTop: atTop.length,
+    workingSets: trusted.length,
     rir: rirs.length ? Math.min(...rirs) : null,
     tags,
   };
@@ -273,7 +274,11 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const trig = cfg.trigger;
   const targetReps = hi + trig.extraReps;
   const basisReps = (s: SessionSummary) => (trig.repsBasis === "last_set" ? s.lastSetReps : s.repsAtTop);
-  const qualifies = (s: SessionSummary) => Math.abs(s.topLoad - last.topLoad) < 1e-6 && basisReps(s) >= targetReps;
+  // Sets that must be done at the top load for a session to count: the top sets of a top-set/back-off prescription, else every planned set.
+  const needSets = Math.max(1, exercise.topSets ?? exercise.plannedSets ?? 1);
+  const complete = (s: SessionSummary) => s.setsAtTop >= needSets;
+  const qualifies = (s: SessionSummary) => Math.abs(s.topLoad - last.topLoad) < 1e-6 && basisReps(s) >= targetReps && complete(s);
+  if (needSets > 1 && !complete(last)) warnings.push("fewer_sets_than_planned");
   let qualifying = 0;
   for (const s of summaries) {
     if (qualifies(s)) qualifying++;
@@ -309,7 +314,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
       minJumpRatio: minRatio,
     },
     policy: cfg,
-    readiness: { targetReps, qualifyingSessions: qualifying, requiredSessions: trig.sessions, fastTracked, stalled },
+    readiness: { targetReps, qualifyingSessions: qualifying, requiredSessions: trig.sessions, requiredSetsAtTop: needSets, fastTracked, stalled },
     confidenceFactors: factors,
   };
 
@@ -456,6 +461,17 @@ export function proposeNext(ctx: ProposeContext): Proposal {
       reason: { key: "load_up", params: { ...baseParams, load: nextHarder, prevLoad: anchor, reps: lo } },
     });
   };
+
+  // The sets that were done reached the ceiling, but fewer than prescribed were done at that load: not earned (repeat, finish all the sets).
+  if (!ready && !complete(last) && basisReps(last) >= targetReps) {
+    return make({
+      load: anchor,
+      reps: targetReps,
+      currency: "reps",
+      jumpKind: "complete_sets",
+      reason: { key: "partial_session", params: { ...baseParams, reps: targetReps, done: last.setsAtTop, planned: needSets } },
+    });
+  }
 
   if (!ready) {
     const e = tryEffort();

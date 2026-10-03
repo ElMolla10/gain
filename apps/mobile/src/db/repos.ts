@@ -253,6 +253,8 @@ export function createRepos(db: Db, deps: Deps) {
           sets: r.sets,
           repMin: r.rep_min,
           repMax: r.rep_max,
+          programmeRepMin: r.rep_min,
+          programmeRepMax: r.rep_max,
           repCeiling: r.rep_max,
           repCeilingIsCustom: false,
           isGoalLift: r.is_goal_lift === 1,
@@ -275,6 +277,9 @@ export function createRepos(db: Db, deps: Deps) {
       repMin: Math.min(r.rep_min, policy.repCeiling),
       /** Top of the range = the rep ceiling (what the Today screen shows). */
       repMax: policy.repCeiling,
+      /** The range the programme itself was written with, before the ceiling replaced its top (P05: shown, never silent). */
+      programmeRepMin: r.rep_min,
+      programmeRepMax: r.rep_max,
       repCeiling: policy.repCeiling,
       /** True when this lift has its own ceiling; false when it follows the default for its kind of lift. */
       repCeilingIsCustom: r.rep_ceiling !== null,
@@ -298,7 +303,7 @@ export function createRepos(db: Db, deps: Deps) {
       const d = DEFAULT_TIMED_RANGE[r.measure];
       return {
         id: `added:${r.id}`, exerciseId: r.id, nameEn: r.name_en, nameAr: r.name_ar, aliasesAr: JSON.parse(r.aliases_ar_json) as string[], equipment: r.equipment, setup: r.setup,
-        measure: r.measure, sets: d.sets, repMin: d.min, repMax: d.max, repCeiling: d.max, repCeilingIsCustom: false, isGoalLift: false, trackEffort: false,
+        measure: r.measure, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max, repCeiling: d.max, repCeilingIsCustom: false, isGoalLift: false, trackEffort: false,
       };
     }
     const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings: await getRepCeilingDefaults() });
@@ -314,6 +319,8 @@ export function createRepos(db: Db, deps: Deps) {
       sets: 3,
       repMin: Math.min(8, policy.repCeiling),
       repMax: policy.repCeiling,
+      programmeRepMin: 8,
+      programmeRepMax: policy.repCeiling,
       repCeiling: policy.repCeiling,
       repCeilingIsCustom: false,
       isGoalLift: false,

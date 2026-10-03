@@ -150,7 +150,7 @@ export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string
 }
 
 /** A small action sheet: tap outside to close. */
-export function MenuSheet(props: { visible: boolean; title: string; onClose: () => void; items: { label: string; danger?: boolean; onPress: () => void }[] }) {
+export function MenuSheet(props: { visible: boolean; title: string; /** Let a long title wrap instead of cutting it off. */ wrapTitle?: boolean; onClose: () => void; items: { label: string; danger?: boolean; onPress: () => void }[] }) {
   const p = useLogPalette();
   const { t } = useI18n();
   const { height } = useWindowDimensions();
@@ -158,7 +158,7 @@ export function MenuSheet(props: { visible: boolean; title: string; onClose: () 
     <Modal visible={props.visible} transparent animationType="fade" onRequestClose={props.onClose}>
       <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={props.onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
         <View style={{ backgroundColor: p.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 12, paddingBottom: 28, gap: 4 }}>
-          <AppText numberOfLines={1} style={{ color: p.muted, fontSize: 14, paddingHorizontal: 12, paddingVertical: 8 }}>{props.title}</AppText>
+          <AppText numberOfLines={props.wrapTitle ? undefined : 1} style={{ color: props.wrapTitle ? p.text : p.muted, fontSize: 14, paddingHorizontal: 12, paddingVertical: 8 }}>{props.title}</AppText>
           <ScrollView style={{ maxHeight: height * 0.6 }} keyboardShouldPersistTaps="handled">
           {props.items.map((it, i) => (
             <Pressable

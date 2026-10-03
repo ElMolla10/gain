@@ -361,13 +361,16 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   }
 
   /** Edit the load. It must be a load that exists in this gym. Editing is neither a rejection nor an acceptance of the jump. */
-  async function editTargetLoad(targetId: string, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType): Promise<void> {
+  async function editTargetLoad(targetId: string, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType, reps?: number): Promise<void> {
     const tr = await mustGet(targetId);
     const spec = findSpec(gym, equipment);
     if (spec && !isGymLoad(spec, load, setup !== "free")) throw new Error("That load does not exist in this gym");
     if (!(load >= 0)) throw new Error("Invalid load");
+    if (reps !== undefined && !(Number.isInteger(reps) && reps >= 1 && reps <= 100)) throw new Error("Invalid reps");
     const t = now();
-    await db.run("UPDATE target SET status = 'edited', edited_load = ?, updated_at = ? WHERE id = ?", [load, t, tr.id]);
+    // `reps` is given when a big jump was swapped for a smaller step (same load + one more rep, a microload ...): the target's reps follow.
+    if (reps !== undefined && tr.measure === "reps") await db.run("UPDATE target SET status = 'edited', edited_load = ?, reps = ?, updated_at = ? WHERE id = ?", [load, reps, t, tr.id]);
+    else await db.run("UPDATE target SET status = 'edited', edited_load = ?, updated_at = ? WHERE id = ?", [load, t, tr.id]);
   }
 
   /** Reject: the lifter will set their own number. Remembered per line + jump kind; 3 rejections stop that jump. */

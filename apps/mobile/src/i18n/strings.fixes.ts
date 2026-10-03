@@ -10,6 +10,11 @@ export const enFixes = {
   "workout.finishFailed.retry": "Try Finish again",
   "finish.error.title": "Could not load the summary",
   "finish.error.retry": "Try again",
+  "jump.title": "Big jump: {pct}% heavier than last time ({prev} → {next}). Go ahead, or take a smaller step?",
+  "jump.anyway": "Use {load} × {reps} anyway",
+  "jump.repeat": "Repeat last time: {load} × {reps}",
+  "jump.reps": "Same weight, one more rep: {load} × {reps}",
+  "jump.micro": "Smaller step: {load} × {reps}",
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
@@ -23,4 +28,9 @@ export const arFixes: Record<keyof typeof enFixes, string> = {
   "workout.finishFailed.retry": "جرّب خلّص تاني",
   "finish.error.title": "معرفتش أحمّل الملخص",
   "finish.error.retry": "جرّب تاني",
+  "jump.title": "قفزة كبيرة: أتقل بـ {pct}% من المرة اللي فاتت ({prev} ← {next}). تكمّل، ولا تاخد خطوة أصغر؟",
+  "jump.anyway": "استخدم {load} × {reps} برضه",
+  "jump.repeat": "كرر المرة اللي فاتت: {load} × {reps}",
+  "jump.reps": "نفس الوزن وعدّة زيادة: {load} × {reps}",
+  "jump.micro": "خطوة أصغر: {load} × {reps}",
 };

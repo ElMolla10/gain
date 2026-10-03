@@ -1,5 +1,5 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
+import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, Vibration, View } from "react-native";
@@ -21,6 +21,7 @@ import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels }
 import { initialDraft } from "../logic/draft";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
+import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
 import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
@@ -102,6 +103,9 @@ export function WorkoutScreen() {
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [finishFailed, setFinishFailed] = useState(false);
+  /** A big proposed jump waiting for the lifter's decision (P04). `okJumps` remembers "use it anyway" per exercise + load. */
+  const [jumpAsk, setJumpAsk] = useState<{ ex: Disp; row: SetRowDraft; check: JumpCheck; load: number; reps: number; prev: number } | null>(null);
+  const okJumps = useRef<Set<string>>(new Set());
   const [rows, setRows] = useState<Record<string, SetRowDraft[]>>({});
   const [sets, setSets] = useState<SetRow[]>([]);
   const [exState, setExState] = useState<Record<string, ExerciseState>>({});
@@ -126,6 +130,7 @@ export function WorkoutScreen() {
   const [rest, setRest] = useState<RestSettings>(defaultRestSettings());
   const [now, setNow] = useState(Date.now());
   const [restOver, setRestOver] = useState(false);
+  const [jumpThreshold, setJumpThreshold] = useState(10);
   const startedRef = useRef(false);
   const libRef = useRef<LibraryExercise[]>([]);
   const noteInputs = useRef<Record<string, TextInput | null>>({});
@@ -210,6 +215,10 @@ export function WorkoutScreen() {
     });
   }, [repos, workout, programmes, dayId, makeDisp, buildInfo, attempt]);
 
+  useEffect(() => {
+    void repos.getSetting(JUMP_SETTING_KEY).then((v) => setJumpThreshold(parseJumpThreshold(v)));
+  }, [repos]);
+
   // Rest settings: the default length (unless a rest is already running) and whether to vibrate / notify.
   useEffect(() => {
     void loadRestSettings(repos).then((s) => {
@@ -280,6 +289,18 @@ export function WorkoutScreen() {
 
   async function logRow(ex: Disp, row: SetRowDraft) {
     if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
+    // P04: a proposed load more than 10% above last time is confirmed first (or swapped for a smaller step); nothing is saved yet.
+    if (!row.saved && !row.warmup && !isDropRow(row) && !isTimed(ex.measure)) {
+      const e0 = effectiveOf(row);
+      const info0 = loaded.info[ex.exerciseId];
+      const lastTop = info0?.last?.sets.reduce<LoggedSet | null>((a, s0) => (a === null || s0.load > a.load ? s0 : a), null) ?? null;
+      if (e0.load !== null && e0.reps !== null && lastTop && !okJumps.current.has(`${ex.exerciseId}:${e0.load}`)) {
+        const spec0 = findSpec(loaded.gym, ex.equipment);
+        const micro = spec0 ? nextLoadAbove(spec0, lastTop.load, false) : lastTop.load + 1.25;
+        const check = checkJump({ prevLoad: lastTop.load, prevReps: lastTop.reps, targetLoad: e0.load, targetReps: e0.reps, setup: ex.setup, thresholdPct: jumpThreshold, microLoad: micro });
+        if (check.needsConfirm) return void setJumpAsk({ ex, row, check, load: e0.load, reps: e0.reps, prev: lastTop.load });
+      }
+    }
     setBusy(row.key);
     // Empty boxes take the ghost target as the row's own numbers (what the lifter saw is what is saved).
     setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
@@ -908,6 +929,29 @@ export function WorkoutScreen() {
       </ScrollView>
 
       <WorkoutHelp visible={helpOpen} onClose={() => setHelpOpen(false)} />
+      <MenuSheet
+        visible={jumpAsk !== null}
+        wrapTitle
+        title={jumpAsk ? t("jump.title", { pct: jumpAsk.check.pct, prev: formatLoad(jumpAsk.prev, lang, unit), next: formatLoad(jumpAsk.load, lang, unit) }) : ""}
+        onClose={() => setJumpAsk(null)}
+        items={
+          jumpAsk
+            ? jumpOptions(jumpAsk.check, { load: jumpAsk.load, reps: jumpAsk.reps }, (k, params) => t(k, params), (kg) => formatLoad(kg, lang, unit)).map((o) => ({
+                label: o.label,
+                onPress: () => {
+                  const { ex, row } = jumpAsk;
+                  if (o.kind === "anyway") {
+                    okJumps.current.add(`${ex.exerciseId}:${o.load}`);
+                    void logRow(ex, row);
+                  } else {
+                    // A smaller step replaces the numbers in the row; the lifter ticks it when ready.
+                    patch(ex.exerciseId, row.key, { load: o.load, reps: o.reps });
+                  }
+                },
+              }))
+            : []
+        }
+      />
       <MenuSheet
         visible={menuEx !== undefined}
         title={menuEx ? exerciseLabels(menuEx, lang).primary : ""}

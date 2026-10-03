@@ -3,10 +3,10 @@ import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from "@re
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Pressable, Text, useColorScheme, View } from "react-native";
+import { AppState, Pressable, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { navColors } from "./src/palettes";
-import { usePalette } from "./src/theme";
+import { parseAppearance, setAppearance, useIsDark, usePalette } from "./src/theme";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
@@ -73,9 +73,20 @@ const Stack = createNativeStackNavigator();
 
 function Tabs() {
   const { t } = useI18n();
+  const p = usePalette();
   const icon = (name: TabIconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabIcon name={name} color={color} size={focused ? 26 : 24} />;
   return (
-    <Tab.Navigator screenOptions={{ tabBarLabelStyle: { fontSize: 14 }, tabBarStyle: { minHeight: 64 } }}>
+    <Tab.Navigator
+      screenOptions={{
+        tabBarLabelStyle: { fontSize: 13, fontWeight: "600" },
+        tabBarStyle: { minHeight: 60, backgroundColor: p.card, borderTopColor: p.border },
+        tabBarActiveTintColor: p.accent,
+        tabBarInactiveTintColor: p.muted,
+        headerStyle: { backgroundColor: p.bg },
+        headerTitleStyle: { fontSize: 20, fontWeight: "700", color: p.text },
+        headerShadowVisible: false,
+      }}
+    >
       <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today"), tabBarIcon: icon("today") }} />
       <Tab.Screen name="Programme" component={ProgrammeScreen} options={{ title: t("prog.title"), tabBarLabel: t("tab.programme"), tabBarIcon: icon("plan") }} />
       <Tab.Screen name="History" component={HistoryScreen} options={{ title: t("history.title"), tabBarLabel: t("tab.history"), tabBarIcon: icon("history") }} />
@@ -91,18 +102,18 @@ function SetupRoute() {
 
 function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   const { t, direction } = useI18n();
-  const scheme = useColorScheme();
+  const isDark = useIsDark();
   const palette = usePalette();
   // One primary accent for the tab bar, headers and the logger (the colours come from the same palette).
   const navTheme = useMemo(() => {
-    const base = scheme === "dark" ? DarkTheme : DefaultTheme;
+    const base = isDark ? DarkTheme : DefaultTheme;
     return { ...base, colors: { ...base.colors, ...navColors(palette) } };
-  }, [scheme, palette]);
+  }, [isDark, palette]);
   if (props.needsOnboarding) {
     return (
       <View style={{ flex: 1, direction }}>
         <OnboardingScreen onDone={props.onOnboarded} />
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? "light" : "dark"} />
       </View>
     );
   }
@@ -110,7 +121,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
     // `direction` on the root flips every flex row and the navigation chrome at once, without restarting the app.
     <View style={{ flex: 1, direction }}>
       <NavigationContainer theme={navTheme} direction={direction}>
-        <Stack.Navigator>
+        <Stack.Navigator screenOptions={{ headerTitleStyle: { fontSize: 20, fontWeight: "700" }, headerShadowVisible: false }}>
           <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title"), headerShown: false }} />
           <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false }} />
@@ -132,7 +143,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
         </Stack.Navigator>
       </NavigationContainer>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
     </View>
   );
 }
@@ -149,7 +160,7 @@ function Guarded({ children }: { children: React.ReactNode }) {
           <Text style={{ fontSize: 20, fontWeight: "700" }}>{t("diag.crashed.title")}</Text>
           <Text style={{ fontSize: 16 }}>{t("diag.crashed.body")}</Text>
           <Pressable accessibilityRole="button" onPress={reset} style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.accent, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: p.accentText, fontWeight: "700", fontSize: 17 }}>{t("diag.crashed.retry")}</Text>
+            <Text style={{ color: p.accentText, fontWeight: "700", fontSize: 16 }}>{t("diag.crashed.retry")}</Text>
           </Pressable>
         </View>
       )}
@@ -194,6 +205,7 @@ export default function App() {
       const weekly = createWeeklyRepo(db, deps, repos, goals);
       const shortWeek = createShortWeekRepo(db, deps, repos, programmes, goals);
       await onboarding.markExistingInstall();
+      setAppearance(parseAppearance(await repos.getSetting("appearance")));
       const rejections = createRejectionRepo(db, deps);
       const history = createHistoryRepo(db, deps, repos, finish);
       const decisions = createDecisionRepo(db);

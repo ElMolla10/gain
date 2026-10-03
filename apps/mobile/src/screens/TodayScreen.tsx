@@ -110,7 +110,7 @@ export function TodayScreen() {
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
         <BrandLogo size={40} />
-        <AppText ltr style={{ fontSize: 22, fontWeight: "800", letterSpacing: 2 }}>
+        <AppText ltr style={{ fontSize: 20, fontWeight: "800", letterSpacing: 2 }}>
           {t("app.name")}
         </AppText>
       </View>
@@ -128,7 +128,7 @@ export function TodayScreen() {
             style={{ borderWidth: 2, borderColor: d.id === chosen.id ? p.accent : p.edge, borderRadius: 14, padding: space.md, gap: space.xs, backgroundColor: d.id === chosen.id ? p.card : "transparent" }}
           >
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space.sm }}>
-              <AppText style={{ fontSize: 22, fontWeight: "800", flex: 1 }}>{d.id === chosen.id ? "✓ " : ""}{d.name}</AppText>
+              <AppText style={{ fontSize: 20, fontWeight: "800", flex: 1 }}>{d.id === chosen.id ? "✓ " : ""}{d.name}</AppText>
               {d.suggested ? <AppText style={{ color: p.accent, fontWeight: "700" }}>★ {t("today.suggested")}</AppText> : null}
               {d.id === data.openDayId ? <AppText style={{ fontWeight: "700" }}>{t("today.inProgress")}</AppText> : null}
             </View>

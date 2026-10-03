@@ -72,7 +72,7 @@ export function SessionDetailScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
       <AppText ltr style={{ fontWeight: "700" }}>{localDateText(detail.finishedAt)}</AppText>
-      <AppText style={{ fontSize: 22, fontWeight: "800" }}>{detail.imported ? t("history.imported") : detail.dayName}</AppText>
+      <AppText style={{ fontSize: 20, fontWeight: "800" }}>{detail.imported ? t("history.imported") : detail.dayName}</AppText>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("history.editNote")}</AppText>
       {detail.exercises.map((ex) => (
         <Card key={ex.exerciseId}>

@@ -133,7 +133,7 @@ export function Stepper(props: { label: string; value: number; onChange: (n: num
       onPress={() => props.onChange(Math.min(props.max, Math.max(props.min, props.value + delta * step)))}
       style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: disabled ? p.disabled : p.accent, alignItems: "center", justifyContent: "center", backgroundColor: p.card }}
     >
-      <AppText ltr style={{ fontSize: 24, fontWeight: "700", color: disabled ? p.disabled : p.text }}>{txt}</AppText>
+      <AppText ltr style={{ fontSize: 20, fontWeight: "700", color: disabled ? p.disabled : p.text }}>{txt}</AppText>
     </Pressable>
   );
   return (

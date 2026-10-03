@@ -68,7 +68,7 @@ Verdict key: **A** = accept as is, **C** = accept with the change in the note, *
 | 5.6 | Behind pace | Move the date if the projection is > 28 days late; else one more exposure or a two-week variation | Agree? | | |
 
 ## 6. Other things to look at
-- Templates (7 draft templates), already reported as good by a trainer, scope not recorded: ask the same person to confirm in writing which templates were covered.
+- Templates: 7 older draft templates (already reported as good by a trainer, scope not recorded: ask the same person to confirm in writing which templates were covered) and 40 added in v0.14.0 that **nobody has reviewed** ([TEMPLATES.md](TEMPLATES.md): list, rationale, what is a community shape vs a claim). Please review the exercise picks, set/rep numbers, the strength shapes with a low rep ceiling, and the higher-volume "bulking phase" ones.
 - Pain/injury wording on the Privacy and safety page: confirm it sends people to a professional and gives no treatment advice.
 - Anything the trainer wants removed or changed that is not listed above.
 

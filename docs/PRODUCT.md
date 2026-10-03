@@ -91,9 +91,7 @@ A gym is a list of standard weight steps (adjustable), not a yes/no equipment ch
 - Assisted-machine stacks, logged as assistance removed, never compared with a free weight.
 - Bodyweight movements logged as added load plus bodyweight, compared only with the same setup.
 
-Recommendations cannot ask for 21 kg dumbbells if the rack goes 20, then 22.5. Several gyms can be saved. Home and the club do not share a history when the equipment is not the same.
-
-A gym fingerprint can be shared inside that gym, so the second user does not rebuild the rack.
+Recommendations cannot ask for 21 kg dumbbells if the rack goes 20, then 22.5. The app keeps one silent default gym with standard weight steps the lifter can adjust; the data layer can hold several gyms, but there is no screen for them today. Shared gym fingerprints were dropped.
 
 ### 3. Progression currency
 
@@ -190,7 +188,6 @@ A later assistant can answer “what did I lift last time?” and “why is this
 | Goals | Lift goals, bodyweight goal, pace and date |
 | Programme | Week, exercises, versions |
 | History | Sessions and one trend per lift |
-| Gym | Fingerprint, increments, shared gym profile |
 | Settings | Language, units, privacy, backup and sync, data export |
 
 ## Design
@@ -213,11 +210,11 @@ Every feature is available to every lifter: logging, history, templates, charts,
 
 The optional sync server has technical storage and request limits that protect it from abuse (see [SYNC.md](SYNC.md)). They are operational safeguards, the same for everyone, not a plan or a tier.
 
-Earlier drafts of this document described a free/paid split and a pricing test. That was dropped: see Step 24 and decision D9 in [MASTER-PLAN.md](MASTER-PLAN.md).
+This is the one authoritative statement of GAIN's price; the plan, README, listing drafts and terms repeat or link to it. Earlier drafts described a free/paid split and a pricing test; that was dropped (history: [RELEASE-HISTORY.md](RELEASE-HISTORY.md)).
 
 ## First release
 
-Native iOS and Android. Arabic and English. Import. Gym fingerprint. Logger that works offline. Next-session targets with a visible reason. One strength goal and an optional bodyweight goal. Short-week cut. Weekly one-decision review. Export and delete.
+Android first (arm64 APK now, Play later); iOS comes after the first public release. Arabic and English. Import. Standard weight steps per exercise (the silent default gym). Logger that works offline. Next-session targets with a visible reason. One strength goal and an optional bodyweight goal. Short-week cut. Weekly one-decision review. Export and delete.
 
 Not in the first release: chatbot, social feed, wearables, nutrition, video scoring, trainer dashboard, photo progress. The coach card can follow as soon as lifters ask to send the screen to someone.
 
@@ -225,7 +222,7 @@ Not in the first release: chatbot, social feed, wearables, nutrition, video scor
 
 Start in one gym. Ten lifters who already log. Import or retype a month, show them the next weight beside the number they would have picked, and ask which they would load. Keep the ones who come back for Thursday’s target.
 
-Coaches get the card, not a SaaS pitch. A shared gym fingerprint makes the second member faster to onboard than the first. Growth is someone on the next bench seeing the target and asking what the app is. Spend on acquisition only after those people are still logging in week six.
+Coaches get the card, not a SaaS pitch. Growth is someone on the next bench seeing the target and asking what the app is. Spend on acquisition only after those people are still logging in week six.
 
 ## Success
 

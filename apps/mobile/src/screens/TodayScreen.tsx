@@ -13,6 +13,8 @@ import { BrandLogo } from "../BrandLogo";
 import { markSuggested, initialSelection, type DayChoice } from "../logic/dayChoice";
 import { AppText, BigButton, Card } from "../ui";
 import { HealthNote } from "../components/HealthNote";
+import { diagnostics } from "../diagnostics";
+import { LOADING, runLoad, type Load } from "../logic/loadState";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
 interface TodayData {
@@ -29,7 +31,8 @@ export function TodayScreen() {
   const { t, lang, fmt } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek", params?: { dayId: string }) => void }>();
-  const [data, setData] = useState<TodayData | null | undefined>(undefined);
+  const [state, setState] = useState<Load<TodayData>>(LOADING);
+  const [attempt, setAttempt] = useState(0);
   const [paceLine, setPaceLine] = useState<string>("");
   const [short, setShort] = useState<{ days: number } | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
@@ -38,12 +41,13 @@ export function TodayScreen() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      (async () => {
+      void runLoad<TodayData>(async () => {
         // A new training week has begun: the normal programme returns (if the lifter has not already edited it).
         await shortWeek.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
-        setShort(await shortWeek.getActive());
+        const shortActive = await shortWeek.getActive();
+        if (alive) setShort(shortActive);
         const next = await repos.getNextDay();
-        if (!next) return alive && setData(null);
+        if (!next) return null; // no programme at all: the genuinely empty state
         const dayList = await repos.listDays(next.versionId);
         const lists = await Promise.all(dayList.map((d) => repos.listDayExercises(d.id)));
         const marked = markSuggested(dayList.map((d, i) => ({ id: d.id, name: d.name, exercises: lists[i]!.length, sets: lists[i]!.reduce((n, e) => n + e.sets, 0) })), next.day.id);
@@ -53,19 +57,33 @@ export function TodayScreen() {
         const lib = pace.kind === "lift" ? await programmes.listExercises() : [];
         const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
         if (alive) setPaceLine(describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
-        if (alive) {
-          setData({ programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null });
-          setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
-        }
-      })().catch(() => alive && setData(null));
+        if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
+        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null };
+      }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
       return () => {
         alive = false;
       };
-    }, [repos, goals, programmes, shortWeek, workout, t, fmt, lang]),
+    }, [repos, goals, programmes, shortWeek, workout, t, fmt, lang, attempt]),
   );
 
-  if (data === undefined) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
-  if (data === null) return <AppText style={{ padding: space.lg }}>{t("today.empty")}</AppText>;
+  if (state.kind === "loading") return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
+  if (state.kind === "error") {
+    return (
+      <View style={{ padding: space.lg, gap: space.md }}>
+        <AppText style={{ fontSize: 20, fontWeight: "700" }}>{t("today.error.title")}</AppText>
+        <AppText style={{ color: p.muted }}>{t("today.error.body")}</AppText>
+        <BigButton
+          label={t("today.error.retry")}
+          onPress={() => {
+            setState(LOADING);
+            setAttempt((n) => n + 1);
+          }}
+        />
+      </View>
+    );
+  }
+  if (state.kind === "empty") return <AppText style={{ padding: space.lg }}>{t("today.empty")}</AppText>;
+  const data = state.data;
 
   const chosen = data.days.find((d) => d.id === picked) ?? data.days[0]!;
   const exercises = chosen.list;
@@ -78,11 +96,11 @@ export function TodayScreen() {
     setStarting(true);
     try {
       // The chosen day gets its own planned session and targets (planned sessions of other days are voided: missed days never stack).
-      if (data!.openDayId === null) {
+      if (data.openDayId === null) {
         const gymId = await repos.getActiveGymId();
         if (gymId) await finish.planDay(chosen.id, gymId);
       }
-      navigation.navigate("Workout", { dayId: data!.openDayId ?? chosen.id });
+      navigation.navigate("Workout", { dayId: data.openDayId ?? chosen.id });
     } finally {
       setStarting(false);
     }

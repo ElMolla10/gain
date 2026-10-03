@@ -17,6 +17,7 @@ import { localizeReason, weightText } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card } from "../ui";
 import { HealthNote } from "../components/HealthNote";
+import { diagnostics } from "../diagnostics";
 
 interface Next {
   sessionId: string;
@@ -42,6 +43,8 @@ export function FinishScreen() {
   const [linking, setLinking] = useState(false);
   const [link, setLink] = useState<{ id: string; url: string } | null>(null);
   const started = useRef(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   const reload = useCallback(
     async (n: Next) => setNext({ ...n, targets: await finish.getTargets(n.sessionId) }),
@@ -64,9 +67,28 @@ export function FinishScreen() {
       const equipment: Next["equipment"] = {};
       for (const e of exs) equipment[e.exerciseId] = { equipment: e.equipment, setup: e.setup };
       setNext({ sessionId: written.sessionId, dayName: written.dayName, gym, targets: await finish.getTargets(written.sessionId), equipment });
-    })().catch(() => setNext("none"));
-  }, [finish, repos, workout, sessionId, autoSync]);
+    })().catch((e) => {
+      // The workout itself is already finished and saved; only the summary could not be built. Retry instead of loading forever.
+      diagnostics.record("error", "finish summary", e);
+      started.current = false;
+      setFailed(true);
+    });
+  }, [finish, repos, workout, sessionId, autoSync, attempt]);
 
+  if (failed && (!summary || next === null)) {
+    return (
+      <View style={{ padding: space.lg, gap: space.md }}>
+        <AppText style={{ fontSize: 20, fontWeight: "700" }}>{t("finish.error.title")}</AppText>
+        <BigButton
+          label={t("finish.error.retry")}
+          onPress={() => {
+            setFailed(false);
+            setAttempt((n) => n + 1);
+          }}
+        />
+      </View>
+    );
+  }
   if (!summary || next === null) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
 
   const act = async (fn: () => Promise<void>) => {

@@ -19,6 +19,7 @@ import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings
 import { warmupOffer } from "../logic/warmups";
 import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
+import { finishChoice } from "../logic/finishChoice";
 import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
@@ -481,11 +482,31 @@ export function WorkoutScreen() {
     }
   }
 
+  async function doDiscard(lo: Loaded) {
+    setFinishing(true);
+    try {
+      if (!(await workout.discardEmptySession(lo.sessionId))) throw new Error("not empty");
+      navigation.goBack();
+    } catch (e) {
+      diagnostics.record("error", "discard empty workout", e);
+      setFinishing(false);
+      Alert.alert(t("workout.discard.failed"));
+    }
+  }
+
   function askFinish(lo: Loaded) {
     if (finishing) return;
-    const body = unlogged > 0 ? t("workout.unlogged", { n: unlogged }) : summary.sets === 0 ? t("workout.finish.nothing") : null;
-    if (body === null) return void doFinish(lo);
-    Alert.alert(t("workout.finish.title"), body, [
+    const choice = finishChoice(sets.length, unlogged);
+    if (choice === "finish") return void doFinish(lo);
+    if (choice === "discard-empty") {
+      // Android shows the last button as the primary one: "Discard empty workout" is primary, "Finish anyway" is the quiet alternative.
+      return Alert.alert(t("workout.discard.title"), t("workout.discard.body"), [
+        { text: t("workout.finish.anyway"), onPress: () => void doFinish(lo) },
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("workout.discard.go"), onPress: () => void doDiscard(lo) },
+      ]);
+    }
+    Alert.alert(t("workout.finish.title"), t("workout.unlogged", { n: unlogged }), [
       { text: t("common.cancel"), style: "cancel" },
       { text: t("workout.finish.go"), onPress: () => void doFinish(lo) },
     ]);

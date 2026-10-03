@@ -199,6 +199,26 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     await db.run("UPDATE session SET status = 'finished', finished_at = ?, updated_at = ? WHERE id = ? AND status = 'in_progress'", [t, t, sessionId]);
   }
 
+  /**
+   * "Discard empty workout": removes an in-progress session that has NO logged set at all (nothing ticked, or everything deleted).
+   * The session, its per-exercise state and the targets that were planned for it are tombstoned in one transaction, so nothing half-exists.
+   * Returns false (and changes nothing) when the session has a logged set, is not in progress, or does not exist: a real workout is never discarded here.
+   */
+  async function discardEmptySession(sessionId: string): Promise<boolean> {
+    return db.transaction(async () => {
+      const s = await db.get<{ status: string }>("SELECT status FROM session WHERE id = ? AND deleted_at IS NULL", [sessionId]);
+      if (!s || s.status !== "in_progress") return false;
+      const live = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM workout_set WHERE session_id = ? AND deleted_at IS NULL", [sessionId]);
+      if (Number(live?.n ?? 0) > 0) return false;
+      const t = now();
+      await db.run("UPDATE decision_log SET deleted_at = ?, updated_at = ? WHERE deleted_at IS NULL AND target_id IN (SELECT id FROM target WHERE session_id = ?)", [t, t, sessionId]);
+      await db.run("UPDATE target SET deleted_at = ?, updated_at = ? WHERE session_id = ? AND deleted_at IS NULL", [t, t, sessionId]);
+      await db.run("UPDATE session_exercise SET deleted_at = ?, updated_at = ? WHERE session_id = ? AND deleted_at IS NULL", [t, t, sessionId]);
+      await db.run("UPDATE session SET deleted_at = ?, updated_at = ? WHERE id = ?", [t, t, sessionId]);
+      return true;
+    });
+  }
+
   async function getLine(exerciseId: string, gymId: string, setup: SetupType): Promise<{ id: string } | null> {
     return db.get<{ id: string }>(
       "SELECT id FROM exercise_line WHERE exercise_id = ? AND gym_id = ? AND setup = ? AND deleted_at IS NULL",
@@ -521,6 +541,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     getOpenSession,
     getSession,
     finishSession,
+    discardEmptySession,
     getLine,
     ensureLine,
     listSessionSets,

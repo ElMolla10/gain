@@ -1,6 +1,7 @@
 import { classifyLift, DEFAULT_REP_CEILINGS, type Measure, mergeRepCeilings, resolveProgression, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings } from "@gain/engine";
 import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
+import { hasLoggedSets } from "./sessionSql";
 import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
 import { DEFAULT_TIMED_RANGE, measureOfKey } from "./library/measures";
 import { SAMPLE_EXERCISES, SAMPLE_GYM, SAMPLE_PROGRAMME, SEED_VERSION } from "./seedData";
@@ -334,7 +335,7 @@ export function createRepos(db: Db, deps: Deps) {
       `SELECT pd.position AS position FROM session s
        JOIN programme_day pd ON pd.id = s.programme_day_id
        JOIN programme_version pv ON pv.id = pd.programme_version_id
-       WHERE s.status = 'finished' AND s.deleted_at IS NULL AND pv.programme_id = ?
+       WHERE s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")} AND pv.programme_id = ?
        ORDER BY s.finished_at DESC LIMIT 1`,
       [v.programmeId],
     );

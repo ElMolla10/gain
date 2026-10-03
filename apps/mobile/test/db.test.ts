@@ -164,7 +164,7 @@ describe("settings and Today", () => {
     expect(await repos.getNextDay()).toBeNull();
   });
   it("Today starts at the first day and advances only after a FINISHED session", async () => {
-    const { repos, db } = await freshDb();
+    const { repos, db, workout } = await freshDb();
     await repos.seedIfNeeded();
     const first = (await repos.getNextDay())!;
     expect(first.day.name).toBe("Upper A");
@@ -178,7 +178,14 @@ describe("settings and Today", () => {
       );
     await addSession("skipped", null);
     expect((await repos.getNextDay())!.day.name).toBe("Upper A"); // a missed workout is not a completed workout
+    // A finished session with no logged set is an empty session: it does not advance the rotation either.
     await addSession("finished", 10);
+    expect((await repos.getNextDay())!.day.name).toBe("Upper A");
+    const gym = await repos.loadGymFingerprint(gymId);
+    const { id } = await workout.startOrResumeSession(first.day.id, gymId);
+    const ex = (await repos.listDayExercises(first.day.id))[0]!;
+    await workout.logSet({ sessionId: id, exerciseId: ex.exerciseId, load: 60, reps: 8 }, { gym, equipment: ex.equipment, setup: ex.setup });
+    await workout.finishSession(id);
     expect((await repos.getNextDay())!.day.name).toBe("Lower A");
   });
   it("lists day exercises with Arabic names, aliases, rep ranges and the goal lift flag", async () => {

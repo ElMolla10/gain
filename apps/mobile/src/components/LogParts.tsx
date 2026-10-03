@@ -83,7 +83,7 @@ export function CellInput<T extends number>(props: {
         placeholder={props.placeholder ?? "—"}
         placeholderTextColor={p.muted}
         style={{
-          height: 42,
+          height: 48,
           borderRadius: 8,
           borderWidth: bad ? 2 : 0,
           borderColor: p.warn,

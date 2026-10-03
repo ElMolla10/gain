@@ -89,14 +89,16 @@ export function Field(props: {
 }
 
 /** Compact toggle. State is carried by a text mark as well as colour. */
-export function Chip(props: { label: string; selected?: boolean; onPress?: () => void }) {
+export function Chip(props: { label: string; selected?: boolean; disabled?: boolean; onPress?: () => void }) {
   const p = usePalette();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: !!props.selected }}
+      accessibilityState={{ selected: !!props.selected, disabled: !!props.disabled }}
+      disabled={props.disabled}
       onPress={props.onPress}
       style={{
+        opacity: props.disabled ? 0.4 : 1,
         minHeight: 48,
         borderRadius: 24,
         paddingHorizontal: space.md,

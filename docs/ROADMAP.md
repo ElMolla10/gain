@@ -12,7 +12,7 @@ Milestones in one line each (details and exit criteria in the master plan):
 - **v0.7:** reviewed library + Arabic aliases, native rest timer, export/delete, local coach card. *Shipped 2026-10-03 as a pre-release with the review and the on-phone checks still open: library is draft, rest alert and card untested on a phone.*
 - **v0.8:** accessibility/RTL/performance/offline QA, trainer review, privacy + consent, crash reporting, beta APK process.
 - **v0.9:** pilot with about 10 lifters at one gym. *(v0.9.0 pre-release, 2026-10-03, is the Hevy-style logger redesign, not the pilot; see docs/WORKOUT-LOG.md.)*
-- **v0.10:** backend sync (Cloudflare Workers + D1), shared gyms, coach links, subscription test, Play closed testing; model layer only if the pilot shows a need.
+- **v0.10:** (milestone name, not the same as the v0.10.0 pre-release, which is a batch of logger features, safety/a11y QA, privacy drafts, local crash log and beta process docs; see MASTER-PLAN.md) backend sync (Cloudflare Workers + D1), shared gyms, coach links, subscription test, Play closed testing; model layer only if the pilot shows a need.
 - **v1.0:** Play Store public launch (Arabic + English).
 - **v1.x:** iOS, post-launch metrics.
 

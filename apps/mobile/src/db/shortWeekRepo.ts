@@ -95,14 +95,19 @@ export function createShortWeekRepo(db: Db, deps: Deps, repos: Repos, programmes
   async function apply(days: number, minutes: number | null, nowMs: number = now(), tzOffsetMs = 0): Promise<ActiveShortWeek> {
     if (await getActive()) throw new ShortWeekActive();
     const p = await preview(days, minutes);
-    const saved = await programmes.saveNewVersion(p.programmeId, p.rebuild.draft);
     const id = newId();
     const t = now();
     const weekStart = weekStartOf(nowMs + tzOffsetMs, await startsOn());
-    await db.run(
-      "INSERT INTO short_week (id, programme_id, original_version_id, short_version_id, week_start, days, minutes, cuts_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)",
-      [id, p.programmeId, p.originalVersionId, saved.versionId, weekStart, days, minutes, JSON.stringify(p.rebuild.cuts), t, t],
-    );
+    // The new version and the record that brings the normal week back are written in ONE transaction: a kill in between can never leave
+    // the short programme in place without the record that restores the original.
+    const record = (shortVersionId: string) =>
+      db.run(
+        "INSERT INTO short_week (id, programme_id, original_version_id, short_version_id, week_start, days, minutes, cuts_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)",
+        [id, p.programmeId, p.originalVersionId, shortVersionId, weekStart, days, minutes, JSON.stringify(p.rebuild.cuts), t, t],
+      );
+    const saved = await programmes.saveNewVersion(p.programmeId, p.rebuild.draft, { alsoInTransaction: async (v) => void (await record(v)) });
+    // The rebuilt week equals the current programme (nothing to cut): no new version was written, but the week is still recorded.
+    if (!saved.changed) await record(saved.versionId);
     return (await getActive())!;
   }
 

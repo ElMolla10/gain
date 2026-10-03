@@ -17,6 +17,9 @@ export const enDiag = {
   "diag.crashed.title": "Something went wrong on this screen",
   "diag.crashed.body": "Your saved sets are safe on this phone. A note about the error was saved in the crash log (Settings > Diagnostics).",
   "diag.crashed.retry": "Try again",
+  "data.safety.title": "Safety copy from before the last update",
+  "data.safety.note": "Before an update changes how GAIN stores data, it keeps a full copy on this phone. If something looks wrong after an update, you can check it and put it back here. It is removed by \"Delete everything\".",
+  "data.safety.use": "Look at the safety copy",
 } as const;
 
 export const arDiag: Record<keyof typeof enDiag, string> = {
@@ -37,4 +40,7 @@ export const arDiag: Record<keyof typeof enDiag, string> = {
   "diag.crashed.title": "حصلت مشكلة في الشاشة دي",
   "diag.crashed.body": "مجموعاتك المحفوظة في أمان على التليفون. اتحفظت ملاحظة عن الخطأ في سجل الأعطال (الإعدادات > التشخيص).",
   "diag.crashed.retry": "جرّب تاني",
+  "data.safety.title": "نسخة أمان من قبل آخر تحديث",
+  "data.safety.note": "قبل ما التحديث يغيّر طريقة تخزين GAIN للبيانات، بيحتفظ بنسخة كاملة على التليفون ده. لو حاجة باينة غلط بعد تحديث، تقدر تراجعها وترجّعها من هنا. بتتمسح بـ \"امسح كل حاجة\".",
+  "data.safety.use": "بُص على نسخة الأمان",
 };

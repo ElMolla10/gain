@@ -4,6 +4,8 @@ import React, { useCallback, useState } from "react";
 import { ScrollView } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
+import { diagnostics } from "../diagnostics";
+import { PRE_MIGRATION_FILE } from "../db/preMigrate";
 import { RestoreFailed, type DataCounts } from "../db/dataRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
@@ -23,10 +25,16 @@ export function DataScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [found, setFound] = useState<{ text: string; file: BackupFile; sessions: number; sets: number } | null>(null);
   const [askDelete, setAskDelete] = useState(false);
+  const [safetyCopy, setSafetyCopy] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       data.counts().then(setCounts);
+      try {
+        setSafetyCopy(new File(Paths.document, PRE_MIGRATION_FILE).exists);
+      } catch {
+        setSafetyCopy(false);
+      }
     }, [data]),
   );
 
@@ -75,6 +83,19 @@ export function DataScreen() {
     }
   }
 
+  /** The copy GAIN keeps from just before the last update: shown through the same checked restore as any backup. */
+  async function useSafetyCopy() {
+    setErr(null);
+    setMsg(null);
+    try {
+      const text = await new File(Paths.document, PRE_MIGRATION_FILE).text();
+      const i = await data.inspectBackup(text);
+      setFound({ text, file: i.file, sessions: i.counts.sessions, sets: i.counts.sets });
+    } catch (e) {
+      setErr(e instanceof BackupInvalid ? t(`data.restore.err.${e.code}` as StringKey) : t("data.restore.err.failed", { detail: e instanceof Error ? e.message : String(e) }));
+    }
+  }
+
   async function restore() {
     if (!found) return;
     setErr(null);
@@ -92,6 +113,15 @@ export function DataScreen() {
     setErr(null);
     try {
       await data.deleteAll();
+      // "Delete everything" also removes the copy kept before the last update and the crash log: no data of yours stays behind in GAIN.
+      try {
+        const f = new File(Paths.document, PRE_MIGRATION_FILE);
+        if (f.exists) f.delete();
+      } catch {
+        /* nothing to remove */
+      }
+      diagnostics.clear();
+      setSafetyCopy(false);
       setAskDelete(false);
       restart();
     } catch (e) {
@@ -126,6 +156,14 @@ export function DataScreen() {
           </>
         ) : null}
       </Card>
+
+      {safetyCopy ? (
+        <Card>
+          <AppText style={{ fontWeight: "700" }}>{t("data.safety.title")}</AppText>
+          <AppText style={{ color: p.muted, fontSize: 13 }}>{t("data.safety.note")}</AppText>
+          <BigButton label={t("data.safety.use")} selected={false} disabled={!!busy} onPress={useSafetyCopy} />
+        </Card>
+      ) : null}
 
       <Card>
         {askDelete ? (

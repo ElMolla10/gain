@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Pressable, ScrollView, TextInput, Vibration, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useServices } from "../AppContext";
+import { diagnostics } from "../diagnostics";
 import { CellInput, ChevronDown, Dots, MenuSheet, Stopwatch, SwipeRow, Tick } from "../components/LogParts";
 import { ExercisePicker } from "../components/ExercisePicker";
 import type { TargetRow } from "../db/finishRepo";
@@ -286,6 +287,10 @@ export function WorkoutScreen() {
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
+    } catch (e) {
+      // Storage full or the database failed: the row stays un-ticked (nothing half-saved) and the lifter is told, never left guessing.
+      diagnostics.record("error", "save set", e);
+      Alert.alert(t("workout.saveFailed.title"), t("workout.saveFailed.body"));
     } finally {
       setBusy(null);
     }

@@ -8,6 +8,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
+import { backupBeforeMigrate } from "./src/db/preMigrate";
+import { File, Paths } from "expo-file-system";
 import { createFinishRepo } from "./src/db/finishRepo";
 import { createGoalRepo } from "./src/db/goalRepo";
 import { createGymRepo } from "./src/db/gymRepo";
@@ -149,8 +151,15 @@ export default function App() {
   useEffect(() => {
     (async () => {
       const db = dbRef.current ?? (dbRef.current = await openExpoDb());
-      await migrate(db);
       const deps = { newId: () => Crypto.randomUUID(), now: () => Date.now() };
+      // Before an update changes the database layout, keep a full private copy of the data (Step 15 safety rule).
+      const safety = await backupBeforeMigrate(db, deps, (name, text) => {
+        const f = new File(Paths.document, name);
+        if (!f.exists) f.create({ overwrite: true });
+        f.write(text);
+      });
+      if (safety.error) diagnostics.record("warn", "pre-migration backup", safety.error);
+      await migrate(db);
       const repos = createRepos(db, deps);
       await repos.seedIfNeeded();
       await repos.topUpLibrary();

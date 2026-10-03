@@ -7,6 +7,10 @@ export interface Env {
   EMAIL_FROM?: string;
   /** Overrides the origin used in coach links (tests, custom domain). Defaults to the request origin. */
   PUBLIC_BASE_URL?: string;
+  /** Maximum characters of synced data per account (default 25,000,000). A push that would go past it is refused with 413 quota_exceeded. */
+  ACCOUNT_QUOTA_BYTES?: string;
+  /** Kill switch. "1" = every endpoint except /health answers 503 service_paused. "writes" = reads still work (pull, coach views, /me) but new accounts, pushes and coach links are refused. Anything else = normal. */
+  KILL_SWITCH?: string;
 }
 
 export class HttpError extends Error {

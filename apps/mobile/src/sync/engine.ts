@@ -21,7 +21,7 @@ export type SyncStatus = "off" | "pending" | "on";
 export type SyncError = "not_enabled" | "offline" | "auth" | "rate_limited" | "server" | "clock" | "busy" | "bad_response";
 
 export type SyncOutcome =
-  | { ok: true; pushed: number; stale: number; rejected: number; pulled: number; parked: number }
+  | { ok: true; pushed: number; stale: number; rejected: number; pulled: number; parked: number; /** The server's copy was replaced or rewound; this phone re-sent its rows. */ reconciled?: boolean }
   | { ok: false; error: SyncError; detail?: string };
 
 export interface SyncInfo {
@@ -43,7 +43,7 @@ export type ConnectResult =
 const PAGE = 200;
 // A fixed constant from @gain/sync, never user input.
 const SETTING_KEYS_SQL = SYNCED_SETTING_KEYS.map((k) => `'${k}'`).join(",");
-const S = { status: "status", account: "account_id", token: "device_token", recovery: "recovery_code", cursor: "cursor", last: "last_sync_at", err: "last_error", rejected: "rejected_total" } as const;
+const S = { status: "status", account: "account_id", token: "device_token", recovery: "recovery_code", cursor: "cursor", last: "last_sync_at", err: "last_error", rejected: "rejected_total", generation: "server_generation", reconciled: "reconciled_total" } as const;
 
 type Row = Record<string, string | number | null>;
 const versionOf = (updatedAt: number, deletedAt: number | null) => `${updatedAt}:${deletedAt ?? ""}`;
@@ -265,20 +265,56 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
     return applied;
   }
 
-  async function pullAll(): Promise<{ pulled: number } | { error: SyncError; detail?: string }> {
+  /**
+   * The server says its copy of this account was replaced or rewound (its generation changed), or its newest change is older than the
+   * point this phone had read up to (a restored backup). The cursor no longer means anything, so: forget what the server is known to have
+   * (every local row becomes "dirty" and goes out again; last-write-wins merges it), start reading from the beginning, and remember the new
+   * generation. Nothing local is deleted. Parked rows are dropped because they are re-read.
+   */
+  async function reconcile(generation: number | null): Promise<void> {
+    await db.transaction(async () => {
+      await db.run("DELETE FROM sync_row_state");
+      await db.run("DELETE FROM sync_outbox");
+      await db.run("DELETE FROM sync_parked");
+      await setState(S.cursor, "0");
+      if (generation !== null) await setState(S.generation, String(generation));
+      await setState(S.reconciled, String(Number((await getState(S.reconciled)) ?? "0") + 1));
+    });
+  }
+
+  /** True when the response's generation differs from the one this phone last synced against (a phone that never saw one just remembers it). */
+  async function generationChanged(generation: number | undefined): Promise<boolean> {
+    if (typeof generation !== "number") return false;
+    const known = await getState(S.generation);
+    if (known === null) {
+      await setState(S.generation, String(generation));
+      return false;
+    }
+    return Number(known) !== generation;
+  }
+
+  async function pullAll(): Promise<{ pulled: number; reconciled?: boolean } | { error: SyncError; detail?: string }> {
     const token = await getState(S.token);
     let cursor = Number((await getState(S.cursor)) ?? "0");
     let pulled = 0;
+    let reconciled = false;
     for (let page = 0; page < 10_000; page++) {
       const res = await call("GET", `/v1/sync/pull?since=${cursor}&limit=${PAGE}`, token);
       if ("error" in res) return res;
       const body = res.json as PullResponse;
       if (!body || !Array.isArray(body.rows) || typeof body.next !== "number" || typeof body.hasMore !== "boolean") return { error: "bad_response", detail: "pull shape" };
+      if (!reconciled && ((await generationChanged(body.generation)) || (typeof body.head === "number" && body.head < cursor))) {
+        await reconcile(typeof body.generation === "number" ? body.generation : null);
+        reconciled = true;
+        cursor = 0;
+        page = -1; // read again from the start
+        continue;
+      }
       await db.transaction(async () => {
         pulled += await applyRows(body.rows);
         await setState(S.cursor, String(body.next)); // cursor and rows move together
       });
-      if (!body.hasMore) return { pulled };
+      if (!body.hasMore) return { pulled, reconciled };
       if (body.next <= cursor) return { error: "bad_response", detail: "cursor did not advance" };
       cursor = body.next;
     }
@@ -308,12 +344,20 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
     try {
       const pushed = await pushAll();
       if ("error" in pushed) return fail(pushed.error, pushed.detail);
-      const pulled = await pullAll();
+      let pulled = await pullAll();
       if ("error" in pulled) return fail(pulled.error, pulled.detail);
+      if (pulled.reconciled) {
+        // Every local row was marked as unsent: send them now so this phone's newer data is not left waiting for the next sync.
+        const again = await pushAll();
+        if ("error" in again) return fail(again.error, again.detail);
+        pushed.pushed += again.pushed;
+        pushed.stale += again.stale;
+        pushed.rejected += again.rejected;
+      }
       await setState(S.last, String(deps.now()));
       await db.run("DELETE FROM sync_state WHERE id = ?", [S.err]);
       const parked = (await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM sync_parked"))!.n;
-      return { ok: true, ...pushed, pulled: pulled.pulled, parked };
+      return { ok: true, ...pushed, pulled: pulled.pulled, parked, reconciled: pulled.reconciled === true };
     } finally {
       running = false;
     }
@@ -394,6 +438,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
   async function takeBackup(): Promise<{ ok: true } | { ok: false; error: SyncError; detail?: string }> {
     const token = await getState(S.token);
     const all: Remote[] = [];
+    let generation: number | null = null;
     let cursor = 0;
     for (let page = 0; page < 10_000; page++) {
       const res = await call("GET", `/v1/sync/pull?since=${cursor}&limit=${PAGE}`, token);
@@ -401,6 +446,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
       const body = res.json as PullResponse;
       if (!body || !Array.isArray(body.rows) || typeof body.next !== "number" || typeof body.hasMore !== "boolean") return { ok: false, error: "bad_response" };
       all.push(...body.rows);
+      if (typeof body.generation === "number") generation = body.generation;
       if (!body.hasMore) {
         cursor = body.next;
         break;
@@ -419,6 +465,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
         await db.run("DELETE FROM sync_parked");
         await applyRows(all);
         await setState(S.cursor, String(cursor));
+        if (generation !== null) await setState(S.generation, String(generation));
         await setState(S.status, "on");
       });
     } finally {

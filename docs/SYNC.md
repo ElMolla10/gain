@@ -95,3 +95,18 @@ Restoring overwrites the live database in place, so write down the "before" book
 - Deleted-account data restored by a rollback comes back: if a lifter used "Delete my backup" after the target moment, their rows reappear. Re-run the deletion if that matters.
 - Worker code is separate: `npx wrangler@4.147.0 rollback` (see Deployed above). The schema is in `apps/server/migrations`; `d1 migrations apply` on an empty database rebuilds the tables but not the data.
 - Dashboard alternative: Cloudflare dashboard > Workers & Pages > D1 > gain-sync > Time Travel (not checked).
+
+## Fixes release: rollback detection, limits, kill switch, housekeeping
+
+**Generation (P07).** Each account has a `generation` (migration `0003_generation.sql`), returned by `/v1/me`, push and pull. It bumps when the account's synced rows are wiped (`DELETE /v1/sync/data`, used by "replace the backup"): sequence numbers restart at 1 after a wipe, so a phone's old cursor would silently skip new rows. A phone remembers the generation it last synced against; when it sees a different one, or when the server's newest change (`head`) is *behind* the phone's cursor (a restored/rewound D1), it **reconciles**: forgets what the server is known to have (every local row becomes unsent), resets its cursor to 0, re-reads the server's rows and re-sends its own (last-write-wins merges them). Nothing local is deleted. Tested against the real Worker code in `apps/server/test/e2e`.
+- **Operator runbook after restoring D1 (Time Travel / backup):** run `UPDATE account SET generation = generation + 1;` straight afterwards. A rewind that is later *outgrown* (the server's head passes the phone's old cursor again with different rows under those numbers) cannot be seen from inside the database, so bumping the generation is the reliable signal. Phones then reconcile on their next sync.
+
+**Limits (P17).** Request bodies over 9 MB are refused (413) before they are read; a single row is at most 64 KB; a push is at most 100 events and 8 MB; each account may hold `ACCOUNT_QUOTA_BYTES` characters of synced data (default 25,000,000; counted in `account.bytes_used`, updated by every push; a push that could pass it gets `413 quota_exceeded`).
+
+**Kill switch.** Set the Worker variable `KILL_SWITCH` in the Cloudflare dashboard (no deploy): `1` = every endpoint except `/health` answers `503 service_paused`; `writes` = pull, `/v1/me` and coach-card views keep working but new accounts, pushes, sign-in codes and coach links are refused (recover, logout and DELETE still work). Anything else = normal. Phones treat 503 as a temporary server error.
+
+**Edge rate limiting (documentation only, not configured).** The Worker already counts requests per account / IP in D1. If abuse appears, put Cloudflare's own rate limiting in front (Security > WAF > Rate limiting rules; free plans include a small number of rules): e.g. `POST /v1/account` and `POST /v1/auth/*` per IP per minute. Those rules run before the Worker is invoked, so they also protect the free request quota.
+
+**Housekeeping.** A daily cron trigger (`[triggers] crons` in `wrangler.toml`, 03:23 UTC) deletes expired coach links, old rate-limit windows, expired sign-in codes and devices unused for 400+ days (that phone gets 401 and signs in again with its recovery code).
+
+**Not done:** per-device token rotation and a "revoke other devices" screen (needs UI); the server must be deployed and `0003` applied (`wrangler d1 migrations apply`) before phones see generations. Until then phones simply don't get the field and behave as before.

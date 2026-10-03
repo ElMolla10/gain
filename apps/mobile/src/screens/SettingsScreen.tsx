@@ -4,11 +4,11 @@ import { HealthNote } from "../components/HealthNote";
 import { UpdateCard } from "../components/UpdateCard";
 import React, { useCallback, useEffect, useState } from "react";
 import type { CeilingClass, RepCeilings } from "@gain/engine";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
-import { AppText, Chip, Stepper } from "../ui";
+import { AppText, Chip, InlineStatus, Screen, Stepper } from "../ui";
 import { Block, Group, LinkRow, SelectRow, SwitchRow } from "../components/SettingsRows";
 import { unitLabel } from "../logic/units";
 import type { StringKey } from "../i18n/strings";
@@ -130,7 +130,7 @@ function ReminderCard() {
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("remind.note")}</AppText>
         </Block>
       ) : null}
-      {note ? <AppText style={{ color: p.danger, fontSize: ty.secondary }}>{t(note)}</AppText> : null}
+      {note ? <InlineStatus kind="error" text={t(note)} /> : null}
     </>
   );
 }
@@ -180,7 +180,7 @@ function RestCard() {
           }
         }}
       />
-      {note ? <AppText style={{ color: p.danger, fontSize: ty.secondary }}>{t(note)}</AppText> : null}
+      {note ? <InlineStatus kind="error" text={t(note)} /> : null}
     </>
   );
 }
@@ -194,7 +194,7 @@ export function SettingsScreen() {
   useSilentRackSync();
   const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Plans") => void }>();
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.lg, paddingBottom: space.xl * 2 }}>
+    <Screen tab title={t("tab.settings")}>
       <Group title={t("settings.group.training")}>
         <CeilingsCard />
         <RestCard />
@@ -234,6 +234,9 @@ export function SettingsScreen() {
             void repos.setSetting("appearance", a);
           }}
         />
+      </Group>
+
+      <Group title={t("settings.group.advanced")}>
         <SelectRow
           label={t("settings.direction")}
           note={needsRestart ? t("settings.restartNote") : undefined}
@@ -266,6 +269,6 @@ export function SettingsScreen() {
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
         </View>
       </Group>
-    </ScrollView>
+    </Screen>
   );
 }

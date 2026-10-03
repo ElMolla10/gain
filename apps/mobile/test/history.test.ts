@@ -99,7 +99,7 @@ describe("history: correcting a set", () => {
     const lift = (await history.listLifts()).find((l) => l.nameEn === BENCH)!;
     expect((await history.getLiftTrend(lift.lineId))!.trend.points.map((p) => p.load)).toEqual([60, 62.5]);
     await history.removeSet(s2.setIds[0]!);
-    expect((await history.getSession(s2.sessionId))!.exercises).toEqual([]);
+    expect(await history.getSession(s2.sessionId)).toBeNull(); // the session is now empty, so it is no longer a workout in History
     const t = (await history.getLiftTrend(lift.lineId))!.trend;
     expect(t.points.map((p) => p.load)).toEqual([60]);
     const row = await db.get<{ deleted_at: number | null }>("SELECT deleted_at FROM workout_set WHERE id = ?", [s2.setIds[0]!]);

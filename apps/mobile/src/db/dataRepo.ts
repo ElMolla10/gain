@@ -1,6 +1,7 @@
 import { buildCsv, BACKUP_APP, BACKUP_FORMAT, parseBackup, BackupInvalid, type BackupFile, type CsvSetRow } from "../logic/backup";
 import { LATEST_VERSION } from "./migrations";
 import type { Db, Deps } from "./driver";
+import { hasLoggedSets } from "./sessionSql";
 
 export class RestoreFailed extends Error {
   constructor(detail: string) {
@@ -25,7 +26,7 @@ export function createDataRepo(db: Db, deps: Deps) {
   async function counts(): Promise<DataCounts> {
     const n = async (sql: string) => (await db.get<{ n: number }>(sql))!.n;
     return {
-      sessions: await n("SELECT COUNT(*) AS n FROM session WHERE status = 'finished' AND deleted_at IS NULL"),
+      sessions: await n(`SELECT COUNT(*) AS n FROM session s WHERE s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")}`),
       sets: await n("SELECT COUNT(*) AS n FROM workout_set WHERE deleted_at IS NULL"),
       gyms: await n("SELECT COUNT(*) AS n FROM gym WHERE deleted_at IS NULL"),
       programmes: await n("SELECT COUNT(*) AS n FROM programme WHERE deleted_at IS NULL"),

@@ -1,6 +1,7 @@
 import { reviewWeek, weekStartOf, WEEKLY_RULE_VERSION, type WeeklyChange, type WeeklyInput, type WeeklyReview } from "@gain/engine";
 import { isTodayOrLater } from "../logic/onboarding";
 import type { Db, Deps } from "./driver";
+import { hasLoggedSets } from "./sessionSql";
 import type { GoalRepo } from "./goalRepo";
 import type { Repos } from "./repos";
 
@@ -55,7 +56,7 @@ export function createWeeklyRepo(db: Db, deps: Deps, repos: Repos, goals: GoalRe
 
   async function finishedBetween(fromUtc: number, toUtc: number): Promise<number> {
     const r = await db.get<{ n: number }>(
-      "SELECT COUNT(*) AS n FROM session WHERE status = 'finished' AND deleted_at IS NULL AND COALESCE(finished_at, started_at, created_at) >= ? AND COALESCE(finished_at, started_at, created_at) < ?",
+      `SELECT COUNT(*) AS n FROM session s WHERE s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")} AND COALESCE(s.finished_at, s.started_at, s.created_at) >= ? AND COALESCE(s.finished_at, s.started_at, s.created_at) < ?`,
       [fromUtc, toUtc],
     );
     return Number(r?.n ?? 0);
@@ -72,7 +73,7 @@ export function createWeeklyRepo(db: Db, deps: Deps, repos: Repos, goals: GoalRe
     const end = toUtc(thisWeekLocal);
     const plannedRaw = await repos.getSetting("days_per_week");
     const planned = plannedRaw === null || plannedRaw === "" ? Number.NaN : Number(plannedRaw);
-    const first = await db.get<{ t: number | null }>("SELECT MIN(COALESCE(finished_at, started_at, created_at)) AS t FROM session WHERE status = 'finished' AND deleted_at IS NULL");
+    const first = await db.get<{ t: number | null }>(`SELECT MIN(COALESCE(s.finished_at, s.started_at, s.created_at)) AS t FROM session s WHERE s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")}`);
     const pace = await goals.getPace(nowMs);
     let goal: WeeklyInput["goal"] = null;
     if (pace.kind === "lift") {

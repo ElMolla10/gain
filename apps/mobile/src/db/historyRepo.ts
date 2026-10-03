@@ -1,5 +1,6 @@
 import { isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
+import { hasLoggedSets } from "./sessionSql";
 import type { FinishRepo } from "./finishRepo";
 import type { Repos } from "./repos";
 
@@ -63,7 +64,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
               (SELECT COUNT(DISTINCT ws.exercise_id) FROM workout_set ws WHERE ws.session_id = s.id AND ws.deleted_at IS NULL) AS exercises,
               (SELECT COUNT(*) FROM workout_set ws WHERE ws.session_id = s.id AND ws.deleted_at IS NULL AND ws.is_warmup = 0) AS sets
          FROM session s JOIN programme_day d ON d.id = s.programme_day_id JOIN gym g ON g.id = s.gym_id
-        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL
+        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL AND ${hasLoggedSets("s")}
         ORDER BY s.finished_at DESC, s.rowid DESC LIMIT ? OFFSET ?`,
       [limit, offset],
     );
@@ -71,14 +72,14 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   }
 
   async function countSessions(): Promise<number> {
-    return (await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM session WHERE status = 'finished' AND deleted_at IS NULL AND finished_at IS NOT NULL"))!.n;
+    return (await db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM session s WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL AND ${hasLoggedSets("s")}`))!.n;
   }
 
   async function getSession(id: string): Promise<SessionDetail | null> {
     const s = await db.get<{ id: string; day_name: string; gym_name: string; finished_at: number; imported: number }>(
       `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, (s.import_key IS NOT NULL) AS imported
          FROM session s JOIN programme_day d ON d.id = s.programme_day_id JOIN gym g ON g.id = s.gym_id
-        WHERE s.id = ? AND s.status = 'finished' AND s.deleted_at IS NULL`,
+        WHERE s.id = ? AND s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")}`,
       [id],
     );
     if (!s) return null;

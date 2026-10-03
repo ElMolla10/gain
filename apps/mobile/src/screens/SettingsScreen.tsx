@@ -149,7 +149,7 @@ export function SettingsScreen() {
   const p = usePalette();
   const version = Constants.expoConfig?.version ?? "0";
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Diagnostics") => void }>();
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <Card>
@@ -178,6 +178,7 @@ export function SettingsScreen() {
         <BigButton label={t("data.entry")} selected={false} onPress={() => nav.navigate("Data")} />
         <BigButton label={t("dec.entry")} selected={false} onPress={() => nav.navigate("DecisionLog")} />
         <BigButton label={t("stop.entry")} selected={false} onPress={() => nav.navigate("StoppedSuggestions")} />
+        <BigButton label={t("diag.entry")} selected={false} onPress={() => nav.navigate("Diagnostics")} />
       </Card>
       <Card>
         <BigButton label={t("import.entry")} selected={false} onPress={() => nav.navigate("Import")} />

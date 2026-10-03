@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from "@re
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, useColorScheme, View } from "react-native";
+import { Pressable, Text, useColorScheme, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
@@ -17,6 +17,10 @@ import { createProgrammeRepo } from "./src/db/programmeRepo";
 import { createRepos } from "./src/db/repos";
 import { createRestAlerts } from "./src/notifications/restAlerts";
 import { createDataRepo } from "./src/db/dataRepo";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import { diagnostics } from "./src/diagnostics";
+import { installCrashHandler } from "./src/logic/diagnostics";
+import { DiagnosticsScreen } from "./src/screens/DiagnosticsScreen";
 import { DataScreen } from "./src/screens/DataScreen";
 import type { Db } from "./src/db/driver";
 import { createDecisionRepo } from "./src/db/decisionRepo";
@@ -46,6 +50,9 @@ import { StoppedSuggestionsScreen } from "./src/screens/StoppedSuggestionsScreen
 import { ShortWeekScreen } from "./src/screens/ShortWeekScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { TodayScreen } from "./src/screens/TodayScreen";
+
+// Uncaught JavaScript errors go to the crash log on this phone (never uploaded), then on to the normal handler.
+installCrashHandler(diagnostics, (globalThis as { ErrorUtils?: Parameters<typeof installCrashHandler>[1] }).ErrorUtils);
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -92,6 +99,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
           <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
+          <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: t("diag.title") }} />
           <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} />
           <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: t("history.session.title") }} />
           <Stack.Screen name="LiftTrend" component={LiftTrendScreen} options={{ title: t("trend.title") }} />
@@ -102,6 +110,27 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
       </NavigationContainer>
       <StatusBar style="auto" />
     </View>
+  );
+}
+
+/** A screen that throws while drawing no longer blanks the app: it is logged locally and the lifter gets a way back. */
+function Guarded({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
+  return (
+    <ErrorBoundary
+      onError={(e) => diagnostics.record("crash", "render", e)}
+      fallback={(reset) => (
+        <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 12 }}>
+          <Text style={{ fontSize: 20, fontWeight: "700" }}>{t("diag.crashed.title")}</Text>
+          <Text style={{ fontSize: 16 }}>{t("diag.crashed.body")}</Text>
+          <Pressable accessibilityRole="button" onPress={reset} style={{ minHeight: 52, borderRadius: 12, backgroundColor: "#1f6feb", alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 17 }}>{t("diag.crashed.retry")}</Text>
+          </Pressable>
+        </View>
+      )}
+    >
+      {children}
+    </ErrorBoundary>
   );
 }
 
@@ -138,7 +167,10 @@ export default function App() {
       const decisions = createDecisionRepo(db);
       const data = createDataRepo(db, deps);
       setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
-    })().catch(() => setBoot("error"));
+    })().catch((e) => {
+      diagnostics.record("error", "boot", e);
+      setBoot("error");
+    });
   }, [epoch]);
 
   const onChange = useMemo(
@@ -155,7 +187,9 @@ export default function App() {
     <SafeAreaProvider>
       <ServicesProvider value={boot.services}>
         <I18nProvider initialLang={boot.lang} initialOverride={boot.override} initialUnit={boot.unit} onChange={onChange}>
-          <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" ? { ...b, needsOnboarding: false } : b))} />
+          <Guarded>
+            <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" ? { ...b, needsOnboarding: false } : b))} />
+          </Guarded>
         </I18nProvider>
       </ServicesProvider>
     </SafeAreaProvider>

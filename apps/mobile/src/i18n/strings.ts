@@ -3,6 +3,7 @@ import { arCommon, enCommon } from "./strings.common";
 import { arDate, enDate } from "./strings.date";
 import { arWorkout, enWorkout } from "./strings.workout";
 import { arUpdate, enUpdate } from "./strings.update";
+import { arDiag, enDiag } from "./strings.diag";
 import { arData, enData } from "./strings.data";
 import { arDecisions, enDecisions } from "./strings.decisions";
 import { arGoals, enGoals } from "./strings.goals";
@@ -173,6 +174,7 @@ export const en = {
   ...enDate,
   ...enWorkout,
   ...enUpdate,
+  ...enDiag,
   ...enGoals,
   ...enWeekly,
   ...enShortWeek,
@@ -346,6 +348,7 @@ export const ar: Record<StringKey, string> = {
   ...arDate,
   ...arWorkout,
   ...arUpdate,
+  ...arDiag,
   ...arGoals,
   ...arWeekly,
   ...arShortWeek,

@@ -262,23 +262,24 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
    * Saves an edit as version N+1. No-op (no new version) when nothing changed. The name is the programme's, not the version's.
    * Rotation continues where it was (by day position); the next planned session is rewritten from the new version.
    */
-  async function saveNewVersion(programmeId: string, draft: ProgrammeDraft): Promise<{ versionId: string; version: number; changed: boolean }> {
+  async function saveNewVersion(programmeId: string, draft: ProgrammeDraft, opts: { background?: boolean } = {}): Promise<{ versionId: string; version: number; changed: boolean }> {
     const problems = validateDraft(draft);
     if (problems.length > 0) throw new DraftInvalid(problems);
     const cur = await db.get<{ id: string; version: number }>("SELECT id, version FROM programme_version WHERE programme_id = ? AND deleted_at IS NULL ORDER BY version DESC LIMIT 1", [programmeId]);
     if (!cur) throw new Error("Unknown programme");
     const before = await loadDraft(cur.id);
     if (draftFingerprint(before) === draftFingerprint(draft)) return { versionId: cur.id, version: cur.version, changed: false };
-    await assertNoOpenWorkout();
+    // `background`: a programme that is not the active one (e.g. closing a short week left behind). Nothing about today's workout or plan is touched.
+    if (!opts.background) await assertNoOpenWorkout();
     const res = await db.transaction(async () => {
       const t = now();
       if (draft.name.trim() !== before.name.trim()) await db.run("UPDATE programme SET name = ?, updated_at = ? WHERE id = ?", [draft.name.trim(), t, programmeId]);
       const version = cur.version + 1;
       const versionId = await insertVersion(programmeId, version, draft);
-      await voidStalePlanned(versionId);
+      if (!opts.background) await voidStalePlanned(versionId);
       return { versionId, version, changed: true };
     });
-    await replan();
+    if (!opts.background) await replan();
     return res;
   }
 

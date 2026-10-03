@@ -21,6 +21,10 @@ Saving writes a **new programme version** of the active programme (old sessions 
 
 No calendar scheduling of which weekday each kept day lands on; the existing "next day" rotation continues. No per-session minutes entered by the lifter beyond the five choices. The rule is a plain description of common practice, not trainer-reviewed advice.
 
+## Switching programme during a short week (fixed after v0.9.0)
+
+A short week belongs to the programme it was applied to. If the lifter switches to (or creates) another programme, the banner and the short-week screen do not show the old one, a preview/apply on the new programme is built from the NEW programme's own version (before the fix it was rebuilt from the old programme's original and saved into the new programme), and the old short week stays recorded. Switching back shows it again. When its week ends it is closed in the background: the old programme gets its normal version back without voiding or replanning today's plan on the active programme. Tests: `shortWeekRepo.test.ts` ("short week + programme switch").
+
 ## Tests
 
 `apps/mobile/test/shortWeek.test.ts`: hand-computed cases, and an invariant sweep over all 7 templates x 3 goal lifts x every day count x 5 time budgets (goal lifts kept, sets trimmed only when accessories have no spare sets, floors, every cut listed, budget met or flagged). `apps/mobile/test/shortWeekRepo.test.ts`: preview writes nothing, apply/undo/auto-return, edited programme kept, open workout refused, past sessions still readable.

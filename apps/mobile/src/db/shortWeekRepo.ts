@@ -63,8 +63,15 @@ export function createShortWeekRepo(db: Db, deps: Deps, repos: Repos, programmes
     return Number.isInteger(v) && v >= 0 && v <= 6 ? v : 1;
   }
 
+  /**
+   * The short week of the programme that is active NOW. A short week belongs to the programme it was applied to: after the lifter
+   * switches to another programme it is not shown there, not used as that programme's "original", and does not block a new one.
+   * It stays recorded and comes back if they switch back, or is closed quietly when its week ends (see endIfExpired).
+   */
   async function getActive(): Promise<ActiveShortWeek | null> {
-    const r = await db.get<Row>("SELECT * FROM short_week WHERE status = 'active' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1");
+    const v = await programmes.getActive();
+    if (!v) return null;
+    const r = await db.get<Row>("SELECT * FROM short_week WHERE status = 'active' AND programme_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1", [v.programmeId]);
     return r ? toActive(r) : null;
   }
 
@@ -100,6 +107,8 @@ export function createShortWeekRepo(db: Db, deps: Deps, repos: Repos, programmes
   }
 
   async function restore(a: ActiveShortWeek, status: "ended" | "undone"): Promise<{ restored: boolean }> {
+    // A short week left behind on a programme that is no longer active is restored without touching the active programme.
+    const onActive = (await programmes.getActive())?.programmeId === a.programmeId;
     const latest = await db.get<{ id: string }>("SELECT id FROM programme_version WHERE programme_id = ? AND deleted_at IS NULL ORDER BY version DESC LIMIT 1", [a.programmeId]);
     const t = now();
     // The lifter edited the programme after the short week started: keep their edit, do not overwrite it.
@@ -108,7 +117,7 @@ export function createShortWeekRepo(db: Db, deps: Deps, repos: Repos, programmes
       return { restored: false };
     }
     const original = await programmes.loadDraft(a.originalVersionId);
-    const saved = await programmes.saveNewVersion(a.programmeId, original);
+    const saved = await programmes.saveNewVersion(a.programmeId, original, { background: !onActive });
     await db.run("UPDATE short_week SET status = ?, restored_version_id = ?, ended_at = ?, updated_at = ? WHERE id = ?", [status, saved.versionId, t, t, a.id]);
     return { restored: true };
   }
@@ -122,16 +131,25 @@ export function createShortWeekRepo(db: Db, deps: Deps, repos: Repos, programmes
 
   /** Called when Today opens: a new training week has begun, so the normal programme returns. Returns whether anything was restored. */
   async function endIfExpired(nowMs: number = now(), tzOffsetMs = 0): Promise<{ ended: boolean; restored: boolean }> {
-    const a = await getActive();
-    if (!a) return { ended: false, restored: false };
-    if (weekStartOf(nowMs + tzOffsetMs, await startsOn()) <= a.weekStart) return { ended: false, restored: false };
-    try {
-      return { ended: true, ...(await restore(a, "ended")) };
-    } catch (e) {
-      // A workout is open: try again the next time Today opens.
-      if (e instanceof SessionInProgress) return { ended: false, restored: false };
-      throw e;
+    // Every open short week counts, also those left on a programme the lifter switched away from.
+    const rows = await db.all<Row>("SELECT * FROM short_week WHERE status = 'active' AND deleted_at IS NULL ORDER BY created_at");
+    const thisWeek = weekStartOf(nowMs + tzOffsetMs, await startsOn());
+    let ended = false;
+    let restored = false;
+    for (const row of rows) {
+      const a = toActive(row);
+      if (thisWeek <= a.weekStart) continue;
+      try {
+        const r = await restore(a, "ended");
+        ended = true;
+        restored = restored || r.restored;
+      } catch (e) {
+        // A workout is open: try again the next time Today opens.
+        if (e instanceof SessionInProgress) continue;
+        throw e;
+      }
     }
+    return { ended, restored };
   }
 
   return { preview, apply, getActive, undo, endIfExpired };

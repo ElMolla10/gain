@@ -8,6 +8,7 @@ import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
 import { CellInput, ChevronDown, Dots, MenuSheet, Stopwatch, SwipeRow, Tick } from "../components/LogParts";
 import { ExercisePicker } from "../components/ExercisePicker";
+import { WorkoutHelp } from "../components/WorkoutHelp";
 import type { TargetRow } from "../db/finishRepo";
 import type { LibraryExercise } from "../db/programmeRepo";
 import type { ExerciseState, SetRow } from "../db/workoutRepo";
@@ -109,6 +110,7 @@ export function WorkoutScreen() {
   const [pickFor, setPickFor] = useState<string | null>(null);
   /** The row whose type (normal / warm-up / drop / failure) is being chosen. */
   const [addOpen, setAddOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   /** The exercise for which "Superset with ..." is being chosen. */
   const [ssFor, setSsFor] = useState<string | null>(null);
   const [kindFor, setKindFor] = useState<{ exId: string; key: string } | null>(null);
@@ -557,22 +559,25 @@ export function WorkoutScreen() {
           <AppText style={{ color: p.blue, fontWeight: "600", fontSize: 15 }}>{st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}</AppText>
         </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${t("workout.whyShort")}: ${labels.primary}`}
-          onPress={() => (info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id })) : setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded })))}
-          onLongPress={() => setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded }))}
-          style={{ marginHorizontal: 12, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: p.field, borderStartWidth: 3, borderStartColor: p.blueFill, flexDirection: "row", alignItems: "flex-start", gap: 8 }}
-        >
-          <AppText numberOfLines={expanded ? undefined : 1} style={{ flex: 1, fontSize: 14, color: p.muted }}>
-            <AppText style={{ fontSize: 14, fontWeight: "700", color: p.text }}>
-              {t("workout.target")}: {targetText}
+        {/* Compact target line: "Next: 75 kg × 7 · Why". It wraps onto a second line when it is long and is never cut off. */}
+        <View style={{ marginHorizontal: 12, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: p.field, borderStartWidth: 3, borderStartColor: p.blueFill, gap: 4 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 2 }}>
+            <AppText style={{ flexShrink: 1, fontSize: 15, fontWeight: "700" }}>
+              {t("workout.nextTarget")}: {targetText}
             </AppText>
-            {"  ·  "}
-            {reasonText}
-          </AppText>
-          <AppText style={{ fontSize: 13, fontWeight: "700", color: p.blue }}>{t("workout.whyShort")} ›</AppText>
-        </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${t("workout.whyShort")}: ${labels.primary}`}
+              onPress={() => (info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id })) : setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded })))}
+              onLongPress={() => setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded }))}
+              hitSlop={{ top: 8, bottom: 8 }}
+              style={{ minHeight: 32, justifyContent: "center" }}
+            >
+              <AppText style={{ fontSize: 14, fontWeight: "700", color: p.blue }}>· {t("workout.whyShort")} ›</AppText>
+            </Pressable>
+          </View>
+          {expanded ? <AppText style={{ fontSize: 14, color: p.muted }}>{reasonText}</AppText> : null}
+        </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingTop: 4 }}>
           <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
@@ -605,7 +610,7 @@ export function WorkoutScreen() {
                     </Pressable>
                   </View>
                   <View style={{ flex: 1.3 }}>
-                    <AppText ltr numberOfLines={1} style={{ color: p.muted, fontSize: 14, textAlign: "center" }}>
+                    <AppText ltr numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: p.muted, fontSize: 14, textAlign: "center" }}>
                       {isolateLtr(timed ? previousQuantityText(info.last?.sets ?? null, widx[i] ?? null, ex.measure, (kg) => `${weightText(kg, unit)}${unitText}`, qUnits) : previousText(info.last?.sets ?? null, widx[i] ?? null, unit, unitText))}
                     </AppText>
                   </View>
@@ -724,14 +729,9 @@ export function WorkoutScreen() {
               <AppText style={{ color: p.blue, fontWeight: "600", fontSize: 15 }}>{t("warm.add")}</AppText>
             </Pressable>
           )
-        ) : timed || warmDone[ex.exerciseId] ? null : exSets.length === 0 && offer.reason !== "already_started" ? (
-          <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t(`warm.none.${offer.reason}` as never)}</AppText>
         ) : null}
         {warmDone[ex.exerciseId] ? <AppText style={{ color: p.muted, paddingHorizontal: 14 }}>✓ {t("warm.added")}</AppText> : null}
         {!spec ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.stepFallback")}</AppText> : null}
-        {ex.exerciseId !== ex.slot ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.replace.note")}</AppText> : null}
-        {st.added ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.add.note")}</AppText> : null}
-        {ssLabel[ex.slot] ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t("workout.superset.note")}</AppText> : null}
 
         <Pressable
           accessibilityRole="button"
@@ -754,6 +754,9 @@ export function WorkoutScreen() {
           <ChevronDown color={p.text} />
         </Pressable>
         <AppText numberOfLines={1} style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: "700" }}>{t("workout.header")}</AppText>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.help.button")} onPress={() => setHelpOpen(true)} style={circle}>
+          <AppText style={{ fontWeight: "800", fontSize: 18 }}>?</AppText>
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={t("workout.restTimerBtn")} accessibilityState={{ expanded: timerOpen }} hitSlop={{ top: 4, bottom: 4 }} onPress={() => setTimerOpen((o) => !o)} style={timerRunning ? { height: 40, minWidth: 40, paddingHorizontal: 12, flexDirection: "row", gap: 6, borderRadius: 20, backgroundColor: p.field, alignItems: "center", justifyContent: "center" } : circle}>
           <Stopwatch size={16} color={timerRunning ? p.blue : p.text} />
           {timerRunning ? <AppText ltr style={{ color: p.blue, fontWeight: "700", fontSize: 15 }}>{formatClock(remainingMs(timer, now))}</AppText> : null}
@@ -807,7 +810,6 @@ export function WorkoutScreen() {
           <AppText accessibilityLiveRegion="polite" style={{ color: p.muted, fontSize: 13 }}>
             {savedAt ? `✓ ${t("workout.saved", { time: clock(savedAt) })}` : t("workout.notSaved")}
           </AppText>
-          <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.setHint")}</AppText>
         </View>
 
         {shown.map(renderExercise)}
@@ -836,11 +838,11 @@ export function WorkoutScreen() {
         ) : null}
 
         <View style={{ paddingHorizontal: 14, paddingTop: 22, gap: 4 }}>
-          <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.finishNote")}</AppText>
           {unlogged > 0 ? <AppText style={{ fontWeight: "600" }}>{t("workout.unlogged", { n: unlogged })}</AppText> : null}
         </View>
       </ScrollView>
 
+      <WorkoutHelp visible={helpOpen} onClose={() => setHelpOpen(false)} />
       <MenuSheet
         visible={menuEx !== undefined}
         title={menuEx ? exerciseLabels(menuEx, lang).primary : ""}

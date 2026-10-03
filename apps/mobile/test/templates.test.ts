@@ -5,7 +5,7 @@ import { GROUP_OF_MUSCLE, type Gear, type Muscle } from "../src/db/library/types
 import { computeExposure } from "../src/logic/exposure";
 import { MAX_SETS, validateDraft } from "../src/logic/programmeDraft";
 import {
-  facetCounts, filterTemplates, gearFits, groupByDays, matchesFilter, NO_FILTER, daysAvailable,
+  facetCounts, filterTemplates, gearFits, groupByDays, usableAtHome, venuesOf, matchesFilter, NO_FILTER, daysAvailable,
 } from "../src/logic/templateFilter";
 import { instantiateTemplate, TEMPLATES, templatesForDays, TEMPLATE_GEARS, TEMPLATE_GOALS, TEMPLATE_LEVELS, type Template } from "../src/logic/templates";
 import { freshDb } from "./helpers";
@@ -86,11 +86,16 @@ describe("template catalogue: identity and library references", () => {
   });
   it("the gear tag is true: dumbbell programmes use dumbbells, kettlebells and bodyweight only; bodyweight programmes use bodyweight only", () => {
     const okDumbbell: Gear[] = ["dumbbell", "kettlebell", "bodyweight"];
+    const okBand: Gear[] = ["band", "bodyweight"];
     for (const t of TEMPLATES) {
       const gears = t.schedule.flatMap((d) => d.exercises.map((e) => catalog.get(e.key)!.gear));
       if (t.gear === "dumbbell") for (const g of gears) expect(okDumbbell, `${t.id}`).toContain(g);
+      if (t.gear === "band") {
+        for (const g of gears) expect(okBand, `${t.id}`).toContain(g);
+        expect(gears.some((g) => g === "band"), `${t.id} is tagged band but uses no band`).toBe(true);
+      }
       if (t.gear === "bodyweight") for (const g of gears) expect(g, `${t.id}`).toBe("bodyweight");
-      if (t.gear === "gym") expect(gears.some((g) => !okDumbbell.includes(g)), `${t.id} is tagged gym but needs no gym gear`).toBe(true);
+      if (t.gear === "gym") expect(gears.some((g) => !okDumbbell.includes(g) && !okBand.includes(g)), `${t.id} is tagged gym but needs no gym gear`).toBe(true);
     }
   });
 });
@@ -211,14 +216,48 @@ describe("picker: filter and grouping logic", () => {
     const strength = filterTemplates(TEMPLATES, { ...NO_FILTER, goal: "strength" });
     expect(strength.every((t) => t.goal === "strength")).toBe(true);
   });
-  it("equipment means 'what I have': a full gym sees all, dumbbells see dumbbell + bodyweight, nothing sees bodyweight only", () => {
+  it("equipment means 'what I have': a full gym sees all, dumbbells see dumbbell + bodyweight (not bands), nothing sees bodyweight only", () => {
     expect(gearFits("gym", "gym") && gearFits("dumbbell", "gym") && gearFits("bodyweight", "gym")).toBe(true);
     expect(gearFits("gym", "dumbbell")).toBe(false);
     expect(gearFits("bodyweight", "dumbbell")).toBe(true);
     expect(gearFits("dumbbell", "bodyweight")).toBe(false);
     expect(filterTemplates(TEMPLATES, { ...NO_FILTER, gear: "gym" })).toHaveLength(TEMPLATES.length);
-    for (const t of filterTemplates(TEMPLATES, { ...NO_FILTER, gear: "dumbbell" })) expect(t.gear).not.toBe("gym");
+    for (const t of filterTemplates(TEMPLATES, { ...NO_FILTER, gear: "dumbbell" })) expect(["dumbbell", "bodyweight"]).toContain(t.gear);
     for (const t of filterTemplates(TEMPLATES, { ...NO_FILTER, gear: "bodyweight" })) expect(t.gear).toBe("bodyweight");
+  });
+  it("Home shows only programmes needing bodyweight, dumbbells or bands; Gym shows every programme (home ones included); nothing needing a gym is under Home", () => {
+    const home = filterTemplates(TEMPLATES, { ...NO_FILTER, venue: "home" });
+    const gym = filterTemplates(TEMPLATES, { ...NO_FILTER, venue: "gym" });
+    expect(gym).toHaveLength(TEMPLATES.length);
+    for (const t of home) {
+      expect(t.gear, t.id).not.toBe("gym");
+      expect(gym.map((g) => g.id), t.id).toContain(t.id);
+      expect(venuesOf(t)).toEqual(["home", "gym"]);
+    }
+    for (const t of TEMPLATES.filter((x) => x.gear === "gym")) {
+      expect(home.map((h) => h.id)).not.toContain(t.id);
+      expect(venuesOf(t)).toEqual(["gym"]);
+      expect(usableAtHome(t)).toBe(false);
+    }
+    // Home is also true by exercise: every exercise of a home programme is bodyweight, dumbbell, kettlebell or band gear.
+    for (const t of home) for (const d of t.schedule) for (const e of d.exercises) expect(["bodyweight", "dumbbell", "kettlebell", "band"], `${t.id}/${e.key}`).toContain(catalog.get(e.key)!.gear);
+  });
+  it("venue combines with days, equipment, goal and level (all AND-ed)", () => {
+    const f = { ...NO_FILTER, venue: "home" as const, days: 3 };
+    for (const t of filterTemplates(TEMPLATES, f)) expect(t.days === 3 && t.gear !== "gym").toBe(true);
+    for (const t of filterTemplates(TEMPLATES, { ...f, gear: "dumbbell" })) expect(t.gear === "dumbbell" || t.gear === "bodyweight").toBe(true);
+    // "I have a full gym" does not remove home programmes from the Home list.
+    expect(filterTemplates(TEMPLATES, { ...NO_FILTER, venue: "home", gear: "gym" }).map((t) => t.id)).toEqual(filterTemplates(TEMPLATES, { ...NO_FILTER, venue: "home" }).map((t) => t.id));
+    const combo = filterTemplates(TEMPLATES, { days: 4, venue: "home", gear: "dumbbell", goal: "hypertrophy", level: "intermediate" });
+    for (const t of combo) expect(t).toMatchObject({ days: 4, goal: "hypertrophy", level: "intermediate" });
+    const counts = facetCounts(TEMPLATES, { ...NO_FILTER, days: 6 }, "venue", ["home", "gym"] as const);
+    expect(counts.get("gym")).toBe(TEMPLATES.filter((t) => t.days === 6).length);
+    expect(counts.get("home")).toBe(TEMPLATES.filter((t) => t.days === 6 && t.gear !== "gym").length);
+  });
+  it("equipment 'what I have' for bands: bands + bodyweight, not dumbbells", () => {
+    expect(gearFits("band", "band") && gearFits("bodyweight", "band")).toBe(true);
+    expect(gearFits("dumbbell", "band")).toBe(false);
+    expect(gearFits("band", "dumbbell")).toBe(false);
   });
   it("groups are by days per week, fewest first, and keep every template once", () => {
     const g = groupByDays(TEMPLATES);
@@ -242,7 +281,7 @@ describe("picker: filter and grouping logic", () => {
     for (const l of new Set(TEMPLATES.map((t) => t.level))) expect(filterTemplates(TEMPLATES, { ...NO_FILTER, level: l }).length, l).toBeGreaterThan(0);
   });
   it("matchesFilter agrees with filterTemplates", () => {
-    for (const t of TEMPLATES) expect(matchesFilter(t, { ...NO_FILTER, days: t.days, goal: t.goal, level: t.level, gear: t.gear })).toBe(true);
+    for (const t of TEMPLATES) expect(matchesFilter(t, { ...NO_FILTER, days: t.days, venue: "gym", goal: t.goal, level: t.level, gear: t.gear })).toBe(true);
   });
   it("the onboarding offer for N days still lists exactly the templates arranged for N days (never more days than the lifter has)", () => {
     for (const d of [2, 3, 4, 5, 6]) {

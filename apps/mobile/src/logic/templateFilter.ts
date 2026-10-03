@@ -1,22 +1,26 @@
-import type { Template, TemplateGear, TemplateGoal, TemplateLevel } from "./templateTypes";
+import type { Template, TemplateGear, TemplateGoal, TemplateLevel, TemplateVenue } from "./templateTypes";
 
 /** Picker filters. `null` = no filter on that facet. */
 export interface TemplateFilter {
   days: number | null;
-  /** "I have": a lifter with a full gym can do everything, one with dumbbells can do the dumbbell and bodyweight programmes, one with nothing only the bodyweight ones. */
+  /** Home vs gym: Home = programmes that need only bodyweight, dumbbells or bands; Gym = all programmes that can be done in a gym, which includes the home ones. */
+  venue: TemplateVenue | null;
+  /** "I have": a full gym covers everything; dumbbells / bands cover their own programmes plus the bodyweight ones; nothing covers the bodyweight ones only. */
   gear: TemplateGear | null;
   goal: TemplateGoal | null;
   level: TemplateLevel | null;
 }
-export const NO_FILTER: TemplateFilter = { days: null, gear: null, goal: null, level: null };
+export const NO_FILTER: TemplateFilter = { days: null, venue: null, gear: null, goal: null, level: null };
 
-const GEAR_RANK: Record<TemplateGear, number> = { bodyweight: 0, dumbbell: 1, gym: 2 };
+/** True when a lifter who has `have` can do a programme that needs `needs`. Dumbbells and bands do not stand in for each other. */
+export const gearFits = (needs: TemplateGear, have: TemplateGear): boolean => have === "gym" || needs === have || needs === "bodyweight";
 
-/** True when a lifter who has `have` can do a programme that needs `needs`. */
-export const gearFits = (needs: TemplateGear, have: TemplateGear): boolean => GEAR_RANK[needs] <= GEAR_RANK[have];
+/** Where a template can be done. Everything can be done at a gym; only bodyweight / dumbbell / band programmes can be done at home. */
+export const venuesOf = (t: Template): TemplateVenue[] => (t.gear === "gym" ? ["gym"] : ["home", "gym"]);
+export const usableAtHome = (t: Template): boolean => t.gear !== "gym";
 
 export function matchesFilter(t: Template, f: TemplateFilter): boolean {
-  return (f.days === null || t.days === f.days) && (f.gear === null || gearFits(t.gear, f.gear)) && (f.goal === null || t.goal === f.goal) && (f.level === null || t.level === f.level);
+  return (f.days === null || t.days === f.days) && (f.venue === null || venuesOf(t).includes(f.venue)) && (f.gear === null || gearFits(t.gear, f.gear)) && (f.goal === null || t.goal === f.goal) && (f.level === null || t.level === f.level);
 }
 
 export const filterTemplates = (list: readonly Template[], f: TemplateFilter): Template[] => list.filter((t) => matchesFilter(t, f));
@@ -32,7 +36,7 @@ export function groupByDays(list: readonly Template[]): DayGroup[] {
   return [...m.entries()].sort((a, b) => a[0] - b[0]).map(([days, templates]) => ({ days, templates }));
 }
 
-export type Facet = "days" | "gear" | "goal" | "level";
+export type Facet = "days" | "venue" | "gear" | "goal" | "level";
 
 /**
  * How many templates each option of one facet would show, with the OTHER facets' filters applied. The picker greys out options

@@ -9,7 +9,7 @@ export const enOnboarding = {
   "ob.welcomeBody": "A few questions so the first session can be written. You can change every answer later.",
   "ob.language": "Language",
   "ob.skip": "Skip setup and keep the sample data",
-  "ob.skipNote": "Sample data is placeholders, not your gym or programme.",
+  "ob.skipNote": "Sample data is placeholders, not your programme.",
   "ob.units": "Units",
   "ob.units.kg": "Kilograms (kg)",
   "ob.units.lb": "Pounds (lb)",
@@ -53,7 +53,6 @@ export const enOnboarding = {
   "ob.review": "Ready",
   "ob.review.line.days": "{n} days a week, about {min} minutes",
   "ob.review.line.programme": "Programme: {name}",
-  "ob.review.line.gym": "Gym: standard loads in {unit}, set up for you. Refine it in the Gym tab whenever you like.",
   "ob.review.line.goal": "Goal: {goal}",
   "ob.review.goal.lift": "{name}, {load} for {reps}",
   "ob.review.goal.bodyweight": "{weight} bodyweight",
@@ -76,7 +75,7 @@ export const enOnboarding = {
   "ob.problem.bodyweight_bad": "Bodyweight must be between {min} and {max}.",
   "ob.problem.height_bad": "Height must be between 100 and 250 cm.",
   "settings.setupAgain": "Run setup again",
-  "settings.setupAgainNote": "Creates a new programme. Your current gym (if it is yours), the old programmes and all your history stay.",
+  "settings.setupAgainNote": "Creates a new programme. The old programmes and all your history stay.",
 } as const;
 
 export const arOnboarding: Record<keyof typeof enOnboarding, string> = {
@@ -86,7 +85,7 @@ export const arOnboarding: Record<keyof typeof enOnboarding, string> = {
   "ob.welcomeBody": "كام سؤال عشان نكتب أول تمرينة. تقدر تغيّر أي إجابة بعد كده.",
   "ob.language": "اللغة",
   "ob.skip": "اتخطى الإعداد وخلّي بيانات العيّنة",
-  "ob.skipNote": "بيانات العيّنة أرقام مؤقتة، مش جيمك ولا برنامجك.",
+  "ob.skipNote": "بيانات العيّنة أرقام مؤقتة، مش برنامجك.",
   "ob.units": "الوحدات",
   "ob.units.kg": "كيلوجرام (كجم)",
   "ob.units.lb": "باوند (lb)",
@@ -130,7 +129,6 @@ export const arOnboarding: Record<keyof typeof enOnboarding, string> = {
   "ob.review": "جاهز",
   "ob.review.line.days": "{n} أيام في الأسبوع، حوالي {min} دقيقة",
   "ob.review.line.programme": "البرنامج: {name}",
-  "ob.review.line.gym": "الجيم: أوزان قياسية بالـ {unit}، متظبطة ليك. عدّلها من تبويب الجيم وقت ما تحب.",
   "ob.review.line.goal": "الهدف: {goal}",
   "ob.review.goal.lift": "{name}، {load} لـ {reps}",
   "ob.review.goal.bodyweight": "وزن جسم {weight}",
@@ -153,5 +151,5 @@ export const arOnboarding: Record<keyof typeof enOnboarding, string> = {
   "ob.problem.bodyweight_bad": "وزن الجسم لازم يكون بين {min} و{max}.",
   "ob.problem.height_bad": "الطول لازم يكون بين 100 و250 سم.",
   "settings.setupAgain": "ابدأ الإعداد من جديد",
-  "settings.setupAgainNote": "بيعمل برنامج جديد. جيمك الحالي (لو هو جيمك)، والبرامج القديمة وكل سجلك بيفضلوا زي ما هم.",
+  "settings.setupAgainNote": "بيعمل برنامج جديد. البرامج القديمة وكل سجلك بيفضلوا زي ما هم.",
 };

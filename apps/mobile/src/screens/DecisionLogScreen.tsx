@@ -64,7 +64,7 @@ export function DecisionLogScreen() {
           <Card key={d.targetId}>
             <AppText ltr style={{ fontWeight: "700" }}>{localDateText(d.decidedAt)}</AppText>
             <AppText style={{ fontSize: 18, fontWeight: "800" }}>{exerciseLabels(d, lang).primary}</AppText>
-            <AppText style={{ color: p.muted }}>{d.gymName} · {t("dec.for", { day: d.dayName })}</AppText>
+            <AppText style={{ color: p.muted }}>{t("dec.for", { day: d.dayName })}</AppText>
             <AppText style={{ fontSize: 17 }}>
               {hasNumber(d) ? t("dec.target", { load: fmt(d.load!), reps: isolateLtr(String(d.reps)) }) : t("dec.noTarget")}
             </AppText>

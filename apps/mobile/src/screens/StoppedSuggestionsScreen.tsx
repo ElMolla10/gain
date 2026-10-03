@@ -50,7 +50,7 @@ export function StoppedSuggestionsScreen() {
       {items.map((it) => (
         <Card key={it.id}>
           <AppText style={{ fontSize: 18, fontWeight: "800" }}>{jumpKindText(it.jumpKind, unit, t as never)}</AppText>
-          <AppText>{t("stop.line", { name: exerciseLabels(it, lang).primary, gym: it.gymName })}</AppText>
+          <AppText>{exerciseLabels(it, lang).primary}</AppText>
           <AppText style={{ fontWeight: "700", color: it.blocked ? "#b00020" : p.muted }}>
             {it.blocked ? t("stop.stopped") : t("stop.counting", { count: it.count, max: REJECTION_THRESHOLD })}
           </AppText>

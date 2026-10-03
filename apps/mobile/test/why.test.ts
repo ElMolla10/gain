@@ -38,7 +38,7 @@ describe("Why this weight? shows the logged inputs", () => {
   it("lists the sentence, observed sessions, gym loads, exclusions and the rule's reading in separate sections", async () => {
     const { d } = await benchDecision();
     const sections = describeDecision(d.payload as DecisionPayload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en");
-    expect(sections.map((s) => s.title)).toEqual(["The reason", "What you did (observed)", "This gym's loads", "Left out", "The rule's reading (interpretation)"]);
+    expect(sections.map((s) => s.title)).toEqual(["The reason", "What you did (observed)", "Loads available", "Left out", "The rule's reading (interpretation)"]);
     expect(sections[0]!.lines[0]).toContain("Go up to 62.5 kg");
     expect(clean(sections[1]!.lines[0]!)).toContain("60 kg × 10");
     expect(sections[1]!.lines).toHaveLength(3);

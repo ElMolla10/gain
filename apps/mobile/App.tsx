@@ -39,8 +39,6 @@ import { GoalsScreen } from "./src/screens/GoalsScreen";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { LiftTrendScreen } from "./src/screens/LiftTrendScreen";
 import { SessionDetailScreen } from "./src/screens/SessionDetailScreen";
-import { GymEditScreen } from "./src/screens/GymEditScreen";
-import { GymScreen } from "./src/screens/GymScreen";
 import { ProgrammeEditScreen } from "./src/screens/ProgrammeEditScreen";
 import { ProgrammeScreen } from "./src/screens/ProgrammeScreen";
 import { StoppedSuggestionsScreen } from "./src/screens/StoppedSuggestionsScreen";
@@ -58,7 +56,6 @@ function Tabs() {
       <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today") }} />
       <Tab.Screen name="Programme" component={ProgrammeScreen} options={{ title: t("prog.title"), tabBarLabel: t("tab.programme") }} />
       <Tab.Screen name="History" component={HistoryScreen} options={{ title: t("history.title"), tabBarLabel: t("tab.history") }} />
-      <Tab.Screen name="Gym" component={GymScreen} options={{ title: t("gym.title"), tabBarLabel: t("tab.gym") }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: t("tab.settings") }} />
     </Tab.Navigator>
   );
@@ -89,7 +86,6 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title") }} />
           <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false }} />
           <Stack.Screen name="ProgrammeEdit" component={ProgrammeEditScreen} options={{ title: t("prog.edit.title") }} />
-          <Stack.Screen name="GymEdit" component={GymEditScreen} options={{ title: t("gym.edit.title") }} />
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />

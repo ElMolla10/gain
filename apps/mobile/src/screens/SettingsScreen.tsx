@@ -9,7 +9,6 @@ import { AppText, BigButton, Card, Chip } from "../ui";
 import type { StringKey } from "../i18n/strings";
 import Constants from "expo-constants";
 import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
-import { unitLabel } from "../logic/units";
 import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
@@ -67,39 +66,21 @@ function WeekStartCard() {
   );
 }
 
-/** After a unit switch: offer to swap an untouched standard rack for the new unit's standard rack. Edited racks are never touched. */
-function UnitRackCard() {
-  const { t, unit, unitText, lang } = useI18n();
+/**
+ * After a unit switch the silent default gym follows: an untouched standard rack is swapped for the new unit's standard rack.
+ * No screen, no question. A rack that was edited (only possible through restore/import of older data) is never touched.
+ */
+function useSilentRackSync() {
+  const { unit } = useI18n();
   const { repos, gyms } = useServices();
-  const [offer, setOffer] = useState<{ gymId: string; name: string } | null>(null);
-  const [done, setDone] = useState(false);
   useEffect(() => {
-    setDone(false);
     (async () => {
       const id = await repos.getActiveGymId();
       const g = id ? await gyms.getGym(id) : null;
       const other = unit === "kg" ? "lb" : "kg";
-      setOffer(g && isStandardRack(g.loads, other) && !isStandardRack(g.loads, unit) ? { gymId: g.id, name: g.name } : null);
-    })().catch(() => setOffer(null));
+      if (g && isStandardRack(g.loads, other) && !isStandardRack(g.loads, unit)) await gyms.updateGym(g.id, { name: g.name, loads: defaultGymLoads(unit) });
+    })().catch(() => undefined);
   }, [repos, gyms, unit]);
-  const unitName = (u: "kg" | "lb") => unitLabel(u, lang);
-  if (done) return <Card><AppText>{t("unit.rack.done", { to: unitText })}</AppText></Card>;
-  if (!offer) return null;
-  const from = unit === "kg" ? "lb" : "kg";
-  return (
-    <Card>
-      <AppText>{t("unit.rack.offer", { from: unitName(from), to: unitText })}</AppText>
-      <BigButton
-        label={t("unit.rack.use", { to: unitText })}
-        onPress={async () => {
-          await gyms.updateGym(offer.gymId, { name: offer.name, loads: defaultGymLoads(unit) });
-          setOffer(null);
-          setDone(true);
-        }}
-      />
-      <BigButton label={t("unit.rack.keep")} selected={false} onPress={() => setOffer(null)} />
-    </Card>
-  );
 }
 
 function RestCard() {
@@ -166,6 +147,7 @@ export function SettingsScreen() {
   const { t, lang, setLang, rtlOverride, setRtlOverride, needsRestart, unit, setUnit } = useI18n();
   const p = usePalette();
   const version = Constants.expoConfig?.version ?? "0";
+  useSilentRackSync();
   const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data") => void }>();
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
@@ -189,7 +171,6 @@ export function SettingsScreen() {
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("settings.units.note")}</AppText>
       </Card>
       <WeekStartCard />
-      <UnitRackCard />
       <RestCard />
       <Card>
         <BigButton label={t("goals.entry")} selected={false} onPress={() => nav.navigate("Goals")} />

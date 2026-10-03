@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Pressable, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { navColors } from "./src/palettes";
+import { darkPalette, navColors } from "./src/palettes";
 import { parseAppearance, setAppearance, useIsDark, usePalette } from "./src/theme";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb, openExpoMaintenanceDb } from "./src/db/expoDriver";
@@ -174,11 +174,12 @@ function Guarded({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; unit: Unit; showSecond: boolean; needsOnboarding: boolean } | "error" | null>(null);
+  const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; unit: Unit; showSecond: boolean; needsOnboarding: boolean } | "error" | "migration_blocked" | null>(null);
 
   const [epoch, setEpoch] = useState(0);
   const dbRef = useRef<Db | null>(null);
   const maintRef = useRef<Db | null>(null);
+  const skipBackupRef = useRef(false);
   const restart = useCallback(() => {
     setBoot(null);
     setEpoch((e) => e + 1);
@@ -189,12 +190,22 @@ export default function App() {
       const db = dbRef.current ?? (dbRef.current = await openExpoDb());
       const deps = { newId: () => Crypto.randomUUID(), now: () => Date.now() };
       // Before an update changes the database layout, keep a full private copy of the data (Step 15 safety rule).
-      const safety = await backupBeforeMigrate(db, deps, (name, text) => {
-        const f = new File(Paths.document, name);
-        if (!f.exists) f.create({ overwrite: true });
-        f.write(text);
-      });
+      const safety = await backupBeforeMigrate(
+        db,
+        deps,
+        (name, text) => {
+          const f = new File(Paths.document, name);
+          if (!f.exists) f.create({ overwrite: true });
+          f.write(text);
+        },
+        (name) => new File(Paths.document, name).textSync(),
+      );
       if (safety.error) diagnostics.record("warn", "pre-migration backup", safety.error);
+      // No verified copy of the lifter's data: do NOT change the database layout. Stop here with a way out (try again, or knowingly go on).
+      if (safety.blocked && !skipBackupRef.current) {
+        setBoot("migration_blocked");
+        return;
+      }
       await migrate(db);
       const repos = createRepos(db, deps);
       await repos.seedIfNeeded();
@@ -234,7 +245,7 @@ export default function App() {
 
   // Back on screen after being away: sync quietly if (and only if) Back up and sync is on. Throttled to once per 5 minutes.
   useEffect(() => {
-    if (!boot || boot === "error") return;
+    if (!boot || boot === "error" || boot === "migration_blocked") return;
     const sub = AppState.addEventListener("change", (s) => {
       if (s === "active") boot.services.autoSync();
     });
@@ -243,12 +254,38 @@ export default function App() {
 
   const onChange = useMemo(
     () => (key: "language" | "rtl_override" | "units" | "second_name", value: string) => {
-      if (boot && boot !== "error") void boot.services.repos.setSetting(key, value);
+      if (boot && boot !== "error" && boot !== "migration_blocked") void boot.services.repos.setSetting(key, value);
     },
     [boot],
   );
 
   if (boot === null) return <View style={{ flex: 1, padding: 24, justifyContent: "center" }}><Text>Loading...</Text></View>;
+  if (boot === "migration_blocked") {
+    return (
+      <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 16, backgroundColor: darkPalette.bg }}>
+        <Text style={{ color: darkPalette.text, fontSize: 28, fontWeight: "800" }}>Update paused to protect your data</Text>
+        <Text style={{ color: darkPalette.text, fontSize: 16 }}>
+          GAIN could not save a safety copy of your workouts before updating its storage (is the phone's storage full?). Nothing has been changed. Free some space and try again.
+        </Text>
+        <Text style={{ color: darkPalette.text, fontSize: 16 }}>
+          تم إيقاف التحديث لحماية بياناتك. التطبيق ماقدرش يحفظ نسخة أمان من تمارينك قبل ما يحدّث التخزين، ومفيش حاجة اتغيرت. فضّي مساحة وجرّب تاني.
+        </Text>
+        <Pressable accessibilityRole="button" onPress={restart} style={{ minHeight: 56, borderRadius: 14, backgroundColor: darkPalette.accent, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ color: darkPalette.accentText, fontSize: 18, fontWeight: "700" }}>Try again · جرّب تاني</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            skipBackupRef.current = true;
+            restart();
+          }}
+          style={{ minHeight: 56, borderRadius: 14, borderWidth: 2, borderColor: darkPalette.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 }}
+        >
+          <Text style={{ color: darkPalette.text, fontSize: 16, fontWeight: "600", textAlign: "center" }}>Update without a safety copy · حدّث من غير نسخة أمان</Text>
+        </Pressable>
+      </View>
+    );
+  }
   if (boot === "error") return <View style={{ flex: 1, padding: 24, justifyContent: "center" }}><Text>Something went wrong opening your data on this phone.</Text></View>;
 
   return (
@@ -256,7 +293,7 @@ export default function App() {
       <ServicesProvider value={boot.services}>
         <I18nProvider initialLang={boot.lang} initialOverride={boot.override} initialUnit={boot.unit} initialShowSecond={boot.showSecond} onChange={onChange}>
           <Guarded>
-            <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" ? { ...b, needsOnboarding: false } : b))} />
+            <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" && b !== "migration_blocked" ? { ...b, needsOnboarding: false } : b))} />
           </Guarded>
         </I18nProvider>
       </ServicesProvider>

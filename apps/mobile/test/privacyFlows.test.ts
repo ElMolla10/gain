@@ -58,6 +58,7 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
     const d = text(join(root, "src/screens/DataScreen.tsx"));
     const wipe = d.slice(d.indexOf("async function wipe"));
     expect(wipe).toMatch(/PRE_MIGRATION_FILE/);
+    expect(wipe).toMatch(/PRE_RESTORE_FILE/);
     expect(wipe).toMatch(/\.delete\(\)/);
     expect(wipe).toMatch(/diagnostics\.clear\(\)/);
   });

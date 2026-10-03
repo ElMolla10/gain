@@ -1,3 +1,4 @@
+import { preferUsedTwin } from "./library/equivalents";
 import { classifyTitle, findSpec, guessPattern, matchLibrary, MAX_METRES, MAX_SECONDS, roundToGymLoad, type EquipmentType, type GymFingerprint, type ImportedExercise, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type Measure, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
@@ -175,12 +176,13 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     const library: LibraryEntry[] = all.map((e) => ({ id: e.id, nameEn: e.nameEn, equipment: e.equipment, setup: e.setup }));
     const measureById = new Map(all.map((e) => [e.id, e.measure]));
     const saved = await savedMappings(parse.source);
+    const twins = await twinChoices(all);
     const byTitle = new Map<string, TitlePreview>();
     let newSets = 0;
     for (const w of fresh) {
       for (const e of w.exercises) {
         let t = byTitle.get(e.title);
-        const sugg = t?.suggestion ?? suggest(e.title, saved, library);
+        const sugg = t?.suggestion ?? suggest(e.title, saved, library, twins);
         const measure: Measure = sugg.kind === "new" ? inferMeasure(parse, e.title) : measureById.get(sugg.exerciseId) ?? "reps";
         const n = rowsFor(e, measure).sets;
         const unfit = rowsFor(e, measure).dropped;
@@ -211,11 +213,39 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     };
   }
 
-  function suggest(title: string, saved: Map<string, { exerciseId: string; name: string }>, library: LibraryEntry[]): Suggestion {
+  /**
+   * For library rows that are the same movement under two keys (see library/equivalents.ts): row id -> the twin row the lifter already uses.
+   * Only rows that have no use of their own and whose twin has some appear here. Nothing is written.
+   */
+  async function twinChoices(all: { id: string; seedKey: string | null; nameEn: string }[]): Promise<Map<string, { id: string; nameEn: string }>> {
+    const used = await db.all<{ id: string; n: number }>(
+      `SELECT exercise_id AS id, COUNT(*) AS n FROM (
+         SELECT exercise_id FROM workout_set WHERE deleted_at IS NULL
+         UNION ALL SELECT exercise_id FROM exercise_line WHERE deleted_at IS NULL
+         UNION ALL SELECT exercise_id FROM programme_day_exercise WHERE deleted_at IS NULL
+       ) GROUP BY exercise_id`,
+    );
+    const useById = new Map(used.map((u) => [u.id, u.n]));
+    const byKey = new Map(all.filter((e) => e.seedKey).map((e) => [e.seedKey as string, e]));
+    const usageByKey = new Map<string, number>();
+    for (const [k, e] of byKey) usageByKey.set(k, useById.get(e.id) ?? 0);
+    const out = new Map<string, { id: string; nameEn: string }>();
+    for (const [k, e] of byKey) {
+      const pick = preferUsedTwin(k, usageByKey);
+      const target = byKey.get(pick);
+      if (pick !== k && target) out.set(e.id, { id: target.id, nameEn: target.nameEn });
+    }
+    return out;
+  }
+
+  function suggest(title: string, saved: Map<string, { exerciseId: string; name: string }>, library: LibraryEntry[], twins: Map<string, { id: string; nameEn: string }>): Suggestion {
     const s = saved.get(title);
     if (s) return { kind: "saved", exerciseId: s.exerciseId, exerciseName: s.name };
     const m = matchLibrary(title, library);
-    if (m) return { kind: "library", exerciseId: m.id, exerciseName: m.nameEn };
+    if (m) {
+      const t = twins.get(m.id);
+      return t ? { kind: "library", exerciseId: t.id, exerciseName: t.nameEn } : { kind: "library", exerciseId: m.id, exerciseName: m.nameEn };
+    }
     const c = classifyTitle(title);
     return { kind: "new", nameEn: title.trim(), pattern: guessPattern(title), equipment: c.equipment, setup: c.setup };
   }

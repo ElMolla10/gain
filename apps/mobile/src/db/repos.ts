@@ -1,7 +1,8 @@
-import { classifyLift, DEFAULT_REP_CEILINGS, mergeRepCeilings, resolveProgression, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings } from "@gain/engine";
+import { classifyLift, DEFAULT_REP_CEILINGS, type Measure, mergeRepCeilings, resolveProgression, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings } from "@gain/engine";
 import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
 import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
+import { DEFAULT_TIMED_RANGE, measureOfKey } from "./library/measures";
 import { SAMPLE_EXERCISES, SAMPLE_GYM, SAMPLE_PROGRAMME, SEED_VERSION } from "./seedData";
 
 export type Language = "en" | "ar";
@@ -152,9 +153,9 @@ export function createRepos(db: Db, deps: Deps) {
         const have = await db.get<{ id: string }>("SELECT id FROM exercise WHERE seed_key = ?", [e.key]);
         if (have) continue;
         await db.run(
-          `INSERT INTO exercise (id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, is_sample, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-          [newId(), e.key, e.en, e.ar, JSON.stringify(e.aliasesAr), e.pattern, e.equipment, e.setup, t, t],
+          `INSERT INTO exercise (id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, measure, is_sample, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+          [newId(), e.key, e.en, e.ar, JSON.stringify(e.aliasesAr), e.pattern, e.equipment, e.setup, measureOfKey(e.key), t, t],
         );
         added++;
       }
@@ -220,6 +221,7 @@ export function createRepos(db: Db, deps: Deps) {
       aliases_ar_json: string;
       equipment: GymLoadSpec["equipment"];
       setup: "free" | "assisted" | "bodyweight_plus_added";
+      measure: Measure;
       sets: number;
       rep_min: number;
       rep_max: number;
@@ -228,7 +230,7 @@ export function createRepos(db: Db, deps: Deps) {
       track_effort: number;
       position: number;
     }>(
-      `SELECT pde.id, pde.exercise_id, e.name_en, e.name_ar, e.aliases_ar_json, e.equipment, e.setup,
+      `SELECT pde.id, pde.exercise_id, e.name_en, e.name_ar, e.aliases_ar_json, e.equipment, e.setup, e.measure,
               pde.sets, pde.rep_min, pde.rep_max, pde.rep_ceiling, pde.is_goal_lift, pde.track_effort, pde.position
        FROM programme_day_exercise pde JOIN exercise e ON e.id = pde.exercise_id
        WHERE pde.programme_day_id = ? AND pde.deleted_at IS NULL ORDER BY pde.position`,
@@ -236,6 +238,26 @@ export function createRepos(db: Db, deps: Deps) {
     );
     const ceilings = await getRepCeilingDefaults();
     return rows.map((r) => {
+      if (r.measure !== "reps") {
+        // Seconds or metres: the range is the lifter's own (no rep ceiling, no kind-of-lift default); its top is what earns more load.
+        return {
+          id: r.id,
+          exerciseId: r.exercise_id,
+          nameEn: r.name_en,
+          nameAr: r.name_ar,
+          aliasesAr: JSON.parse(r.aliases_ar_json) as string[],
+          equipment: r.equipment,
+          setup: r.setup,
+          measure: r.measure,
+          sets: r.sets,
+          repMin: r.rep_min,
+          repMax: r.rep_max,
+          repCeiling: r.rep_max,
+          repCeilingIsCustom: false,
+          isGoalLift: r.is_goal_lift === 1,
+          trackEffort: false,
+        };
+      }
       // The ceiling (per-lift edit, else the default for this kind of lift) is the top of the range that decides when load goes up.
       const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, r.rep_ceiling !== null ? { repCeiling: r.rep_ceiling } : {}, { name: r.name_en, ceilings });
       return {
@@ -246,13 +268,14 @@ export function createRepos(db: Db, deps: Deps) {
       aliasesAr: JSON.parse(r.aliases_ar_json) as string[],
       equipment: r.equipment,
       setup: r.setup,
+      measure: r.measure,
       sets: r.sets,
       /** Bottom of the programme range, never above the ceiling. */
       repMin: Math.min(r.rep_min, policy.repCeiling),
       /** Top of the range = the rep ceiling (what the Today screen shows). */
       repMax: policy.repCeiling,
       repCeiling: policy.repCeiling,
-      /** True when this lift has its own ceiling; false when it follows the default for its kind. */
+      /** True when this lift has its own ceiling; false when it follows the default for its kind of lift. */
       repCeilingIsCustom: r.rep_ceiling !== null,
       isGoalLift: r.is_goal_lift === 1,
       trackEffort: r.track_effort === 1,
@@ -265,11 +288,18 @@ export function createRepos(db: Db, deps: Deps) {
    * defaults (3 sets, rep range 8 up to the rep ceiling for this kind of lift, not a goal lift, no effort tracking). Never stored in the programme.
    */
   async function adHocDayExercise(exerciseId: string): Promise<DayExercise | null> {
-    const r = await db.get<{ id: string; name_en: string; name_ar: string; aliases_ar_json: string; equipment: GymLoadSpec["equipment"]; setup: "free" | "assisted" | "bodyweight_plus_added" }>(
-      "SELECT id, name_en, name_ar, aliases_ar_json, equipment, setup FROM exercise WHERE id = ? AND deleted_at IS NULL",
+    const r = await db.get<{ id: string; name_en: string; name_ar: string; aliases_ar_json: string; equipment: GymLoadSpec["equipment"]; setup: "free" | "assisted" | "bodyweight_plus_added"; measure: Measure }>(
+      "SELECT id, name_en, name_ar, aliases_ar_json, equipment, setup, measure FROM exercise WHERE id = ? AND deleted_at IS NULL",
       [exerciseId],
     );
     if (!r) return null;
+    if (r.measure !== "reps") {
+      const d = DEFAULT_TIMED_RANGE[r.measure];
+      return {
+        id: `added:${r.id}`, exerciseId: r.id, nameEn: r.name_en, nameAr: r.name_ar, aliasesAr: JSON.parse(r.aliases_ar_json) as string[], equipment: r.equipment, setup: r.setup,
+        measure: r.measure, sets: d.sets, repMin: d.min, repMax: d.max, repCeiling: d.max, repCeilingIsCustom: false, isGoalLift: false, trackEffort: false,
+      };
+    }
     const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings: await getRepCeilingDefaults() });
     return {
       id: `added:${r.id}`,
@@ -279,6 +309,7 @@ export function createRepos(db: Db, deps: Deps) {
       aliasesAr: JSON.parse(r.aliases_ar_json) as string[],
       equipment: r.equipment,
       setup: r.setup,
+      measure: r.measure,
       sets: 3,
       repMin: Math.min(8, policy.repCeiling),
       repMax: policy.repCeiling,

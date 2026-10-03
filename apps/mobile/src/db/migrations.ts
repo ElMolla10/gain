@@ -1,4 +1,5 @@
 import type { Db } from "./driver";
+import { TIMED_LIBRARY } from "./library/measures";
 
 /**
  * Schema. Conventions for every table (so sync can come later without a rewrite):
@@ -323,6 +324,30 @@ CREATE TABLE sync_parked (
   updated_at INTEGER NOT NULL, deleted_at INTEGER, data TEXT NOT NULL, reason TEXT NOT NULL, detail TEXT,
   PRIMARY KEY (tbl, row_id)
 );
+`,
+  },
+  {
+    version: 9,
+    name: "time and distance exercises",
+    sql: `
+-- How an exercise is counted: reps (default, everything that existed before), time (a hold, seconds) or distance (a carry, metres).
+-- A timed or distance set stores reps = 1 (one hold / one carry) so every reps-based query keeps working, plus duration_s / distance_m.
+ALTER TABLE exercise ADD COLUMN measure TEXT NOT NULL DEFAULT 'reps' CHECK (measure IN ('reps','time','distance'));
+ALTER TABLE workout_set ADD COLUMN duration_s INTEGER CHECK (duration_s IS NULL OR (duration_s >= 1 AND duration_s <= 3600));
+ALTER TABLE workout_set ADD COLUMN distance_m REAL CHECK (distance_m IS NULL OR (distance_m > 0 AND distance_m <= 5000));
+-- The next-session target of a timed or distance exercise (reps is NULL then).
+ALTER TABLE target ADD COLUMN duration_s INTEGER;
+ALTER TABLE target ADD COLUMN distance_m REAL;
+-- Existing library rows that are really holds or carries become timed ONLY when the lifter has no logged set and no programme slot for them,
+-- so nothing already planned or done changes meaning. The lifter can switch the others in the programme editor.
+${Object.entries(TIMED_LIBRARY)
+  .map(
+    ([k, m]) => `UPDATE exercise SET measure = '${m}' WHERE seed_key = '${k}' AND deleted_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM workout_set ws WHERE ws.exercise_id = exercise.id)
+  AND NOT EXISTS (SELECT 1 FROM programme_day_exercise pde WHERE pde.exercise_id = exercise.id)
+  AND NOT EXISTS (SELECT 1 FROM session_exercise se WHERE se.slot_exercise_id = exercise.id OR se.replaced_by = exercise.id);`,
+  )
+  .join("\n")}
 `,
   },
 ];

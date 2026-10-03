@@ -8,7 +8,7 @@ export const OUTLIER_MIN_SETS = 2;
 export const OUTLIER_RECENT_SESSIONS = 3;
 export const MAX_PLAUSIBLE_REPS = 100;
 
-export type OutlierReason = "invalid_value" | "load_far_from_line" | "e1rm_far_from_line" | "reps_far_from_line";
+export type OutlierReason = "invalid_value" | "load_far_from_line" | "e1rm_far_from_line" | "reps_far_from_line" | "quantity_far_from_line";
 
 export interface OutlierResult {
   /** ok: fits the line. unconfirmed: ask the lifter. insufficient_history: cannot judge, treated as ok. */

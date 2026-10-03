@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { TitlePreview } from "../src/db/importRepo";
 import { applyEquipmentToUnresolved, dateRange, resolveAll, resolveTitle } from "../src/logic/importFlow";
 
-const mk = (title: string, suggestion: TitlePreview["suggestion"]): TitlePreview => ({ title, workouts: 3, sets: 9, suggestion });
+const mk = (title: string, suggestion: TitlePreview["suggestion"]): TitlePreview => ({ title, workouts: 3, sets: 9, unfit: 0, suggestion });
 const lib = mk("Bench Press (Barbell)", { kind: "library", exerciseId: "bp", exerciseName: "Barbell Bench Press" });
 const saved = mk("Row", { kind: "saved", exerciseId: "r", exerciseName: "Row" });
 const known = mk("Hack Squat (Machine)", { kind: "new", nameEn: "Hack Squat (Machine)", pattern: "squat", equipment: "machine", setup: "free" });

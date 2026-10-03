@@ -9,7 +9,7 @@ import { freshDb } from "./helpers";
 
 const fx = (n: string) => readFileSync(join(__dirname, "../../../fixtures", n), "utf8");
 const hevy = parseImport(fx("hevy-export.csv")); // the lifter's real export
-const usableSets = (p: ImportParse) => p.workouts.reduce((n, w) => n + w.exercises.reduce((m, e) => m + e.sets.length, 0), 0);
+const usableSets = (p: ImportParse) => p.workouts.reduce((n, w) => n + w.exercises.reduce((m, e) => m + e.sets.length + (e.timed?.length ?? 0), 0), 0); // reps sets + timed rows (a title the library does not know is created counted the way the file recorded it)
 
 /** What a lifter would confirm on screen: take every suggestion; where the title does not say the equipment, choose cable. */
 function acceptAll(titles: TitlePreview[]): Record<string, MappingChoice> {

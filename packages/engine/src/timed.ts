@@ -3,6 +3,8 @@ import { lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
 import { allowsZero, findSpec, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad } from "./loads";
 import { classifyLift, resolveProgression } from "./policy";
+import { median } from "./line";
+import { recentTrustedSets, type OutlierResult } from "./outlier";
 import { isJumpBlocked, recordsForLine, REJECTION_THRESHOLD, rejectionCount, emptyRejectionMemory } from "./rejection";
 import { jumpKindLoad, proposeNext, type ProposeContext } from "./progression";
 import type {
@@ -268,3 +270,27 @@ export function proposeForMeasure(ctx: ProposeContext): Proposal {
 }
 
 
+
+/** A timed set this many times longer or shorter than the recent median (and at least this many seconds / metres away) is asked about first. */
+export const TIMED_OUTLIER_RATIO = 3;
+export const TIMED_OUTLIER_MIN_DIFF = 15;
+
+/**
+ * Is a new timed / distance set far from the recent line (60 typed for 6, 600 for 60)? Same contract as `checkOutlier`: `unconfirmed`
+ * sets are shown but never move the next target until the lifter confirms them. Needs 2 earlier working sets to judge; the number
+ * must always be a positive amount no bigger than an hour / 5 km.
+ */
+export function checkTimedOutlier(set: LoggedSet, measure: "time" | "distance", ctx: { line: LineIdentity; history: HistorySession[] }): OutlierResult {
+  const q = quantityOf(set, measure);
+  const cap = measure === "time" ? MAX_SECONDS : MAX_METRES;
+  if (q === null || q > cap || !Number.isFinite(set.load) || set.load < 0) {
+    return { verdict: "unconfirmed", outlierStatus: "unconfirmed", reasons: ["invalid_value"], expected: null };
+  }
+  const recent = recentTrustedSets(ctx.line, ctx.history).map((x) => quantityOf(x, measure)).filter((x): x is number => x !== null);
+  if (recent.length < 2) return { verdict: "insufficient_history", outlierStatus: "none", reasons: [], expected: null };
+  const med = median(recent);
+  const far = Math.abs(q - med) >= TIMED_OUTLIER_MIN_DIFF && (q > med * TIMED_OUTLIER_RATIO || q < med / TIMED_OUTLIER_RATIO);
+  const expected = { medianLoad: 0, medianReps: med, medianE1rm: null, sampleSize: recent.length };
+  if (far) return { verdict: "unconfirmed", outlierStatus: "unconfirmed", reasons: ["quantity_far_from_line"], expected };
+  return { verdict: "ok", outlierStatus: "none", reasons: [], expected };
+}

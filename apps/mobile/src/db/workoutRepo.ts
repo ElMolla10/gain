@@ -1,13 +1,18 @@
 import {
   checkOutlier,
+  checkTimedOutlier,
   findSpec,
+  isTimedMeasure,
   lineKey,
-  proposeNext,
+  MAX_METRES,
+  MAX_SECONDS,
+  proposeForMeasure,
   type ExerciseSpec,
   type GymFingerprint,
   type HistorySession,
   type LineIdentity,
   type LoggedSet,
+  type Measure,
   type OutlierResult,
   type OutlierStatus,
   type Proposal,
@@ -23,7 +28,12 @@ export interface SetRow {
   lineId: string;
   position: number;
   load: number;
+  /** 1 for a timed or distance set (one hold / one carry). */
   reps: number;
+  /** Seconds held (time exercises), else null. */
+  durationS: number | null;
+  /** Metres carried (distance exercises), else null. */
+  distanceM: number | null;
   rir: number | null;
   warmup: boolean;
   tags: string[];
@@ -37,7 +47,12 @@ export interface LogSetInput {
   sessionId: string;
   exerciseId: string;
   load: number;
+  /** Ignored for time and distance exercises (stored as 1). */
   reps: number;
+  /** Required for a time exercise: whole seconds, 1..3600. */
+  durationS?: number | null;
+  /** Required for a distance exercise: metres, above 0 and up to 5000. */
+  distanceM?: number | null;
   rir?: number | null;
   warmup?: boolean;
   tags?: string[];
@@ -47,6 +62,8 @@ export interface DayExerciseSpec {
   exerciseId: string;
   equipment: ExerciseSpec["equipment"];
   setup: SetupType;
+  /** How the exercise is counted; omitted = reps. For time / distance, repMin..repMax is the seconds / metres range. */
+  measure?: Measure;
   repMin: number;
   repMax: number;
   /** Exercise name (for the default ceiling by name). */
@@ -66,6 +83,8 @@ type RawSet = {
   position: number;
   load: number;
   reps: number;
+  duration_s: number | null;
+  distance_m: number | null;
   rir: number | null;
   is_warmup: number;
   tags_json: string;
@@ -81,6 +100,8 @@ const toSetRow = (r: RawSet): SetRow => ({
   position: r.position,
   load: r.load,
   reps: r.reps,
+  durationS: r.duration_s,
+  distanceM: r.distance_m,
   rir: r.rir,
   warmup: r.is_warmup === 1,
   tags: JSON.parse(r.tags_json) as string[],
@@ -91,6 +112,8 @@ const toSetRow = (r: RawSet): SetRow => ({
 const toLogged = (r: SetRow): LoggedSet => ({
   load: r.load,
   reps: r.reps,
+  ...(r.durationS !== null ? { durationS: r.durationS } : {}),
+  ...(r.distanceM !== null ? { distanceM: r.distanceM } : {}),
   rir: r.rir,
   warmup: r.warmup,
   tags: r.tags,
@@ -195,7 +218,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
 
   async function listSessionSets(sessionId: string, exerciseId?: string): Promise<SetRow[]> {
     const rows = await db.all<RawSet>(
-      `SELECT id, session_id, exercise_id, line_id, position, load, reps, rir, is_warmup, tags_json, outlier_status, created_at
+      `SELECT id, session_id, exercise_id, line_id, position, load, reps, duration_s, distance_m, rir, is_warmup, tags_json, outlier_status, created_at
        FROM workout_set WHERE session_id = ? AND deleted_at IS NULL ${exerciseId ? "AND exercise_id = ?" : ""}
        ORDER BY exercise_id, position`,
       exerciseId ? [sessionId, exerciseId] : [sessionId],
@@ -246,14 +269,15 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     const lineId = await ensureLine(ex.exerciseId, gym.gymId, ex.setup);
     const history = await getHistory(line, lineId);
     const rejections = await loadRejectionMemory(line, lineId);
-    const proposal = proposeNext({
+    const proposal = proposeForMeasure({
       exercise: {
         exerciseId: ex.exerciseId,
         name: ex.name,
+        measure: ex.measure,
         equipment: ex.equipment,
         setup: ex.setup,
         repRange: { min: ex.repMin, max: ex.repMax },
-        progression: ex.repCeiling !== undefined ? { repCeiling: ex.repCeiling } : undefined,
+        progression: ex.repCeiling !== undefined && !isTimedMeasure(ex.measure) ? { repCeiling: ex.repCeiling } : undefined,
         isGoalLift: ex.isGoalLift,
         trackEffort: ex.trackEffort,
         plannedSets: ex.sets,
@@ -264,6 +288,25 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       asOf: new Date(now()).toISOString(),
     });
     return { proposal, lineId, line };
+  }
+
+  /** How an exercise is counted. Unknown ids count in reps (the caller's own checks refuse them). */
+  async function measureOf(exerciseId: string): Promise<Measure> {
+    const r = await db.get<{ measure: Measure }>("SELECT measure FROM exercise WHERE id = ?", [exerciseId]);
+    return r?.measure ?? "reps";
+  }
+
+  /** The seconds / metres a set must carry for this measure; throws on anything else. Reps exercises store neither. */
+  function checkQuantity(measure: Measure, durationS: number | null | undefined, distanceM: number | null | undefined): { durationS: number | null; distanceM: number | null } {
+    if (measure === "time") {
+      if (typeof durationS !== "number" || !Number.isInteger(durationS) || durationS < 1 || durationS > MAX_SECONDS) throw new Error("Invalid set");
+      return { durationS, distanceM: null };
+    }
+    if (measure === "distance") {
+      if (typeof distanceM !== "number" || !Number.isFinite(distanceM) || distanceM <= 0 || distanceM > MAX_METRES) throw new Error("Invalid set");
+      return { durationS: null, distanceM };
+    }
+    return { durationS: null, distanceM: null };
   }
 
   /**
@@ -281,7 +324,9 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     const session = await getSession(input.sessionId);
     if (!session) throw new Error("Unknown session");
     if (session.status !== "in_progress") throw new Error("Session is not in progress");
-    if (!(input.reps >= 1) || !Number.isFinite(input.load) || input.load < 0) throw new Error("Invalid set");
+    const measure = await measureOf(input.exerciseId);
+    const q = checkQuantity(measure, input.durationS, input.distanceM);
+    if ((measure === "reps" && !(input.reps >= 1)) || !Number.isFinite(input.load) || input.load < 0) throw new Error("Invalid set");
     const lineId = await ensureLine(input.exerciseId, session.gym_id, ctx.setup);
     const line: LineIdentity = { exerciseId: input.exerciseId, gymId: session.gym_id, setup: ctx.setup };
 
@@ -291,17 +336,16 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       const history = await getHistory(line, lineId);
       const todaySets = (await listSessionSets(input.sessionId, input.exerciseId)).map(toLogged);
       if (todaySets.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: todaySets });
-      outlier = checkOutlier(
-        { load: input.load, reps: input.reps, rir: input.rir ?? null },
-        { line, history, gymSpec: findSpec(ctx.gym, ctx.equipment) },
-      );
+      outlier = isTimedMeasure(measure)
+        ? checkTimedOutlier({ load: input.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history })
+        : checkOutlier({ load: input.load, reps: input.reps, rir: input.rir ?? null }, { line, history, gymSpec: findSpec(ctx.gym, ctx.equipment) });
     }
     const t = now();
     const pos = await db.get<{ p: number | null }>("SELECT MAX(position) AS p FROM workout_set WHERE session_id = ? AND exercise_id = ?", [input.sessionId, input.exerciseId]);
     await db.run(
-      `INSERT INTO workout_set (id, session_id, exercise_id, line_id, position, load, reps, rir, is_warmup, tags_json, outlier_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, input.sessionId, input.exerciseId, lineId, (pos?.p ?? 0) + 1, input.load, input.reps, input.rir ?? null, input.warmup ? 1 : 0, JSON.stringify(input.tags ?? []), outlier?.outlierStatus ?? "none", t, t],
+      `INSERT INTO workout_set (id, session_id, exercise_id, line_id, position, load, reps, duration_s, distance_m, rir, is_warmup, tags_json, outlier_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, input.sessionId, input.exerciseId, lineId, (pos?.p ?? 0) + 1, input.load, measure === "reps" ? input.reps : 1, q.durationS, q.distanceM, measure === "reps" ? input.rir ?? null : null, input.warmup ? 1 : 0, JSON.stringify(input.tags ?? []), outlier?.outlierStatus ?? "none", t, t],
     );
     return { id, created: true, outlier };
   }
@@ -336,16 +380,19 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
    */
   async function updateLiveSet(
     setId: string,
-    v: { load: number; reps: number; rir: number | null; warmup: boolean; tags?: string[] },
+    v: { load: number; reps: number; rir: number | null; warmup: boolean; tags?: string[]; durationS?: number | null; distanceM?: number | null },
     ctx: { gym: GymFingerprint; equipment: ExerciseSpec["equipment"]; setup: SetupType },
   ): Promise<{ outlier: OutlierResult | null }> {
-    if (!(v.reps >= 1) || !Number.isFinite(v.load) || v.load < 0) throw new Error("Invalid set");
-    const row = await db.get<{ session_id: string; exercise_id: string; line_id: string; load: number; reps: number; outlier_status: OutlierStatus; gym_id: string }>(
-      `SELECT ws.session_id, ws.exercise_id, ws.line_id, ws.load, ws.reps, ws.outlier_status, s.gym_id AS gym_id FROM workout_set ws JOIN session s ON s.id = ws.session_id
+    const row = await db.get<{ session_id: string; exercise_id: string; line_id: string; load: number; reps: number; duration_s: number | null; distance_m: number | null; outlier_status: OutlierStatus; gym_id: string }>(
+      `SELECT ws.session_id, ws.exercise_id, ws.line_id, ws.load, ws.reps, ws.duration_s, ws.distance_m, ws.outlier_status, s.gym_id AS gym_id FROM workout_set ws JOIN session s ON s.id = ws.session_id
        WHERE ws.id = ? AND ws.deleted_at IS NULL AND s.status = 'in_progress'`,
       [setId],
     );
     if (!row) throw new Error("Unknown set");
+    const measure = await measureOf(row.exercise_id);
+    const q = checkQuantity(measure, v.durationS, v.distanceM);
+    const reps = measure === "reps" ? v.reps : 1;
+    if (!(reps >= 1) || !Number.isFinite(v.load) || v.load < 0) throw new Error("Invalid set");
     let outlier: OutlierResult | null = null;
     let status: OutlierStatus = "none";
     if (!v.warmup && !v.tags?.includes("drop")) {
@@ -353,11 +400,14 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       const history = await getHistory(line, row.line_id);
       const others = (await listSessionSets(row.session_id, row.exercise_id)).filter((x) => x.id !== setId).map(toLogged);
       if (others.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: others });
-      outlier = checkOutlier({ load: v.load, reps: v.reps, rir: v.rir }, { line, history, gymSpec: findSpec(ctx.gym, ctx.equipment) });
-      status = row.outlier_status === "confirmed" && row.load === v.load && row.reps === v.reps ? "confirmed" : outlier.outlierStatus;
+      outlier = isTimedMeasure(measure)
+        ? checkTimedOutlier({ load: v.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history })
+        : checkOutlier({ load: v.load, reps, rir: v.rir }, { line, history, gymSpec: findSpec(ctx.gym, ctx.equipment) });
+      const unchanged = row.load === v.load && row.reps === reps && row.duration_s === q.durationS && row.distance_m === q.distanceM;
+      status = row.outlier_status === "confirmed" && unchanged ? "confirmed" : outlier.outlierStatus;
     }
     const tagsJson = v.tags === undefined ? null : JSON.stringify(v.tags);
-    await db.run("UPDATE workout_set SET load = ?, reps = ?, rir = ?, is_warmup = ?, tags_json = COALESCE(?, tags_json), outlier_status = ?, updated_at = ? WHERE id = ?", [v.load, v.reps, v.rir, v.warmup ? 1 : 0, tagsJson, status, now(), setId]);
+    await db.run("UPDATE workout_set SET load = ?, reps = ?, duration_s = ?, distance_m = ?, rir = ?, is_warmup = ?, tags_json = COALESCE(?, tags_json), outlier_status = ?, updated_at = ? WHERE id = ?", [v.load, reps, q.durationS, q.distanceM, measure === "reps" ? v.rir : null, v.warmup ? 1 : 0, tagsJson, status, now(), setId]);
     return { outlier };
   }
 

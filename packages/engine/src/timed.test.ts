@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isTimedMeasure, proposeForMeasure, proposeTimed, quantityOf, timedStep, MAX_SECONDS, type TimedContext } from "./timed";
+import { checkTimedOutlier, isTimedMeasure, proposeForMeasure, proposeTimed, quantityOf, timedStep, MAX_SECONDS, type TimedContext } from "./timed";
 import { proposeNext } from "./progression";
 import { renderReason } from "./reasons";
 import { emptyRejectionMemory, recordRejection } from "./rejection";
 import { lineKey } from "./line";
 import type { ExerciseSpec, HistorySession, LoggedSet, RejectionMemory } from "./types";
+import { timedTrend } from "./trend";
 import { ASOF, gymA, lineOf, session } from "./testkit";
 
 const plank: ExerciseSpec & { measure: "time" } = { exerciseId: "plank", equipment: "plate", setup: "bodyweight_plus_added", repRange: { min: 30, max: 60 }, measure: "time" };
@@ -155,5 +156,46 @@ describe("dispatch", () => {
     expect(quantityOf({ load: 0, reps: 1, durationS: 45 }, "time")).toBe(45);
     expect(quantityOf({ load: 0, reps: 1, durationS: 45 }, "distance")).toBeNull();
     expect(quantityOf({ load: 0, reps: 1, durationS: 0 }, "time")).toBeNull();
+  });
+});
+
+describe("timed outlier check", () => {
+  const hist = runT(hang, (q) => hold(0, q), [40, 45]);
+  const ctx = { line: hang, history: hist };
+  it("a typo (600 for 60) is asked about first; a normal change is not", () => {
+    expect(checkTimedOutlier({ load: 0, reps: 1, durationS: 450 }, "time", ctx).outlierStatus).toBe("unconfirmed");
+    expect(checkTimedOutlier({ load: 0, reps: 1, durationS: 20 }, "time", ctx).outlierStatus).toBe("none");
+    expect(checkTimedOutlier({ load: 0, reps: 1, durationS: 5 }, "time", ctx).outlierStatus).toBe("unconfirmed");
+    expect(checkTimedOutlier({ load: 0, reps: 1, durationS: 70 }, "time", ctx).outlierStatus).toBe("none");
+    expect(checkTimedOutlier({ load: 0, reps: 1, durationS: 450 }, "time", ctx).reasons).toEqual(["quantity_far_from_line"]);
+  });
+  it("too little history to judge is not an outlier; impossible values always are", () => {
+    expect(checkTimedOutlier({ load: 0, reps: 1, durationS: 500 }, "time", { line: hang, history: [] }).verdict).toBe("insufficient_history");
+    expect(checkTimedOutlier({ load: 0, reps: 1, durationS: 4000 }, "time", { line: hang, history: [] }).reasons).toEqual(["invalid_value"]);
+    expect(checkTimedOutlier({ load: 0, reps: 1 }, "time", ctx).reasons).toEqual(["invalid_value"]);
+    expect(checkTimedOutlier({ load: 0, reps: 1, distanceM: 90 }, "distance", { line: walkLine, history: runT(walkLine, (q) => carry(30, q), [30, 30]) }).outlierStatus).toBe("none");
+  });
+});
+
+describe("timed trend", () => {
+  const at = (n: number) => new Date(Date.parse("2026-06-01") + n * 86_400_000).toISOString();
+  const mk = (n: number, q: number, load = 0) => session(hang, at(n), hold(load, q));
+  it("a bodyweight hold that gets longer is better; shorter is worse; the same is flat", () => {
+    expect(timedTrend([mk(0, 30), mk(10, 40), mk(20, 50)], "bodyweight_plus_added", "time").direction).toBe("better");
+    expect(timedTrend([mk(0, 50), mk(10, 40), mk(20, 30)], "bodyweight_plus_added", "time").direction).toBe("worse");
+    expect(timedTrend([mk(0, 40), mk(10, 40), mk(20, 40)], "bodyweight_plus_added", "time").direction).toBe("flat");
+  });
+  it("too little data says so", () => {
+    expect(timedTrend([mk(0, 30), mk(3, 40)], "bodyweight_plus_added", "time").direction).toBe("thin");
+    expect(timedTrend([], "bodyweight_plus_added", "time").points).toEqual([]);
+  });
+  it("the point is the heaviest load, and at it the longest set; warm-ups and drops never count", () => {
+    const h = session(hang, at(0), [{ load: 0, reps: 1, durationS: 90 }, { load: 5, reps: 1, durationS: 30 }, { load: 5, reps: 1, durationS: 40 }, { load: 20, reps: 1, durationS: 99, warmup: true }, { load: 20, reps: 1, durationS: 99, tags: ["drop"] }]);
+    const t = timedTrend([h], "bodyweight_plus_added", "time");
+    expect(t.points[0]).toMatchObject({ load: 5, quantity: 40, reps: 1, sets: 3 });
+    expect(t.timed).toBe("time");
+  });
+  it("when the load changed in the window the direction follows the load", () => {
+    expect(timedTrend([mk(0, 60, 0), mk(10, 30, 2.5), mk(20, 30, 5)], "bodyweight_plus_added", "time").direction).toBe("better");
   });
 });

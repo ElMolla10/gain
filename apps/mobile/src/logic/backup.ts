@@ -66,8 +66,13 @@ export interface CsvSetRow {
   /** Superset group of this exercise in that workout (Hevy superset_id): same value = same superset. */
   supersetId?: string | null;
   weightKg: number;
+  /** Reps; for a timed set (duration or distance given) the cell is left empty. */
   reps: number;
   rir: number | null;
+  /** Timed set (plank, dead hang): seconds held. */
+  durationS?: number | null;
+  /** Carry set (farmer's walk): metres. */
+  distanceM?: number | null;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -89,8 +94,10 @@ export function buildCsv(rows: CsvSetRow[]): string {
   for (const r of rows) {
     const type = r.warmup ? "warmup" : r.drop ? "dropset" : r.failure ? "failure" : "normal";
     const rpe = r.rir === null ? "" : String(Math.max(0, Math.min(10, 10 - r.rir)));
+    const timed = r.durationS != null || r.distanceM != null;
+    const km = r.distanceM != null ? String(r.distanceM / 1000) : ""; // Hevy writes kilometres; GAIN's import turns it back into metres
     out.push(
-      [text(r.title), q(csvTime(r.startMs)), q(csvTime(r.endMs)), '""', text(r.exerciseTitle), r.supersetId ? q(r.supersetId) : "", '""', String(r.setIndex), q(type), String(r.weightKg), String(r.reps), "", "", rpe].join(","),
+      [text(r.title), q(csvTime(r.startMs)), q(csvTime(r.endMs)), '""', text(r.exerciseTitle), r.supersetId ? q(r.supersetId) : "", '""', String(r.setIndex), q(type), String(r.weightKg), timed ? "" : String(r.reps), km, r.durationS != null ? String(r.durationS) : "", rpe].join(","),
     );
   }
   return out.join("\n") + "\n";

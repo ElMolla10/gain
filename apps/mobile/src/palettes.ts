@@ -22,7 +22,8 @@ export const darkPalette: Palette = { bg: "#101211", card: "#1a1d1b", text: "#f2
 
 
 /**
- * Colours of the active workout screen (Hevy-style: near-black with a blue accent in dark mode, soft grey and white in light mode).
+ * Colours of the active workout screen (near-black in dark mode, soft grey and white in light mode). The accent is the SAME primary green
+ * as the main palette (the field names `blue*` are historical): navigation, buttons and the logger share one accent.
  * Follows the system theme like everything else. Status is never colour alone: ticks, "W" and text carry it too.
  */
 export interface LogPalette {
@@ -47,6 +48,11 @@ export interface LogPalette {
   edge: string;
 }
 
-export const logDarkPalette: LogPalette = { bg: "#000000", card: "#111214", field: "#1e2024", line: "#2a2c31", text: "#f5f5f5", muted: "#9ea3ab", blue: "#5aa2ff", blueFill: "#2563eb", onBlue: "#ffffff", doneBg: "#0f2342", warn: "#f5b13d", danger: "#ff6b6b", onDanger: "#000000", edge: "#6f757e" };
-export const logLightPalette: LogPalette = { bg: "#f2f3f5", card: "#ffffff", field: "#e8eaee", line: "#d5d9df", text: "#111418", muted: "#566070", blue: "#1558c0", blueFill: "#1d5fd0", onBlue: "#ffffff", doneBg: "#dfeafb", warn: "#8a5a00", danger: "#c4262b", onDanger: "#ffffff", edge: "#707a8a" };
+export const logDarkPalette: LogPalette = { bg: "#000000", card: "#111214", field: "#1e2024", line: "#2a2c31", text: "#f5f5f5", muted: "#9ea3ab", blue: "#4cc38a", blueFill: "#4cc38a", onBlue: "#06150e", doneBg: "#0f2a1e", warn: "#f5b13d", danger: "#ff6b6b", onDanger: "#000000", edge: "#6f757e" };
+export const logLightPalette: LogPalette = { bg: "#f2f3f5", card: "#ffffff", field: "#e8eaee", line: "#d5d9df", text: "#111418", muted: "#566070", blue: "#1f6f4a", blueFill: "#1f6f4a", onBlue: "#ffffff", doneBg: "#dcefe5", warn: "#8a5a00", danger: "#c4262b", onDanger: "#ffffff", edge: "#707a8a" };
 
+
+/** Colours handed to the navigation container, so tab bar, headers and the logger all use the one primary accent. */
+export function navColors(p: Palette): { primary: string; background: string; card: string; text: string; border: string; notification: string } {
+  return { primary: p.accent, background: p.bg, card: p.card, text: p.text, border: p.border, notification: p.accent };
+}

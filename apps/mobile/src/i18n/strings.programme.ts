@@ -3,7 +3,7 @@
  * ARABIC IS A DRAFT TRANSLATION (Egyptian-leaning): needs review by Egyptian lifters and a trainer.
  */
 export const enProgramme = {
-  "tab.programme": "Programme",
+  "tab.programme": "Plan",
   "muscle.chest": "Chest",
   "muscle.back": "Back",
   "muscle.shoulders": "Shoulders",
@@ -155,7 +155,7 @@ export const enProgramme = {
 } as const;
 
 export const arProgramme: Record<keyof typeof enProgramme, string> = {
-  "tab.programme": "البرنامج",
+  "tab.programme": "الخطة",
   "muscle.chest": "صدر",
   "muscle.back": "ضهر",
   "muscle.shoulders": "كتف",

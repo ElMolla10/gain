@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from "@re
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, useColorScheme, View } from "react-native";
+import { AppState, Pressable, Text, useColorScheme, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb } from "./src/db/expoDriver";
@@ -53,6 +53,11 @@ import { StoppedSuggestionsScreen } from "./src/screens/StoppedSuggestionsScreen
 import { ShortWeekScreen } from "./src/screens/ShortWeekScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { TodayScreen } from "./src/screens/TodayScreen";
+import { SyncScreen } from "./src/screens/SyncScreen";
+import { createAutoSync } from "./src/sync/auto";
+import { createCoachLinks } from "./src/sync/coachLinks";
+import { createSyncEngine } from "./src/sync/engine";
+import { createFetchTransport } from "./src/sync/transport";
 
 // Uncaught JavaScript errors go to the crash log on this phone (never uploaded), then on to the normal handler.
 installCrashHandler(diagnostics, (globalThis as { ErrorUtils?: Parameters<typeof installCrashHandler>[1] }).ErrorUtils);
@@ -102,6 +107,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
           <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
+          <Stack.Screen name="Sync" component={SyncScreen} options={{ title: t("sync.title") }} />
           <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: t("privacy.title") }} />
           <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: t("diag.title") }} />
           <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} />
@@ -177,12 +183,25 @@ export default function App() {
       const history = createHistoryRepo(db, deps, repos, finish);
       const decisions = createDecisionRepo(db);
       const data = createDataRepo(db, deps);
-      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
+      const sync = createSyncEngine(db, deps, createFetchTransport());
+      const auto = createAutoSync(sync);
+      const autoSync = (force?: boolean) => void auto.run(force);
+      autoSync(true); // does one local read and nothing else unless the lifter turned Back up and sync on
+      setBoot({ services: { db, repos, workout, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), needsOnboarding: (await onboarding.getState()) === null });
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
       setBoot("error");
     });
   }, [epoch]);
+
+  // Back on screen after being away: sync quietly if (and only if) Back up and sync is on. Throttled to once per 5 minutes.
+  useEffect(() => {
+    if (!boot || boot === "error") return;
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") boot.services.autoSync();
+    });
+    return () => sub.remove();
+  }, [boot]);
 
   const onChange = useMemo(
     () => (key: "language" | "rtl_override" | "units", value: string) => {

@@ -45,7 +45,10 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
   });
   it("the page says the things the code makes true, and is marked DRAFT", () => {
     expect(en["privacy.draft"]).toMatch(/DRAFT/);
-    expect(en["privacy.local.body"]).toMatch(/no account, no server and no analytics/);
+    expect(en["privacy.local.body"]).toMatch(/By default there is no account and no server/);
+    expect(en["privacy.leaves.sync"]).toMatch(/OFF until you turn it on/);
+    expect(en["privacy.leaves.sync"]).toMatch(/not end-to-end encrypted/);
+    expect(en["privacy.leaves.link"]).toMatch(/anyone with the link/i);
     expect(en["privacy.leaves.update"]).toMatch(/api\.github\.com/);
     expect(en["privacy.leaves.backup"]).toMatch(/Android/);
     expect(en["privacy.health.body"]).toMatch(/not a doctor/);

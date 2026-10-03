@@ -24,7 +24,7 @@ export function PrivacyScreen() {
         <AppText style={{ fontWeight: "700", color: p.danger }}>{t("privacy.draft")}</AppText>
       </Card>
       {block("privacy.local.title", ["privacy.local.body"])}
-      {block("privacy.leaves.title", ["privacy.leaves.update", "privacy.leaves.share", "privacy.leaves.backup"])}
+      {block("privacy.leaves.title", ["privacy.leaves.update", "privacy.leaves.sync", "privacy.leaves.link", "privacy.leaves.share", "privacy.leaves.backup"])}
       {block("privacy.crash.title", ["privacy.crash.body"])}
       {block("privacy.control.title", ["privacy.control.body"])}
       {block("privacy.health.title", ["privacy.health.body", "privacy.age"])}

@@ -52,7 +52,7 @@ Workers free: 100k requests/day. D1 free: 5 GB, 100k rows written/day, 5M rows r
 D1 data lives in the Cloudflare region D1 picks (automatic); **where exactly is unknown**, and Egyptian/EU residency rules are **unknown** (Step 17). D1 Time Travel gives point-in-time restore but no separate backup was set up.
 
 ## Not done / unverified
-See the status section appended after the first deploy, and the client side in SYNC-CLIENT.md when it lands.
+See the status section appended after the first deploy, and the client side in SYNC-CLIENT.md (shipped in v0.11).
 
 ## Coach links (Step 22, the part that survives the dropped shared gyms)
 - The lifter taps "Share as link" on the finish screen; the app uploads the SAME card model the PDF uses (session, next targets, pace line, no bodyweight, not-a-doctor line) and gets back `https://<worker>/c/<token>`. The coach opens it in any browser: **no account, no app**.

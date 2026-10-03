@@ -302,7 +302,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport) {
     if ((await status()) === "on") return { ok: false, error: "busy", detail: "already on" };
     let token = await getState(S.token);
     let recovery = await getState(S.recovery);
-    if (!token) {
+    if (!token || opts.recoveryCode) {
       const res = opts.recoveryCode
         ? await call("POST", "/v1/auth/recover", null, { recoveryCode: opts.recoveryCode, label: opts.label })
         : await call("POST", "/v1/account", null, { label: opts.label });
@@ -366,6 +366,8 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport) {
       if (body.next <= cursor) return { ok: false, error: "bad_response", detail: "cursor did not advance" };
       cursor = body.next;
     }
+    // Never wipe a phone for an empty backup (e.g. a half-finished setup): that would destroy data to replace it with nothing.
+    if (all.length === 0) return { ok: false, error: "bad_response", detail: "the backup is empty" };
     await db.exec("PRAGMA foreign_keys = OFF");
     try {
       await db.transaction(async () => {
@@ -380,6 +382,29 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport) {
     } finally {
       await db.exec("PRAGMA foreign_keys = ON");
     }
+    return { ok: true };
+  }
+
+  /** A signed request to the server with the stored token. Used by coach links; never called while the lifter has not used a server feature. */
+  async function api(method: "GET" | "POST" | "DELETE", path: string, body?: unknown): Promise<{ status: number; json: unknown } | { error: SyncError; detail?: string }> {
+    return call(method, path, await getState(S.token), body);
+  }
+
+  /**
+   * Makes sure this phone has an anonymous server account WITHOUT turning sync on (coach links need an owner who can revoke them).
+   * If sync is turned on later, this same account is reused.
+   */
+  async function ensureAccount(label?: string): Promise<{ ok: true } | { ok: false; error: SyncError; detail?: string }> {
+    if (await getState(S.token)) return { ok: true };
+    const res = await call("POST", "/v1/account", null, { label });
+    if ("error" in res) return { ok: false, error: res.error, detail: res.detail };
+    const j = res.json as { accountId?: string; deviceToken?: string; recoveryCode?: string };
+    if (!j?.deviceToken || !j.accountId) return { ok: false, error: "bad_response" };
+    await db.transaction(async () => {
+      await setState(S.token, j.deviceToken!);
+      await setState(S.account, j.accountId!);
+      if (j.recoveryCode) await setState(S.recovery, j.recoveryCode);
+    });
     return { ok: true };
   }
 
@@ -428,7 +453,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport) {
     return getState(S.recovery);
   }
 
-  return { syncNow, connect, useBackup, disconnect, clearLocal, getInfo, getRecoveryCode, hasUserData, status, token: () => getState(S.token) };
+  return { syncNow, connect, useBackup, disconnect, ensureAccount, api, clearLocal, getInfo, getRecoveryCode, hasUserData, status, token: () => getState(S.token) };
 }
 export type SyncEngine = ReturnType<typeof createSyncEngine>;
 

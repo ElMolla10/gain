@@ -77,17 +77,8 @@ Rules used for every line: no medical, physique or results promise; each claim m
 | Category | Health & Fitness | Proposed |
 | Contact details, developer name | Play Console | Account needed (Step 25) |
 
-## Data safety form: draft answers (must match the shipped app; recheck at submission)
-
-| Question | Draft answer | Based on |
-|---|---|---|
-| Does the app collect or share user data? | Collects only if the user turns on Back up and sync; otherwise no data leaves the phone except what the user shares | PRIVACY-POLICY-DRAFT sections 2-3 |
-| Data types if sync is on | App activity (workout logs); personal info: none required (anonymous random id); health & fitness: bodyweight if entered | sync is opt-in, off by default |
-| Shared with third parties | No | no analytics/ads/model service in 0.12 |
-| Encryption in transit | Yes (HTTPS) | Cloudflare Workers |
-| Encrypted at rest on server | Provider-level only; not end-to-end | policy text |
-| Can users request deletion? | Yes: in-app delete (also deletes online data first) | Settings |
-| Crash logs | Local file only; shared only when the user taps Share | DIAGNOSTICS.md |
+## Data safety form
+The draft answers now live in [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (built from the code's real data flows and the APK's permissions, with judgment calls marked). The short table that used to be here said "Collects only if the user turns on sync" and omitted the coach link, birthday/height and the permission list; do not use it.
 
 ## Known blockers before any submission
 1. **Self-update installer.** The app declares `REQUEST_INSTALL_PACKAGES` and downloads its own APK from GitHub. Play distribution generally does not allow an app to update itself outside Play, and a declared install-packages permission needs a policy exemption. The Play build would need this removed (a build flavour without the updater). Not done; needs a decision (D-number to be assigned) and a check of the current policy text.

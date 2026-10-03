@@ -26,8 +26,8 @@ export function WorkoutHelp({ visible, onClose }: { visible: boolean; onClose: (
               ))}
             </View>
           </ScrollView>
-          <Pressable accessibilityRole="button" onPress={onClose} style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}>
-            <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>{t("common.close")}</AppText>
+          <Pressable accessibilityRole="button" onPress={onClose} style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.fill, alignItems: "center", justifyContent: "center" }}>
+            <AppText style={{ color: p.onFill, fontWeight: "800", fontSize: 16 }}>{t("common.close")}</AppText>
           </Pressable>
         </View>
       </Pressable>

@@ -11,6 +11,7 @@ import { arData, enData } from "./strings.data";
 import { arDecisions, enDecisions } from "./strings.decisions";
 import { arGoals, enGoals } from "./strings.goals";
 import { arHistory, enHistory } from "./strings.history";
+import { arDesign, enDesign } from "./strings.design";
 import { arFixes, enFixes } from "./strings.fixes";
 import { arImport, enImport } from "./strings.import";
 import { arOnboarding, enOnboarding } from "./strings.onboarding";
@@ -204,6 +205,7 @@ export const en = {
   ...enOnboarding,
   ...enImport,
   ...enFixes,
+  ...enDesign,
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -388,4 +390,5 @@ export const ar: Record<StringKey, string> = {
   ...arOnboarding,
   ...arImport,
   ...arFixes,
+  ...arDesign,
 };

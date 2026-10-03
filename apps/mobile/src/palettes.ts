@@ -1,63 +1,130 @@
-// Pure colour tables (no React Native import) so tests can check contrast. theme.ts picks one by system theme.
+// Pure colour tables (no React Native import) so tests can check contrast. theme.ts picks one by the chosen appearance.
+// Brand values come from design/tokens.ts (the identity kit); the semantic extras (tints, light-theme status colours) are
+// derived for this app and documented in docs/DESIGN.md.
+import { gainTokens } from "./design/tokens";
+
+const c = gainTokens.colors;
 
 export interface Palette {
+  /** Screen background (dark: ink, light: bone). */
   bg: string;
+  /** Cards and rows (dark: surface, light: white). */
   card: string;
+  /** A step above `card`: wells, set rows, the target strip's neighbours. */
+  raised: string;
   text: string;
   muted: string;
+  /** Accent as TEXT or ICON colour on bg/card: lime on dark, dark olive on light. Never use it as a fill. */
   accent: string;
-  accentText: string;
+  /** Primary action FILL: electric lime in both themes. */
+  fill: string;
+  /** Text and icons on a `fill` surface: ink, never white. */
+  onFill: string;
+  /** `fill` while pressed (slightly darker). */
+  fillPressed: string;
+  /** Selected-state background that is quieter than `fill` (target strip, selected row). */
+  tint: string;
+  /** Decoration only (hairlines, card borders). Not an interactive boundary. */
   border: string;
-  disabled: string;
-  /** Boundary of inputs and choice buttons: at least 3:1 against bg and card (WCAG 1.4.11). `border` is only decoration. */
+  /** Boundary of inputs, chips and switches: at least 3:1 against bg, card and raised (WCAG 1.4.11). */
   edge: string;
-  /** Error text; readable on bg and card in both themes. */
-  danger: string;
-  /** Warning outline (e.g. a value that looks wrong). */
+  disabled: string;
+  onDisabled: string;
+  /** Status foregrounds: readable as text on bg, card and their own `*Bg` tint. Status is always icon/label + colour. */
+  success: string;
   warn: string;
+  danger: string;
+  successBg: string;
+  warnBg: string;
+  dangerBg: string;
+  /** Text or icon on a solid `danger` surface (the swipe-to-delete action). */
+  onDanger: string;
 }
 
-export const lightPalette: Palette = { bg: "#f4f6f5", card: "#ffffff", text: "#141717", muted: "#566061", accent: "#17724c", accentText: "#ffffff", border: "#d9d9d4", disabled: "#b9b9b3", edge: "#82827d", danger: "#b00020", warn: "#a85f00" };
-export const darkPalette: Palette = { bg: "#141617", card: "#1e2122", text: "#f2f4f3", muted: "#a9afad", accent: "#5eddaa", accentText: "#06150e", border: "#2f3435", disabled: "#555c5a", edge: "#7d8583", danger: "#ff8a8a", warn: "#e8a33a" };
+export const darkPalette: Palette = {
+  bg: c.ink,
+  card: c.surface,
+  raised: c.raised,
+  text: c.text,
+  muted: c.muted,
+  accent: c.lime,
+  fill: c.lime,
+  onFill: c.darkAccentText,
+  fillPressed: "#9FD816",
+  tint: "#2A3320",
+  border: c.border,
+  edge: "#8A9580",
+  disabled: "#2E3527",
+  onDisabled: "#A3AB97",
+  success: c.success,
+  warn: c.warning,
+  danger: c.error,
+  successBg: "#1C3326",
+  warnBg: "#382F15",
+  dangerBg: "#3D211E",
+  onDanger: c.ink,
+};
 
+export const lightPalette: Palette = {
+  bg: c.lightBackground,
+  card: c.lightSurface,
+  raised: "#ECEFE2",
+  text: c.lightText,
+  muted: c.lightMuted,
+  accent: c.lightAccentText,
+  fill: c.lime,
+  onFill: c.ink,
+  fillPressed: "#9FD816",
+  tint: "#E7F2C4",
+  border: "#D3D8C5",
+  edge: c.lightBorder,
+  disabled: "#DDE0D2",
+  onDisabled: "#4F5B45",
+  success: "#1B6B3E",
+  warn: "#7A5200",
+  danger: "#A3231A",
+  successBg: "#DCF2E4",
+  warnBg: "#FAEDC4",
+  dangerBg: "#FCE4E1",
+  onDanger: "#FFFFFF",
+};
 
 /**
- * Colours of the active workout screen (near-black in dark mode, soft grey and white in light mode). The accent is the SAME primary green
- * as the main palette (the field names `blue*` are historical): navigation, buttons and the logger share one accent.
- * Follows the system theme like everything else. Status is never colour alone: ticks, "W" and text carry it too.
+ * Colours of the active workout screen. It is the same identity as every other screen (same accent, same surfaces): the logger is
+ * a view over the main palette plus two extras (`field`, `doneBg`). Status is never colour alone: ticks, "W" and text carry it too.
  */
 export interface LogPalette {
   bg: string;
   card: string;
+  /** Input wells and unticked set rows. */
   field: string;
   line: string;
   text: string;
   muted: string;
-  /** Blue used for text and icons on `bg`. */
-  blue: string;
-  /** Blue used as a button / filled box background (white text on it). */
-  blueFill: string;
-  onBlue: string;
+  /** Accent as text / icon colour on `bg` (lime on dark, dark olive on light). */
+  accent: string;
+  /** Filled controls (done tick, primary buttons): lime, with ink on it. */
+  fill: string;
+  onFill: string;
   /** Background of a ticked (logged) row. */
   doneBg: string;
   warn: string;
   danger: string;
-  /** Text or icon on a `danger` background (the swipe-to-delete action). */
   onDanger: string;
   /** Boundary of outlined controls: at least 3:1 against bg and card. `line` is decoration only. */
   edge: string;
 }
 
-export const logDarkPalette: LogPalette = { bg: "#141617", card: "#1e2122", field: "#272b2c", line: "#2f3435", text: "#f2f4f3", muted: "#a9afad", blue: "#5eddaa", blueFill: "#5eddaa", onBlue: "#06150e", doneBg: "#17342a", warn: "#f5b13d", danger: "#ff6b6b", onDanger: "#000000", edge: "#7d8583" };
-export const logLightPalette: LogPalette = { bg: "#f4f6f5", card: "#ffffff", field: "#e7ecea", line: "#d5dbd9", text: "#141717", muted: "#566061", blue: "#17724c", blueFill: "#17724c", onBlue: "#ffffff", doneBg: "#dcefe5", warn: "#8a5a00", danger: "#c4262b", onDanger: "#ffffff", edge: "#82827d" };
+const logOf = (p: Palette, doneBg: string): LogPalette => ({ bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
+export const logDarkPalette: LogPalette = logOf(darkPalette, "#273518");
+export const logLightPalette: LogPalette = logOf(lightPalette, "#E4F2BC");
 
-
-/** Colours handed to the navigation container, so tab bar, headers and the logger all use the one primary accent. */
+/** Colours handed to the navigation container, so tab bar, headers and the logger all use the one identity. */
 export function navColors(p: Palette): { primary: string; background: string; card: string; text: string; border: string; notification: string } {
   return { primary: p.accent, background: p.bg, card: p.card, text: p.text, border: p.border, notification: p.accent };
 }
 
 export type Appearance = "dark" | "light" | "system";
 export const APPEARANCES: readonly Appearance[] = ["dark", "light", "system"];
-/** Dark (charcoal + mint) is the default; anything unknown falls back to it. */
+/** Dark (ink + lime) is the default; anything unknown falls back to it. */
 export const parseAppearance = (raw: string | null | undefined): Appearance => (raw === "light" || raw === "system" ? raw : "dark");

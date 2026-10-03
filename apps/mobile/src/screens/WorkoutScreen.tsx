@@ -516,9 +516,9 @@ export function WorkoutScreen() {
             setLoadError(false);
             setAttempt((n) => n + 1);
           }}
-          style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
+          style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.fill, alignItems: "center", justifyContent: "center" }}
         >
-          <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>{t("today.error.retry")}</AppText>
+          <AppText style={{ color: p.onFill, fontWeight: "800", fontSize: 16 }}>{t("today.error.retry")}</AppText>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => navigation.goBack()} style={{ minHeight: 52, borderRadius: 12, borderWidth: 2, borderColor: p.edge, alignItems: "center", justifyContent: "center" }}>
           <AppText style={{ fontWeight: "700" }}>{t("common.close")}</AppText>
@@ -620,13 +620,13 @@ export function WorkoutScreen() {
     const head = { color: p.muted, fontSize: 12, fontWeight: "700" as const, textAlign: "center" as const };
 
     return (
-      <View key={ex.id} style={{ gap: 8, paddingTop: 18, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.blueFill }}>
+      <View key={ex.id} style={{ gap: 8, paddingTop: 18, borderStartWidth: ssLabel[ex.slot] ? 4 : 0, borderStartColor: p.fill }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 }}>
           <View style={{ flex: 1 }}>
             {ssLabel[ex.slot] ? (
-              <AppText style={{ color: p.blue, fontSize: 12, fontWeight: "800" }}>{t("workout.superset.label", { letter: ssLabel[ex.slot]! })}</AppText>
+              <AppText style={{ color: p.accent, fontSize: 12, fontWeight: "800" }}>{t("workout.superset.label", { letter: ssLabel[ex.slot]! })}</AppText>
             ) : null}
-            <AppText style={{ fontSize: 19, fontWeight: "700", color: p.blue }}>{labels.primary}</AppText>
+            <AppText style={{ fontSize: 19, fontWeight: "700", color: p.accent }}>{labels.primary}</AppText>
             {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`${t("workout.menu.title")}: ${labels.primary}`} onPress={() => setMenuFor(ex.slot)} style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}>
@@ -649,12 +649,12 @@ export function WorkoutScreen() {
         />
 
         <Pressable accessibilityRole="button" accessibilityLabel={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}: ${labels.primary}`} hitSlop={{ top: 8, bottom: 8 }} onPress={() => void toggleRest(ex.slot)} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, minHeight: 32 }}>
-          <Stopwatch size={14} color={p.blue} />
-          <AppText style={{ color: p.blue, fontWeight: "600", fontSize: 15 }}>{st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}</AppText>
+          <Stopwatch size={14} color={p.accent} />
+          <AppText style={{ color: p.accent, fontWeight: "600", fontSize: 15 }}>{st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(timer.durationMs) })}</AppText>
         </Pressable>
 
         {/* Compact target line: "Target: 90 kg × 12" with a small Why button. It wraps onto a second line when it is long and is never cut off. */}
-        <View style={{ marginHorizontal: 12, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: p.field, borderStartWidth: 3, borderStartColor: p.blueFill, gap: 4 }}>
+        <View style={{ marginHorizontal: 12, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: p.field, borderStartWidth: 3, borderStartColor: p.fill, gap: 4 }}>
           <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 2 }}>
             <AppText style={{ flexShrink: 1, fontSize: 18, fontWeight: "800" }}>
               {t("workout.nextTarget")}: {targetText}
@@ -665,9 +665,9 @@ export function WorkoutScreen() {
               onPress={() => (info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored!.id })) : setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded })))}
               onLongPress={() => setWhyOpen((w) => ({ ...w, [ex.exerciseId]: !expanded }))}
               hitSlop={{ top: 8, bottom: 8 }}
-              style={{ minHeight: 32, minWidth: 48, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: p.blue }}
+              style={{ minHeight: 32, minWidth: 48, justifyContent: "center", alignItems: "center", paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: p.accent }}
             >
-              <AppText style={{ fontSize: 13, fontWeight: "700", color: p.blue }}>{t("workout.whyShort")}</AppText>
+              <AppText style={{ fontSize: 13, fontWeight: "700", color: p.accent }}>{t("workout.whyShort")}</AppText>
             </Pressable>
           </View>
           {expanded ? <AppText style={{ fontSize: 14, color: p.muted }}>{reasonText}</AppText> : null}
@@ -701,7 +701,7 @@ export function WorkoutScreen() {
                       onLongPress={() => askDrop(ex, row)}
                       style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}
                     >
-                      <AppText ltr style={{ fontWeight: "800", fontSize: 15, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.blue }}>{numbering[i]}</AppText>
+                      <AppText ltr style={{ fontWeight: "800", fontSize: 15, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.accent }}>{numbering[i]}</AppText>
                     </Pressable>
                   </View>
                   <View style={{ flex: 1.3 }}>
@@ -737,9 +737,9 @@ export function WorkoutScreen() {
                       accessibilityLabel={`${done ? t("workout.untick") : row.saved ? t("workout.tickUpdate") : t("workout.tick")}. ${ctx}`}
                       disabled={busy !== null || (!row.saved && !canTick)}
                       onPress={() => (done ? void untick(ex, row) : void logRow(ex, row))}
-                      style={{ width: 48, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.blueFill : p.field, borderWidth: row.saved && row.dirty ? 2 : 0, borderColor: p.blue, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
+                      style={{ width: 48, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.fill : p.field, borderWidth: row.saved && row.dirty ? 2 : 0, borderColor: p.accent, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
                     >
-                      {row.saved && row.dirty ? <AppText style={{ color: p.blue, fontWeight: "800", fontSize: 18 }}>↻</AppText> : <Tick size={13} color={done ? p.onBlue : p.muted} />}
+                      {row.saved && row.dirty ? <AppText style={{ color: p.accent, fontWeight: "800", fontSize: 18 }}>↻</AppText> : <Tick size={13} color={done ? p.onFill : p.muted} />}
                     </Pressable>
                   </View>
                 </View>
@@ -766,9 +766,9 @@ export function WorkoutScreen() {
                     await workout.setOutlierStatus(s.id, "confirmed");
                     await reload(loaded.sessionId);
                   }}
-                  style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }}
+                  style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.fill, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }}
                 >
-                  <AppText style={{ color: p.onBlue, fontWeight: "700", textAlign: "center" }}>{t("workout.outlier.confirm")}</AppText>
+                  <AppText style={{ color: p.onFill, fontWeight: "700", textAlign: "center" }}>{t("workout.outlier.confirm")}</AppText>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
@@ -777,7 +777,7 @@ export function WorkoutScreen() {
                     setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], s.id) }));
                     await reload(loaded.sessionId);
                   }}
-                  style={{ flex: 1, minHeight: 48, borderRadius: 10, borderWidth: 2, borderColor: p.blueFill, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }}
+                  style={{ flex: 1, minHeight: 48, borderRadius: 10, borderWidth: 2, borderColor: p.fill, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }}
                 >
                   <AppText style={{ fontWeight: "700", textAlign: "center" }}>{t("workout.outlier.reject")}</AppText>
                 </Pressable>
@@ -809,9 +809,9 @@ export function WorkoutScreen() {
                       setBusy(null);
                     }
                   }}
-                  style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
+                  style={{ flex: 1, minHeight: 48, borderRadius: 10, backgroundColor: p.fill, alignItems: "center", justifyContent: "center" }}
                 >
-                  <AppText style={{ color: p.onBlue, fontWeight: "700" }}>{t("warm.confirm")}</AppText>
+                  <AppText style={{ color: p.onFill, fontWeight: "700" }}>{t("warm.confirm")}</AppText>
                 </Pressable>
                 <Pressable accessibilityRole="button" onPress={() => setWarmOpen(null)} style={{ flex: 1, minHeight: 48, borderRadius: 10, borderWidth: 2, borderColor: p.edge, alignItems: "center", justifyContent: "center" }}>
                   <AppText style={{ fontWeight: "700" }}>{t("warm.cancel")}</AppText>
@@ -820,7 +820,7 @@ export function WorkoutScreen() {
             </View>
           ) : (
             <Pressable accessibilityRole="button" onPress={() => setWarmOpen(ex.exerciseId)} style={{ paddingHorizontal: 14, minHeight: 48, justifyContent: "center" }}>
-              <AppText style={{ color: warmupsUsuallySkipped(position, ex.pattern) ? p.muted : p.blue, fontWeight: "600", fontSize: 15 }}>{warmupsUsuallySkipped(position, ex.pattern) ? t("warm.addAnyway") : t("warm.add")}</AppText>
+              <AppText style={{ color: warmupsUsuallySkipped(position, ex.pattern) ? p.muted : p.accent, fontWeight: "600", fontSize: 15 }}>{warmupsUsuallySkipped(position, ex.pattern) ? t("warm.addAnyway") : t("warm.add")}</AppText>
             </Pressable>
           )
         ) : null}
@@ -852,18 +852,18 @@ export function WorkoutScreen() {
           <AppText style={{ fontWeight: "800", fontSize: 18 }}>?</AppText>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={t("workout.restTimerBtn")} accessibilityState={{ expanded: timerOpen }} onPress={() => setTimerOpen((o) => !o)} style={timerRunning ? { height: 48, minWidth: 48, paddingHorizontal: 12, flexDirection: "row", gap: 6, borderRadius: 24, backgroundColor: p.field, alignItems: "center", justifyContent: "center" } : circle}>
-          <Stopwatch size={16} color={timerRunning ? p.blue : p.text} />
-          {timerRunning ? <RestClock timer={timer} style={{ color: p.blue, fontWeight: "700", fontSize: 15 }} /> : null}
+          <Stopwatch size={16} color={timerRunning ? p.accent : p.text} />
+          {timerRunning ? <RestClock timer={timer} style={{ color: p.accent, fontWeight: "700", fontSize: 15 }} /> : null}
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.finishBtn")} disabled={finishing} onPress={() => askFinish(loaded)} style={{ minHeight: 48, paddingHorizontal: 20, borderRadius: 24, backgroundColor: finishing ? p.line : p.blueFill, alignItems: "center", justifyContent: "center" }}>
-          <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>{t("workout.finishBtn")}</AppText>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.finishBtn")} disabled={finishing} onPress={() => askFinish(loaded)} style={{ minHeight: 48, paddingHorizontal: 20, borderRadius: 24, backgroundColor: finishing ? p.line : p.fill, alignItems: "center", justifyContent: "center" }}>
+          <AppText style={{ color: p.onFill, fontWeight: "800", fontSize: 16 }}>{t("workout.finishBtn")}</AppText>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={{ flexDirection: "row", gap: 18, paddingHorizontal: 14, paddingVertical: 10 }}>
           <Stat label={t("workout.stat.duration")}>
-            <LiveDuration startedAt={loaded.startedAt} color={p.blue} />
+            <LiveDuration startedAt={loaded.startedAt} color={p.accent} />
           </Stat>
           <Stat label={t("workout.stat.volume")}>
             <AppText ltr style={{ fontSize: 19, fontWeight: "700" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
@@ -877,8 +877,8 @@ export function WorkoutScreen() {
           <View accessibilityLiveRegion="assertive" style={{ marginHorizontal: 12, marginBottom: 8, padding: 12, gap: 8, borderRadius: 12, borderWidth: 2, borderColor: p.danger, backgroundColor: p.card }}>
             <AppText style={{ fontWeight: "800" }}>{t("workout.finishFailed.title")}</AppText>
             <AppText style={{ color: p.muted }}>{t("workout.finishFailed.body")}</AppText>
-            <Pressable accessibilityRole="button" disabled={finishing} onPress={() => void doFinish(loaded)} style={{ minHeight: 52, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}>
-              <AppText style={{ color: p.onBlue, fontWeight: "800" }}>{t("workout.finishFailed.retry")}</AppText>
+            <Pressable accessibilityRole="button" disabled={finishing} onPress={() => void doFinish(loaded)} style={{ minHeight: 52, borderRadius: 10, backgroundColor: p.fill, alignItems: "center", justifyContent: "center" }}>
+              <AppText style={{ color: p.onFill, fontWeight: "800" }}>{t("workout.finishFailed.retry")}</AppText>
             </Pressable>
           </View>
         ) : null}
@@ -898,15 +898,15 @@ export function WorkoutScreen() {
                   setRestOver(false);
                   setTimer((tm) => (tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm)));
                 }}
-                style={{ flex: 1.3, minHeight: 48, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
+                style={{ flex: 1.3, minHeight: 48, borderRadius: 10, backgroundColor: p.fill, alignItems: "center", justifyContent: "center" }}
               >
-                <AppText style={{ color: p.onBlue, fontWeight: "700" }}>{timerRunning ? t("workout.rest.stop") : t("workout.rest.start")}</AppText>
+                <AppText style={{ color: p.onFill, fontWeight: "700" }}>{timerRunning ? t("workout.rest.stop") : t("workout.rest.start")}</AppText>
               </Pressable>
             </View>
             {restOver && !timerRunning ? <AppText>{t("workout.rest.done")}</AppText> : null}
           </View>
         ) : restOver && !timerRunning ? (
-          <AppText style={{ paddingHorizontal: 14, color: p.blue, fontWeight: "700" }}>{t("workout.rest.done")}</AppText>
+          <AppText style={{ paddingHorizontal: 14, color: p.accent, fontWeight: "700" }}>{t("workout.rest.done")}</AppText>
         ) : null}
 
         <View style={{ paddingHorizontal: 14, gap: 2 }}>
@@ -922,9 +922,9 @@ export function WorkoutScreen() {
           accessibilityRole="button"
           accessibilityLabel={t("workout.add.button")}
           onPress={() => setAddOpen(true)}
-          style={{ marginHorizontal: 12, marginTop: 22, minHeight: 50, borderRadius: 10, backgroundColor: p.blueFill, alignItems: "center", justifyContent: "center" }}
+          style={{ marginHorizontal: 12, marginTop: 22, minHeight: 50, borderRadius: 10, backgroundColor: p.fill, alignItems: "center", justifyContent: "center" }}
         >
-          <AppText style={{ color: p.onBlue, fontWeight: "800", fontSize: 16 }}>+ {t("workout.add.button")}</AppText>
+          <AppText style={{ color: p.onFill, fontWeight: "800", fontSize: 16 }}>+ {t("workout.add.button")}</AppText>
         </Pressable>
 
         {removedSlots.length > 0 ? (
@@ -934,7 +934,7 @@ export function WorkoutScreen() {
               <View key={s.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <AppText style={{ flex: 1, color: p.muted }}>{exerciseLabels(s, lang).primary}</AppText>
                 <Pressable accessibilityRole="button" onPress={() => void restore(s.exerciseId)} style={{ minHeight: 48, paddingHorizontal: 14, borderRadius: 10, backgroundColor: p.field, justifyContent: "center" }}>
-                  <AppText style={{ fontWeight: "700", color: p.blue }}>{t("workout.restore")}</AppText>
+                  <AppText style={{ fontWeight: "700", color: p.accent }}>{t("workout.restore")}</AppText>
                 </Pressable>
               </View>
             ))}

@@ -78,7 +78,7 @@ export function DateSelect(props: { label: string; value: string; onChange: (iso
                   initialNumToRender={20}
                   renderItem={({ item }) => (
                     <Pressable accessibilityRole="button" onPress={() => change(open, item)} style={{ minHeight: MIN_TOUCH, justifyContent: "center", paddingHorizontal: space.sm, borderBottomWidth: 1, borderColor: p.border, backgroundColor: parts[open] === item ? p.accent : "transparent" }}>
-                      <AppText style={{ fontSize: 18, fontWeight: parts[open] === item ? "800" : "500", color: parts[open] === item ? p.accentText : p.text }}>{shown(open, item)}</AppText>
+                      <AppText style={{ fontSize: 18, fontWeight: parts[open] === item ? "800" : "500", color: parts[open] === item ? p.onFill : p.text }}>{shown(open, item)}</AppText>
                     </Pressable>
                   )}
                 />

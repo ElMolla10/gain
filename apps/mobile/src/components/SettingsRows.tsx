@@ -64,7 +64,7 @@ export function SwitchRow(props: { label: string; note?: string; value: boolean;
         {props.note ? <AppText style={{ fontSize: ty.secondary, color: p.muted }}>{props.note}</AppText> : null}
       </View>
       <View pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-        <Switch accessibilityLabel={props.label} value={props.value} trackColor={{ true: p.accent, false: p.edge }} thumbColor={props.value ? p.accentText : p.muted} />
+        <Switch accessibilityLabel={props.label} value={props.value} trackColor={{ true: p.accent, false: p.edge }} thumbColor={props.value ? p.onFill : p.muted} />
       </View>
     </Pressable>
   );
@@ -87,7 +87,7 @@ export function SelectRow<T extends string>(props: { label: string; note?: strin
               onPress={() => props.onChange(o.value)}
               style={{ flex: 1, minHeight: MIN_TOUCH, alignItems: "center", justifyContent: "center", paddingHorizontal: space.sm, backgroundColor: on ? p.accent : "transparent", borderStartWidth: i === 0 ? 0 : 1, borderColor: p.edge }}
             >
-              <AppText style={{ fontSize: ty.bodySmall, fontWeight: "600", textAlign: "center", color: on ? p.accentText : p.text }}>{o.label}</AppText>
+              <AppText style={{ fontSize: ty.bodySmall, fontWeight: "600", textAlign: "center", color: on ? p.onFill : p.text }}>{o.label}</AppText>
             </Pressable>
           );
         })}

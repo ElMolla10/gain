@@ -20,10 +20,10 @@ describe("P09 navigation", () => {
   it("navigation and the workout logger share the one primary accent", () => {
     expect(navColors(lightPalette).primary).toBe(lightPalette.accent);
     expect(navColors(darkPalette).primary).toBe(darkPalette.accent);
-    expect(logLightPalette.blueFill).toBe(lightPalette.accent);
-    expect(logDarkPalette.blueFill).toBe(darkPalette.accent);
-    expect(logLightPalette.blue).toBe(lightPalette.accent);
-    expect(logDarkPalette.blue).toBe(darkPalette.accent);
+    expect(logLightPalette.fill).toBe(lightPalette.accent);
+    expect(logDarkPalette.fill).toBe(darkPalette.accent);
+    expect(logLightPalette.accent).toBe(lightPalette.accent);
+    expect(logDarkPalette.accent).toBe(darkPalette.accent);
   });
   it("the navigation container receives the palette theme, not the stock blue one", () => {
     expect(app).toContain("theme={navTheme}");

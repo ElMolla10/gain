@@ -16,8 +16,8 @@ const files = [...walk(join(root, "src")), join(root, "App.tsx")];
 
 describe("design: one identity (charcoal + mint), one type scale", () => {
   it("the logger and every screen share the same accent and background in both themes", () => {
-    expect(logDarkPalette.blueFill).toBe(darkPalette.accent);
-    expect(logLightPalette.blueFill).toBe(lightPalette.accent);
+    expect(logDarkPalette.fill).toBe(darkPalette.accent);
+    expect(logLightPalette.fill).toBe(lightPalette.accent);
     expect(logDarkPalette.bg).toBe(darkPalette.bg);
     expect(logDarkPalette.card).toBe(darkPalette.card);
     expect(logLightPalette.bg).toBe(lightPalette.bg);

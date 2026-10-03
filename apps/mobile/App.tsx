@@ -3,10 +3,10 @@ import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from "@re
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Pressable, Text, View } from "react-native";
+import { AppState, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { darkPalette, navColors } from "./src/palettes";
-import { parseAppearance, setAppearance, useIsDark, usePalette } from "./src/theme";
+import { navColors } from "./src/palettes";
+import { parseAppearance, setAppearance, space, useIsDark, usePalette } from "./src/theme";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb, openExpoMaintenanceDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
@@ -23,7 +23,11 @@ import { loadReminderSettings, reminderText, syncReminders } from "./src/logic/r
 import { createReminders } from "./src/notifications/reminders";
 import { createRestAlerts } from "./src/notifications/restAlerts";
 import { createDataRepo } from "./src/db/dataRepo";
-import { TabIcon, type TabIconName } from "./src/components/TabIcon";
+import { Icon, type IconName } from "./src/components/Icon";
+import { BootError, BootLoading, MigrationBlocked } from "./src/components/BootScreens";
+import { useBrandFonts } from "./src/useBrandFonts";
+import { familyFor } from "./src/fonts";
+import { AppText, BigButton } from "./src/ui";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { diagnostics } from "./src/diagnostics";
 import { installCrashHandler } from "./src/logic/diagnostics";
@@ -73,26 +77,39 @@ installCrashHandler(diagnostics, (globalThis as { ErrorUtils?: Parameters<typeof
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function Tabs() {
-  const { t } = useI18n();
+/** Tab icon: the kit's 24 px line icon, with a pill behind it when selected so the selected tab is identifiable beyond colour. */
+function TabBarIcon({ name, color, focused }: { name: IconName; color: string; focused: boolean }) {
   const p = usePalette();
-  const icon = (name: TabIconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabIcon name={name} color={color} size={focused ? 26 : 24} />;
+  return (
+    <View style={{ width: 56, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: focused ? p.tint : "transparent" }}>
+      <Icon name={name} color={color} size={24} />
+    </View>
+  );
+}
+
+function Tabs() {
+  const { t, lang } = useI18n();
+  const p = usePalette();
+  const icon = (name: IconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabBarIcon name={name} color={color} focused={focused} />;
+  // Labels wrap to two lines instead of truncating; they scale with the system font up to 1.4x (the bar itself grows with them).
+  const label = (text: string) => ({ color, focused }: { color: string; focused: boolean }) => (
+    <AppText maxFontSizeMultiplier={1.4} style={{ fontSize: 13, fontWeight: focused ? "600" : "400", color, textAlign: "center" }}>{text}</AppText>
+  );
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarLabelStyle: { fontSize: 13, fontWeight: "600" },
-        tabBarStyle: { minHeight: 60, backgroundColor: p.card, borderTopColor: p.border },
+        headerShown: false,
+        tabBarStyle: { backgroundColor: p.card, borderTopColor: p.border, paddingTop: space.xs },
+        tabBarItemStyle: { minHeight: 56 },
         tabBarActiveTintColor: p.accent,
         tabBarInactiveTintColor: p.muted,
-        headerStyle: { backgroundColor: p.bg },
-        headerTitleStyle: { fontSize: 20, fontWeight: "700", color: p.text },
-        headerShadowVisible: false,
+        tabBarLabelStyle: { fontFamily: familyFor({ weight: "600", arabic: lang === "ar" }) },
       }}
     >
-      <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: t("tab.today"), tabBarIcon: icon("today") }} />
-      <Tab.Screen name="Programme" component={ProgrammeScreen} options={{ title: t("prog.title"), tabBarLabel: t("tab.programme"), tabBarIcon: icon("plan") }} />
-      <Tab.Screen name="History" component={HistoryScreen} options={{ title: t("history.title"), tabBarLabel: t("tab.history"), tabBarIcon: icon("history") }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: t("tab.settings"), tabBarIcon: icon("settings") }} />
+      <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: label(t("tab.today")), tabBarAccessibilityLabel: t("tab.today"), tabBarIcon: icon("today") }} />
+      <Tab.Screen name="Programme" component={ProgrammeScreen} options={{ title: t("prog.title"), tabBarLabel: label(t("tab.programme")), tabBarAccessibilityLabel: t("tab.programme"), tabBarIcon: icon("plan") }} />
+      <Tab.Screen name="History" component={HistoryScreen} options={{ title: t("history.title"), tabBarLabel: label(t("tab.history")), tabBarAccessibilityLabel: t("tab.history"), tabBarIcon: icon("progress") }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: label(t("tab.settings")), tabBarAccessibilityLabel: t("tab.settings"), tabBarIcon: icon("settings") }} />
     </Tab.Navigator>
   );
 }
@@ -105,7 +122,7 @@ function SetupRoute() {
 function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   // "Import my workout history" on the first screen opens Import straight after setup is skipped.
   const [openImport, setOpenImport] = useState(false);
-  const { t, direction } = useI18n();
+  const { t, direction, lang } = useI18n();
   const isDark = useIsDark();
   const palette = usePalette();
   // One primary accent for the tab bar, headers and the logger (the colours come from the same palette).
@@ -130,7 +147,16 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
     // `direction` on the root flips every flex row and the navigation chrome at once, without restarting the app.
     <View style={{ flex: 1, direction }}>
       <NavigationContainer theme={navTheme} direction={direction} initialState={openImport ? { routes: [{ name: "Tabs" }, { name: "Import" }] } : undefined}>
-        <Stack.Navigator screenOptions={{ headerTitleStyle: { fontSize: 20, fontWeight: "700" }, headerShadowVisible: false }}>
+        <Stack.Navigator
+          screenOptions={{
+            headerTitleStyle: { fontSize: 20, fontFamily: familyFor({ weight: "600", arabic: lang === "ar" }), color: palette.text },
+            headerStyle: { backgroundColor: palette.bg },
+            headerTintColor: palette.text,
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: palette.bg },
+            navigationBarColor: palette.bg,
+          }}
+        >
           <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title"), headerShown: false }} />
           <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false }} />
@@ -167,12 +193,10 @@ function Guarded({ children }: { children: React.ReactNode }) {
     <ErrorBoundary
       onError={(e) => diagnostics.record("crash", "render", e)}
       fallback={(reset) => (
-        <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 12 }}>
-          <Text style={{ fontSize: 20, fontWeight: "700" }}>{t("diag.crashed.title")}</Text>
-          <Text style={{ fontSize: 16 }}>{t("diag.crashed.body")}</Text>
-          <Pressable accessibilityRole="button" onPress={reset} style={{ minHeight: 52, borderRadius: 12, backgroundColor: p.accent, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ color: p.accentText, fontWeight: "700", fontSize: 16 }}>{t("diag.crashed.retry")}</Text>
-          </Pressable>
+        <View style={{ flex: 1, padding: space.xl, justifyContent: "center", gap: space.md, backgroundColor: p.bg }}>
+          <AppText accessibilityRole="header" style={{ fontSize: 28, fontWeight: "600" }}>{t("diag.crashed.title")}</AppText>
+          <AppText>{t("diag.crashed.body")}</AppText>
+          <BigButton label={t("diag.crashed.retry")} onPress={reset} />
         </View>
       )}
     >
@@ -182,6 +206,7 @@ function Guarded({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const fontsReady = useBrandFonts();
   const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; unit: Unit; showSecond: boolean; needsOnboarding: boolean } | "error" | "migration_blocked" | null>(null);
 
   const [epoch, setEpoch] = useState(0);
@@ -267,34 +292,19 @@ export default function App() {
     [boot],
   );
 
-  if (boot === null) return <View style={{ flex: 1, padding: 24, justifyContent: "center" }}><Text>Loading...</Text></View>;
+  if (boot === null || !fontsReady) return <BootLoading />;
   if (boot === "migration_blocked") {
     return (
-      <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 16, backgroundColor: darkPalette.bg }}>
-        <Text style={{ color: darkPalette.text, fontSize: 28, fontWeight: "800" }}>Update paused to protect your data</Text>
-        <Text style={{ color: darkPalette.text, fontSize: 16 }}>
-          GAIN could not save a safety copy of your workouts before updating its storage (is the phone's storage full?). Nothing has been changed. Free some space and try again.
-        </Text>
-        <Text style={{ color: darkPalette.text, fontSize: 16 }}>
-          تم إيقاف التحديث لحماية بياناتك. التطبيق ماقدرش يحفظ نسخة أمان من تمارينك قبل ما يحدّث التخزين، ومفيش حاجة اتغيرت. فضّي مساحة وجرّب تاني.
-        </Text>
-        <Pressable accessibilityRole="button" onPress={restart} style={{ minHeight: 56, borderRadius: 14, backgroundColor: darkPalette.accent, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: darkPalette.accentText, fontSize: 18, fontWeight: "700" }}>Try again · جرّب تاني</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            skipBackupRef.current = true;
-            restart();
-          }}
-          style={{ minHeight: 56, borderRadius: 14, borderWidth: 2, borderColor: darkPalette.accent, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 }}
-        >
-          <Text style={{ color: darkPalette.text, fontSize: 16, fontWeight: "600", textAlign: "center" }}>Update without a safety copy · حدّث من غير نسخة أمان</Text>
-        </Pressable>
-      </View>
+      <MigrationBlocked
+        onRetry={restart}
+        onSkip={() => {
+          skipBackupRef.current = true;
+          restart();
+        }}
+      />
     );
   }
-  if (boot === "error") return <View style={{ flex: 1, padding: 24, justifyContent: "center" }}><Text>Something went wrong opening your data on this phone.</Text></View>;
+  if (boot === "error") return <BootError onRetry={restart} />;
 
   return (
     <SafeAreaProvider>

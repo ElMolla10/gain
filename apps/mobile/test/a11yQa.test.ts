@@ -45,7 +45,7 @@ describe("contrast of the palettes (WCAG 2.1 AA)", () => {
         expect(contrast(p.edge, bg)).toBeGreaterThanOrEqual(3);
         expect(contrast(p.warn, bg)).toBeGreaterThanOrEqual(3);
       }
-      expect(contrast(p.accentText, p.accent)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(p.onFill, p.accent)).toBeGreaterThanOrEqual(4.5);
     });
   }
   for (const [name, p] of [["light", logLightPalette], ["dark", logDarkPalette]] as const) {
@@ -53,14 +53,14 @@ describe("contrast of the palettes (WCAG 2.1 AA)", () => {
       for (const bg of [p.bg, p.card, p.field, p.doneBg]) {
         expect(contrast(p.text, bg), `text on ${bg}`).toBeGreaterThanOrEqual(4.5);
         expect(contrast(p.muted, bg), `muted on ${bg}`).toBeGreaterThanOrEqual(4.5);
-        expect(contrast(p.blue, bg), `blue on ${bg}`).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(p.accent, bg), `blue on ${bg}`).toBeGreaterThanOrEqual(4.5);
       }
       for (const bg of [p.bg, p.card]) {
         expect(contrast(p.warn, bg)).toBeGreaterThanOrEqual(4.5);
         expect(contrast(p.danger, bg)).toBeGreaterThanOrEqual(4.5);
         expect(contrast(p.edge, bg)).toBeGreaterThanOrEqual(3);
       }
-      expect(contrast(p.onBlue, p.blueFill)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(p.onFill, p.fill)).toBeGreaterThanOrEqual(4.5);
       expect(contrast(p.onDanger, p.danger)).toBeGreaterThanOrEqual(4.5);
     });
   }

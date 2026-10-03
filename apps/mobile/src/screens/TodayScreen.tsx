@@ -109,12 +109,12 @@ export function TodayScreen() {
 
   const chosen = data.days.find((d) => d.id === picked) ?? data.days[0]!;
   const exercises = chosen.list;
-  const goalIds = new Set(exercises.filter((e) => e.isGoalLift).map((e) => e.id));
+  const goalIds = new Set(exercises.filter((e) => e.isGoalLift).map((e) => e.exerciseId));
   const openElsewhere = data.openDayId !== null && data.openDayId !== chosen.id;
   const dayTargets = data.targets[chosen.id] ?? [];
   const byExercise = new Map(dayTargets.map((tg) => [tg.exerciseId, tg]));
   const lead = leadTarget(dayTargets, goalIds);
-  const leadEx = lead ? exercises.find((e) => e.id === lead.exerciseId) : undefined;
+  const leadEx = lead ? exercises.find((e) => e.exerciseId === lead.exerciseId) : undefined;
   const loadText = (kg: number) => fmt(kg);
   const letters = { s: t("qty.s"), m: t("qty.m") };
 
@@ -183,7 +183,7 @@ export function TodayScreen() {
         <Card style={{ paddingVertical: space.xs }}>
           {exercises.map((e, i) => {
             const l = exerciseLabels(e, lang);
-            const tg = byExercise.get(e.id);
+            const tg = byExercise.get(e.exerciseId);
             const planned = e.measure === "reps" ? `${e.sets} × ${e.repMin}-${e.repMax}` : `${e.sets} × ${e.repMin}-${quantityText(e.repMax, e.measure, letters)}`;
             const target = tg && !(tg.status === "rejected") && tg.currency !== "none" && tg.effectiveLoad !== null ? targetText(tg, loadText, letters) : null;
             return (

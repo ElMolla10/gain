@@ -14,7 +14,7 @@ import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings
 import { warmupOffer } from "../logic/warmups";
 import { initialDraft, stepLoad, stepReps } from "../logic/draft";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
-import { addRow, editRow, initialRows, markSaved, mergeRows, removeRow, rowLabels, rowReady, unloggedFilled, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { addRow, editRow, initialRows, acceptGhost, effectiveOf, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, unloggedFilled, type Prefill, type SetRowDraft } from "../logic/workoutRows";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { MIN_TOUCH, space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip } from "../ui";
@@ -171,19 +171,24 @@ export function WorkoutScreen() {
   const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
 
   async function logRow(ex: DayEx, row: SetRowDraft) {
-    if (!loaded || loaded === "nogym" || busy || !rowReady(row)) return;
+    if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
     setBusy(row.key);
+    setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
+    const eff = effectiveOf(row);
+    row = { ...row, load: eff.load, reps: eff.reps };
+    const load = eff.load as number;
+    const reps = eff.reps as number;
     const ctx = { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup };
     try {
       if (!row.saved) {
-        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load: row.load, reps: row.reps, rir: row.rir, warmup: row.warmup }, ctx);
+        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, reps, rir: row.rir, warmup: row.warmup }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
         if (!row.warmup) {
           setRestOver(false);
           setTimer((tm) => startTimer(tm, Date.now()));
         }
       } else if (row.dirty) {
-        const r = await workout.updateLiveSet(row.key, { load: row.load, reps: row.reps, rir: row.rir, warmup: row.warmup }, ctx);
+        const r = await workout.updateLiveSet(row.key, { load, reps, rir: row.rir, warmup: row.warmup }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
       }
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
@@ -330,10 +335,11 @@ export function WorkoutScreen() {
                   parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
                   onValue={(v) => patch(ex.exerciseId, row.key, { load: v })}
                   decimal
+                  placeholder={row.ghostLoad !== null ? weightText(row.ghostLoad, unit) : undefined}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <NumField<number> label={t("workout.reps")} value={row.reps} format={(v) => String(v)} parse={(txt) => parseRepsInput(txt)} onValue={(v) => patch(ex.exerciseId, row.key, { reps: v })} />
+                <NumField<number> label={t("workout.reps")} placeholder={row.ghostReps !== null ? String(row.ghostReps) : undefined} value={row.reps} format={(v) => String(v)} parse={(txt) => parseRepsInput(txt)} onValue={(v) => patch(ex.exerciseId, row.key, { reps: v })} />
               </View>
             </View>
             {steppers ? (
@@ -366,7 +372,7 @@ export function WorkoutScreen() {
                 <BigButton
                   label={row.saved ? (row.dirty ? t("workout.updateSet") : `✓ ${t("workout.logged")}`) : t("workout.logSet")}
                   selected={!row.saved || row.dirty}
-                  disabled={!rowReady(row) || busy !== null || (row.saved && !row.dirty)}
+                  disabled={!rowCanLog(row) || busy !== null || (row.saved && !row.dirty)}
                   onPress={() => void logRow(ex, row)}
                 />
               </View>

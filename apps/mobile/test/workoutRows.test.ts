@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addRow, editRow, initialRows, markSaved, mergeRows, removeRow, rowLabels, rowReady, unloggedFilled, type SavedSet } from "../src/logic/workoutRows";
+import { acceptGhost, addRow, editRow, effectiveOf, initialRows, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, rowReady, unloggedFilled, unlogRow, type SavedSet } from "../src/logic/workoutRows";
 import { freshDb } from "./helpers";
 
 let n = 0;
@@ -8,12 +8,30 @@ const target = { load: 60, reps: 8 };
 const s = (id: string, load: number, reps: number, warmup = false): SavedSet => ({ id, load, reps, rir: null, warmup });
 
 describe("workout rows (single list)", () => {
-  it("shows the programme's sets as rows prefilled with today's target, nothing invented without one", () => {
+  it("shows the programme's sets as rows with today's target as GHOST text (boxes empty), nothing invented without one", () => {
     const rows = initialRows([], 3, target, key);
     expect(rows).toHaveLength(3);
-    expect(rows.every((r) => r.load === 60 && r.reps === 8 && !r.saved)).toBe(true);
+    expect(rows.every((r) => r.load === null && r.reps === null && r.ghostLoad === 60 && r.ghostReps === 8 && !r.saved)).toBe(true);
+    expect(rows.every((r) => rowCanLog(r))).toBe(true); // one tap on the checkmark accepts the target
     const none = initialRows([], 2, { load: null, reps: null }, key);
-    expect(none.every((r) => r.load === null && r.reps === null && !rowReady(r))).toBe(true);
+    expect(none.every((r) => r.load === null && r.reps === null && !rowCanLog(r))).toBe(true);
+  });
+  it("ghost values only become the row's values when it is ticked; typed values win; one typed box keeps the other ghost", () => {
+    const rows = initialRows([], 1, target, key);
+    const k = rows[0]!.key;
+    expect(effectiveOf(rows[0]!)).toEqual({ load: 60, reps: 8 });
+    const typed = editRow(rows, k, { load: 65 });
+    expect(effectiveOf(typed[0]!)).toEqual({ load: 65, reps: 8 });
+    expect(rowReady(rows[0]!)).toBe(false);
+    expect(acceptGhost(typed, k)[0]).toMatchObject({ load: 65, reps: 8 });
+    expect(editRow(typed, k, { load: null })[0]).toMatchObject({ load: null }); // clearing a box falls back to the ghost
+    expect(effectiveOf(editRow(typed, k, { load: null })[0]!).load).toBe(60);
+  });
+  it("un-ticking a logged row gives it a new id (the old set id is deleted) and keeps its numbers as ghost", () => {
+    const rows = initialRows([s("a", 62.5, 6)], 1, target, key);
+    const back = unlogRow(rows, "a", "new1");
+    expect(back[0]).toMatchObject({ key: "new1", saved: false, dirty: false, load: 62.5, reps: 6, ghostLoad: 62.5, ghostReps: 6 });
+    expect(rowCanLog(back[0]!)).toBe(true);
   });
   it("logged sets come first; only the missing working sets are padded; warm-ups do not count", () => {
     const rows = initialRows([s("a", 40, 10, true), s("b", 60, 8)], 3, target, key);
@@ -25,8 +43,11 @@ describe("workout rows (single list)", () => {
     const rows = initialRows([s("a", 62.5, 6)], 1, target, key);
     const more = addRow(rows, target, key);
     expect(more).toHaveLength(2);
-    expect(more[1]).toMatchObject({ load: 62.5, reps: 6, saved: false });
-    expect(addRow([], target, key)[0]).toMatchObject({ load: 60, reps: 8 });
+    expect(more[1]).toMatchObject({ load: null, reps: null, ghostLoad: 62.5, ghostReps: 6, saved: false });
+    expect(addRow([], target, key)[0]).toMatchObject({ ghostLoad: 60, ghostReps: 8 });
+    // the ghost follows an unlogged row too (typed 70 on the last row -> next ghost is 70)
+    const typed = editRow(more, more[1]!.key, { load: 70 });
+    expect(addRow(typed, target, key)[2]).toMatchObject({ ghostLoad: 70, ghostReps: 6 });
     expect(removeRow(more, more[1]!.key).map((r) => r.key)).toEqual(["a"]);
   });
   it("typing over a logged row makes it dirty until it is saved again", () => {
@@ -47,7 +68,10 @@ describe("workout rows (single list)", () => {
   });
   it("counts filled rows that finishing would leave out", () => {
     const rows = initialRows([s("a", 60, 8)], 3, target, key);
-    expect(unloggedFilled(rows)).toBe(2);
+    expect(unloggedFilled(rows)).toBe(0); // untouched ghost rows are not "filled in"
+    const typed = editRow(rows, rows[1]!.key, { load: 60, reps: 8 });
+    expect(unloggedFilled(typed)).toBe(1);
+    expect(unloggedFilled(editRow(rows, rows[2]!.key, { load: 55 }))).toBe(1); // reps come from the ghost
     expect(unloggedFilled(initialRows([], 2, { load: null, reps: null }, key))).toBe(0);
   });
 });

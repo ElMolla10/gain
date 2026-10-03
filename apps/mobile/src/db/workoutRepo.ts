@@ -97,6 +97,24 @@ const toLogged = (r: SetRow): LoggedSet => ({
   outlierStatus: r.outlierStatus,
 });
 
+/** Today's changes to one programme slot of an open workout. */
+export interface ExerciseState {
+  /** The programme exercise this slot comes from. */
+  slot: string;
+  removed: boolean;
+  /** Exercise swapped in for today only; null = the programme's own exercise. */
+  replacedBy: string | null;
+  note: string;
+  /** The lifter turned the automatic rest timer off for this exercise. */
+  restOff: boolean;
+}
+
+export class ExerciseHasSets extends Error {
+  constructor() {
+    super("Delete the sets logged for this exercise before replacing it");
+  }
+}
+
 export function createWorkoutRepo(db: Db, deps: Deps) {
   const { newId, now } = deps;
 
@@ -333,7 +351,67 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     await db.run("UPDATE workout_set SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [t, t, setId]);
   }
 
+  // ---- per-workout changes to a programme slot (remove / replace / note / rest timer) ----------------------
+  async function listExerciseState(sessionId: string): Promise<ExerciseState[]> {
+    const rows = await db.all<{ slot_exercise_id: string; removed: number; replaced_by: string | null; note: string | null; rest_off: number }>(
+      "SELECT slot_exercise_id, removed, replaced_by, note, rest_off FROM session_exercise WHERE session_id = ? AND deleted_at IS NULL",
+      [sessionId],
+    );
+    return rows.map((r) => ({ slot: r.slot_exercise_id, removed: r.removed === 1, replacedBy: r.replaced_by, note: r.note ?? "", restOff: r.rest_off === 1 }));
+  }
+
+  async function patchExerciseState(sessionId: string, slot: string, patch: Partial<Omit<ExerciseState, "slot">>): Promise<void> {
+    const t = now();
+    const cur = await db.get<{ id: string }>("SELECT id FROM session_exercise WHERE session_id = ? AND slot_exercise_id = ? AND deleted_at IS NULL", [sessionId, slot]);
+    if (!cur) {
+      await db.run(
+        "INSERT INTO session_exercise (id, session_id, slot_exercise_id, removed, replaced_by, note, rest_off, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [newId(), sessionId, slot, patch.removed ? 1 : 0, patch.replacedBy ?? null, patch.note ?? null, patch.restOff ? 1 : 0, t, t],
+      );
+      return;
+    }
+    const sets: string[] = [];
+    const args: (string | number | null)[] = [];
+    if (patch.removed !== undefined) (sets.push("removed = ?"), args.push(patch.removed ? 1 : 0));
+    if (patch.replacedBy !== undefined) (sets.push("replaced_by = ?"), args.push(patch.replacedBy));
+    if (patch.note !== undefined) (sets.push("note = ?"), args.push(patch.note));
+    if (patch.restOff !== undefined) (sets.push("rest_off = ?"), args.push(patch.restOff ? 1 : 0));
+    if (sets.length === 0) return;
+    await db.run(`UPDATE session_exercise SET ${sets.join(", ")}, updated_at = ? WHERE id = ?`, [...args, t, cur.id]);
+  }
+
+  /** Delete every logged set of one exercise in this workout (soft delete). Returns how many. */
+  async function clearExerciseSets(sessionId: string, exerciseId: string): Promise<number> {
+    const t = now();
+    const rows = await listSessionSets(sessionId, exerciseId);
+    for (const r of rows) await db.run("UPDATE workout_set SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [t, t, r.id]);
+    return rows.length;
+  }
+
+  /**
+   * Take an exercise out of today's workout. Sets already logged for it are deleted (the caller asks first), so a removed exercise leaves
+   * nothing behind in history or in the next targets. The programme is untouched; restoring brings the exercise back (empty).
+   */
+  async function removeExercise(sessionId: string, slot: string, displayExerciseId: string): Promise<void> {
+    await db.transaction(async () => {
+      await clearExerciseSets(sessionId, displayExerciseId);
+      await patchExerciseState(sessionId, slot, { removed: true });
+    });
+  }
+
+  /** Swap a slot for another exercise for today only. Refused once sets are logged for the current one (remove those first). */
+  async function replaceExercise(sessionId: string, slot: string, currentExerciseId: string, withExerciseId: string | null): Promise<void> {
+    const logged = await listSessionSets(sessionId, currentExerciseId);
+    if (logged.length > 0) throw new ExerciseHasSets();
+    await patchExerciseState(sessionId, slot, { replacedBy: withExerciseId, removed: false });
+  }
+
   return {
+    listExerciseState,
+    patchExerciseState,
+    clearExerciseSets,
+    removeExercise,
+    replaceExercise,
     startOrResumeSession,
     getOpenSession,
     getSession,

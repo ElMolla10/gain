@@ -32,9 +32,11 @@ GROOVES = [  # (radius, [(phi_deg_from_bottom, width px), ...]) mirrored left/ri
               (80, 3.3), (90, 3.2), (100, 2.8), (110, 2.2), (120, 1.6), (130, 1.3), (141, 0.0)]),
 ]
 TOP = (255, 255, 255)
-# lime gradient stops (y in logo units, colour) measured from the JPEG
+# lime gradient stops (y in logo units, colour) measured from the JPEG; kept for gain-logo-original comparisons (compare.py)
 LIME = [(-178.0, "#A8F60A"), (-6.0, "#94D60C"), (167.0, "#6EAE0A")]
-BG = "#000000"
+# GAIN identity v1 (docs/DESIGN.md): the geometry above is unchanged; the colours are the brand tokens: flat electric lime on ink.
+BRAND_LIME = "#B7F51B"
+BG = "#10120E"
 BBOX_TOP, BBOX_BOT = -TAB_R + TAB_C, math.sqrt(R * R - STEM * STEM)  # ~ -177.8 .. 166.1
 BBOX_MID = (BBOX_TOP + BBOX_BOT) / 2
 
@@ -72,7 +74,7 @@ def groove_path(radius, prof, side, T):
     pts = p_out + p_in[::-1]
     return "M" + " L".join(f"{f(T(x, y)[0])} {f(T(x, y)[1])}" for x, y in pts) + "Z"
 
-def mark_path(T, s):
+def mark_path(T, s, grooves=True):
     """Single evenodd path: disc+tab outline with the arrow cut out, grooves as holes."""
     (dr, tr) = tab_points()
     sy = math.sqrt(R * R - STEM * STEM)
@@ -90,7 +92,7 @@ def mark_path(T, s):
                (OUT_HW, BASE), (inner_base, BASE), (STEM, iy)]:
         d += f"L{P(*pt)} "
     d += "Z"
-    for r, prof in GROOVES:
+    for r, prof in (GROOVES if grooves else []):
         for side in (-1, 1):
             d += " " + groove_path(r, prof, side, T)
     return d
@@ -105,11 +107,11 @@ def gradient(id_, T, s):
     stops = "".join(f'<stop offset="{(y - LIME[0][0]) / (LIME[-1][0] - LIME[0][0]):.3f}" stop-color="{c}"/>' for y, c in LIME)
     return f'<linearGradient id="{id_}" gradientUnits="userSpaceOnUse" x1="0" y1="{f(y0)}" x2="0" y2="{f(y1)}">{stops}</linearGradient>'
 
-def svg(size, scale, bg=BG, fill="gradient", cx=None, cy=None, title="GAIN", viewbox=None, bbox_centered=True):
+def svg(size, scale, bg=BG, fill=BRAND_LIME, grooves=True, cx=None, cy=None, title="GAIN", viewbox=None, bbox_centered=True):
     cx = size / 2 if cx is None else cx
     cy = size / 2 if cy is None else cy
     T = make_T(scale, cx, cy, bbox_centered)
-    d = mark_path(T, scale)
+    d = mark_path(T, scale, grooves)
     defs = ""
     if fill == "gradient":
         defs = "<defs>" + gradient("lime", T, scale) + "</defs>"
@@ -130,14 +132,14 @@ def png(path, svg_text, px):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     cairosvg.svg2png(bytestring=svg_text.encode(), write_to=path, output_width=px, output_height=px)
 
-def flatten_black(path):
+def flatten_ink(path):
     im = Image.open(path).convert("RGBA")
-    bg = Image.new("RGBA", im.size, (0, 0, 0, 255))
+    bg = Image.new("RGBA", im.size, (0x10, 0x12, 0x0E, 255))
     bg.alpha_composite(im)
     bg.convert("RGB").save(path, optimize=True)
 
 def main():
-    # 1. master logo (black square, full colour)
+    # 1. master logo (ink square, full colour)
     master = svg(1024, 2.2)
     write(f"{BRAND}/gain-logo.svg", master)
     # transparent mark, tight box with 4% padding (in-app / favicon)
@@ -147,33 +149,34 @@ def main():
     mark = svg(512, mscale, bg=None, title="GAIN mark")
     write(f"{BRAND}/gain-mark.svg", mark)
 
-    # 2. iOS 1024, no transparency
-    png(f"{BRAND}/ios-icon-1024.png", master, 1024); flatten_black(f"{BRAND}/ios-icon-1024.png")
+    # 2. iOS 1024, no transparency (flat ink)
+    png(f"{BRAND}/ios-icon-1024.png", master, 1024); flatten_ink(f"{BRAND}/ios-icon-1024.png")
     Image.open(f"{BRAND}/ios-icon-1024.png").convert("RGB").save(f"{BRAND}/ios-icon-1024.png")
 
     A = MOBILE_ASSETS
     # 3. legacy/Expo icon.png (opaque)
-    png(f"{A}/icon.png", master, 1024); flatten_black(f"{A}/icon.png")
+    png(f"{A}/icon.png", master, 1024); flatten_ink(f"{A}/icon.png")
     # 4. Android adaptive foreground: transparent, mark inside 66% safe zone (circle d=676 of 1024)
     #    bounding radius of the mark around the bbox centre ~ 181 logo units -> scale 1.9 keeps <= 338px
     fg = svg(1024, 1.9, bg=None, title="GAIN adaptive foreground")
     png(f"{A}/adaptive-icon-foreground.png", fg, 1024)
-    # background layer solid black (also referenced as backgroundColor in app.json)
-    Image.new("RGB", (1024, 1024), (0, 0, 0)).save(f"{A}/adaptive-icon-background.png")
+    # background layer solid ink (also referenced as backgroundColor in app.json)
+    Image.new("RGB", (1024, 1024), (0x10, 0x12, 0x0E)).save(f"{A}/adaptive-icon-background.png")
     # monochrome (themed icons): flat white silhouette, transparent
-    mono = svg(1024, 1.9, bg=None, fill="#ffffff", title="GAIN monochrome")
+    # no groove rings: at themed-icon size (~48 dp) the 2-3 px rings close up (identity spec: small monochrome variants drop the ring strokes)
+    mono = svg(1024, 1.9, bg=None, fill="#ffffff", grooves=False, title="GAIN monochrome")
     png(f"{A}/adaptive-icon-monochrome.png", mono, 1024)
-    # 5. splash image (centred mark on black; app.json also sets backgroundColor #000000)
+    # 5. splash image (centred mark on ink; app.json also sets backgroundColor #000000)
     splash = svg(1024, 1.5)
-    png(f"{A}/splash-icon.png", splash, 1024); flatten_black(f"{A}/splash-icon.png")
+    png(f"{A}/splash-icon.png", splash, 1024); flatten_ink(f"{A}/splash-icon.png")
     # 6. notification icon: 96px white-on-transparent, mark fills ~88px
-    note = svg(96, 96 * 0.92 / (BBOX_BOT - BBOX_TOP), bg=None, fill="#ffffff", title="GAIN notification")
+    note = svg(96, 96 * 0.92 / (BBOX_BOT - BBOX_TOP), bg=None, fill="#ffffff", grooves=False, title="GAIN notification")
     png(f"{A}/notification-icon.png", note, 96)
     # 7. in-app logo PNG @1x/2x/3x (transparent) + favicon
     base = svg(512, mscale, bg=None, title="GAIN mark")
     for suffix, px in (("", 48), ("@2x", 96), ("@3x", 144)):
         png(f"{A}/gain-logo{suffix}.png", base, px)
-    png(f"{A}/favicon.png", master, 48); flatten_black(f"{A}/favicon.png")
+    png(f"{A}/favicon.png", master, 48); flatten_ink(f"{A}/favicon.png")
     # brand copies
     for n in ("icon.png", "adaptive-icon-foreground.png", "adaptive-icon-monochrome.png", "splash-icon.png", "notification-icon.png"):
         Image.open(f"{A}/{n}").save(f"{BRAND}/{n}")

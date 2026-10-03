@@ -16,7 +16,7 @@ import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
-import { warmupOffer } from "../logic/warmups";
+import { warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
 import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
 import { finishChoice } from "../logic/finishChoice";
@@ -569,7 +569,7 @@ export function WorkoutScreen() {
 
   const circle = { width: 48, height: 48, borderRadius: 24, backgroundColor: p.field, alignItems: "center" as const, justifyContent: "center" as const };
 
-  const renderExercise = (ex: Disp) => {
+  const renderExercise = (ex: Disp, position: number) => {
     const info = loaded.info[ex.exerciseId];
     if (!info) return null;
     const list = rows[ex.exerciseId] ?? [];
@@ -802,7 +802,7 @@ export function WorkoutScreen() {
             </View>
           ) : (
             <Pressable accessibilityRole="button" onPress={() => setWarmOpen(ex.exerciseId)} style={{ paddingHorizontal: 14, minHeight: 48, justifyContent: "center" }}>
-              <AppText style={{ color: p.blue, fontWeight: "600", fontSize: 15 }}>{t("warm.add")}</AppText>
+              <AppText style={{ color: warmupsUsuallySkipped(position, ex.pattern) ? p.muted : p.blue, fontWeight: "600", fontSize: 15 }}>{warmupsUsuallySkipped(position, ex.pattern) ? t("warm.addAnyway") : t("warm.add")}</AppText>
             </Pressable>
           )
         ) : null}
@@ -898,7 +898,7 @@ export function WorkoutScreen() {
           </AppText>
         </View>
 
-        {shown.map(renderExercise)}
+        {shown.map((ex, i) => renderExercise(ex, i))}
 
         <Pressable
           accessibilityRole="button"

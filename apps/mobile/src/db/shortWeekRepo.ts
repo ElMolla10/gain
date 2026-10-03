@@ -1,6 +1,7 @@
 import { weekStartOf } from "@gain/engine";
 import { diffExposure, computeExposure, type ExposureChange, type MuscleGroup } from "../logic/exposure";
 import type { ProgrammeDraft } from "../logic/programmeDraft";
+import { clampSeconds, DEFAULT_REST_SECONDS } from "../logic/restTimer";
 import { rebuildShortWeek, type Cut, type Rebuild, type RebuildError } from "../logic/shortWeek";
 import type { Db, Deps } from "./driver";
 import type { GoalRepo } from "./goalRepo";
@@ -49,6 +50,12 @@ const toActive = (r: Row): ActiveShortWeek => ({ id: r.id, programmeId: r.progra
 export function createShortWeekRepo(db: Db, deps: Deps, repos: Repos, programmes: ProgrammeRepo, goals: GoalRepo) {
   const { newId, now } = deps;
 
+  /** The lifter's rest time between sets (counted by the time estimate). */
+  async function restSeconds(): Promise<number> {
+    const n = Number(await repos.getSetting("rest_seconds"));
+    return Number.isFinite(n) && n > 0 ? clampSeconds(n) : DEFAULT_REST_SECONDS;
+  }
+
   async function priorityOf(): Promise<MuscleGroup[]> {
     const g = await goals.getGoal();
     return g && g.kind === "muscle" ? [g.muscle] : [];
@@ -84,7 +91,7 @@ export function createShortWeekRepo(db: Db, deps: Deps, repos: Repos, programmes
     const original = await programmes.loadDraft(originalVersionId);
     const pm = await patternMap();
     const patternOf = (id: string) => pm.get(id);
-    const r = rebuildShortWeek(original, { days, minutes, patternOf, extraPriority: await priorityOf() });
+    const r = rebuildShortWeek(original, { days, minutes, patternOf, extraPriority: await priorityOf(), restSeconds: await restSeconds() });
     if (typeof r === "string") throw new ShortWeekInvalid(r);
     const before = computeExposure(original, patternOf, original.days.length);
     const after = computeExposure(r.draft, patternOf, r.draft.days.length);

@@ -65,7 +65,7 @@ describe("rebuildShortWeek by hand", () => {
 
   it("when only goal lifts are left it trims their sets last, never below 3", () => {
     const only = draft([["A", [ex("bench", 5, true), ex("row", 3)]]]);
-    const r = ok(rebuildShortWeek(only, { days: 1, minutes: 12, patternOf })); // 4 sets
+    const r = ok(rebuildShortWeek(only, { days: 1, minutes: 14, patternOf })); // bench alone: 4 sets = 14 min (5 sets = 16)
     expect(r.draft.days[0]!.exercises.map((e) => e.exerciseId)).toEqual(["bench"]); // the row went first
     expect(r.draft.days[0]!.exercises[0]!.sets).toBe(4);
     expect(r.overBudget).toBe(false);
@@ -95,11 +95,11 @@ describe("a priority floor that cannot be met does not push the cuts onto the go
       ["A", [ex("lat", 4, true), ex("row", 3), ex("curl", 3), ex("tri", 3)]],
       ["B", [ex("row2", 3), ex("press", 3)]],
     ]);
-    const r = ok(rebuildShortWeek(p, { days: 1, minutes: 25, patternOf }));
+    const r = ok(rebuildShortWeek(p, { days: 1, minutes: 27, patternOf }));
     const kept = r.draft.days[0]!.exercises;
     expect(kept.find((e) => e.exerciseId === "lat")!.sets).toBe(4); // goal lift untouched
     expect(r.overBudget).toBe(false);
-    expect(r.minutes[0]!).toBeLessThanOrEqual(25);
+    expect(r.minutes[0]!).toBeLessThanOrEqual(27);
     expect(kept.map((e) => e.exerciseId).sort()).toEqual(["lat", "row", "row2"]); // non-priority work went first
     // The unmet floor is not made worse: at least the original 6 sets of back remain.
     expect(kept.filter((e) => e.exerciseId !== "curl").reduce((n, e) => n + e.sets, 0)).toBeGreaterThanOrEqual(6);
@@ -155,5 +155,32 @@ describe("rebuildShortWeek over all templates", () => {
     }
     expect(combos).toBeGreaterThan(300);
     expect(estimateSessionMinutes(10)).toBe(30);
+  });
+});
+
+import { estimateDayMinutes, warmupSetsFor } from "../src/logic/duration";
+
+describe("session length estimate counts rest, warm-ups and transitions (P23)", () => {
+  it("is more than 3 min per set for a normal day, and grows with the rest time", () => {
+    const day = { exercises: 5, sets: 15 };
+    expect(estimateDayMinutes(day, 90)).toBe(Math.ceil((15 * (45 + 90) + 5 * 90 + 3 * 90) / 60)); // 46
+    expect(estimateDayMinutes(day, 180)).toBeGreaterThan(estimateDayMinutes(day, 90));
+    expect(estimateDayMinutes(day, 90)).toBeGreaterThan(45 - 1);
+    expect(warmupSetsFor(0)).toBe(0);
+    expect(warmupSetsFor(1)).toBe(2);
+    expect(warmupSetsFor(4)).toBe(3);
+    expect(estimateDayMinutes({ exercises: 0, sets: 0 })).toBe(0);
+  });
+
+  it("a longer rest makes the same budget need a smaller day, and a budget that cannot be met is reported, not hidden", () => {
+    const p = draft([["A", [ex("bench", 4, true), ex("row", 3), ex("curl", 3), ex("tri", 3)]]]);
+    const short = ok(rebuildShortWeek(p, { days: 1, minutes: 45, patternOf, restSeconds: 60 }));
+    const long = ok(rebuildShortWeek(p, { days: 1, minutes: 45, patternOf, restSeconds: 240 }));
+    const n = (r: typeof short) => r.draft.days[0]!.exercises.reduce((s, e) => s + e.sets, 0);
+    expect(n(long)).toBeLessThan(n(short));
+    expect(long.minutes[0]!).toBeLessThanOrEqual(45);
+    const impossible = ok(rebuildShortWeek(draft([["A", [ex("bench", 4, true), ex("squat", 4, true)]]]), { days: 1, minutes: 20, patternOf, restSeconds: 240 }));
+    expect(impossible.overBudget).toBe(true);
+    expect(impossible.minutes[0]!).toBeGreaterThan(20);
   });
 });

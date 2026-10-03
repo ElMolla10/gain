@@ -25,7 +25,7 @@ export const enShortWeek = {
   "short.exposure": "Weekly sets and sessions per muscle (normal week to this week)",
   "short.exposureLine": "{muscle}: {before} to {after} sets, {sb} to {sa} sessions",
   "short.protected": "Your goal lifts are not cut. Your goal muscle keeps at least {sets} sets and {sessions} sessions when the programme had them.",
-  "short.overBudget": "Still over {min} min on some days: only goal lifts are left and they are not cut. Choose more minutes or fewer days.",
+  "short.overBudget": "This cannot fit in {min} min on some days: only goal lifts are left and they are not cut. Choose more minutes or fewer days.",
   "short.floorMissed": "The goal muscle could not keep its minimum this week: {muscles}.",
   "short.apply": "Use this week",
   "short.applied": "Saved as a new programme version. Your normal programme returns next week.",
@@ -35,7 +35,7 @@ export const enShortWeek = {
   "short.undoneKept": "You edited the programme during the short week, so your edit was kept.",
   "short.openWorkout": "Finish your open workout first.",
   "short.alreadyActive": "A short week is already active.",
-  "short.estimate": "Minutes are an estimate: 3 min per set.",
+  "short.estimate": "Minutes are an estimate: the sets, your rest time between them, warm-ups and moving between exercises.",
 } as const;
 
 export const arShortWeek: Record<keyof typeof enShortWeek, string> = {
@@ -71,5 +71,5 @@ export const arShortWeek: Record<keyof typeof enShortWeek, string> = {
   "short.undoneKept": "انت عدّلت البرنامج في الأسبوع القصير، فتعديلك اتحفظ.",
   "short.openWorkout": "خلّص التمرين المفتوح الأول.",
   "short.alreadyActive": "فيه أسبوع قصير شغال بالفعل.",
-  "short.estimate": "الدقايق تقدير: 3 دقايق للمجموعة.",
+  "short.estimate": "الدقايق تقدير: المجموعات ووقت راحتك بينهم والإحماء والانتقال بين التمارين.",
 };

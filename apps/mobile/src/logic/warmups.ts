@@ -15,3 +15,15 @@ export function warmupOffer(p: { workingLoad: number | null; spec: GymLoadSpec |
   if (plan.sets.length > 0) return { kind: "offer", sets: plan.sets, workingLoad: p.workingLoad };
   return { kind: "none", reason: plan.skipped === "assisted_line" ? "assisted" : plan.skipped === "no_gym_loads" ? "no_loads" : "too_light" };
 }
+
+/** Movement patterns of single-joint (isolation) work. A big lift earlier in the session has already warmed the muscle. */
+const ISOLATION = new Set(["shoulder_isolation", "rear_delt", "elbow_extension", "elbow_flexion", "knee_extension", "knee_flexion", "calf"]);
+
+/**
+ * A later isolation exercise (third or later in the session) usually needs no warm-up sets. The offer is not removed: it is shown as
+ * "add anyway" instead of a prompt, and the session-length estimate does not count warm-ups for it (see `duration.ts`).
+ * `position` is 0-based in the order shown today.
+ */
+export function warmupsUsuallySkipped(position: number, pattern: string | undefined): boolean {
+  return position >= 2 && pattern !== undefined && ISOLATION.has(pattern);
+}

@@ -1,4 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
+import { HealthNote } from "../components/HealthNote";
 import { UpdateCard } from "../components/UpdateCard";
 import React, { useCallback, useEffect, useState } from "react";
 import type { CeilingClass, RepCeilings } from "@gain/engine";
@@ -149,7 +150,7 @@ export function SettingsScreen() {
   const p = usePalette();
   const version = Constants.expoConfig?.version ?? "0";
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Diagnostics") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Diagnostics" | "Privacy") => void }>();
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
       <Card>
@@ -178,6 +179,7 @@ export function SettingsScreen() {
         <BigButton label={t("data.entry")} selected={false} onPress={() => nav.navigate("Data")} />
         <BigButton label={t("dec.entry")} selected={false} onPress={() => nav.navigate("DecisionLog")} />
         <BigButton label={t("stop.entry")} selected={false} onPress={() => nav.navigate("StoppedSuggestions")} />
+        <BigButton label={t("privacy.entry")} selected={false} onPress={() => nav.navigate("Privacy")} />
         <BigButton label={t("diag.entry")} selected={false} onPress={() => nav.navigate("Diagnostics")} />
       </Card>
       <Card>
@@ -189,6 +191,7 @@ export function SettingsScreen() {
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("settings.setupAgainNote")}</AppText>
       </Card>
       <AppText style={{ color: p.muted }}>{t("settings.privacy")}</AppText>
+      <HealthNote />
       <UpdateCard />
       <AppText style={{ color: p.muted }}>{t("settings.version", { v: version })}</AppText>
     </ScrollView>

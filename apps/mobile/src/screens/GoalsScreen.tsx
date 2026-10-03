@@ -18,6 +18,7 @@ import { describePace } from "../logic/paceText";
 import { kgToUnit, unitToKg } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Field } from "../ui";
+import { HealthNote } from "../components/HealthNote";
 
 /** Goals and pace: the one goal, how it stands, and weigh-ins. Pace is an estimate from the lifter's logs and says so. */
 export function GoalsScreen() {
@@ -169,6 +170,7 @@ export function GoalsScreen() {
           </View>
         ))}
       </Card>
+      <HealthNote />
     </ScrollView>
   );
 }

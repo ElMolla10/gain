@@ -11,6 +11,7 @@ import { space, usePalette } from "../theme";
 import { BrandLogo } from "../BrandLogo";
 import { markSuggested, initialSelection, type DayChoice } from "../logic/dayChoice";
 import { AppText, BigButton, Card } from "../ui";
+import { HealthNote } from "../components/HealthNote";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
 interface TodayData {
@@ -159,6 +160,7 @@ export function TodayScreen() {
       {openElsewhere ? <AppText style={{ fontWeight: "600" }}>{t("today.finishOpenFirst")}</AppText> : null}
       <BigButton label={data.openDayId ? t("today.resume") : t("today.startDay", { day: chosen.name })} disabled={starting} onPress={() => void start()} />
       {data.isSample ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("today.sampleNote")}</AppText> : null}
+      <HealthNote />
     </ScrollView>
   );
 }

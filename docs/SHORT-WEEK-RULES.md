@@ -19,7 +19,7 @@ Saving writes a **new programme version** of the active programme (old sessions 
 
 ## What is not built
 
-No calendar scheduling of which weekday each kept day lands on; the existing "next day" rotation continues. No per-session minutes entered by the lifter beyond the five choices. The rule is a plain description of common practice, not trainer-reviewed advice.
+No calendar scheduling of which weekday each kept day lands on; the existing "next day" rotation continues. No per-session minutes entered by the lifter beyond the five choices. The rule is a plain description of common practice, not trainer-reviewed advice (a 2026-10-03 report that a trainer liked the workouts/templates does not confirm these short-week rules were reviewed).
 
 ## Switching programme during a short week (fixed after v0.9.0)
 

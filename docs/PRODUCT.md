@@ -199,6 +199,8 @@ Large numbers, few taps, optional dark mode, RTL throughout. Colour is never the
 
 A trainer reviews templates, cues, and progression rules before public coaching claims. Rules are versioned.
 
+Review status (2026-10-03): Mohamed reports a trainer said the workouts/templates are good, and that he reviewed the Arabic and it looks good. Both are reported on his word; reviewer identity and scope are not recorded. Rules and progression (rule-v0.3) and the short-week rules are not confirmed as reviewed unless stated. This does not clear any public coaching claim, and the in-app draft labels stay.
+
 The app is a training aid. It is not a doctor, a physio, or a licensed coach. Pain gets a clear line to professional advice, not a generated treatment. No form scoring from video, no body-photo judgement, no meal plans, no public feed in the first releases.
 
 ## Price

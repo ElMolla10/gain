@@ -7,7 +7,7 @@ export function reviewSheetMarkdown(list: SeedExercise[]): string {
     .join("\n");
   return `# Arabic names and aliases: review sheet (DRAFT)
 
-**Status: nothing on this sheet has been reviewed.** Every Arabic name and alias below is my draft (literal or transliterated). Two native Egyptian lifters or trainers must sign off before any "draft" label is removed (MASTER-PLAN Step 8). This file is generated from \`apps/mobile/src/db/seedData.ts\` and \`libraryDraft.ts\` (\`npm run review-sheet -w apps/mobile\`); a test fails if it is out of date.
+**Status: no sign-off is recorded on this sheet.** Every Arabic name and alias below began as my draft (literal or transliterated). Reported OK by Mohamed 2026-10-03 (on his word): he reviewed the Arabic and it looks good; reviewer identity and scope not recorded, and no per-row verdicts are in this file. Two native Egyptian lifters or trainers must still sign off before any "draft" label is removed (MASTER-PLAN Step 8). This file is generated from \`apps/mobile/src/db/seedData.ts\` and \`libraryDraft.ts\` (\`npm run review-sheet -w apps/mobile\`); a test fails if it is out of date.
 
 ## How to review
 For each row, write one of: **OK**, **change to: ...**, **remove**. Add the words you really use in your gym that are missing from "Aliases". Say which city you train in: slang differs. Do not copy names from a book or site you cannot share.

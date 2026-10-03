@@ -46,7 +46,8 @@ describe("exercise library growth (Step 8, DRAFT)", () => {
   it("the review sheet file matches the library (regenerate with: npm run review-sheet -w apps/mobile)", () => {
     const file = readFileSync(join(__dirname, "../../../docs/ARABIC-REVIEW-SHEET.md"), "utf8");
     expect(file).toBe(reviewSheetMarkdown(ALL_LIBRARY));
-    expect(file).toMatch(/nothing on this sheet has been reviewed/);
+    expect(file).toMatch(/no sign-off is recorded on this sheet/);
+    expect(file).toMatch(/must still sign off before any "draft" label is removed/);
   });
 
   it("topUpLibrary adds the missing draft rows once, as non-sample rows, and never touches the lifter's rows", async () => {

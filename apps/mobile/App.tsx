@@ -20,6 +20,7 @@ import { createDataRepo } from "./src/db/dataRepo";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { diagnostics } from "./src/diagnostics";
 import { installCrashHandler } from "./src/logic/diagnostics";
+import { PrivacyScreen } from "./src/screens/PrivacyScreen";
 import { DiagnosticsScreen } from "./src/screens/DiagnosticsScreen";
 import { DataScreen } from "./src/screens/DataScreen";
 import type { Db } from "./src/db/driver";
@@ -99,6 +100,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
           <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
+          <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: t("privacy.title") }} />
           <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: t("diag.title") }} />
           <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} />
           <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: t("history.session.title") }} />

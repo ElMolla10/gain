@@ -15,6 +15,7 @@ import type { StringKey } from "../i18n/strings";
 import { localizeReason, weightText } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card } from "../ui";
+import { HealthNote } from "../components/HealthNote";
 
 interface Next {
   sessionId: string;
@@ -202,6 +203,7 @@ export function FinishScreen() {
       )}
       <BigButton label={sharing ? t("card.sharing") : t("card.share")} selected={false} disabled={sharing} onPress={shareCard} />
       <BigButton label={t("finish.done")} onPress={() => navigation.popToTop()} />
+      <HealthNote />
     </ScrollView>
   );
 }

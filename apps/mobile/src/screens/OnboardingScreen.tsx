@@ -20,6 +20,7 @@ import { validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
 import { instantiateTemplate, templatesForDays, type Instantiated, type TemplateOffer } from "../logic/templates";
 import { space, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, Field } from "../ui";
+import { HealthNote } from "../components/HealthNote";
 
 type ProgrammeMode = "template" | "own" | null;
 
@@ -135,6 +136,7 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
           <>
             <AppText style={{ fontSize: 28, fontWeight: "800" }}>{t("ob.welcome")}</AppText>
             <AppText style={{ color: p.muted }}>{t("ob.welcomeBody")}</AppText>
+            <HealthNote />
             <AppText style={{ color: p.muted }}>{t("ob.importHint")}</AppText>
             <AppText style={{ fontWeight: "700" }}>{t("ob.language")}</AppText>
             <BigButton label={t("settings.language.en")} selected={lang === "en"} onPress={() => { setLang("en"); set({ language: "en" }); }} />

@@ -153,7 +153,11 @@ export function TodayScreen() {
           {data.days.length > 1 ? <QuietAction label={t("today.change")} accessibilityLabel={t("today.changeLabel", { day: chosen.name })} onPress={() => setChangeOpen(true)} /> : null}
         </View>
         <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{chosen.name}</AppText>
-        <AppText style={{ color: p.muted }}>{data.programmeName} · {t("today.meta", { sets: chosen.sets, min: estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds) })}</AppText>
+        {/* Separate runs, so a Latin programme name never scrambles the order of an Arabic sentence. */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xs }}>
+          <AppText style={{ color: p.muted }}>{data.programmeName} ·</AppText>
+          <AppText style={{ color: p.muted }}>{t("today.meta", { sets: chosen.sets, min: estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds) })}</AppText>
+        </View>
         {action.kind === "resume" ? <InlineStatus kind={action.elsewhere ? "warn" : "info"} text={action.elsewhere ? t("today.finishOpenFirst") : t("today.openWorkout")} /> : null}
         <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />
         {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.sampleNote")}</AppText> : null}

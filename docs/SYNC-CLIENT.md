@@ -39,3 +39,7 @@ Only when it is ON: at app start, when the app returns to the front, and after a
 
 ## NOT verified on a device
 The Sync screen, Settings entry, Finish link buttons, Android share sheet for the link, AppState-triggered sync, delete-everything flow with a real network, Arabic text (draft), the real Cloudflare D1 under load (the deployed Worker passed a scripted smoke test only).
+
+## Secrets are not in SQLite (fixes release)
+
+The device token and the recovery code are kept in the phone's secure storage (`expo-secure-store`, Android Keystore-backed) under `gain.sync.*`. They are not in `sync_state`, so they are not in the database file, a JSON backup (sync tables were already excluded), a CSV export or the diagnostics report. A phone that had them in SQLite (up to v0.14.0) moves them on first use: write to secure storage, read back, then delete the database copy; if secure storage fails the value stays in the database rather than being lost. "Disconnect" and "clear sync" delete the secure copies too. Consequence: a restored database or a new phone does not carry the token, so sync must be set up again with the recovery code written down at setup. Unit-tested with an in-memory store (`test/syncSecrets.test.ts`); NOT verified on a real phone.

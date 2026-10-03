@@ -22,7 +22,8 @@
         }
       ],
       "expo-sharing",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-secure-store"
     ],
     "ios": {
       "bundleIdentifier": "app.gain.mobile",

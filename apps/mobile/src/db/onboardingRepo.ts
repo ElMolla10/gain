@@ -74,6 +74,7 @@ export function createOnboardingRepo(db: Db, deps: Deps, repos: Repos, gyms: Gym
       equipment: eq ? (JSON.parse(eq) as EquipmentType[]) : undefined,
       heightCm: await num("height_cm"),
       bodyweightKg: await num("bodyweight_kg"),
+      birthDate: (await repos.getSetting("birth_date")) || null,
     };
   }
 
@@ -153,6 +154,7 @@ export function createOnboardingRepo(db: Db, deps: Deps, repos: Repos, gyms: Gym
       await repos.setSetting("session_minutes", String(p.sessionMinutes));
       await repos.setSetting("equipment_json", JSON.stringify(p.equipment));
       await repos.setSetting("height_cm", p.heightCm === null ? "" : String(p.heightCm));
+      await repos.setSetting("birth_date", p.birthDate ?? "");
       await repos.setSetting("bodyweight_kg", p.bodyweightKg === null ? "" : String(p.bodyweightKg));
       if (p.bodyweightKg !== null) {
         const t = now();

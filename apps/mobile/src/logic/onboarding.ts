@@ -22,6 +22,8 @@ export interface Profile {
   /** Optional unless the goal is a bodyweight goal. */
   heightCm: number | null;
   bodyweightKg: number | null;
+  /** Optional birthday, YYYY-MM-DD, picked from the date selectors. */
+  birthDate?: string | null;
 }
 
 export const DAYS_OPTIONS = [2, 3, 4, 5, 6] as const;
@@ -37,7 +39,8 @@ export type ProfileProblemCode =
   | "goal_date_bad"
   | "bodyweight_required"
   | "bodyweight_bad"
-  | "height_bad";
+  | "height_bad"
+  | "birth_bad";
 export interface ProfileProblem {
   code: ProfileProblemCode;
 }
@@ -77,6 +80,10 @@ export function validateProfile(p: Profile, nowMs: number): ProfileProblem[] {
   }
   if (p.bodyweightKg !== null && !(p.bodyweightKg >= 30 && p.bodyweightKg <= 300)) out.push({ code: "bodyweight_bad" });
   if (p.heightCm !== null && !(p.heightCm >= 100 && p.heightCm <= 250)) out.push({ code: "height_bad" });
+  if (p.birthDate) {
+    const b = parseDate(p.birthDate);
+    if (!b || Date.UTC(b.y, b.m - 1, b.d) > nowMs || b.y < new Date(nowMs).getUTCFullYear() - 110) out.push({ code: "birth_bad" });
+  }
   return out;
 }
 

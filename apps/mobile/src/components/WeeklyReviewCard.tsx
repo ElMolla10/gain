@@ -7,7 +7,8 @@ import { ReviewDateInvalid, type StoredReview } from "../db/weeklyRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Field } from "../ui";
+import { DateSelect } from "./DateSelect";
+import { AppText, BigButton, Card } from "../ui";
 
 export const changeText = (c: WeeklyChange, t: (k: StringKey, p?: Record<string, string | number>) => string): string =>
   c.kind === "move_date" ? t("weekly.change.move_date", { date: c.newDate }) : t(`weekly.change.${c.kind}` as StringKey);
@@ -56,7 +57,7 @@ export function WeeklyReviewCard() {
       <AppText style={{ color: p.muted }}>{t(`weekly.reason.${review.reason}` as StringKey)}</AppText>
       {asking ? (
         <View style={{ gap: space.sm }}>
-          <Field label={t("weekly.dateField")} value={dateText} onChangeText={(s) => { setBad(false); setDateText(s); }} keyboardType="numbers-and-punctuation" numeric />
+          <DateSelect label={t("weekly.dateField")} value={dateText} onChange={(s) => { setBad(false); setDateText(s); }} years="future" span={5} />
           {bad ? <AppText style={{ fontWeight: "600" }}>⚠ {t("weekly.dateBad")}</AppText> : null}
           <BigButton
             label={t("weekly.dateSave")}

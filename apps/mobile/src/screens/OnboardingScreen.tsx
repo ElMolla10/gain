@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
+import { DateSelect } from "../components/DateSelect";
 import { ExposureView } from "../components/ExposureView";
 import { ProgrammeEditorView } from "../components/ProgrammeEditorView";
 import { ProfileInvalid } from "../db/onboardingRepo";
@@ -171,13 +172,13 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
                 <BigButton label={goalName || t("ob.goal.chooseExercise")} selected={false} onPress={() => setPicker(true)} />
                 <Field label={t("ob.goal.load", { unit: unitText })} value={form.goalLoadText} onChangeText={(s) => set({ goalLoadText: s })} numeric />
                 <Field label={t("ob.goal.reps")} value={form.goalRepsText} onChangeText={(s) => set({ goalRepsText: s })} numeric />
-                <Field label={t("ob.goal.date")} value={form.goalDateText} onChangeText={(s) => set({ goalDateText: s })} keyboardType="numbers-and-punctuation" numeric />
+                <DateSelect label={t("ob.goal.date")} value={form.goalDateText} onChange={(s) => set({ goalDateText: s })} years="future" span={10} />
               </>
             ) : null}
             {form.goalKind === "bodyweight" ? (
               <>
                 <Field label={t("ob.goal.weight", { unit: unitText })} value={form.goalWeightText} onChangeText={(s) => set({ goalWeightText: s })} numeric />
-                <Field label={t("ob.goal.date")} value={form.goalDateText} onChangeText={(s) => set({ goalDateText: s })} keyboardType="numbers-and-punctuation" numeric />
+                <DateSelect label={t("ob.goal.date")} value={form.goalDateText} onChange={(s) => set({ goalDateText: s })} years="future" span={10} />
               </>
             ) : null}
             {form.goalKind === "muscle" ? (
@@ -188,6 +189,7 @@ export function OnboardingScreen(props: { onDone: () => void; rerun?: boolean })
             ) : null}
             <AppText style={{ fontWeight: "700", marginTop: space.md }}>{t("ob.body")}</AppText>
             <Field label={t("ob.body.height")} value={form.heightText} onChangeText={(s) => set({ heightText: s })} numeric />
+            <DateSelect label={t("ob.body.birth")} value={form.birthDateText} onChange={(s) => set({ birthDateText: s })} years="past" span={100} minAge={10} />
             <Field label={t("ob.body.weight", { unit: unitText })} hint={form.goalKind === "bodyweight" ? t("ob.body.weightRequired") : undefined} value={form.bodyweightText} onChangeText={(s) => set({ bodyweightText: s })} numeric />
             {problemLines(problems)}
             <ExercisePicker

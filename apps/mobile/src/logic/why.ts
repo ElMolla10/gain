@@ -1,4 +1,5 @@
 import { renderReason, type DecisionInputs, type Locale, type ReasonText } from "@gain/engine";
+import { quantityText } from "./quantity";
 import { localizeReason, unitLabel, weightText, type Unit } from "./units";
 
 export interface DecisionPayload {
@@ -45,7 +46,9 @@ export function describeDecision(
       i.sessions.length === 0
         ? [L("why.noSessions")]
         : i.sessions.map((s) =>
-            L("why.session", {
+            i.measure === "time" || i.measure === "distance"
+              ? L(s.topLoad > 0 ? "why.sessionTimed" : "why.sessionTimedBare", { date: s.performedAt.slice(0, 10), load: W(s.topLoad), q: quantityText(s.repsAtTop, i.measure, { s: L("qty.s"), m: L("qty.m") }), sets: s.setsAtTop })
+              : L("why.session", {
               date: s.performedAt.slice(0, 10),
               load: W(s.topLoad),
               reps: s.repsAtTop,

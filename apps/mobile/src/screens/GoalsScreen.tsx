@@ -133,7 +133,7 @@ export function GoalsScreen() {
 
       <ExercisePicker
         visible={picker}
-        exercises={library}
+        exercises={library.filter((e) => e.measure === "reps") /* a goal lift is a weight on the bar: holds and carries are not goal lifts */}
         onClose={() => setPicker(false)}
         onCreate={programmes.createExercise}
         onPick={(id) => {

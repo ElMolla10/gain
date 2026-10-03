@@ -9,6 +9,9 @@ export interface CountableSet {
   reps: number;
   warmup: boolean;
   outlierStatus?: string;
+  /** A hold or carry: no reps, so it adds nothing to the volume. */
+  durationS?: number | null;
+  distanceM?: number | null;
 }
 
 const counts = (s: CountableSet): boolean => !s.warmup && s.outlierStatus !== "rejected";
@@ -17,7 +20,7 @@ export function liveSummary(sets: readonly CountableSet[], startedAt: number | n
   const working = sets.filter(counts);
   return {
     durationMs: startedAt === null ? 0 : Math.max(0, now - startedAt),
-    volumeKg: working.reduce((n, s) => n + s.load * s.reps, 0),
+    volumeKg: working.reduce((n, s) => n + (s.durationS != null || s.distanceM != null ? 0 : s.load * s.reps), 0),
     sets: working.length,
   };
 }

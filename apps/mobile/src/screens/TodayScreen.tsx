@@ -1,3 +1,4 @@
+import { quantityText } from "../logic/quantity";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -145,7 +146,7 @@ export function TodayScreen() {
                 </AppText>
               </View>
               <AppText ltr style={{ fontWeight: "700" }}>
-                {isolateLtr(`${e.sets} × ${e.repMin}-${e.repMax}`)}
+                {isolateLtr(e.measure === "reps" ? `${e.sets} × ${e.repMin}-${e.repMax}` : `${e.sets} × ${e.repMin}-${quantityText(e.repMax, e.measure, { s: t("qty.s"), m: t("qty.m") })}`)}
               </AppText>
             </View>
           );

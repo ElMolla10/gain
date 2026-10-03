@@ -1,5 +1,5 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type OutlierResult, type Proposal } from "@gain/engine";
+import { findSpec, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, Vibration, View } from "react-native";
@@ -18,6 +18,7 @@ import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings
 import { warmupOffer } from "../logic/warmups";
 import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
+import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { acceptGhost, addRow, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
@@ -50,7 +51,8 @@ const clock = (ms: number) => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags });
+// For a timed exercise the row's "reps" box holds seconds or metres (the database stores reps = 1 plus duration_s / distance_m).
+const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.durationS ?? s.distanceM ?? s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags });
 const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, replacedBy: null, note: "", restOff: false, added: false, position: null, superset: null });
 
 /** Ticks once a second on its own, so the rest of the screen does not re-render every second. */
@@ -127,7 +129,7 @@ export function WorkoutScreen() {
   /** The exercise shown for a programme slot today. */
   const makeDisp = useCallback((slotEx: DayEx, st?: ExerciseState): Disp => {
     const lib = st?.replacedBy ? libRef.current.find((l) => l.id === st.replacedBy) : undefined;
-    if (lib) return { ...slotEx, exerciseId: lib.id, nameEn: lib.nameEn, nameAr: lib.nameAr, aliasesAr: lib.aliasesAr, equipment: lib.equipment, setup: lib.setup, isGoalLift: false, repCeilingIsCustom: false, slot: slotEx.exerciseId };
+    if (lib) return { ...slotEx, exerciseId: lib.id, nameEn: lib.nameEn, nameAr: lib.nameAr, aliasesAr: lib.aliasesAr, equipment: lib.equipment, setup: lib.setup, measure: lib.measure, isGoalLift: false, repCeilingIsCustom: false, slot: slotEx.exerciseId };
     return { ...slotEx, slot: slotEx.exerciseId };
   }, []);
 
@@ -135,17 +137,20 @@ export function WorkoutScreen() {
   const buildInfo = useCallback(
     async (ex: Disp, sessionId: string, gym: GymFingerprint): Promise<ExInfo> => {
       const { proposal, lineId, line } = await workout.liveProposal(
-        { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, repCeiling: ex.repCeiling, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
+        { exerciseId: ex.exerciseId, name: ex.nameEn, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, repCeiling: ex.repCeiling, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
         gym,
       );
       const last = await workout.lastPerformance(line, lineId);
       const stored = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
       const lastTop = last?.sets.reduce<LoggedSet | null>((a, s) => (a === null || s.load > a.load ? s : a), null) ?? null;
       // Never invented: today's target, else last time's top set, else empty.
+      const m = ex.measure;
+      const storedQ = stored ? (m === "time" ? stored.durationS : m === "distance" ? stored.distanceM : stored.reps) : null;
+      const proposedQ = m === "time" ? proposal.durationS ?? null : m === "distance" ? proposal.distanceM ?? null : proposal.reps;
       const d = initialDraft({
         today: [],
-        target: stored ? (stored.effectiveLoad !== null && stored.reps !== null && stored.status !== "rejected" ? { load: stored.effectiveLoad, reps: stored.reps } : null) : proposal.status === "proposed" ? { load: proposal.load, reps: proposal.reps } : null,
-        last: lastTop ? { load: lastTop.load, reps: lastTop.reps } : null,
+        target: stored ? (stored.effectiveLoad !== null && storedQ !== null && stored.status !== "rejected" ? { load: stored.effectiveLoad, reps: storedQ } : null) : proposal.status === "proposed" && proposedQ !== null ? { load: proposal.load, reps: proposedQ } : null,
+        last: lastTop ? { load: lastTop.load, reps: setQuantity(lastTop, m) } : null,
       });
       return { proposal, line, last, stored, prefill: { load: d.load, reps: d.reps } };
     },
@@ -268,11 +273,12 @@ export function WorkoutScreen() {
     setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
     const eff = effectiveOf(row);
     const load = eff.load as number;
-    const reps = eff.reps as number;
+    const q = eff.reps as number; // reps, or seconds / metres for a timed exercise
+    const qf = quantityFields(q, ex.measure);
     const ctx = { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup };
     try {
       if (!row.saved) {
-        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, reps, rir: row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
         // No rest timer after a warm-up or a drop set (the next set follows straight away).
         // In a superset the rest comes after the last exercise of the round only.
@@ -281,7 +287,7 @@ export function WorkoutScreen() {
           setTimer((tm) => startTimer(tm, Date.now()));
         }
       } else if (row.dirty) {
-        const r = await workout.updateLiveSet(row.key, { load, reps, rir: row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+        const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
       }
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
@@ -497,14 +503,20 @@ export function WorkoutScreen() {
     const numbering = rowLabels(list);
     const widx = workingIndexes(list);
     const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
-    const offer = warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length });
+    const timed = isTimed(ex.measure);
+    const qUnits = { s: t("qty.s"), m: t("qty.m") };
+    const offer = timed ? ({ kind: "none", reason: "already_started" } as unknown as ReturnType<typeof warmupOffer>) : warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length });
     const pending = exSets.filter((s) => s.outlierStatus === "unconfirmed");
     const expanded = !!whyOpen[ex.exerciseId];
 
     // GAIN's target for today and its reason, kept to one line until tapped.
-    const targetNone = info.stored ? info.stored.status === "rejected" || info.stored.effectiveLoad === null || info.stored.reps === null : !(pr.status === "proposed" && pr.load !== null && pr.reps !== null);
+    const storedQ = info.stored ? (ex.measure === "time" ? info.stored.durationS : ex.measure === "distance" ? info.stored.distanceM : info.stored.reps) : null;
+    const proposedQ = ex.measure === "time" ? pr.durationS ?? null : ex.measure === "distance" ? pr.distanceM ?? null : pr.reps;
+    const targetNone = info.stored ? info.stored.status === "rejected" || info.stored.effectiveLoad === null || storedQ === null : !(pr.status === "proposed" && pr.load !== null && proposedQ !== null);
     const tLoad = info.stored ? info.stored.effectiveLoad : pr.load;
-    const tReps = info.stored ? info.stored.reps : pr.reps;
+    const tReps = info.stored ? storedQ : proposedQ;
+    // A hold or carry target: "45 s" (or "24 kg × 45 s" when it is loaded); a reps target: "60 kg × 8".
+    const targetText = targetNone ? t("workout.targetNone") : timed ? ((tLoad as number) > 0 ? `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(quantityText(tReps as number, ex.measure, qUnits))}` : isolateLtr(quantityText(tReps as number, ex.measure, qUnits))) : `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(String(tReps))}`;
     const reasonText = info.stored?.status === "rejected" ? t("finish.rejectedNote") : renderReason(localizeReason(info.stored ? info.stored.reason : pr.reason, unit, lang), lang);
 
     const colSet = { width: 40, alignItems: "center" as const };
@@ -554,7 +566,7 @@ export function WorkoutScreen() {
         >
           <AppText numberOfLines={expanded ? undefined : 1} style={{ flex: 1, fontSize: 14, color: p.muted }}>
             <AppText style={{ fontSize: 14, fontWeight: "700", color: p.text }}>
-              {t("workout.target")}: {targetNone ? t("workout.targetNone") : `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(String(tReps))}`}
+              {t("workout.target")}: {targetText}
             </AppText>
             {"  ·  "}
             {reasonText}
@@ -566,7 +578,7 @@ export function WorkoutScreen() {
           <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
           <View style={{ flex: 1.3 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>
           <View style={{ flex: 1 }}><AppText style={head}>{unitText.toUpperCase()}</AppText></View>
-          <View style={{ flex: 1 }}><AppText style={head}>{t("workout.col.reps").toUpperCase()}</AppText></View>
+          <View style={{ flex: 1 }}><AppText style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
           {ex.trackEffort ? <View style={{ width: 52 }}><AppText style={head}>{t("workout.col.rir").toUpperCase()}</AppText></View> : null}
           <View style={colTick}><Tick size={11} color={p.muted} /></View>
         </View>
@@ -594,7 +606,7 @@ export function WorkoutScreen() {
                   </View>
                   <View style={{ flex: 1.3 }}>
                     <AppText ltr numberOfLines={1} style={{ color: p.muted, fontSize: 14, textAlign: "center" }}>
-                      {isolateLtr(previousText(info.last?.sets ?? null, widx[i] ?? null, unit, unitText))}
+                      {isolateLtr(timed ? previousQuantityText(info.last?.sets ?? null, widx[i] ?? null, ex.measure, (kg) => `${weightText(kg, unit)}${unitText}`, qUnits) : previousText(info.last?.sets ?? null, widx[i] ?? null, unit, unitText))}
                     </AppText>
                   </View>
                   <CellInput<number>
@@ -607,10 +619,11 @@ export function WorkoutScreen() {
                     decimal
                   />
                   <CellInput<number>
-                    a11y={t("workout.reps")}
+                    a11y={timed ? (ex.measure === "time" ? t("workout.seconds") : t("workout.metres")) : t("workout.reps")}
                     value={row.reps}
                     format={(v) => String(v)}
-                    parse={(txt) => parseRepsInput(txt)}
+                    parse={(txt) => (timed ? parseQuantityInput(txt, ex.measure) : parseRepsInput(txt))}
+                    decimal={ex.measure === "distance"}
                     onValue={(v) => patch(ex.exerciseId, row.key, { reps: v })}
                     placeholder={row.ghostReps !== null ? String(row.ghostReps) : undefined}
                   />
@@ -642,7 +655,9 @@ export function WorkoutScreen() {
             <View key={s.id} style={{ marginHorizontal: 12, padding: 12, gap: 6, borderRadius: 12, borderWidth: 2, borderColor: p.warn, backgroundColor: p.card }}>
               <AppText style={{ fontWeight: "800" }}>⚠ {t("workout.outlier.title")}</AppText>
               <AppText>
-                {isolateLtr(`${weightText(s.load, unit)} ${unitText} × ${s.reps}`)} · {t("workout.outlier.body", { load: o?.expected ? fmt(o.expected.medianLoad) : "?", reps: o?.expected?.medianReps ?? "?" })}
+                {timed
+                  ? isolateLtr(quantityText(setQuantity(s, ex.measure), ex.measure, qUnits))
+                  : isolateLtr(`${weightText(s.load, unit)} ${unitText} × ${s.reps}`)} · {timed ? t("workout.outlier.bodyTimed") : t("workout.outlier.body", { load: o?.expected ? fmt(o.expected.medianLoad) : "?", reps: o?.expected?.medianReps ?? "?" })}
               </AppText>
               <AppText style={{ color: p.muted }}>{t("workout.outlier.note")}</AppText>
               <View style={{ flexDirection: "row", gap: 8 }}>
@@ -709,7 +724,7 @@ export function WorkoutScreen() {
               <AppText style={{ color: p.blue, fontWeight: "600", fontSize: 15 }}>{t("warm.add")}</AppText>
             </Pressable>
           )
-        ) : warmDone[ex.exerciseId] ? null : exSets.length === 0 && offer.reason !== "already_started" ? (
+        ) : timed || warmDone[ex.exerciseId] ? null : exSets.length === 0 && offer.reason !== "already_started" ? (
           <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: 14 }}>{t(`warm.none.${offer.reason}` as never)}</AppText>
         ) : null}
         {warmDone[ex.exerciseId] ? <AppText style={{ color: p.muted, paddingHorizontal: 14 }}>✓ {t("warm.added")}</AppText> : null}

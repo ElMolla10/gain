@@ -1,12 +1,13 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
+import type { Measure } from "@gain/engine";
 import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 import { useServices } from "../AppContext";
 import { ProgrammeEditorView } from "../components/ProgrammeEditorView";
-import { DraftInvalid, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
+import { DraftInvalid, MeasureLocked, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
-import { validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
+import { resetRangeFor, validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
 import { space } from "../theme";
 import { AppText, ArDraftNote, BigButton } from "../ui";
 
@@ -50,6 +51,20 @@ export function ProgrammeEditScreen() {
   if (!draft) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
   const problems = validateDraft(draft);
 
+  /** Switch how an exercise is counted. Refused once sets are logged for it; the ranges of its slots restart at the usual hold / carry (or reps) range. */
+  async function setMeasure(exerciseId: string, measure: Measure) {
+    try {
+      await programmes.setExerciseMeasure(exerciseId, measure);
+      setDraft((d) => (d ? resetRangeFor(d, exerciseId, measure) : d));
+      setBaseline((b) => (b ? resetRangeFor(b, exerciseId, measure) : b));
+      refreshLibrary();
+      setMessage(null);
+    } catch (e) {
+      if (e instanceof MeasureLocked) setMessage(t("prog.ex.measureLocked"));
+      else throw e;
+    }
+  }
+
   async function save() {
     setTouched(true);
     if (!draft || problems.length > 0) return;
@@ -69,7 +84,7 @@ export function ProgrammeEditScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 3 }} keyboardShouldPersistTaps="handled">
-      <ProgrammeEditorView draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} />
+      <ProgrammeEditorView draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} onSetMeasure={setMeasure} />
       {touched
         ? problems.map((pr, i) => (
             <AppText key={i} style={{ fontWeight: "600" }}>

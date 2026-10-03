@@ -1,3 +1,4 @@
+import { targetPhrase } from "../logic/quantity";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { ScrollView } from "react-native";
@@ -30,7 +31,9 @@ export function LiftTrendScreen() {
   if (data === "none") return <AppText style={{ padding: space.lg }}>{t("trend.noPoints")}</AppText>;
   const { lift, trend } = data;
   const assisted = lift.setup === "assisted";
-  const setText = (pt: { load: number; reps: number }) => `${fmt(pt.load)} × ${isolateLtr(String(pt.reps))}`;
+  const timed = trend.timed ?? null;
+  const letters = { s: t("qty.s"), m: t("qty.m") };
+  const setText = (pt: { load: number; reps: number; quantity?: number }) => (timed && pt.quantity !== undefined ? isolateLtr(targetPhrase(pt.load, pt.quantity, timed, fmt, letters)) : `${fmt(pt.load)} × ${isolateLtr(String(pt.reps))}`);
   const recent = [...trend.points].reverse().slice(0, 10);
 
   return (
@@ -38,12 +41,17 @@ export function LiftTrendScreen() {
       <AppText style={{ fontSize: 24, fontWeight: "800" }}>{exerciseLabels(lift, lang).primary}</AppText>
       <AppText style={{ color: p.muted }}>{t("trend.setupLine", { setup: t(`setup.${lift.setup}` as never) })}</AppText>
       <Card>
-        <AppText style={{ color: p.muted }}>{assisted ? t("trend.measureAssisted") : t("trend.measure")}</AppText>
+        <AppText style={{ color: p.muted }}>{timed ? t("trend.timedMeasure") : assisted ? t("trend.measureAssisted") : t("trend.measure")}</AppText>
         {trend.points.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : null}
         <TrendChart points={trend.points} assisted={assisted} />
         {trend.points.length > 0 ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("trend.chartHint")}</AppText> : null}
         <AppText style={{ fontWeight: "800", fontSize: 18 }}>{t(directionKey(trend.direction, assisted))}</AppText>
-        {trend.loadChangePer30d !== null ? (
+        {timed && trend.quantityChangePer30d != null ? (
+          <AppText style={{ color: p.muted }}>
+            {t("trend.changeQuantity", { delta: String(Math.round(Math.abs(trend.quantityChangePer30d) * 10) / 10), unit: timed === "time" ? letters.s : letters.m, n: Math.min(trend.points.length, 10) })}
+          </AppText>
+        ) : null}
+        {(!timed || trend.quantityChangePer30d == null) && trend.loadChangePer30d !== null ? (
           <AppText style={{ color: p.muted }}>
             {t("trend.change", {
               delta: String(Math.round(kgToUnit(Math.abs(trend.loadChangePer30d), unit) * 10) / 10),
@@ -60,7 +68,7 @@ export function LiftTrendScreen() {
           <AppText style={{ fontWeight: "700" }}>{t("trend.recent")}</AppText>
           {recent.map((pt) => (
             <AppText key={pt.at} ltr style={{ textAlign: "left" /* a11y-ok: LTR figures stay left-aligned */ }}>
-              {localDateText(pt.at)}  {fmt(pt.load)} × {pt.reps}
+              {localDateText(pt.at)}  {setText(pt)}
               {pt.imported ? `  (${t("trend.imported")})` : ""}
             </AppText>
           ))}

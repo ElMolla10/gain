@@ -1,3 +1,4 @@
+import type { Measure } from "@gain/engine";
 import React, { useMemo, useState } from "react";
 import { View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
@@ -5,7 +6,7 @@ import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { computeExposure } from "../logic/exposure";
 import {
-  addDay, addExercise, moveDay, moveExercise, newExercise, removeDay, removeExercise, renameDay, renameProgramme, updateExercise, type ProgrammeDraft,
+  addDay, addExercise, moveDay, moveExercise, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, updateExercise, type ProgrammeDraft,
 } from "../logic/programmeDraft";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Field, Stepper } from "../ui";
@@ -26,11 +27,14 @@ export function ProgrammeEditorView(props: {
   onCreateExercise: (input: NewExerciseInput) => Promise<string>;
   /** Called after a custom exercise is created so the caller can refresh its library list. */
   onLibraryChanged?: () => void;
+  /** Switch how an exercise is counted (reps / seconds / metres). Throws when sets are already logged for it. Absent = the chips are not shown. */
+  onSetMeasure?: (exerciseId: string, measure: Measure) => Promise<void>;
 }) {
   const { t, lang } = useI18n();
   const p = usePalette();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
   const byId = useMemo(() => new Map(props.library.map((e) => [e.id, e])), [props.library]);
+  const measureOf = (id: string): Measure => byId.get(id)?.measure ?? "reps";
   const patternOf = (id: string) => byId.get(id)?.pattern;
   const nameOf = (id: string) => {
     const e = byId.get(id);
@@ -55,9 +59,28 @@ export function ProgrammeEditorView(props: {
             <View key={e.exerciseId} style={{ gap: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderColor: p.border }}>
               <AppText style={{ fontWeight: "700", fontSize: 17 }}>{nameOf(e.exerciseId)}</AppText>
               <Stepper label={t("prog.ex.sets")} value={e.sets} min={1} max={12} onChange={(n) => props.onChange(updateExercise(d, di, ei, { sets: n }))} />
-              <Stepper label={t("prog.ex.repsFrom")} value={e.repMin} min={1} max={100} onChange={(n) => props.onChange(updateExercise(d, di, ei, { repMin: n, repMax: Math.max(e.repMax, n) }))} />
-              <Stepper label={t("prog.ex.repsTo")} value={e.repMax} min={e.repMin} max={100} onChange={(n) => props.onChange(updateExercise(d, di, ei, { repMax: n }))} />
-              <Field
+              {measureOf(e.exerciseId) === "reps" ? (
+                <>
+                  <Stepper label={t("prog.ex.repsFrom")} value={e.repMin} min={1} max={100} onChange={(n) => props.onChange(updateExercise(d, di, ei, { repMin: n, repMax: Math.max(e.repMax, n) }))} />
+                  <Stepper label={t("prog.ex.repsTo")} value={e.repMax} min={e.repMin} max={100} onChange={(n) => props.onChange(updateExercise(d, di, ei, { repMax: n }))} />
+                </>
+              ) : (
+                <>
+                  <Stepper label={t(measureOf(e.exerciseId) === "time" ? "prog.ex.secFrom" : "prog.ex.metresFrom")} step={5} value={e.repMin} min={1} max={measureOf(e.exerciseId) === "time" ? 3600 : 5000} onChange={(n) => props.onChange(updateExercise(d, di, ei, { repMin: n, repMax: Math.max(e.repMax, n) }))} />
+                  <Stepper label={t(measureOf(e.exerciseId) === "time" ? "prog.ex.secTo" : "prog.ex.metresTo")} step={5} value={e.repMax} min={e.repMin} max={measureOf(e.exerciseId) === "time" ? 3600 : 5000} onChange={(n) => props.onChange(updateExercise(d, di, ei, { repMax: n }))} />
+                </>
+              )}
+              {props.onSetMeasure ? (
+                <View style={{ gap: space.xs }}>
+                  <AppText style={{ fontWeight: "600" }}>{t("prog.ex.countIn")}</AppText>
+                  <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                    {(["reps", "time", "distance"] as const).map((m) => (
+                      <Chip key={m} label={t(`prog.ex.count.${m}` as never)} selected={measureOf(e.exerciseId) === m} onPress={() => void props.onSetMeasure!(e.exerciseId, m)} />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+              {measureOf(e.exerciseId) !== "reps" ? null : <Field
                 label={t("prog.ex.ceiling")}
                 hint={t("prog.ex.ceilingHint")}
                 numeric
@@ -66,11 +89,13 @@ export function ProgrammeEditorView(props: {
                   const n = Number(s.replace(/[^\d]/g, ""));
                   props.onChange(updateExercise(d, di, ei, { repCeiling: s.trim() === "" || !Number.isFinite(n) || n < 1 ? null : Math.min(100, n) }));
                 }}
-              />
-              <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-                <Chip label={t("prog.ex.goal")} selected={e.isGoalLift} onPress={() => props.onChange(updateExercise(d, di, ei, { isGoalLift: !e.isGoalLift }))} />
-                <Chip label={t("prog.ex.effort")} selected={e.trackEffort} onPress={() => props.onChange(updateExercise(d, di, ei, { trackEffort: !e.trackEffort }))} />
-              </View>
+              />}
+              {measureOf(e.exerciseId) !== "reps" ? null : (
+                <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                  <Chip label={t("prog.ex.goal")} selected={e.isGoalLift} onPress={() => props.onChange(updateExercise(d, di, ei, { isGoalLift: !e.isGoalLift }))} />
+                  <Chip label={t("prog.ex.effort")} selected={e.trackEffort} onPress={() => props.onChange(updateExercise(d, di, ei, { trackEffort: !e.trackEffort }))} />
+                </View>
+              )}
               <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
                 <Chip label={`↑ ${t("prog.up")}`} onPress={() => props.onChange(moveExercise(d, di, ei, ei - 1))} />
                 <Chip label={`↓ ${t("prog.down")}`} onPress={() => props.onChange(moveExercise(d, di, ei, ei + 1))} />
@@ -94,7 +119,7 @@ export function ProgrammeEditorView(props: {
           return id;
         }}
         onPick={(id) => {
-          if (pickerDay !== null) props.onChange(addExercise(d, pickerDay, newExercise(id)));
+          if (pickerDay !== null) props.onChange(addExercise(d, pickerDay, newExerciseFor(id, measureOf(id))));
           setPickerDay(null);
         }}
       />

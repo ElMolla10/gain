@@ -1,3 +1,4 @@
+import { isTimed, targetPhrase, targetQuantity } from "../logic/quantity";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { renderReason } from "@gain/engine";
 import React, { useCallback, useState } from "react";
@@ -66,7 +67,11 @@ export function DecisionLogScreen() {
             <AppText style={{ fontSize: 18, fontWeight: "800" }}>{exerciseLabels(d, lang).primary}</AppText>
             <AppText style={{ color: p.muted }}>{t("dec.for", { day: d.dayName })}</AppText>
             <AppText style={{ fontSize: 17 }}>
-              {hasNumber(d) ? t("dec.target", { load: fmt(d.load!), reps: isolateLtr(String(d.reps)) }) : t("dec.noTarget")}
+              {hasNumber(d)
+                ? isTimed(d.measure)
+                  ? t("dec.targetTimed", { q: isolateLtr(targetPhrase(d.load!, targetQuantity(d, d.measure)!, d.measure, fmt, { s: t("qty.s"), m: t("qty.m") })) })
+                  : t("dec.target", { load: fmt(d.load!), reps: isolateLtr(String(d.reps)) })
+                : t("dec.noTarget")}
             </AppText>
             <AppText style={{ fontWeight: "700" }}>{t(a.key, a.editedLoad !== null ? { load: fmt(a.editedLoad) } : undefined)}</AppText>
             <AppText style={{ color: p.muted }}>{sentence}</AppText>

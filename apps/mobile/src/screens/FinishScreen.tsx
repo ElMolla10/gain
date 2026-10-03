@@ -1,3 +1,4 @@
+import { isTimed, quantityText, targetPhrase, targetQuantity } from "../logic/quantity";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -152,6 +153,10 @@ export function FinishScreen() {
           if (e.firstTime) lines.push(`${name}: ${t("finish.firstTime")}`);
           for (const r of e.records) {
             if (r === "load" && e.top) lines.push(`${name}: ${t("finish.record.load", { load: formatLoad(e.top.load, lang, unit) })}`);
+            if (r === "quantity_at_load" && e.top && e.measure && e.top.quantity !== undefined) {
+              const q = isolateLtr(quantityText(e.top.quantity, e.measure, { s: t("qty.s"), m: t("qty.m") }));
+              lines.push(`${name}: ${e.top.load > 0 ? t("finish.record.quantity", { load: formatLoad(e.top.load, lang, unit), q }) : t("finish.record.quantityBare", { q })}`);
+            }
             if (r === "reps_at_load" && e.top) lines.push(`${name}: ${t("finish.record.reps", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps })}`);
           }
           return lines.map((l) => <AppText key={`${e.exerciseId}-${l}`}>{l}</AppText>);
@@ -179,7 +184,9 @@ export function FinishScreen() {
                   <AppText>{t("finish.rejectedNote")}</AppText>
                 ) : (
                   <AppText style={{ fontSize: 22, fontWeight: "800" }}>
-                    {formatLoad(tg.effectiveLoad ?? 0, lang, unit)} × {isolateLtr(String(tg.reps ?? ""))}
+                    {isTimed(tg.measure)
+                      ? isolateLtr(targetPhrase(tg.effectiveLoad ?? 0, targetQuantity(tg, tg.measure) ?? 0, tg.measure, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") }))
+                      : <>{formatLoad(tg.effectiveLoad ?? 0, lang, unit)} × {isolateLtr(String(tg.reps ?? ""))}</>}
                   </AppText>
                 )}
                 <AppText style={{ color: p.muted }}>{renderReason(localizeReason(tg.reason, unit, lang), lang)}</AppText>

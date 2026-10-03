@@ -1,15 +1,13 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { Measure } from "@gain/engine";
 import React, { useCallback, useEffect, useState } from "react";
-import { ScrollView } from "react-native";
 import { useServices } from "../AppContext";
 import { ProgrammeEditorView } from "../components/ProgrammeEditorView";
 import { DraftInvalid, MeasureLocked, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { resetRangeFor, validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
-import { space } from "../theme";
-import { AppText, ArDraftNote, BigButton } from "../ui";
+import { ArDraftNote, BigButton, LoadingState, Notice, Screen } from "../ui";
 
 export function ProgrammeEditScreen() {
   const { programmes, repos } = useServices();
@@ -48,7 +46,7 @@ export function ProgrammeEditScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programmes, repos, params.programmeId, params.versionId]);
 
-  if (!draft) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
+  if (!draft) return <LoadingState />;
   const problems = validateDraft(draft);
 
   /** Switch how an exercise is counted. Refused once sets are logged for it; the ranges of its slots restart at the usual hold / carry (or reps) range. */
@@ -83,18 +81,15 @@ export function ProgrammeEditScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 3 }} keyboardShouldPersistTaps="handled">
+    <Screen
+      footer={
+        <BigButton label={params.programmeId && nextVersion ? t("prog.save", { v: nextVersion }) : t("prog.saveNew")} onPress={() => void save()} />
+      }
+    >
       <ProgrammeEditorView draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} onSetMeasure={setMeasure} />
-      {touched
-        ? problems.map((pr, i) => (
-            <AppText key={i} style={{ fontWeight: "600" }}>
-              ⚠ {t(`prog.problem.${pr.code}` as StringKey, { day: (pr.day ?? 0) + 1 })}
-            </AppText>
-          ))
-        : null}
-      {message ? <AppText style={{ fontWeight: "600" }}>{message}</AppText> : null}
-      <BigButton label={params.programmeId && nextVersion ? t("prog.save", { v: nextVersion }) : t("prog.saveNew")} onPress={() => void save()} />
+      {touched ? problems.map((pr, i) => <Notice key={i} kind="error">{t(`prog.problem.${pr.code}` as StringKey, { day: (pr.day ?? 0) + 1 })}</Notice>) : null}
+      {message ? <Notice kind="warn">{message}</Notice> : null}
       <ArDraftNote />
-    </ScrollView>
+    </Screen>
   );
 }

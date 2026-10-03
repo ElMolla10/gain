@@ -5,7 +5,7 @@ import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { findSpec, nextLoadAbove, renderReason, type GymFingerprint } from "@gain/engine";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ScrollView, Share, View } from "react-native";
+import { Share, View } from "react-native";
 import { useServices } from "../AppContext";
 import type { SessionSummary, TargetRow } from "../db/finishRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
@@ -15,8 +15,9 @@ import { buildCardModel, cardHtml, cardPaceLine, toCoachPayload } from "../logic
 import { jumpKindText } from "../logic/jumpText";
 import type { StringKey } from "../i18n/strings";
 import { localizeReason, weightText } from "../logic/units";
-import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card } from "../ui";
+import { space, type as ty, usePalette } from "../theme";
+import { AppText, BigButton, Card, ErrorState, IconButton, InlineStatus, LoadingState, Notice, Screen, TargetStrip } from "../ui";
+import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
@@ -50,6 +51,8 @@ export function FinishScreen() {
   const [jumpFor, setJumpFor] = useState<{ targetId: string; check: JumpCheck; prev: number } | null>(null);
   const [threshold, setThreshold] = useState(10);
   const [attempt, setAttempt] = useState(0);
+  const [showRecords, setShowRecords] = useState(false);
+  const [finishedAt, setFinishedAt] = useState(0);
 
   const reload = useCallback(
     async (n: Next) => setNext({ ...n, targets: await finish.getTargets(n.sessionId) }),
@@ -65,6 +68,8 @@ export function FinishScreen() {
     if (started.current) return;
     started.current = true;
     (async () => {
+      const sess = await workout.getSession(sessionId);
+      setFinishedAt(Number(sess?.finished_at ?? Date.now()));
       setSummary(await finish.summarizeSession(sessionId));
       const written = await finish.writeNextSessionTargets(sessionId);
       autoSync(true); // a finished workout is the moment to back up, if (and only if) the lifter turned that on
@@ -86,19 +91,20 @@ export function FinishScreen() {
 
   if (failed && (!summary || next === null)) {
     return (
-      <View style={{ padding: space.lg, gap: space.md }}>
-        <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("finish.error.title")}</AppText>
-        <BigButton
-          label={t("finish.error.retry")}
-          onPress={() => {
+      <Screen>
+        <ErrorState
+          title={t("finish.error.title")}
+          body={t("workout.finishFailed.body")}
+          retryLabel={t("finish.error.retry")}
+          onRetry={() => {
             setFailed(false);
             setAttempt((n) => n + 1);
           }}
         />
-      </View>
+      </Screen>
     );
   }
-  if (!summary || next === null) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
+  if (!summary || next === null) return <LoadingState />;
 
   const act = async (fn: () => Promise<void>) => {
     setError(null);
@@ -166,72 +172,89 @@ export function FinishScreen() {
     setNotices((n) => ({ ...n, link: t("link.stopped") }));
   };
 
+  const noSets = summary.totals.counted === 0 && summary.totals.warmups === 0 && summary.totals.unconfirmed === 0;
+  const recordLines = summary.exercises.flatMap((e) => {
+    const name = lang === "ar" ? e.nameAr : e.nameEn;
+    const lines: string[] = [];
+    if (e.firstTime) lines.push(`${name}: ${t("finish.firstTime")}`);
+    for (const r of e.records) {
+      if (r === "load" && e.top) lines.push(`${name}: ${t("finish.record.load", { load: formatLoad(e.top.load, lang, unit) })}`);
+      if (r === "quantity_at_load" && e.top && e.measure && e.top.quantity !== undefined) {
+        const q = isolateLtr(quantityText(e.top.quantity, e.measure, { s: t("qty.s"), m: t("qty.m") }));
+        lines.push(`${name}: ${e.top.load > 0 ? t("finish.record.quantity", { load: formatLoad(e.top.load, lang, unit), q }) : t("finish.record.quantityBare", { q })}`);
+      }
+      if (r === "reps_at_load" && e.top) lines.push(`${name}: ${t("finish.record.reps", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps })}`);
+    }
+    return lines;
+  });
+
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
-      <AppText style={{ fontSize: 28, fontWeight: "600" }}>{t("finish.title")}</AppText>
-      <AppText style={{ color: p.muted }}>✓ {t("finish.saved")}</AppText>
+    <Screen footer={<BigButton hero label={t("finish.done")} onPress={() => navigation.popToTop()} />}>
+      {/* 1. What happened: honest, quiet. An empty workout is not celebrated. */}
+      <View style={{ gap: space.sm }}>
+        <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("finish.title")}</AppText>
+        <SaveStatusLine since={finishedAt} />
+      </View>
 
       <Card>
-        <AppText style={{ fontWeight: "600" }}>{t("finish.counted")}</AppText>
-        <AppText>{t("finish.countedLine", { n: summary.totals.counted })}</AppText>
-        {summary.totals.warmups + summary.totals.unconfirmed > 0 ? (
-          <AppText style={{ color: p.muted }}>{t("finish.excludedNote", { warmups: summary.totals.warmups, unconfirmed: summary.totals.unconfirmed })}</AppText>
+        {noSets ? (
+          <AppText>{t("finish.noSets")}</AppText>
+        ) : (
+          <>
+            <View style={{ flexDirection: "row", alignItems: "baseline", gap: space.sm, flexWrap: "wrap" }}>
+              <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{summary.totals.counted}</AppText>
+              <AppText style={{ color: p.muted }}>{t("finish.countedLabel")}</AppText>
+            </View>
+            {summary.totals.warmups + summary.totals.unconfirmed > 0 ? (
+              <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("finish.excludedNote", { warmups: summary.totals.warmups, unconfirmed: summary.totals.unconfirmed })}</AppText>
+            ) : null}
+          </>
+        )}
+        {/* Records are secondary: collapsed until asked for. */}
+        {recordLines.length > 0 || summary.totals.records === 0 ? (
+          <>
+            <BigButton variant="quiet" icon={showRecords ? undefined : "chevron"} label={`${t("finish.records")}${recordLines.length > 0 ? ` (${recordLines.length})` : ""}`} onPress={() => setShowRecords((v) => !v)} />
+            {showRecords ? (
+              recordLines.length > 0 ? recordLines.map((l) => <AppText key={l}>{l}</AppText>) : <AppText>{t("finish.noRecords")}</AppText>
+            ) : null}
+          </>
         ) : null}
-        <AppText style={{ fontWeight: "600", marginTop: space.sm }}>{t("finish.records")}</AppText>
-        {summary.exercises.flatMap((e) => {
-          const name = lang === "ar" ? e.nameAr : e.nameEn;
-          const lines: string[] = [];
-          if (e.firstTime) lines.push(`${name}: ${t("finish.firstTime")}`);
-          for (const r of e.records) {
-            if (r === "load" && e.top) lines.push(`${name}: ${t("finish.record.load", { load: formatLoad(e.top.load, lang, unit) })}`);
-            if (r === "quantity_at_load" && e.top && e.measure && e.top.quantity !== undefined) {
-              const q = isolateLtr(quantityText(e.top.quantity, e.measure, { s: t("qty.s"), m: t("qty.m") }));
-              lines.push(`${name}: ${e.top.load > 0 ? t("finish.record.quantity", { load: formatLoad(e.top.load, lang, unit), q }) : t("finish.record.quantityBare", { q })}`);
-            }
-            if (r === "reps_at_load" && e.top) lines.push(`${name}: ${t("finish.record.reps", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps })}`);
-          }
-          return lines.map((l) => <AppText key={`${e.exerciseId}-${l}`}>{l}</AppText>);
-        })}
-        {summary.totals.records === 0 && !summary.exercises.some((e) => e.firstTime) ? <AppText>{t("finish.noRecords")}</AppText> : null}
       </Card>
 
+      {/* 2. What happens next: the targets are already written; accept, edit or reject each. */}
       {next === "none" ? (
         <Card><AppText>{t("finish.noNext")}</AppText></Card>
       ) : (
-        <>
-          <AppText accessibilityRole="header" style={{ fontSize: 20, fontWeight: "600" }}>{t("finish.next", { day: next.dayName })}</AppText>
-          <AppText style={{ color: p.muted }}>{t("finish.nextHint")}</AppText>
-          {error ? <AppText style={{ color: p.danger }}>{error}</AppText> : null}
+        <View style={{ gap: space.md }}>
+          <View style={{ gap: space.xs }}>
+            <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{t("finish.next", { day: next.dayName })}</AppText>
+            <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("finish.nextHint")}</AppText>
+          </View>
+          {error ? <Notice kind="error">{error}</Notice> : null}
           {next.targets.map((tg) => {
             const info = next.equipment[tg.exerciseId];
             const spec = info ? findSpec(next.gym, info.equipment) : null;
             const isEditing = editing?.targetId === tg.id;
+            const hasTarget = !(tg.currency === "none" || (tg.effectiveLoad === null && tg.status !== "rejected")) && tg.status !== "rejected";
             return (
               <Card key={tg.id}>
-                <AppText style={{ fontSize: 16, fontWeight: "600" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
-                {tg.currency === "none" || tg.effectiveLoad === null && tg.status !== "rejected" ? (
-                  <AppText>{t("finish.noTarget")}</AppText>
+                <AppText style={{ fontWeight: "600" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
+                {tg.currency === "none" || (tg.effectiveLoad === null && tg.status !== "rejected") ? (
+                  <AppText style={{ color: p.muted }}>{t("finish.noTarget")}</AppText>
                 ) : tg.status === "rejected" ? (
-                  <AppText>{t("finish.rejectedNote")}</AppText>
+                  <AppText style={{ color: p.muted }}>{t("finish.rejectedNote")}</AppText>
                 ) : (
-                  <AppText ltr style={{ fontSize: 20, fontWeight: "600", color: p.accent }}>
-                    {t("today.nextSession", { target: isolateLtr(targetText(tg, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") })) })}
-                  </AppText>
+                  <TargetStrip label={t("target.label")} value={isolateLtr(targetText(tg, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") }))} reason={shortReason(renderReason(localizeReason(tg.reason, unit, lang), lang))} />
                 )}
-                <AppText style={{ color: p.muted, fontSize: 14 }}>{shortReason(renderReason(localizeReason(tg.reason, unit, lang), lang))}</AppText>
-                <AppText style={{ color: p.muted }}>{t(`finish.status.${tg.status}` as never)}</AppText>
+                <InlineStatus kind={tg.status === "rejected" ? "warn" : tg.status === "proposed" ? "info" : "success"} text={t(`finish.status.${tg.status}` as never)} />
                 {notices[tg.id] ? <AppText style={{ fontWeight: "600" }}>{notices[tg.id]}</AppText> : null}
 
                 {isEditing && editing ? (
-                  <View style={{ gap: space.sm }}>
+                  <View style={{ gap: space.md }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-                      <View style={{ width: 72 }}>
-                        <BigButton label="−" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free", unit).load })} />
-                      </View>
-                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: 28, fontWeight: "600" }}>{weightText(editing.load, unit)} {unitText}</AppText>
-                      <View style={{ width: 72 }}>
-                        <BigButton label="+" selected={false} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, 1, (info?.setup as "free") ?? "free", unit).load })} />
-                      </View>
+                      <IconButton icon="minus" label={`${t("finish.edit")} −`} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free", unit).load })} />
+                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: ty.load, fontWeight: "600" }}>{weightText(editing.load, unit)} {unitText}</AppText>
+                      <IconButton icon="plus" label={`${t("finish.edit")} +`} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, 1, (info?.setup as "free") ?? "free", unit).load })} />
                     </View>
                     <BigButton
                       label={t("finish.editSave")}
@@ -243,33 +266,41 @@ export function FinishScreen() {
                         })
                       }
                     />
-                    <BigButton label={t("finish.cancel")} selected={false} onPress={() => setEditing(null)} />
+                    <BigButton variant="secondary" label={t("finish.cancel")} onPress={() => setEditing(null)} />
                   </View>
                 ) : (
                   <View style={{ gap: space.sm }}>
                     {tg.currency !== "none" && tg.load !== null ? (
                       <>
-                        <BigButton
-                          label={t("finish.accept")}
-                          disabled={tg.status === "accepted"}
-                          onPress={() => {
-                            // A load jump of more than 10% over last time is confirmed first, with smaller steps on offer.
-                            const prev = Number(tg.reason.params.prevLoad);
-                            const lastReps = Number(tg.reason.params.lastReps);
-                            const micro = Number.isFinite(prev) ? (spec ? nextLoadAbove(spec, prev, false) : prev + 1.25) : null;
-                            const check = isTimed(tg.measure) ? null : checkJump({ prevLoad: Number.isFinite(prev) ? prev : null, prevReps: Number.isFinite(lastReps) ? lastReps : null, targetLoad: tg.effectiveLoad, targetReps: tg.reps, setup: info?.setup ?? "free", thresholdPct: threshold, microLoad: micro });
-                            if (check?.needsConfirm) return setJumpFor({ targetId: tg.id, check, prev });
-                            void act(() => finish.acceptTarget(tg.id));
-                          }}
-                        />
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+                          <View style={{ flexGrow: 1, flexBasis: 150 }}>
+                            <BigButton
+                              icon={tg.status === "accepted" ? "check" : undefined}
+                              label={t("finish.accept")}
+                              disabled={tg.status === "accepted"}
+                              onPress={() => {
+                                // A load jump of more than 10% over last time is confirmed first, with smaller steps on offer.
+                                const prev = Number(tg.reason.params.prevLoad);
+                                const lastReps = Number(tg.reason.params.lastReps);
+                                const micro = Number.isFinite(prev) ? (spec ? nextLoadAbove(spec, prev, false) : prev + 1.25) : null;
+                                const check = isTimed(tg.measure) ? null : checkJump({ prevLoad: Number.isFinite(prev) ? prev : null, prevReps: Number.isFinite(lastReps) ? lastReps : null, targetLoad: tg.effectiveLoad, targetReps: tg.reps, setup: info?.setup ?? "free", thresholdPct: threshold, microLoad: micro });
+                                if (check?.needsConfirm) return setJumpFor({ targetId: tg.id, check, prev });
+                                void act(() => finish.acceptTarget(tg.id));
+                              }}
+                            />
+                          </View>
+                          <View style={{ flexGrow: 1, flexBasis: 150 }}>
+                            <BigButton variant="secondary" icon="edit" label={t("finish.edit")} onPress={() => setEditing({ targetId: tg.id, load: tg.effectiveLoad ?? tg.load ?? 0 })} />
+                          </View>
+                        </View>
                         {jumpFor?.targetId === tg.id && tg.effectiveLoad !== null ? (
                           <View accessibilityLiveRegion="polite" style={{ gap: space.sm }}>
-                            <AppText style={{ fontWeight: "600", color: p.warn }}>{t("jump.title", { pct: jumpFor.check.pct, prev: formatLoad(jumpFor.prev, lang, unit), next: formatLoad(tg.effectiveLoad, lang, unit) })}</AppText>
+                            <Notice kind="warn">{t("jump.title", { pct: jumpFor.check.pct, prev: formatLoad(jumpFor.prev, lang, unit), next: formatLoad(tg.effectiveLoad, lang, unit) })}</Notice>
                             {jumpOptions(jumpFor.check, { load: tg.effectiveLoad, reps: tg.reps ?? 1 }, (k, params) => t(k, params), (kg) => formatLoad(kg, lang, unit)).map((o) => (
                               <BigButton
                                 key={o.kind}
                                 label={o.label}
-                                selected={o.kind === "anyway"}
+                                variant={o.kind === "anyway" ? "primary" : "secondary"}
                                 onPress={() => {
                                   setJumpFor(null);
                                   void act(async () => {
@@ -280,51 +311,61 @@ export function FinishScreen() {
                                 }}
                               />
                             ))}
-                            <BigButton label={t("finish.cancel")} selected={false} onPress={() => setJumpFor(null)} />
+                            <BigButton variant="quiet" label={t("finish.cancel")} onPress={() => setJumpFor(null)} />
                           </View>
                         ) : null}
-                        <BigButton label={t("finish.edit")} selected={false} onPress={() => setEditing({ targetId: tg.id, load: tg.effectiveLoad ?? tg.load ?? 0 })} />
-                        <BigButton label={t("finish.reject")} selected={false} disabled={tg.status === "rejected"} onPress={() =>
-                          act(async () => {
-                            const o = await finish.rejectTarget(tg.id);
-                            if (!o) return;
-                            const jump = jumpKindText(o.jumpKind, unit, t as never);
-                            setNotices((n) => ({ ...n, [tg.id]: o.blocked ? t("stop.notice.stopped", { jump, count: o.count }) : t("stop.notice.counting", { jump, count: o.count, max: o.max }) }));
-                          })
-                        }
-                      />
                       </>
                     ) : null}
-                    <BigButton label={t("finish.why")} selected={false} onPress={() => navigation.navigate("Why", { targetId: tg.id })} />
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+                      <BigButton variant="quiet" icon="why" label={t("finish.why")} onPress={() => navigation.navigate("Why", { targetId: tg.id })} />
+                      {tg.currency !== "none" && tg.load !== null ? (
+                        <BigButton
+                          variant="quiet"
+                          label={t("finish.reject")}
+                          disabled={tg.status === "rejected"}
+                          onPress={() =>
+                            act(async () => {
+                              const o = await finish.rejectTarget(tg.id);
+                              if (!o) return;
+                              const jump = jumpKindText(o.jumpKind, unit, t as never);
+                              setNotices((n) => ({ ...n, [tg.id]: o.blocked ? t("stop.notice.stopped", { jump, count: o.count }) : t("stop.notice.counting", { jump, count: o.count, max: o.max }) }));
+                            })
+                          }
+                        />
+                      ) : null}
+                    </View>
                   </View>
                 )}
               </Card>
             );
           })}
-        </>
+        </View>
       )}
-      <BigButton label={sharing ? t("card.sharing") : t("card.share")} selected={false} disabled={sharing} onPress={shareCard} />
-      {askLink ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("link.consent.title")}</AppText>
-          <AppText>{t("link.consent.body")}</AppText>
-          <BigButton label={linking ? t("link.sharing") : t("link.consent.ok")} disabled={linking} onPress={shareLink} />
-          <BigButton label={t("link.consent.cancel")} selected={false} disabled={linking} onPress={() => setAskLink(false)} />
-        </Card>
-      ) : link ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>✓ {t("link.ready")}</AppText>
-          <BigButton label={t("link.again")} selected={false} onPress={() => void Share.share({ message: t("link.message", { url: link.url }) })} />
-          <BigButton label={t("link.stop")} selected={false} onPress={stopLink} />
-        </Card>
-      ) : (
-        <>
-          <BigButton label={t("link.share")} selected={false} onPress={() => setAskLink(true)} />
-          {notices.link ? <AppText style={{ color: p.muted }}>{notices.link}</AppText> : null}
-        </>
-      )}
-      <BigButton label={t("finish.done")} onPress={() => navigation.popToTop()} />
+
+      {/* 3. Sharing is optional and secondary. */}
+      <View style={{ gap: space.sm }}>
+        <BigButton variant="secondary" icon="export" label={sharing ? t("card.sharing") : t("card.share")} disabled={sharing} onPress={shareCard} />
+        {askLink ? (
+          <Card>
+            <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("link.consent.title")}</AppText>
+            <AppText>{t("link.consent.body")}</AppText>
+            <BigButton label={linking ? t("link.sharing") : t("link.consent.ok")} loading={linking} onPress={shareLink} />
+            <BigButton variant="secondary" label={t("link.consent.cancel")} disabled={linking} onPress={() => setAskLink(false)} />
+          </Card>
+        ) : link ? (
+          <Card>
+            <InlineStatus kind="success" text={t("link.ready")} />
+            <BigButton variant="secondary" label={t("link.again")} onPress={() => void Share.share({ message: t("link.message", { url: link.url }) })} />
+            <BigButton variant="secondary" label={t("link.stop")} onPress={stopLink} />
+          </Card>
+        ) : (
+          <>
+            <BigButton variant="secondary" icon="export" label={t("link.share")} onPress={() => setAskLink(true)} />
+            {notices.link ? <AppText style={{ color: p.muted }}>{notices.link}</AppText> : null}
+          </>
+        )}
+      </View>
       <HealthNote />
-    </ScrollView>
+    </Screen>
   );
 }

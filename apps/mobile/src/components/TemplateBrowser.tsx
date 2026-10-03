@@ -6,7 +6,7 @@ import { NO_FILTER, type TemplateFilter } from "../logic/templateFilter";
 import { pickerView, toggleFilter } from "../logic/templatePicker";
 import type { Template } from "../logic/templateTypes";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip } from "../ui";
+import { AppText, BigButton, Card, Chip, FilterPanel } from "../ui";
 
 /**
  * Programme templates grouped by days per week, with filters for days, Home / Gym, the equipment you have, goal and level.
@@ -29,27 +29,27 @@ export function TemplateBrowser(props: {
 
   return (
     <View style={{ gap: space.md }}>
-      <AppText style={{ fontSize: 16, fontWeight: "600" }}>{t("tpl.filters")}</AppText>
-      {view.facets.map((f) => (
-        <View key={f.facet} style={{ gap: space.xs }}>
-          <AppText style={{ fontWeight: "600" }}>{t(f.titleKey)}</AppText>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-            <Chip label={t("tpl.all")} selected={filter[f.facet] === null} onPress={() => setFilter({ ...filter, [f.facet]: null })} />
-            {f.options.map((o) => (
-              <Chip
-                key={String(o.value)}
-                label={o.labelKey ? t(o.labelKey) : t("tpl.days.n", { n: o.value as number })}
-                selected={o.selected}
-                disabled={o.disabled}
-                onPress={() => setFilter(toggleFilter(filter, f.facet, o.value))}
-              />
-            ))}
+      <FilterPanel title={t("tpl.filters")} activeCount={view.active} clearLabel={t("tpl.clear")} onClear={() => setFilter(NO_FILTER)}>
+        {view.facets.map((f) => (
+          <View key={f.facet} style={{ gap: space.xs }}>
+            <AppText style={{ fontWeight: "600" }}>{t(f.titleKey)}</AppText>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+              <Chip label={t("tpl.all")} selected={filter[f.facet] === null} onPress={() => setFilter({ ...filter, [f.facet]: null })} />
+              {f.options.map((o) => (
+                <Chip
+                  key={String(o.value)}
+                  label={o.labelKey ? t(o.labelKey) : t("tpl.days.n", { n: o.value as number })}
+                  selected={o.selected}
+                  disabled={o.disabled}
+                  onPress={() => setFilter(toggleFilter(filter, f.facet, o.value))}
+                />
+              ))}
+            </View>
+            {f.facet === "venue" ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("tpl.venue.note")}</AppText> : null}
           </View>
-          {f.facet === "venue" ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("tpl.venue.note")}</AppText> : null}
-        </View>
-      ))}
+        ))}
+      </FilterPanel>
       <AppText style={{ color: p.muted }}>{t("tpl.count", { n: view.total })}</AppText>
-      {view.active > 0 ? <BigButton label={t("tpl.clear")} selected={false} onPress={() => setFilter(NO_FILTER)} /> : null}
       {view.total === 0 ? <AppText style={{ fontWeight: "600" }}>{t("tpl.none")}</AppText> : null}
       {view.sections.map((g) => (
         <View key={g.days} style={{ gap: space.sm }}>
@@ -65,7 +65,7 @@ export function TemplateBrowser(props: {
                 {x.schedule.length !== x.days ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("tpl.rotation", { n: x.schedule.length, d: x.days })}</AppText> : null}
                 {x.goal === "bulking" ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("tpl.bulking.note")}</AppText> : null}
                 {note ? <AppText style={{ color: p.muted }}>{note}</AppText> : null}
-                <BigButton label={props.actionLabel(x)} selected={false} disabled={props.disabled} onPress={() => props.onPick(x)} />
+                <BigButton variant="secondary" label={props.actionLabel(x)} disabled={props.disabled} onPress={() => props.onPick(x)} />
               </Card>
             );
           })}

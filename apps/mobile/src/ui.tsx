@@ -210,7 +210,7 @@ export function Field(props: {
 }
 
 /** Compact neutral outline; lime fill only for the selected choice, and a check mark so selection is not colour alone. */
-export function Chip(props: { label: string; selected?: boolean; disabled?: boolean; onPress?: () => void }) {
+export function Chip(props: { label: string; selected?: boolean; disabled?: boolean; onPress?: () => void; /** danger = outlined in the danger colour (remove actions). */ tone?: "danger" }) {
   const p = usePalette();
   return (
     <Pressable
@@ -228,12 +228,12 @@ export function Chip(props: { label: string; selected?: boolean; disabled?: bool
         alignItems: "center",
         gap: space.xs,
         borderWidth: props.selected ? 0 : 1.5,
-        borderColor: p.edge,
+        borderColor: props.tone === "danger" ? p.danger : p.edge,
         backgroundColor: props.selected ? p.fill : pressed ? p.raised : "transparent",
       })}
     >
       {props.selected ? <Icon name="check" color={p.onFill} size={18} /> : null}
-      <AppText style={{ fontWeight: "600", fontSize: ty.label, color: props.selected ? p.onFill : p.text, flexShrink: 1 }}>{props.label}</AppText>
+      <AppText style={{ fontWeight: "600", fontSize: ty.label, color: props.selected ? p.onFill : props.tone === "danger" ? p.danger : p.text, flexShrink: 1 }}>{props.label}</AppText>
     </Pressable>
   );
 }
@@ -453,5 +453,41 @@ export function ListCard({ title, note, onPress }: { title: string; note?: strin
       </View>
       <Icon name="chevron" color={p.muted} size={20} mirror />
     </Pressable>
+  );
+}
+
+/**
+ * A collapsible filter group: one 48 px header row (title, a count of active filters, chevron), content only when open, and a clear
+ * action. Collapsed by default so a long list of choices does not push the results off the screen.
+ */
+export function FilterPanel({ title, activeCount, clearLabel, onClear, children, defaultOpen = false }: { title: string; activeCount: number; clearLabel: string; onClear: () => void; children: React.ReactNode; defaultOpen?: boolean }) {
+  const p = usePalette();
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <View style={{ borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: p.card, overflow: "hidden" }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={activeCount > 0 ? `${title}, ${activeCount}` : title}
+        onPress={() => setOpen((o) => !o)}
+        style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.lg, backgroundColor: pressed ? p.raised : "transparent" })}
+      >
+        <AppText style={{ fontWeight: "600", flex: 1 }}>{title}</AppText>
+        {activeCount > 0 ? (
+          <View style={{ minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: 8, backgroundColor: p.fill, alignItems: "center", justifyContent: "center" }}>
+            <AppText ltr style={{ color: p.onFill, fontSize: ty.label, fontWeight: "600" }}>{activeCount}</AppText>
+          </View>
+        ) : null}
+        <View style={{ transform: [{ rotate: open ? "-90deg" : "90deg" }] }}>
+          <Icon name="chevron" color={p.muted} size={22} />
+        </View>
+      </Pressable>
+      {open ? (
+        <View style={{ padding: space.lg, paddingTop: space.xs, gap: space.md }}>
+          {children}
+          {activeCount > 0 ? <BigButton variant="quiet" label={clearLabel} onPress={onClear} /> : null}
+        </View>
+      ) : null}
+    </View>
   );
 }

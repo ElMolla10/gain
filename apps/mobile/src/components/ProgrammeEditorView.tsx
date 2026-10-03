@@ -8,7 +8,7 @@ import { computeExposure } from "../logic/exposure";
 import {
   addDay, addExercise, moveDay, moveExercise, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, updateExercise, type ProgrammeDraft,
 } from "../logic/programmeDraft";
-import { space, usePalette } from "../theme";
+import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Field, Stepper } from "../ui";
 import { EffectView, ExposureView } from "./ExposureView";
 import { ExercisePicker } from "./ExercisePicker";
@@ -48,16 +48,16 @@ export function ProgrammeEditorView(props: {
     <View style={{ gap: space.md }}>
       <Field label={t("prog.name")} value={d.name} onChangeText={(s) => props.onChange(renameProgramme(d, s))} />
       {d.days.map((day, di) => (
-        <Card key={di}>
+        <Card key={di} style={{ gap: space.md }}>
           <Field label={t("prog.day.name")} value={day.name} onChangeText={(s) => props.onChange(renameDay(d, di, s))} />
           <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-            <Chip label={`↑ ${t("prog.up")}`} onPress={() => props.onChange(moveDay(d, di, di - 1))} />
-            <Chip label={`↓ ${t("prog.down")}`} onPress={() => props.onChange(moveDay(d, di, di + 1))} />
-            <Chip label={t("prog.day.remove")} onPress={() => props.onChange(removeDay(d, di))} />
+            <Chip label={t("prog.up")} onPress={() => props.onChange(moveDay(d, di, di - 1))} />
+            <Chip label={t("prog.down")} onPress={() => props.onChange(moveDay(d, di, di + 1))} />
+            <Chip label={t("prog.day.remove")} tone="danger" onPress={() => props.onChange(removeDay(d, di))} />
           </View>
           {day.exercises.map((e, ei) => (
             <View key={e.exerciseId} style={{ gap: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderColor: p.border }}>
-              <AppText style={{ fontWeight: "600", fontSize: 16 }}>{nameOf(e.exerciseId)}</AppText>
+              <AppText style={{ fontWeight: "600", fontSize: ty.body }}>{nameOf(e.exerciseId)}</AppText>
               <Stepper label={t("prog.ex.sets")} value={e.sets} min={1} max={12} onChange={(n) => props.onChange(updateExercise(d, di, ei, { sets: n }))} />
               {measureOf(e.exerciseId) === "reps" ? (
                 <>
@@ -97,16 +97,16 @@ export function ProgrammeEditorView(props: {
                 </View>
               )}
               <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-                <Chip label={`↑ ${t("prog.up")}`} onPress={() => props.onChange(moveExercise(d, di, ei, ei - 1))} />
-                <Chip label={`↓ ${t("prog.down")}`} onPress={() => props.onChange(moveExercise(d, di, ei, ei + 1))} />
-                <Chip label={t("prog.ex.remove")} onPress={() => props.onChange(removeExercise(d, di, ei))} />
+                <Chip label={t("prog.up")} onPress={() => props.onChange(moveExercise(d, di, ei, ei - 1))} />
+                <Chip label={t("prog.down")} onPress={() => props.onChange(moveExercise(d, di, ei, ei + 1))} />
+                <Chip label={t("prog.ex.remove")} tone="danger" onPress={() => props.onChange(removeExercise(d, di, ei))} />
               </View>
             </View>
           ))}
-          <BigButton label={t("prog.ex.add")} selected={false} onPress={() => setPickerDay(di)} />
+          <BigButton variant="secondary" icon="plus" label={t("prog.ex.add")} onPress={() => setPickerDay(di)} />
         </Card>
       ))}
-      <BigButton label={t("prog.day.add")} selected={false} onPress={() => props.onChange(addDay(d, t("prog.day.default", { n: d.days.length + 1 }).replace(/[\u2066\u2069]/g, "")))} />
+      <BigButton variant="secondary" icon="plus" label={t("prog.day.add")} onPress={() => props.onChange(addDay(d, t("prog.day.default", { n: d.days.length + 1 }).replace(/[\u2066\u2069]/g, "")))} />
       {before && props.baseline ? <EffectView before={before} after={after} beforeDraft={props.baseline} afterDraft={d} nameOf={nameOf} /> : <ExposureView rows={after} />}
       <ExercisePicker
         visible={pickerDay !== null}

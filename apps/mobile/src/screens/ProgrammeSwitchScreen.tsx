@@ -1,6 +1,5 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ScrollView } from "react-native";
 import { useServices } from "../AppContext";
 import { DraftInvalid, SessionInProgress, type ProgrammeInfo } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
@@ -9,8 +8,8 @@ import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { markGoalLift } from "../logic/onboarding";
 import { TemplateBrowser } from "../components/TemplateBrowser";
 import { instantiateTemplate, TEMPLATES, type Template } from "../logic/templates";
-import { space, usePalette } from "../theme";
-import { AppText, ArDraftNote, BigButton, Card } from "../ui";
+import { space, type as ty, usePalette } from "../theme";
+import { AppText, ArDraftNote, BigButton, Card, InlineStatus, LoadingState, Notice, Screen, SectionTitle } from "../ui";
 
 /**
  * Choose a different programme: switch back to one of your own (all its versions and history stay) or start a template as a NEW programme.
@@ -58,24 +57,24 @@ export function ProgrammeSwitchScreen() {
     await programmes.createProgramme(goalExerciseId ? markGoalLift(draft, goalExerciseId) : draft, { activate: true });
   }
 
-  if (list === null) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
+  if (list === null) return <LoadingState />;
   return (
-    <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md, paddingBottom: space.xl * 2 }}>
+    <Screen>
       <AppText style={{ color: p.muted }}>{t("prog.switch.note")}</AppText>
-      {message ? <AppText style={{ fontWeight: "600" }}>⚠ {message}</AppText> : null}
-      <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("prog.switch.mine")}</AppText>
+      {message ? <Notice kind="warn">{message}</Notice> : null}
+      <SectionTitle>{t("prog.switch.mine")}</SectionTitle>
       {list.map((g) => (
         <Card key={g.programmeId}>
-          <AppText style={{ fontSize: 16, fontWeight: "600" }}>{g.name}</AppText>
+          <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{g.name}</AppText>
           <AppText style={{ color: p.muted }}>{t("prog.switch.line", { v: g.version, days: g.days, sessions: g.finishedSessions })}</AppText>
-          {g.isActive ? <AppText style={{ color: p.accent, fontWeight: "600" }}>✓ {t("prog.current")}</AppText> : <BigButton label={t("prog.switch.use")} disabled={busy} onPress={() => void run(() => programmes.setActiveProgramme(g.programmeId))} />}
+          {g.isActive ? <InlineStatus kind="success" text={t("prog.current")} /> : <BigButton variant="secondary" label={t("prog.switch.use")} disabled={busy} onPress={() => void run(() => programmes.setActiveProgramme(g.programmeId))} />}
         </Card>
       ))}
-      <AppText style={{ fontSize: 20, fontWeight: "600" }}>{t("prog.switch.templates")}</AppText>
+      <SectionTitle>{t("prog.switch.templates")}</SectionTitle>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
       <TemplateBrowser templates={TEMPLATES} showDaysFilter actionLabel={() => t("prog.switch.startTemplate")} disabled={busy} onPick={(tpl) => void run(() => startTemplate(tpl))} />
-      <BigButton label={t("prog.new")} selected={false} onPress={() => nav.navigate("ProgrammeEdit")} />
+      <BigButton variant="secondary" icon="plus" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
       <ArDraftNote />
-    </ScrollView>
+    </Screen>
   );
 }

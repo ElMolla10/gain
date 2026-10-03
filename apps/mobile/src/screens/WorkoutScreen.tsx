@@ -13,6 +13,8 @@ import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings
 import { warmupOffer } from "../logic/warmups";
 import { canLog, initialDraft, repeatLast, RIR_CHOICES, stepLoad, stepReps, type SetDraft } from "../logic/draft";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
+import { NumField } from "../components/NumField";
+import { parseLoadInput, parseRepsInput } from "../logic/setInput";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card } from "../ui";
 
@@ -43,21 +45,16 @@ const clock = (ms: number) => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-function Stepper(props: { label: string; value: string; onLess: () => void; onMore: () => void; lessLabel: string; moreLabel: string }) {
-  const p = usePalette();
+/** Weight / reps: typed directly (numeric keyboard); the − / + steppers beside it are optional and secondary. */
+function TypedStepper(props: { field: React.ReactNode; onLess: () => void; onMore: () => void; lessLabel: string; moreLabel: string }) {
   return (
-    <View style={{ gap: space.xs }}>
-      <AppText style={{ color: p.muted }}>{props.label}</AppText>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-        <View style={{ width: 72 }}>
-          <BigButton label="−" onPress={props.onLess} accessibilityHint={props.lessLabel} selected={false} />
-        </View>
-        <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: 40, fontWeight: "800" }}>
-          {props.value}
-        </AppText>
-        <View style={{ width: 72 }}>
-          <BigButton label="+" onPress={props.onMore} accessibilityHint={props.moreLabel} selected={false} />
-        </View>
+    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: space.sm }}>
+      <View style={{ width: 56 }}>
+        <BigButton label="−" onPress={props.onLess} accessibilityHint={props.lessLabel} selected={false} />
+      </View>
+      <View style={{ flex: 1, flexDirection: "row" }}>{props.field}</View>
+      <View style={{ width: 56 }}>
+        <BigButton label="+" onPress={props.onMore} accessibilityHint={props.moreLabel} selected={false} />
       </View>
     </View>
   );
@@ -312,18 +309,25 @@ export function WorkoutScreen() {
             <BigButton label={t("workout.warmup")} selected={draft.warmup} onPress={() => setDraft((d) => ({ ...d, warmup: true }))} />
           </View>
         </View>
-        <Stepper
-          label={`${t("workout.load")} (${unitText})`}
-          value={draft.load === null ? "—" : weightText(draft.load, unit)}
+        <TypedStepper
+          field={
+            <NumField<number>
+              label={`${t("workout.load")} (${unitText})`}
+              value={draft.load}
+              format={(v) => weightText(v, unit)}
+              parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
+              onValue={(v) => setDraft((d) => ({ ...d, load: v }))}
+              decimal
+            />
+          }
           onLess={() => loadStep(-1)}
           onMore={() => loadStep(1)}
           lessLabel={t("workout.less")}
           moreLabel={t("workout.more")}
         />
         {!spec ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("workout.stepFallback")}</AppText> : null}
-        <Stepper
-          label={t("workout.reps")}
-          value={draft.reps === null ? "—" : String(draft.reps)}
+        <TypedStepper
+          field={<NumField<number> label={t("workout.reps")} value={draft.reps} format={(v) => String(v)} parse={(txt) => parseRepsInput(txt)} onValue={(v) => setDraft((d) => ({ ...d, reps: v }))} />}
           onLess={() => setDraft((d) => ({ ...d, reps: stepReps(d.reps, -1) }))}
           onMore={() => setDraft((d) => ({ ...d, reps: stepReps(d.reps, 1) }))}
           lessLabel={t("workout.less")}

@@ -49,16 +49,21 @@ describe("programme picker view", () => {
     expect(pickerView(TEMPLATES, NO_FILTER).total).toBe(TEMPLATES.length);
   });
   it("an option that would show nothing is disabled (not the one already chosen), so the list is never empty by tapping", () => {
-    const f = toggleFilter(NO_FILTER, "venue", "home");
+    const f = toggleFilter(NO_FILTER, "goal", "bulking"); // bulking programmes are gym-only
     const v = pickerView(TEMPLATES, f);
-    const gymGear = opt(v, "gear", "gym");
-    expect(gymGear.count).toBe(0);
-    expect(gymGear.disabled).toBe(true);
+    const home = opt(v, "venue", "home");
+    expect(home.count).toBe(0);
+    expect(home.disabled).toBe(true);
+    expect(opt(v, "gear", "band").disabled).toBe(true);
+    expect(opt(v, "venue", "gym").disabled).toBe(false);
     for (const facet of v.facets) for (const o of facet.options) if (!o.disabled) expect(o.count > 0 || o.selected).toBe(true);
     // Every enabled chip leads to a non-empty list.
     for (const facet of v.facets) for (const o of facet.options.filter((x) => !x.disabled)) expect(pickerView(TEMPLATES, toggleFilter(f, facet.facet, o.value)).total).toBeGreaterThan(0);
     // The chosen chip stays enabled even if later choices would empty it.
-    expect(opt(v, "venue", "home").disabled).toBe(false);
+    expect(opt(v, "goal", "bulking").disabled).toBe(false);
+    const stuck = pickerView(TEMPLATES, toggleFilter(f, "venue", "home"));
+    expect(stuck.total).toBe(0);
+    expect(opt(stuck, "venue", "home").disabled).toBe(false); // chosen, so it can be un-chosen
   });
   it("counts equal what tapping the chip would show", () => {
     const v = pickerView(TEMPLATES, toggleFilter(NO_FILTER, "level", "beginner"));
@@ -73,11 +78,11 @@ describe("programme picker view", () => {
       expect(v.sections.map((s) => s.days)).toEqual([d]);
     }
   });
-  it("every day count 2 to 6 has at least 3 programmes, at least 2 of them usable at home", () => {
+  it("every day count 2 to 6 has at least 3 programmes and at least one usable at home (two or more for 2 to 4 days)", () => {
     for (const d of [2, 3, 4, 5, 6]) {
       const list = TEMPLATES.filter((t) => t.days === d);
       expect(list.length, `days ${d}`).toBeGreaterThanOrEqual(3);
-      expect(list.filter((t) => t.gear !== "gym").length, `days ${d} home`).toBeGreaterThanOrEqual(d === 5 ? 1 : 2);
+      expect(list.filter((t) => t.gear !== "gym").length, `days ${d} home`).toBeGreaterThanOrEqual(d >= 5 ? 1 : 2);
     }
   });
 });

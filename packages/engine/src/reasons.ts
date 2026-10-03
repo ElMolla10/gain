@@ -31,6 +31,13 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
       "No comparable history for this lift in this gym, so nothing is proposed. Log a first set and the next session will have a target.",
     no_gym_loads:
       "This gym has no loads saved for {equipment}, so no weight is proposed. Add the loads that exist and try again.",
+    timed_longer: "Stay at {load} {unit}, aim for {target} {qunit}. Last time your weakest set was {last} {qunit}; a little longer each time.",
+    timed_rebuild: "Stay at {load} {unit} and aim for {target} {qunit}. Last time you got {last} {qunit}, below the {lo}-{hi} {qunit} range.",
+    timed_repeat: "Repeat {load} {unit} for {target} {qunit}. There is not enough comparable history to push yet, so this is a smaller step on purpose.",
+    timed_confirm: "Stay at {load} {unit} and repeat {target} {qunit}. That is {have} of {need} sessions at the top; the next one earns more load.",
+    timed_load_up: "Go up to {load} {unit} and aim for {target} {qunit}. You reached {last} {qunit} at {prevLoad} {unit}.",
+    timed_hold_top: "Stay at {load} {unit} for {target} {qunit}. You are at the top of your range and there is no heavier {equipment} in this gym; raise the range in the programme when you want a longer target.",
+    timed_hold_declined: "Stay at {load} {unit} for {target} {qunit}. You have declined the jump to {nextLoad} {unit} {count} times, so it will not be proposed again.",
   },
   ar: {
     reps_in_range: "ابقَ على {load} {unit}، وحاول تعمل {reps}، الـ{equipment} اللي بعده {nextLoad}.",
@@ -48,6 +55,13 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
     low_confidence_repeat: "كرّر {load} {unit} لـ{reps}. مفيش تاريخ كفاية للمقارنة عشان ندفعك، فده خطوة أصغر عن قصد.",
     no_history: "مفيش تاريخ يتقارن للتمرين ده في الجيم ده، فمفيش اقتراح. سجّل أول مجموعة والجلسة الجاية هيبقى فيها هدف.",
     no_gym_loads: "الجيم ده مفيهوش أوزان محفوظة لـ{equipment}، فمفيش وزن مقترح. ضيف الأوزان الموجودة وجرّب تاني.",
+    timed_longer: "ابقَ على {load} {unit}، وحاول توصل {target} {qunit}. آخر مرة أضعف مجموعة كانت {last} {qunit}؛ شوية أطول كل مرة.",
+    timed_rebuild: "ابقَ على {load} {unit} وحاول توصل {target} {qunit}. آخر مرة عملت {last} {qunit}، أقل من النطاق {lo}-{hi} {qunit}.",
+    timed_repeat: "كرّر {load} {unit} لمدة {target} {qunit}. مفيش تاريخ كفاية للمقارنة عشان ندفعك، فده خطوة أصغر عن قصد.",
+    timed_confirm: "ابقَ على {load} {unit} وكرّر {target} {qunit}. دي {have} من {need} جلسات في القمة، والجاية تستاهل وزن أكتر.",
+    timed_load_up: "ارفع لـ{load} {unit} وحاول توصل {target} {qunit}. وصلت {last} {qunit} على {prevLoad} {unit}.",
+    timed_hold_top: "ابقَ على {load} {unit} لمدة {target} {qunit}. إنت في قمة النطاق ومفيش {equipment} أتقل في الجيم ده؛ ارفع النطاق في البرنامج لما تحب هدف أطول.",
+    timed_hold_declined: "ابقَ على {load} {unit} لمدة {target} {qunit}. رفضت القفزة لـ{nextLoad} {unit} {count} مرات، فمش هقترحها تاني.",
   },
 };
 
@@ -75,6 +89,12 @@ export const equipmentNames: Record<Locale, Record<string, string>> = {
   },
 };
 
+/** Unit of a time / distance target: "s" seconds, "m" metres. Arabic letters are a draft for review. */
+export const quantityUnits: Record<Locale, Record<string, string>> = {
+  en: { s: "s", m: "m" },
+  ar: { s: "ث", m: "م" },
+};
+
 export const qualityNames: Record<Locale, Record<string, string>> = {
   en: { pause: "a one-second pause", slow_eccentric: "a slower lowering", extra_set: "one extra set" },
   ar: { pause: "وقفة ثانية", slow_eccentric: "نزول أبطأ", extra_set: "مجموعة زيادة" },
@@ -91,6 +111,7 @@ export function renderReason(reason: ReasonText, locale: Locale = "en"): string 
     if (v === undefined) return m;
     if (name === "equipment") return equipmentNames[locale][String(v)] ?? String(v);
     if (name === "quality") return qualityNames[locale][String(v)] ?? String(v);
+    if (name === "qunit") return quantityUnits[locale][String(v)] ?? String(v);
     return String(v);
   });
 }

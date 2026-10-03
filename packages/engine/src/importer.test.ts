@@ -41,6 +41,20 @@ describe("Hevy through the common parser (real export fixture)", () => {
     expect(hang.length).toBeGreaterThan(0);
     expect(hang.every((e) => e.sets.length === 0 && e.skippedRows > 0)).toBe(true);
   });
+  it("the timed rows are kept for a timed exercise (seconds), and the weights stay kg", () => {
+    const hang = r.workouts.flatMap((w) => w.exercises).filter((e) => e.title === "Dead Hang");
+    expect(hang.every((e) => (e.timed?.length ?? 0) === e.skippedRows)).toBe(true);
+    const first = r.workouts.find((w) => w.startTime === "2026-05-14T14:43:00")!.exercises.find((e) => e.title === "Dead Hang")!;
+    expect(first.timed).toEqual([{ load: 0, durationS: 75, distanceM: null }, { load: 0, durationS: 49, distanceM: null }, { load: 0, durationS: 38, distanceM: null }]);
+  });
+  it("distance rows become metres (km in kg files, miles in lb files); weights of timed rows convert like the rest", () => {
+    const head = "title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe\n";
+    const kg = parseImport(`${head}"Carry","Sep 29, 2026, 3:15 PM","Sep 29, 2026, 4:00 PM","","Farmers Walk",,"",0,"normal",32,,0.04,35,\n`);
+    expect(kg.workouts[0]!.exercises[0]!.timed).toEqual([{ load: 32, durationS: 35, distanceM: 40 }]);
+    const lb = parseImport(`${head.replace("weight_kg", "weight_lbs").replace("distance_km", "distance_miles")}"Carry","Sep 29, 2026, 3:15 PM","Sep 29, 2026, 4:00 PM","","Farmers Walk",,"",0,"normal",70,,0.1,,\n`);
+    const conv = toKilograms(lb).workouts[0]!.exercises[0]!.timed!;
+    expect(conv).toEqual([{ load: 31.75, durationS: null, distanceM: 160.9 }]);
+  });
   it("workout keys are unique, so a re-import can be recognised", () => {
     expect(new Set(r.workouts.map((w) => w.key)).size).toBe(70);
     expect(r.workouts[0]!.key).toBe(workoutKey("hevy", r.workouts[0]!.title, r.workouts[0]!.startTime));
@@ -69,6 +83,7 @@ describe("Strong parser (synthetic fixtures built from the documented format)", 
     const plank = r.workouts[0]!.exercises.find((e) => e.title === "Plank")!;
     expect(plank.sets).toEqual([]);
     expect(plank.skippedRows).toBe(1);
+    expect(plank.timed).toEqual([{ load: 0, durationS: 60, distanceM: null }]);
     expect(r.workouts[1]!.exercises[0]!.sets[1]).toEqual({ load: 225, reps: 3, tags: ["failure"] });
     expect(r.workouts[0]!.exercises.find((e) => e.title === "Pull Up")!.sets).toEqual([{ load: 0, reps: 8 }]);
   });

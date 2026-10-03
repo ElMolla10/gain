@@ -6,6 +6,11 @@ export type Currency = "reps" | "effort" | "quality" | "load" | "none";
 export type QualityChange = "pause" | "slow_eccentric" | "extra_set";
 export type OutlierStatus = "none" | "unconfirmed" | "confirmed" | "rejected";
 export type Confidence = "none" | "low" | "medium" | "high";
+/**
+ * What an exercise is counted in. `reps` (default): load x reps. `time`: a hold, in seconds (plank, dead hang, wall sit), optional added load.
+ * `distance`: metres carried or walked (farmer's walk), with the load carried. See timed.ts.
+ */
+export type Measure = "reps" | "time" | "distance";
 
 /**
  * What loads exist for one equipment type in one gym.
@@ -34,6 +39,10 @@ export interface LineIdentity {
 }
 
 export interface LoggedSet {
+  /** Measure "time" sets: seconds held. `reps` is 1 for a timed or distance set (one hold / one carry), so reps-based code never divides by zero. */
+  durationS?: number | null;
+  /** Measure "distance" sets: metres. */
+  distanceM?: number | null;
   /** Free: bar/dumbbell/stack load. Assisted: assistance removed (less = harder). Bodyweight_plus_added: added load. */
   load: number;
   reps: number;
@@ -153,6 +162,8 @@ export interface ExerciseSpec {
   qualityOptions?: QualityChange[];
   /** Planned working sets (informational; extra_set adds one). */
   plannedSets?: number;
+  /** How the exercise is counted. Omitted = reps. For time / distance, `repRange` is read as seconds / metres. */
+  measure?: Measure;
 }
 
 export interface RejectionRecord {
@@ -185,7 +196,14 @@ export type ReasonKey =
   | "hold_assisted_floor"
   | "low_confidence_repeat"
   | "no_history"
-  | "no_gym_loads";
+  | "no_gym_loads"
+  | "timed_longer"
+  | "timed_rebuild"
+  | "timed_repeat"
+  | "timed_confirm"
+  | "timed_load_up"
+  | "timed_hold_top"
+  | "timed_hold_declined";
 
 export type NeedsModelReason =
   | "low_confidence"
@@ -218,6 +236,8 @@ export interface SessionSummary {
 }
 
 export interface DecisionInputs {
+  /** Omitted = reps. For time / distance exercises `repRange` is the seconds / metres range and `SessionSummary.repsAtTop` is the weakest set's seconds / metres. */
+  measure?: Measure;
   lineKey: string;
   line: LineIdentity;
   asOf: string;
@@ -263,6 +283,10 @@ export interface Proposal {
   status: "proposed" | "no_history" | "no_gym_loads";
   load: number | null;
   reps: number | null;
+  /** Time exercises: target seconds per set (reps is null then). */
+  durationS?: number | null;
+  /** Distance exercises: target metres per set (reps is null then). */
+  distanceM?: number | null;
   /** Reps in reserve to aim for, when effort is the currency spent. */
   targetRir: number | null;
   quality: QualityChange | null;

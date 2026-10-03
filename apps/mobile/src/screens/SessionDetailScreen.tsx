@@ -81,6 +81,8 @@ export function SessionDetailScreen() {
                 {s.rir !== null ? `  ·  ${t("history.rir", { n: s.rir })}` : ""}
               </AppText>
               {s.warmup ? <AppText style={{ color: p.muted }}>{t("history.warmup")}</AppText> : null}
+              {!s.warmup && s.tags.includes("drop") ? <AppText style={{ color: p.muted }}>{t("history.drop")}</AppText> : null}
+              {!s.warmup && s.tags.includes("failure") ? <AppText style={{ color: p.muted }}>{t("history.failure")}</AppText> : null}
               {s.outlierStatus === "unconfirmed" ? <AppText style={{ color: "#b00020" }}>{t("history.unconfirmed")}</AppText> : null}
               {s.outlierStatus === "confirmed" ? <AppText style={{ color: p.muted }}>{t("history.confirmed")}</AppText> : null}
               {edit?.setId === s.id ? (

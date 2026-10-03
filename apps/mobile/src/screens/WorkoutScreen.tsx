@@ -18,7 +18,7 @@ import { warmupOffer } from "../logic/warmups";
 import { initialDraft } from "../logic/draft";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
-import { acceptGhost, addRow, editRow, effectiveOf, initialRows, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { acceptGhost, addRow, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { useLogPalette } from "../theme";
 import { AppText } from "../ui";
@@ -48,7 +48,7 @@ const clock = (ms: number) => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
-const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup });
+const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags });
 const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, replacedBy: null, note: "", restOff: false });
 
 /** Ticks once a second on its own, so the rest of the screen does not re-render every second. */
@@ -103,6 +103,8 @@ export function WorkoutScreen() {
   const [whyOpen, setWhyOpen] = useState<Record<string, boolean>>({});
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [pickFor, setPickFor] = useState<string | null>(null);
+  /** The row whose type (normal / warm-up / drop / failure) is being chosen. */
+  const [kindFor, setKindFor] = useState<{ exId: string; key: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [timer, setTimer] = useState<RestTimer>(() => newTimer());
@@ -257,14 +259,15 @@ export function WorkoutScreen() {
     const ctx = { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup };
     try {
       if (!row.saved) {
-        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, reps, rir: row.rir, warmup: row.warmup }, ctx);
+        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, reps, rir: row.rir, warmup: row.warmup, tags: row.tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
-        if (!row.warmup && !exState[ex.slot]?.restOff) {
+        // No rest timer after a warm-up or a drop set (the next set follows straight away).
+        if (!row.warmup && !isDropRow(row) && !exState[ex.slot]?.restOff) {
           setRestOver(false);
           setTimer((tm) => startTimer(tm, Date.now()));
         }
       } else if (row.dirty) {
-        const r = await workout.updateLiveSet(row.key, { load, reps, rir: row.rir, warmup: row.warmup }, ctx);
+        const r = await workout.updateLiveSet(row.key, { load, reps, rir: row.rir, warmup: row.warmup, tags: row.tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
       }
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
@@ -522,13 +525,13 @@ export function WorkoutScreen() {
                   <View style={colSet}>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`${t("workout.warmupToggle")} (${numbering[i]})`}
-                      accessibilityState={{ selected: row.warmup }}
-                      onPress={() => patch(ex.exerciseId, row.key, { warmup: !row.warmup })}
+                      accessibilityLabel={`${t("workout.kind.title")}: ${t(`workout.kind.${kindOf(row)}` as never)} (${numbering[i]})`}
+                      accessibilityState={{ selected: kindOf(row) !== "normal" }}
+                      onPress={() => setKindFor({ exId: ex.exerciseId, key: row.key })}
                       onLongPress={() => askDrop(ex, row)}
                       style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}
                     >
-                      <AppText ltr style={{ fontWeight: "800", fontSize: 15, color: row.warmup ? p.warn : p.text }}>{numbering[i]}</AppText>
+                      <AppText ltr style={{ fontWeight: "800", fontSize: 15, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.blue }}>{numbering[i]}</AppText>
                     </Pressable>
                   </View>
                   <View style={{ flex: 1.3 }}>
@@ -766,6 +769,22 @@ export function WorkoutScreen() {
               ]
             : []
         }
+      />
+      <MenuSheet
+        visible={kindFor !== null}
+        title={t("workout.kind.title")}
+        onClose={() => setKindFor(null)}
+        items={SET_KINDS.map((k: SetKind) => {
+          const cur = kindFor ? (rows[kindFor.exId] ?? []).find((r) => r.key === kindFor.key) : undefined;
+          const on = cur ? kindOf(cur) === k : false;
+          return {
+            label: `${on ? "✓ " : ""}${t(`workout.kind.${k}` as never)}`,
+            onPress: () => {
+              if (!kindFor || !cur) return;
+              patch(kindFor.exId, kindFor.key, kindPatch(k, cur.tags));
+            },
+          };
+        })}
       />
       <ExercisePicker
         visible={pickFor !== null}

@@ -9,6 +9,14 @@ export const enWorkout = {
   "workout.rir": "Left",
   "workout.finishNote": "Only sets you logged are saved. Rows you did not log are left out.",
   "workout.unlogged": "{n} filled rows are not logged yet and will be left out.",
+  "today.choose": "Choose today's workout",
+  "today.chooseNote": "The ★ day is only a suggestion (the one after your last finished workout). Pick any day; a day you skip is not stacked on top of the next one.",
+  "today.suggested": "Suggested",
+  "today.inProgress": "In progress",
+  "today.openWorkout": "You have a workout open. Resume it before starting another day.",
+  "today.finishOpenFirst": "Finish or resume your open workout first.",
+  "today.resume": "Resume workout",
+  "today.startDay": "Start {day}",
 } as const;
 
 export const arWorkout: Record<keyof typeof enWorkout, string> = {
@@ -21,4 +29,12 @@ export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "workout.rir": "فاضل",
   "workout.finishNote": "المجموعات اللي سجلتها بس هي اللي بتتحفظ. الصفوف اللي ما سجلتهاش بتتساب.",
   "workout.unlogged": "{n} صفوف متملية لسه ما اتسجلتش وهتتساب.",
+  "today.choose": "اختار تمرين النهارده",
+  "today.chooseNote": "اليوم اللي عليه ★ مجرد اقتراح (اللي بعد آخر تمرينة خلصتها). اختار أي يوم؛ اليوم اللي بتعديه مش بيتكدس فوق اللي بعده.",
+  "today.suggested": "مقترح",
+  "today.inProgress": "شغال",
+  "today.openWorkout": "عندك تمرينة مفتوحة. كمّلها قبل ما تبدأ يوم تاني.",
+  "today.finishOpenFirst": "خلّص أو كمّل تمرينتك المفتوحة الأول.",
+  "today.resume": "كمّل التمرينة",
+  "today.startDay": "ابدأ {day}",
 };

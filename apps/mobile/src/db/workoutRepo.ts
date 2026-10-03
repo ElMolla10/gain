@@ -128,6 +128,12 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     });
   }
 
+  /** The workout that is open right now (at most one), so Today can offer "resume" instead of starting another day. */
+  async function getOpenSession(): Promise<{ id: string; dayId: string } | null> {
+    const r = await db.get<{ id: string; programme_day_id: string }>("SELECT id, programme_day_id FROM session WHERE status = 'in_progress' AND deleted_at IS NULL ORDER BY started_at DESC LIMIT 1");
+    return r ? { id: r.id, dayId: r.programme_day_id } : null;
+  }
+
   async function getSession(sessionId: string) {
     return db.get<{ id: string; programme_day_id: string; gym_id: string; status: string; started_at: number | null; finished_at: number | null }>(
       "SELECT id, programme_day_id, gym_id, status, started_at, finished_at FROM session WHERE id = ? AND deleted_at IS NULL",
@@ -329,6 +335,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
 
   return {
     startOrResumeSession,
+    getOpenSession,
     getSession,
     finishSession,
     getLine,

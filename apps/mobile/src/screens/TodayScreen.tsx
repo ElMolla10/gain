@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
 import { WeeklyReviewCard } from "../components/WeeklyReviewCard";
@@ -9,25 +9,29 @@ import { estimateMinutes, exerciseLabels, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { space, usePalette } from "../theme";
 import { BrandLogo } from "../BrandLogo";
+import { markSuggested, initialSelection, type DayChoice } from "../logic/dayChoice";
 import { AppText, BigButton, Card } from "../ui";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
 interface TodayData {
-  dayId: string;
   programmeName: string;
   isSample: boolean;
-  dayName: string;
-  exercises: DayExercises;
+  days: (DayChoice & { list: DayExercises })[];
+  suggestedId: string;
+  /** The workout that is open right now, if any: it is resumed, another day is not started on top of it. */
+  openDayId: string | null;
 }
 
 export function TodayScreen() {
-  const { repos, goals, programmes, shortWeek } = useServices();
+  const { repos, goals, programmes, shortWeek, finish, workout } = useServices();
   const { t, lang, fmt } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek", params?: { dayId: string }) => void }>();
   const [data, setData] = useState<TodayData | null | undefined>(undefined);
   const [paceLine, setPaceLine] = useState<string>("");
   const [short, setShort] = useState<{ days: number } | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -38,25 +42,49 @@ export function TodayScreen() {
         setShort(await shortWeek.getActive());
         const next = await repos.getNextDay();
         if (!next) return alive && setData(null);
-        const exercises = await repos.listDayExercises(next.day.id);
+        const dayList = await repos.listDays(next.versionId);
+        const lists = await Promise.all(dayList.map((d) => repos.listDayExercises(d.id)));
+        const marked = markSuggested(dayList.map((d, i) => ({ id: d.id, name: d.name, exercises: lists[i]!.length, sets: lists[i]!.reduce((n, e) => n + e.sets, 0) })), next.day.id);
+        const open = await workout.getOpenSession();
         const active = await repos.getLatestProgrammeVersion();
         const pace = await goals.getPace(Date.now());
         const lib = pace.kind === "lift" ? await programmes.listExercises() : [];
         const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
         if (alive) setPaceLine(describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
-        if (alive) setData({ dayId: next.day.id, programmeName: next.programmeName, isSample: active?.isSample ?? false, dayName: next.day.name, exercises });
+        if (alive) {
+          setData({ programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null });
+          setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
+        }
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
       };
-    }, [repos, goals, programmes, shortWeek, t, fmt, lang]),
+    }, [repos, goals, programmes, shortWeek, workout, t, fmt, lang]),
   );
 
   if (data === undefined) return <AppText style={{ padding: space.lg }}>{t("common.loading")}</AppText>;
   if (data === null) return <AppText style={{ padding: space.lg }}>{t("today.empty")}</AppText>;
 
-  const totalSets = data.exercises.reduce((n, e) => n + e.sets, 0);
-  const goalLifts = data.exercises.filter((e) => e.isGoalLift);
+  const chosen = data.days.find((d) => d.id === picked) ?? data.days[0]!;
+  const exercises = chosen.list;
+  const totalSets = chosen.sets;
+  const goalLifts = exercises.filter((e) => e.isGoalLift);
+  const openElsewhere = data.openDayId !== null && data.openDayId !== chosen.id;
+
+  async function start() {
+    if (starting) return;
+    setStarting(true);
+    try {
+      // The chosen day gets its own planned session and targets (planned sessions of other days are voided: missed days never stack).
+      if (data!.openDayId === null) {
+        const gymId = await repos.getActiveGymId();
+        if (gymId) await finish.planDay(chosen.id, gymId);
+      }
+      navigation.navigate("Workout", { dayId: data!.openDayId ?? chosen.id });
+    } finally {
+      setStarting(false);
+    }
+  }
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.md, gap: space.md }}>
@@ -68,13 +96,28 @@ export function TodayScreen() {
       </View>
       <WeeklyReviewCard />
       <Card>
-        <AppText style={{ color: p.muted }}>{t("today.next")}</AppText>
-        <AppText style={{ fontSize: 30, fontWeight: "800" }}>{data.dayName}</AppText>
+        <AppText style={{ color: p.muted }}>{t("today.choose")}</AppText>
         <AppText style={{ color: p.muted }}>{data.programmeName}</AppText>
-        <AppText>
-          {t("today.exercises", { n: data.exercises.length })} · {t("today.sets", { n: totalSets })}
-        </AppText>
-        <AppText style={{ color: p.muted }}>{t("today.estimate", { min: estimateMinutes(totalSets) })}</AppText>
+        {data.openDayId ? <AppText style={{ fontWeight: "700" }}>{t("today.openWorkout")}</AppText> : null}
+        {data.days.map((d) => (
+          <Pressable
+            key={d.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected: d.id === chosen.id }}
+            onPress={() => setPicked(d.id)}
+            style={{ borderWidth: 2, borderColor: d.id === chosen.id ? p.accent : p.border, borderRadius: 14, padding: space.md, gap: space.xs, backgroundColor: d.id === chosen.id ? p.card : "transparent" }}
+          >
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space.sm }}>
+              <AppText style={{ fontSize: 22, fontWeight: "800", flex: 1 }}>{d.id === chosen.id ? "✓ " : ""}{d.name}</AppText>
+              {d.suggested ? <AppText style={{ color: p.accent, fontWeight: "700" }}>★ {t("today.suggested")}</AppText> : null}
+              {d.id === data.openDayId ? <AppText style={{ fontWeight: "700" }}>{t("today.inProgress")}</AppText> : null}
+            </View>
+            <AppText style={{ color: p.muted }}>
+              {t("today.exercises", { n: d.exercises })} · {t("today.sets", { n: d.sets })} · {t("today.estimate", { min: estimateMinutes(d.sets) })}
+            </AppText>
+          </Pressable>
+        ))}
+        <AppText style={{ color: p.muted, fontSize: 13 }}>{t("today.chooseNote")}</AppText>
       </Card>
 
       <Card>
@@ -89,7 +132,7 @@ export function TodayScreen() {
       </Card>
 
       <Card>
-        {data.exercises.map((e) => {
+        {exercises.map((e) => {
           const l = exerciseLabels(e, lang);
           return (
             <View key={e.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space.md, paddingVertical: space.xs }}>
@@ -113,7 +156,8 @@ export function TodayScreen() {
         <BigButton label={t("short.entry")} selected={false} onPress={() => navigation.navigate("ShortWeek")} />
       </Card>
 
-      <BigButton label={t("today.start")} onPress={() => navigation.navigate("Workout", { dayId: data.dayId })} />
+      {openElsewhere ? <AppText style={{ fontWeight: "600" }}>{t("today.finishOpenFirst")}</AppText> : null}
+      <BigButton label={data.openDayId ? t("today.resume") : t("today.startDay", { day: chosen.name })} disabled={starting} onPress={() => void start()} />
       {data.isSample ? <AppText style={{ color: p.muted, fontSize: 13 }}>{t("today.sampleNote")}</AppText> : null}
     </ScrollView>
   );

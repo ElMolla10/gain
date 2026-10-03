@@ -1,4 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
+import { UpdateCard } from "../components/UpdateCard";
 import React, { useCallback, useEffect, useState } from "react";
 import type { CeilingClass, RepCeilings } from "@gain/engine";
 import { ScrollView, View } from "react-native";
@@ -187,6 +188,7 @@ export function SettingsScreen() {
         <AppText style={{ color: p.muted, fontSize: 13 }}>{t("settings.setupAgainNote")}</AppText>
       </Card>
       <AppText style={{ color: p.muted }}>{t("settings.privacy")}</AppText>
+      <UpdateCard />
       <AppText style={{ color: p.muted }}>{t("settings.version", { v: version })}</AppText>
     </ScrollView>
   );

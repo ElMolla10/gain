@@ -8,6 +8,9 @@ import { TIMED_LIBRARY, measureOfKey } from "../src/db/library/measures";
 import { addExercise, newExercise } from "../src/logic/programmeDraft";
 import { freshDb } from "./helpers";
 import { openNodeDb } from "./nodeDriver";
+import { describeDecision, type DecisionPayload } from "../src/logic/why";
+import { translate } from "../src/i18n/format";
+import type { StringKey } from "../src/i18n/strings";
 import type { MappingChoice, TitlePreview } from "../src/db/importRepo";
 
 const fx = (n: string) => readFileSync(join(__dirname, "../../../fixtures", n), "utf8");
@@ -320,5 +323,24 @@ describe("import and export of timed sets", () => {
     const r = await s.imports.importHistory({ parse: parsed, gymId: s.gymId, mappings: acceptAll(p.titles) });
     expect(r.sets).toBe(1);
     expect(r.skippedSets).toBe(1);
+  });
+});
+
+describe("the Why screen for a hold", () => {
+  it("names seconds, not reps, in English and Arabic, with no placeholder left", async () => {
+    const s = await setup();
+    const ex = await s.idOf("plank");
+    await s.planOnDayOne(ex);
+    const { written } = await trainWith(s, ex, [{ durationS: 40 }, { durationS: 40 }, { durationS: 38 }]);
+    const t = (await s.finish.getTargets(written!.sessionId)).find((x) => x.exerciseId === ex)!;
+    const d = (await s.finish.getDecision(t.id))!;
+    for (const lang of ["en", "ar"] as const) {
+      const L = (k: string, p?: Record<string, string | number>) => translate(lang, k as StringKey, p);
+      const sections = describeDecision(d.payload as DecisionPayload, { ruleVersion: d.ruleVersion, path: d.path }, L, lang);
+      const text = sections.flatMap((x) => x.lines).join("\n");
+      expect(text).not.toMatch(/\{[a-z]+\}/);
+      expect(sections[1]!.lines[0]).toContain(lang === "en" ? "38 s" : "38 ث");
+      expect(sections[1]!.lines[0]).not.toContain("×");
+    }
   });
 });

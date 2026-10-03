@@ -1,3 +1,5 @@
+import type { Measure } from "@gain/engine";
+import { isTimed, parseQuantityInput, setQuantity, targetPhrase } from "../logic/quantity";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -44,20 +46,21 @@ export function SessionDetailScreen() {
   const startEdit = (s: HistorySetRow) => {
     setErr(null);
     setAsking(null);
-    setEdit({ setId: s.id, origKg: s.load, load: String(Math.round(kgToUnit(s.load, unit) * 100) / 100), reps: String(s.reps), rir: s.rir === null ? "" : String(s.rir) });
+    setEdit({ setId: s.id, origKg: s.load, load: String(Math.round(kgToUnit(s.load, unit) * 100) / 100), reps: String(s.durationS ?? s.distanceM ?? s.reps), rir: s.rir === null ? "" : String(s.rir) });
   };
-  const save = async () => {
+  const save = async (measure: Measure) => {
     if (!edit) return;
     const load = parseNumber(edit.load);
-    const reps = parseNumber(edit.reps);
+    const timedQ = isTimed(measure) ? parseQuantityInput(edit.reps, measure) : null;
+    const reps = isTimed(measure) ? timedQ : parseNumber(edit.reps);
     const rir = edit.rir.trim() === "" ? null : parseNumber(edit.rir);
     if (load === null) return setErr("history.err.load");
-    if (reps === null) return setErr("history.err.reps");
+    if (reps === null) return setErr(measure === "time" ? "history.err.duration" : measure === "distance" ? "history.err.distance" : "history.err.reps");
     if (edit.rir.trim() !== "" && rir === null) return setErr("history.err.rir");
     try {
       // An unchanged load must not drift by a few grams through the lb display.
       const kg = editedKg(load, edit.origKg, unit);
-      await history.updateSet(edit.setId, { load: kg, reps, rir });
+      await history.updateSet(edit.setId, isTimed(measure) ? { load: kg, reps: 1, rir: null, ...(measure === "time" ? { durationS: reps } : { distanceM: reps }) } : { load: kg, reps, rir });
       setEdit(null);
       setErr(null);
       await refresh();
@@ -77,7 +80,7 @@ export function SessionDetailScreen() {
           {ex.sets.map((s) => (
             <View key={s.id} style={{ gap: space.xs, paddingVertical: space.xs }}>
               <AppText style={{ fontSize: 18 }}>
-                {fmt(s.load)} × {isolateLtr(String(s.reps))}
+                {isTimed(ex.measure) ? isolateLtr(targetPhrase(s.load, setQuantity(s, ex.measure), ex.measure, fmt, { s: t("qty.s"), m: t("qty.m") })) : <>{fmt(s.load)} × {isolateLtr(String(s.reps))}</>}
                 {s.rir !== null ? `  ·  ${t("history.rir", { n: s.rir })}` : ""}
               </AppText>
               {s.warmup ? <AppText style={{ color: p.muted }}>{t("history.warmup")}</AppText> : null}
@@ -88,10 +91,10 @@ export function SessionDetailScreen() {
               {edit?.setId === s.id ? (
                 <View style={{ gap: space.sm }}>
                   <Field label={t("history.field.load", { unit: unitText })} value={edit.load} onChangeText={(v) => setEdit({ ...edit, load: v })} numeric keyboardType="decimal-pad" />
-                  <Field label={t("history.field.reps")} value={edit.reps} onChangeText={(v) => setEdit({ ...edit, reps: v })} numeric keyboardType="number-pad" />
-                  <Field label={t("history.field.rir")} value={edit.rir} onChangeText={(v) => setEdit({ ...edit, rir: v })} numeric keyboardType="decimal-pad" />
+                  <Field label={ex.measure === "time" ? t("history.field.seconds") : ex.measure === "distance" ? t("history.field.metres") : t("history.field.reps")} value={edit.reps} onChangeText={(v) => setEdit({ ...edit, reps: v })} numeric keyboardType="number-pad" />
+                  {isTimed(ex.measure) ? null : <Field label={t("history.field.rir")} value={edit.rir} onChangeText={(v) => setEdit({ ...edit, rir: v })} numeric keyboardType="decimal-pad" />}
                   {err ? <AppText style={{ color: p.danger }}>{t(err)}</AppText> : null}
-                  <BigButton label={t("history.save")} onPress={save} />
+                  <BigButton label={t("history.save")} onPress={() => void save(ex.measure)} />
                   <BigButton label={t("history.cancel")} selected={false} onPress={() => { setEdit(null); setErr(null); }} />
                 </View>
               ) : asking === s.id ? (

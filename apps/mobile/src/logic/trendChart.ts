@@ -17,7 +17,9 @@ export interface Bar {
 export function chartBars(points: TrendPoint[], assisted: boolean): Bar[] {
   const shown = points.slice(-MAX_BARS);
   if (shown.length === 0) return [];
-  const score = (p: TrendPoint) => (assisted ? -p.load : p.load);
+  // A hold / carry line at one constant load is drawn by its seconds / metres; once the load changed it is drawn by load, like a reps line.
+  const byQuantity = shown.every((p) => p.quantity !== undefined) && shown.every((p) => p.load === shown[0]!.load);
+  const score = (p: TrendPoint) => (byQuantity ? p.quantity! : assisted ? -p.load : p.load);
   const lo = Math.min(...shown.map(score));
   const hi = Math.max(...shown.map(score));
   return shown.map((p) => ({ frac: hi === lo ? 0.6 : 0.15 + (0.85 * (score(p) - lo)) / (hi - lo), imported: !!p.imported, at: p.at }));

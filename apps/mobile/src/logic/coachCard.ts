@@ -1,3 +1,4 @@
+import { isTimed, quantityText, targetPhrase, targetQuantity } from "./quantity";
 import { renderReason } from "@gain/engine";
 import { COACH_LIMITS, type CoachCardPayload } from "@gain/sync";
 import type { PaceResult } from "../db/goalRepo";
@@ -48,10 +49,16 @@ export function buildCardModel(i: CardInput): CardModel {
     const name = lang === "ar" ? e.nameAr : e.nameEn;
     const parts: string[] = [];
     if (e.counted > 0) parts.push(t("finish.countedLine", { n: e.counted }));
-    if (e.top) parts.push(t("card.topSet", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps }));
+    const letters = { s: t("qty.s"), m: t("qty.m") };
+    if (e.top && e.measure && isTimed(e.measure) && e.top.quantity !== undefined) parts.push(t("card.topSetTimed", { q: targetPhrase(e.top.load, e.top.quantity, e.measure, (kg) => formatLoad(kg, lang, unit), letters) }));
+    else if (e.top) parts.push(t("card.topSet", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps }));
     if (e.top) {
       for (const r of e.records) {
         if (r === "load") parts.push(t("finish.record.load", { load: formatLoad(e.top.load, lang, unit) }));
+        if (r === "quantity_at_load" && e.measure && e.top.quantity !== undefined) {
+          const q = quantityText(e.top.quantity, e.measure, letters);
+          parts.push(e.top.load > 0 ? t("finish.record.quantity", { load: formatLoad(e.top.load, lang, unit), q }) : t("finish.record.quantityBare", { q }));
+        }
         if (r === "reps_at_load") parts.push(t("finish.record.reps", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps }));
       }
     }
@@ -68,7 +75,9 @@ export function buildCardModel(i: CardInput): CardModel {
       const name = lang === "ar" ? tg.nameAr : tg.nameEn;
       if (tg.status === "rejected") return `${name}: ${t("finish.rejectedNote")}`;
       if (tg.currency === "none" || tg.effectiveLoad === null) return `${name}: ${t("finish.noTarget")}`;
-      const target = `${formatLoad(tg.effectiveLoad, lang, unit)} × ${isolateLtr(String(tg.reps ?? ""))}`;
+      const target = isTimed(tg.measure)
+        ? targetPhrase(tg.effectiveLoad, targetQuantity(tg, tg.measure) ?? 0, tg.measure, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") })
+        : `${formatLoad(tg.effectiveLoad, lang, unit)} × ${isolateLtr(String(tg.reps ?? ""))}`;
       const reason = renderReason(localizeReason(tg.reason, unit, lang), lang);
       return `${name}: ${target} (${t(`finish.status.${tg.status}` as StringKey)}). ${reason}`;
     });

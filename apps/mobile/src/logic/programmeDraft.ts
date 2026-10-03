@@ -2,6 +2,9 @@
  * An editable copy of a programme version. Pure data + pure functions, so every edit is testable without a database.
  * Saving a draft never changes the version it came from: it writes a NEW version (see programmeRepo).
  */
+import type { Measure } from "@gain/engine";
+import { DEFAULT_TIMED_RANGE } from "../db/library/measures";
+
 export interface DraftExercise {
   exerciseId: string;
   sets: number;
@@ -33,6 +36,21 @@ export const newExercise = (exerciseId: string, over: Partial<DraftExercise> = {
   isGoalLift: false,
   trackEffort: false,
   ...over,
+});
+
+/** A new slot for an exercise counted in seconds or metres starts at the usual hold / carry range (the lifter edits it); reps exercises keep the plain defaults. */
+export const newExerciseFor = (exerciseId: string, measure: Measure, over: Partial<DraftExercise> = {}): DraftExercise =>
+  measure === "reps" ? newExercise(exerciseId, over) : newExercise(exerciseId, { sets: DEFAULT_TIMED_RANGE[measure].sets, repMin: DEFAULT_TIMED_RANGE[measure].min, repMax: DEFAULT_TIMED_RANGE[measure].max, ...over });
+
+/** Switching an exercise to another way of counting resets its range in every slot of the draft (old reps would be nonsense as seconds). */
+export const resetRangeFor = (d: ProgrammeDraft, exerciseId: string, measure: Measure): ProgrammeDraft => ({
+  ...d,
+  days: d.days.map((day) => ({
+    ...day,
+    exercises: day.exercises.map((e) =>
+      e.exerciseId !== exerciseId ? e : measure === "reps" ? { ...e, repMin: 6, repMax: 10, repCeiling: null } : { ...e, repMin: DEFAULT_TIMED_RANGE[measure].min, repMax: DEFAULT_TIMED_RANGE[measure].max, repCeiling: null, isGoalLift: false, trackEffort: false },
+    ),
+  })),
 });
 
 const move = <T,>(xs: T[], from: number, to: number): T[] => {

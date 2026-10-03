@@ -1,5 +1,6 @@
 import type { DecisionListItem } from "../db/decisionRepo";
 import type { StringKey } from "../i18n/strings";
+import { targetQuantity } from "./quantity";
 
 /** What the lifter did about a suggestion, as a string key (+ the load for an edit). */
 export function actionOf(d: Pick<DecisionListItem, "status" | "sessionStatus" | "editedLoad" | "currency">): { key: StringKey; editedLoad: number | null } {
@@ -15,4 +16,5 @@ export function actionOf(d: Pick<DecisionListItem, "status" | "sessionStatus" | 
   }
 }
 
-export const hasNumber = (d: Pick<DecisionListItem, "load" | "reps" | "currency">): boolean => d.currency !== "none" && d.load !== null && d.reps !== null;
+export const hasNumber = (d: Pick<DecisionListItem, "load" | "reps" | "currency"> & Partial<Pick<DecisionListItem, "measure" | "durationS" | "distanceM">>): boolean =>
+  d.currency !== "none" && d.load !== null && targetQuantity(d, d.measure ?? "reps") !== null;

@@ -61,6 +61,10 @@ export interface CsvSetRow {
   setIndex: number;
   warmup: boolean;
   drop: boolean;
+  /** Taken to failure (Hevy set_type "failure"). */
+  failure?: boolean;
+  /** Superset group of this exercise in that workout (Hevy superset_id): same value = same superset. */
+  supersetId?: string | null;
   weightKg: number;
   reps: number;
   rir: number | null;
@@ -83,10 +87,10 @@ const text = (s: string): string => q(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s);
 export function buildCsv(rows: CsvSetRow[]): string {
   const out = [CSV_COLUMNS.map(q).join(",")];
   for (const r of rows) {
-    const type = r.warmup ? "warmup" : r.drop ? "dropset" : "normal";
+    const type = r.warmup ? "warmup" : r.drop ? "dropset" : r.failure ? "failure" : "normal";
     const rpe = r.rir === null ? "" : String(Math.max(0, Math.min(10, 10 - r.rir)));
     out.push(
-      [text(r.title), q(csvTime(r.startMs)), q(csvTime(r.endMs)), '""', text(r.exerciseTitle), "", '""', String(r.setIndex), q(type), String(r.weightKg), String(r.reps), "", "", rpe].join(","),
+      [text(r.title), q(csvTime(r.startMs)), q(csvTime(r.endMs)), '""', text(r.exerciseTitle), r.supersetId ? q(r.supersetId) : "", '""', String(r.setIndex), q(type), String(r.weightKg), String(r.reps), "", "", rpe].join(","),
     );
   }
   return out.join("\n") + "\n";

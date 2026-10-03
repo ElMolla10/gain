@@ -52,6 +52,17 @@ export function createDataRepo(db: Db, deps: Deps) {
         WHERE s.status = 'finished' AND s.deleted_at IS NULL AND ws.deleted_at IS NULL AND s.finished_at IS NOT NULL
         ORDER BY s.finished_at, s.rowid, ws.created_at, ws.position, ws.rowid`,
     );
+    // A superset is written as a number per workout (1, 2, ...), under the exercise's name as shown (the swapped-in one if it was swapped).
+    const groups = await db.all<{ session_id: string; slot: string; replaced_by: string | null; g: string }>(
+      "SELECT session_id, slot_exercise_id AS slot, replaced_by, superset_group AS g FROM session_exercise WHERE superset_group IS NOT NULL AND removed = 0 AND deleted_at IS NULL ORDER BY created_at",
+    );
+    const ssId = new Map<string, string>();
+    const ssNumber = new Map<string, number>();
+    for (const g of groups) {
+      const n = ssNumber.get(`${g.session_id}|${g.g}`) ?? new Set([...ssNumber.keys()].filter((k) => k.startsWith(`${g.session_id}|`))).size;
+      ssNumber.set(`${g.session_id}|${g.g}`, n);
+      ssId.set(`${g.session_id}|${g.replaced_by ?? g.slot}`, String(n));
+    }
     const out: CsvSetRow[] = [];
     const idx = new Map<string, number>();
     for (const r of rows) {
@@ -60,7 +71,7 @@ export function createDataRepo(db: Db, deps: Deps) {
       idx.set(k, i + 1);
       out.push({
         title: r.title, startMs: r.started_at ?? r.finished_at, endMs: r.finished_at, exerciseTitle: r.exercise, setIndex: i,
-        warmup: r.is_warmup === 1, drop: (JSON.parse(r.tags_json) as string[]).includes("drop"), weightKg: r.load, reps: r.reps, rir: r.rir,
+        warmup: r.is_warmup === 1, drop: (JSON.parse(r.tags_json) as string[]).includes("drop"), failure: (JSON.parse(r.tags_json) as string[]).includes("failure"), supersetId: ssId.get(k) ?? null, weightKg: r.load, reps: r.reps, rir: r.rir,
       });
     }
     return buildCsv(out);

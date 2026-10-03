@@ -107,6 +107,18 @@ export interface ExerciseState {
   note: string;
   /** The lifter turned the automatic rest timer off for this exercise. */
   restOff: boolean;
+  /** An exercise added to today's workout that is not in the programme day (then `slot` is the exercise's own id). */
+  added: boolean;
+  /** Order among the added exercises (1, 2, ...); null for programme slots. */
+  position: number | null;
+  /** Exercises with the same group value are a superset. Null = not in one. */
+  superset: string | null;
+}
+
+export class ExerciseAlreadyInWorkout extends Error {
+  constructor() {
+    super("This exercise is already part of today's workout");
+  }
 }
 
 export class ExerciseHasSets extends Error {
@@ -356,11 +368,11 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
 
   // ---- per-workout changes to a programme slot (remove / replace / note / rest timer) ----------------------
   async function listExerciseState(sessionId: string): Promise<ExerciseState[]> {
-    const rows = await db.all<{ slot_exercise_id: string; removed: number; replaced_by: string | null; note: string | null; rest_off: number }>(
-      "SELECT slot_exercise_id, removed, replaced_by, note, rest_off FROM session_exercise WHERE session_id = ? AND deleted_at IS NULL",
+    const rows = await db.all<{ slot_exercise_id: string; removed: number; replaced_by: string | null; note: string | null; rest_off: number; added: number; position: number | null; superset_group: string | null }>(
+      "SELECT slot_exercise_id, removed, replaced_by, note, rest_off, added, position, superset_group FROM session_exercise WHERE session_id = ? AND deleted_at IS NULL ORDER BY position, created_at",
       [sessionId],
     );
-    return rows.map((r) => ({ slot: r.slot_exercise_id, removed: r.removed === 1, replacedBy: r.replaced_by, note: r.note ?? "", restOff: r.rest_off === 1 }));
+    return rows.map((r) => ({ slot: r.slot_exercise_id, removed: r.removed === 1, replacedBy: r.replaced_by, note: r.note ?? "", restOff: r.rest_off === 1, added: r.added === 1, position: r.position, superset: r.superset_group }));
   }
 
   async function patchExerciseState(sessionId: string, slot: string, patch: Partial<Omit<ExerciseState, "slot">>): Promise<void> {
@@ -368,8 +380,8 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     const cur = await db.get<{ id: string }>("SELECT id FROM session_exercise WHERE session_id = ? AND slot_exercise_id = ? AND deleted_at IS NULL", [sessionId, slot]);
     if (!cur) {
       await db.run(
-        "INSERT INTO session_exercise (id, session_id, slot_exercise_id, removed, replaced_by, note, rest_off, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [newId(), sessionId, slot, patch.removed ? 1 : 0, patch.replacedBy ?? null, patch.note ?? null, patch.restOff ? 1 : 0, t, t],
+        "INSERT INTO session_exercise (id, session_id, slot_exercise_id, removed, replaced_by, note, rest_off, added, position, superset_group, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [newId(), sessionId, slot, patch.removed ? 1 : 0, patch.replacedBy ?? null, patch.note ?? null, patch.restOff ? 1 : 0, patch.added ? 1 : 0, patch.position ?? null, patch.superset ?? null, t, t],
       );
       return;
     }
@@ -379,6 +391,9 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     if (patch.replacedBy !== undefined) (sets.push("replaced_by = ?"), args.push(patch.replacedBy));
     if (patch.note !== undefined) (sets.push("note = ?"), args.push(patch.note));
     if (patch.restOff !== undefined) (sets.push("rest_off = ?"), args.push(patch.restOff ? 1 : 0));
+    if (patch.added !== undefined) (sets.push("added = ?"), args.push(patch.added ? 1 : 0));
+    if (patch.position !== undefined) (sets.push("position = ?"), args.push(patch.position));
+    if (patch.superset !== undefined) (sets.push("superset_group = ?"), args.push(patch.superset));
     if (sets.length === 0) return;
     await db.run(`UPDATE session_exercise SET ${sets.join(", ")}, updated_at = ? WHERE id = ?`, [...args, t, cur.id]);
   }
@@ -406,10 +421,47 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   async function replaceExercise(sessionId: string, slot: string, currentExerciseId: string, withExerciseId: string | null): Promise<void> {
     const logged = await listSessionSets(sessionId, currentExerciseId);
     if (logged.length > 0) throw new ExerciseHasSets();
+    if (withExerciseId && (await listExerciseState(sessionId)).some((s) => s.added && s.slot === withExerciseId)) throw new ExerciseAlreadyInWorkout();
     await patchExerciseState(sessionId, slot, { replacedBy: withExerciseId, removed: false });
   }
 
+  /**
+   * Add an exercise to today's workout that is not in the programme day. Nothing about the programme changes and it gets no next-session
+   * target (targets are written per programme exercise); its sets count in history and the finish summary like any other. An exercise that is
+   * already part of the workout (in the day, swapped in, or added earlier) is refused; one the lifter removed earlier is put back.
+   */
+  async function addExercise(sessionId: string, exerciseId: string): Promise<{ restored: boolean }> {
+    const session = await getSession(sessionId);
+    if (!session || session.status !== "in_progress") throw new Error("Session is not in progress");
+    const ex = await db.get<{ id: string }>("SELECT id FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+    if (!ex) throw new Error("Unknown exercise");
+    return db.transaction(async () => {
+      const states = await listExerciseState(sessionId);
+      const inDay = await db.get<{ id: string }>("SELECT id FROM programme_day_exercise WHERE programme_day_id = ? AND exercise_id = ? AND deleted_at IS NULL", [session.programme_day_id, exerciseId]);
+      const mine = states.find((s) => s.slot === exerciseId);
+      if (mine?.added) {
+        if (!mine.removed) throw new ExerciseAlreadyInWorkout();
+        await patchExerciseState(sessionId, exerciseId, { removed: false });
+        return { restored: true };
+      }
+      // In the programme day (shown, swapped away or removed: "Put back" handles those) or swapped in for another slot: never twice.
+      if (inDay || states.some((s) => s.replacedBy === exerciseId)) throw new ExerciseAlreadyInWorkout();
+      const pos = (states.reduce((m, s) => Math.max(m, s.position ?? 0), 0)) + 1;
+      await patchExerciseState(sessionId, exerciseId, { added: true, position: pos });
+      return { restored: false };
+    });
+  }
+
+  /** Put exercises of this workout into one superset (same group), or take them out (group null). Only changes today's display and rest timer. */
+  async function setSuperset(sessionId: string, groups: Record<string, string | null>): Promise<void> {
+    await db.transaction(async () => {
+      for (const [slot, group] of Object.entries(groups)) await patchExerciseState(sessionId, slot, { superset: group });
+    });
+  }
+
   return {
+    addExercise,
+    setSuperset,
     listExerciseState,
     patchExerciseState,
     clearExerciseSets,

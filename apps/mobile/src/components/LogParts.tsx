@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Modal, PanResponder, Pressable, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, Modal, PanResponder, Pressable, ScrollView, TextInput, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import { useI18n } from "../i18n";
 import { useLogPalette } from "../theme";
 import { AppText } from "../ui";
@@ -152,14 +152,17 @@ export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string
 /** A small action sheet: tap outside to close. */
 export function MenuSheet(props: { visible: boolean; title: string; onClose: () => void; items: { label: string; danger?: boolean; onPress: () => void }[] }) {
   const p = useLogPalette();
+  const { t } = useI18n();
+  const { height } = useWindowDimensions();
   return (
     <Modal visible={props.visible} transparent animationType="fade" onRequestClose={props.onClose}>
-      <Pressable accessibilityLabel="Close" onPress={props.onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+      <Pressable accessibilityLabel={t("common.close")} onPress={props.onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
         <View style={{ backgroundColor: p.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 12, paddingBottom: 28, gap: 4 }}>
           <AppText numberOfLines={1} style={{ color: p.muted, fontSize: 14, paddingHorizontal: 12, paddingVertical: 8 }}>{props.title}</AppText>
-          {props.items.map((it) => (
+          <ScrollView style={{ maxHeight: height * 0.6 }} keyboardShouldPersistTaps="handled">
+          {props.items.map((it, i) => (
             <Pressable
-              key={it.label}
+              key={`${i}:${it.label}`}
               accessibilityRole="button"
               onPress={() => {
                 props.onClose();
@@ -170,6 +173,7 @@ export function MenuSheet(props: { visible: boolean; title: string; onClose: () 
               <AppText style={{ fontSize: 17, fontWeight: "600", color: it.danger ? p.danger : p.text }}>{it.label}</AppText>
             </Pressable>
           ))}
+          </ScrollView>
         </View>
       </Pressable>
     </Modal>

@@ -261,6 +261,35 @@ export function createRepos(db: Db, deps: Deps) {
   }
 
   /**
+   * An exercise the lifter added to today's workout without it being in the programme: the same shape as a programme exercise with plain
+   * defaults (3 sets, rep range 8 up to the rep ceiling for this kind of lift, not a goal lift, no effort tracking). Never stored in the programme.
+   */
+  async function adHocDayExercise(exerciseId: string): Promise<DayExercise | null> {
+    const r = await db.get<{ id: string; name_en: string; name_ar: string; aliases_ar_json: string; equipment: GymLoadSpec["equipment"]; setup: "free" | "assisted" | "bodyweight_plus_added" }>(
+      "SELECT id, name_en, name_ar, aliases_ar_json, equipment, setup FROM exercise WHERE id = ? AND deleted_at IS NULL",
+      [exerciseId],
+    );
+    if (!r) return null;
+    const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings: await getRepCeilingDefaults() });
+    return {
+      id: `added:${r.id}`,
+      exerciseId: r.id,
+      nameEn: r.name_en,
+      nameAr: r.name_ar,
+      aliasesAr: JSON.parse(r.aliases_ar_json) as string[],
+      equipment: r.equipment,
+      setup: r.setup,
+      sets: 3,
+      repMin: Math.min(8, policy.repCeiling),
+      repMax: policy.repCeiling,
+      repCeiling: policy.repCeiling,
+      repCeilingIsCustom: false,
+      isGoalLift: false,
+      trackEffort: false,
+    };
+  }
+
+  /**
    * The next programme day in rotation: the day after the most recently FINISHED session's day, else the first day.
    * Missed workouts are not completed workouts, so only finished sessions advance the rotation.
    */
@@ -300,7 +329,9 @@ export function createRepos(db: Db, deps: Deps) {
     getLatestProgrammeVersion,
     listDays,
     listDayExercises,
+    adHocDayExercise,
     getNextDay,
   };
 }
 export type Repos = ReturnType<typeof createRepos>;
+export type DayExercise = Awaited<ReturnType<Repos["listDayExercises"]>>[number];

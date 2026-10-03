@@ -301,6 +301,30 @@ ALTER TABLE session_exercise ADD COLUMN position INTEGER;
 ALTER TABLE session_exercise ADD COLUMN superset_group TEXT;
 `,
   },
+  {
+    version: 8,
+    name: "backup and sync",
+    sql: `
+-- Opt-in backup/sync bookkeeping. NOTHING here is exported in the backup file or synced; "delete everything" and "restore" disconnect sync.
+-- sync_state: key/value (enabled, account_id, device_token, recovery_code, cursor, last_sync_at, last_error, ...).
+CREATE TABLE sync_state (id TEXT PRIMARY KEY, value TEXT NOT NULL);
+-- The version (updated_at:deleted_at) of every row the server is known to have. A row whose current version differs is "dirty".
+CREATE TABLE sync_row_state (tbl TEXT NOT NULL, row_id TEXT NOT NULL, version TEXT NOT NULL, PRIMARY KEY (tbl, row_id));
+-- Events built but not yet acknowledged. The event id stays the same across retries, so re-sending is always safe.
+CREATE TABLE sync_outbox (
+  event_id TEXT PRIMARY KEY, tbl TEXT NOT NULL, row_id TEXT NOT NULL,
+  updated_at INTEGER NOT NULL, deleted_at INTEGER, data TEXT NOT NULL, created_at INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX sync_outbox_row ON sync_outbox(tbl, row_id);
+-- Rows received from the server that could not be applied yet: waiting_parent (its parent row has not arrived), conflict (a local unique
+-- rule refuses it, e.g. a second open workout for the same day), newer_app (it has columns this app version does not know).
+CREATE TABLE sync_parked (
+  tbl TEXT NOT NULL, row_id TEXT NOT NULL, seq INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL, deleted_at INTEGER, data TEXT NOT NULL, reason TEXT NOT NULL, detail TEXT,
+  PRIMARY KEY (tbl, row_id)
+);
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

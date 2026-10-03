@@ -145,9 +145,16 @@ export function rebuildShortWeek(original: ProgrammeDraft, o: RebuildOptions): R
       const dayName = origName[k.orig]!;
       const fits = (mutate: (d: ProgrammeDraft) => void) => {
         // Applies a change to a copy of the kept draft and reports whether every priority floor still holds.
-        const c = clone(keptDraft());
+        // A floor that is ALREADY unmet and cannot be met (e.g. "2 sessions" of a muscle when only 1 day is kept) must not block every
+        // cut of that muscle's accessories: it would push the cuts onto the goal lift. For such a floor the change must not make it worse.
+        const before = keptDraft();
+        const c = clone(before);
         mutate(c);
-        return [...priority].every((g) => floorHolds(c, g));
+        return [...priority].every((g) => {
+          if (floorHolds(c, g)) return true;
+          const f = floors.get(g)!;
+          return groupSets(c, g) >= Math.min(f.sets, groupSets(before, g)) && groupDays(c, g) >= Math.min(f.days, groupDays(before, g));
+        });
       };
       const lastIndex = (pred: (e: DraftExercise) => boolean) => {
         for (let i = k.day.exercises.length - 1; i >= 0; i--) if (pred(k.day.exercises[i]!)) return i;

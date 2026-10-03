@@ -19,14 +19,13 @@ const base: Profile = {
 const codes = (p: Profile) => validateProfile(p, NOW).map((x) => x.code);
 
 describe("profile validation", () => {
-  it("accepts the minimum: days, length, equipment, one goal; height and bodyweight stay optional", () => {
+  it("accepts the minimum: days, length, one goal; height and bodyweight stay optional", () => {
     expect(codes(base)).toEqual([]);
   });
-  it("rejects bad days, minutes and empty equipment", () => {
+  it("rejects bad days and minutes", () => {
     expect(codes({ ...base, daysPerWeek: 0 })).toEqual(["days_bad"]);
     expect(codes({ ...base, daysPerWeek: 8 })).toEqual(["days_bad"]);
     expect(codes({ ...base, sessionMinutes: 5 })).toEqual(["minutes_bad"]);
-    expect(codes({ ...base, equipment: [] })).toEqual(["no_equipment"]);
   });
   it("lift goal needs an exercise, a load and reps; the date must be real and not past", () => {
     expect(codes({ ...base, goal: { kind: "lift", exerciseId: "", targetLoad: 0, targetReps: 0, targetDate: "2026-02-30" } })).toEqual(["goal_exercise_missing", "goal_load_bad", "goal_reps_bad", "goal_date_bad"]);
@@ -172,7 +171,7 @@ describe("onboarding complete", () => {
 import { buildProfile, emptyOnboardingForm, STEPS, stepProblems } from "../src/logic/onboardingForm";
 
 describe("onboarding form", () => {
-  const filled = () => ({ ...emptyOnboardingForm("ar"), days: 4, minutes: 60, equipment: ["barbell" as const], goalKind: "lift" as const, goalExerciseId: "x", goalLoadText: "١٠٠", goalRepsText: "5", goalDateText: "2027-06-30" });
+  const filled = () => ({ ...emptyOnboardingForm("ar"), days: 4, minutes: 60, goalKind: "lift" as const, goalExerciseId: "x", goalLoadText: "١٠٠", goalRepsText: "5", goalDateText: "2027-06-30" });
   it("builds a profile from typed text, including Arabic digits", () => {
     const r = buildProfile(filled(), NOW);
     expect(r.problems).toEqual([]);
@@ -181,7 +180,12 @@ describe("onboarding form", () => {
   it("an empty form is all gaps, never defaults", () => {
     const r = buildProfile(emptyOnboardingForm("en"), NOW);
     expect(r.profile).toBeNull();
-    expect(r.problems).toEqual(expect.arrayContaining(["days_bad", "minutes_bad", "no_equipment", "goal_missing"]));
+    expect(r.problems).toEqual(expect.arrayContaining(["days_bad", "minutes_bad", "goal_missing"]));
+  });
+  it("assumes a full gym: no equipment question, the profile carries every kind of equipment", () => {
+    const r = buildProfile(filled(), NOW);
+    expect(r.profile!.equipment.sort()).toEqual(["assisted", "barbell", "cable", "dumbbell", "machine", "plate"]);
+    expect("equipment" in emptyOnboardingForm("en")).toBe(false);
   });
   it("junk in a number field is a problem, not zero", () => {
     expect(buildProfile({ ...filled(), goalLoadText: "abc" }, NOW).problems).toContain("goal_load_bad");
@@ -198,9 +202,9 @@ describe("onboarding form", () => {
   it("only the current step's problems block it", () => {
     const f = emptyOnboardingForm("en");
     expect(stepProblems("language", f, NOW)).toEqual([]);
-    expect(stepProblems("basics", f, NOW).sort()).toEqual(["days_bad", "minutes_bad", "no_equipment"]);
+    expect(stepProblems("basics", f, NOW).sort()).toEqual(["days_bad", "minutes_bad"]);
     expect(stepProblems("goal", f, NOW)).toEqual(["goal_missing"]);
-    expect(stepProblems("basics", { ...f, days: 3, minutes: 45, equipment: ["cable"] }, NOW)).toEqual([]);
+    expect(stepProblems("basics", { ...f, days: 3, minutes: 45 }, NOW)).toEqual([]);
   });
 });
 
@@ -268,7 +272,7 @@ describe("onboarding without a gym step (silent default gym)", () => {
   });
 
   it("typed weights are read in the chosen unit and stored in kg", () => {
-    const f = { ...emptyOnboardingForm("en", "lb"), days: 4, minutes: 60, equipment: ["barbell" as const], goalKind: "lift" as const, goalExerciseId: "x", goalLoadText: "225", goalRepsText: "5", bodyweightText: "180" };
+    const f = { ...emptyOnboardingForm("en", "lb"), days: 4, minutes: 60, goalKind: "lift" as const, goalExerciseId: "x", goalLoadText: "225", goalRepsText: "5", bodyweightText: "180" };
     const r = buildProfile(f, NOW);
     expect(r.problems).toEqual([]);
     expect(r.profile!.units).toBe("lb");

@@ -11,7 +11,8 @@ export interface OnboardingForm {
   units: Unit;
   days: number | null;
   minutes: number | null;
-  goalKind: "lift" | "bodyweight" | "muscle" | null;
+  /** null = not answered yet; "none" = chose to set no goal for now. */
+  goalKind: "lift" | "bodyweight" | "muscle" | "none" | null;
   goalExerciseId: string | null;
   goalLoadText: string;
   goalRepsText: string;
@@ -63,6 +64,7 @@ export function buildProfile(f: OnboardingForm, nowMs: number): BuildResult {
     return n === null ? Number.NaN : unitToKg(n, f.units);
   };
   if (f.goalKind === null) problems.push("goal_missing");
+  else if (f.goalKind === "none") goal = null;
   else if (f.goalKind === "lift")
     goal = { kind: "lift", exerciseId: f.goalExerciseId ?? "", targetLoad: kg(f.goalLoadText), targetReps: int(f.goalRepsText), targetDate: f.goalDateText.trim() === "" ? null : normalizeDigits(f.goalDateText).trim() };
   else if (f.goalKind === "bodyweight")
@@ -80,7 +82,7 @@ export function buildProfile(f: OnboardingForm, nowMs: number): BuildResult {
     sessionMinutes: f.minutes ?? 0,
     // No equipment question: a full gym is assumed (the silent default gym has every kind of load).
     equipment: [...GYM_EQUIPMENT],
-    goal: goal ?? { kind: "muscle", muscle: "other" },
+    goal,
     heightCm: height,
     bodyweightKg: bw,
     birthDate: f.birthDateText.trim() === "" ? null : f.birthDateText.trim(),

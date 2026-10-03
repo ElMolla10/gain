@@ -160,7 +160,7 @@ export function createOnboardingRepo(db: Db, deps: Deps, repos: Repos, gyms: Gym
         const t = now();
         await db.run("INSERT INTO bodyweight_entry (id, weight_kg, measured_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", [newId(), p.bodyweightKg, t, t, t]);
       }
-      await writeGoal(p.goal);
+      if (p.goal) await writeGoal(p.goal);
       await retireSample();
       await repos.setSetting("onboarding_state", "done");
     });

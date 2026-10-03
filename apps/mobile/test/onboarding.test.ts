@@ -296,3 +296,32 @@ describe("template day titles (onboarding shows titles only)", () => {
     expect(titles.every((x) => typeof x === "string" && x.length > 0)).toBe(true);
   });
 });
+
+describe("goal is optional (P18)", () => {
+  it("'no goal for now' builds a valid profile without a goal; an unanswered goal still blocks", () => {
+    const f = { ...emptyOnboardingForm("en"), days: 4, minutes: 60 };
+    expect(buildProfile(f, NOW).problems).toContain("goal_missing");
+    const none = buildProfile({ ...f, goalKind: "none" }, NOW);
+    expect(none.problems).toEqual([]);
+    expect(none.profile!.goal).toBeNull();
+    expect(stepProblems("goal", { ...f, goalKind: "none" }, NOW)).toEqual([]);
+  });
+
+  it("completing setup without a goal creates no goal, and the target date stays optional", async () => {
+    const { onboarding, profile, draft, rack, db } = await setup();
+    const r = await onboarding.complete({ profile: { ...profile, goal: null }, programme: draft, gym: { name: "Club", loads: rack } });
+    expect(r.programmeId).toBeTruthy();
+    expect(await onboarding.getGoal()).toBeNull();
+    expect((await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM goal WHERE deleted_at IS NULL"))!.n).toBe(0);
+    expect(await onboarding.getState()).toBe("done");
+    // a lift goal without a date is accepted too
+    const f = { ...emptyOnboardingForm("en"), days: 4, minutes: 60, goalKind: "lift" as const, goalExerciseId: "x", goalLoadText: "100", goalRepsText: "5", goalDateText: "" };
+    expect(buildProfile(f, NOW).problems).toEqual([]);
+  });
+
+  it("the first screen offers Just start logging, set up my plan and import history", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../src/screens/OnboardingScreen.tsx", import.meta.url).pathname, "utf8");
+    for (const k of ["ob.skip", "ob.setup", "ob.importFirst"]) expect(src).toContain(`t("${k}")`);
+  });
+});

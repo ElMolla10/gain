@@ -15,6 +15,8 @@ export interface SessionListItem {
   dayName: string;
   gymName: string;
   finishedAt: number;
+  /** When the workout was started (null when unknown, e.g. imported). */
+  startedAt: number | null;
   exercises: number;
   workingSets: number;
   imported: boolean;
@@ -59,8 +61,8 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   const { now } = deps;
 
   async function listSessions(limit = 30, offset = 0): Promise<SessionListItem[]> {
-    const rows = await db.all<{ id: string; day_name: string; gym_name: string; finished_at: number; imported: number; exercises: number; sets: number }>(
-      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, (s.import_key IS NOT NULL) AS imported,
+    const rows = await db.all<{ id: string; day_name: string; gym_name: string; finished_at: number; started_at: number | null; imported: number; exercises: number; sets: number }>(
+      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, s.started_at, (s.import_key IS NOT NULL) AS imported,
               (SELECT COUNT(DISTINCT ws.exercise_id) FROM workout_set ws WHERE ws.session_id = s.id AND ws.deleted_at IS NULL) AS exercises,
               (SELECT COUNT(*) FROM workout_set ws WHERE ws.session_id = s.id AND ws.deleted_at IS NULL AND ws.is_warmup = 0) AS sets
          FROM session s JOIN programme_day d ON d.id = s.programme_day_id JOIN gym g ON g.id = s.gym_id
@@ -68,7 +70,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
         ORDER BY s.finished_at DESC, s.rowid DESC LIMIT ? OFFSET ?`,
       [limit, offset],
     );
-    return rows.map((r) => ({ id: r.id, dayName: r.day_name, gymName: r.gym_name, finishedAt: r.finished_at, exercises: r.exercises, workingSets: r.sets, imported: r.imported === 1 }));
+    return rows.map((r) => ({ id: r.id, dayName: r.day_name, gymName: r.gym_name, finishedAt: r.finished_at, startedAt: r.started_at, exercises: r.exercises, workingSets: r.sets, imported: r.imported === 1 }));
   }
 
   async function countSessions(): Promise<number> {

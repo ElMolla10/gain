@@ -50,4 +50,4 @@ Tooling: `npm run pilot-metrics -w @gain/mobile -- --tz-minutes 180 P01.json ...
 | Share of targets rejected that makes the rule suspect | | |
 
 ## Later (Step 29, after launch)
-The same definitions hold. Trial-to-paid and crash-free sessions need billing and a crash service that do not exist yet; they are not part of this document.
+The same definitions hold. Crash-free sessions need a crash service that does not exist yet; they are not part of this document. GAIN is completely free, so there is no conversion or revenue metric.

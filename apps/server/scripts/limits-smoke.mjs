@@ -35,7 +35,7 @@ async function quota() {
   const tok = acct.json.deviceToken;
   try {
     const rowChars = Math.min(60_000, Math.floor(expected / 20)); // below the 64 KB single-row cap
-    const perPush = 10; // keep each request small (the free Worker plan has a tiny CPU budget per request)
+    const perPush = 10; // keep each request small (Cloudflare's free Worker plan has a tiny CPU budget per request)
     const t0 = Date.now() - 60_000;
     let stored = 0, n = 0, refused = null;
     for (let push = 0; push < Math.ceil(expected / (rowChars * perPush)) + 5 && !refused; push++) {

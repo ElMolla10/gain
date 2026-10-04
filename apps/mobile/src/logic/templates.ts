@@ -18,6 +18,17 @@ export * from "./templateTypes";
  */
 export const TEMPLATES: Template[] = [...CORE_TEMPLATES, ...GYM_BASIC_TEMPLATES, ...GYM_SPLIT_TEMPLATES, ...DUMBBELL_TEMPLATES, ...BODYWEIGHT_TEMPLATES, ...BAND_TEMPLATES];
 
+/**
+ * The templates a pilot build offers (docs/pilot/PILOT-TEMPLATES.md): `allowed` is the id list from the build config, null for all of them.
+ * Unknown ids are ignored, and a list that matches nothing falls back to all templates, so a bad config can never leave the pickers empty.
+ */
+export function templatePool(allowed: readonly string[] | null | undefined): Template[] {
+  if (!allowed) return TEMPLATES;
+  const ids = new Set(allowed);
+  const pool = TEMPLATES.filter((t) => ids.has(t.id));
+  return pool.length > 0 ? pool : TEMPLATES;
+}
+
 export interface TemplateOffer {
   template: Template;
   /** "exact": arranged for the days the lifter trains. "fewer": needs fewer days than they have (never more). */
@@ -28,11 +39,11 @@ export interface TemplateOffer {
  * Templates for the days a lifter actually attends. Exact matches first; if none, the ones with fewer days (never more
  * days than they train, because a missed day is not a completed day). Fewer than 2 days: none, the lifter builds their own.
  */
-export function templatesForDays(daysPerWeek: number): TemplateOffer[] {
-  const exact = TEMPLATES.filter((t) => t.days === daysPerWeek).map((template) => ({ template, fit: "exact" as const }));
+export function templatesForDays(daysPerWeek: number, pool: readonly Template[] = TEMPLATES): TemplateOffer[] {
+  const exact = pool.filter((t) => t.days === daysPerWeek).map((template) => ({ template, fit: "exact" as const }));
   if (exact.length > 0) return exact;
-  const biggest = Math.max(0, ...TEMPLATES.filter((t) => t.days < daysPerWeek).map((t) => t.days));
-  return TEMPLATES.filter((t) => t.days === biggest && biggest > 0).map((template) => ({ template, fit: "fewer" as const }));
+  const biggest = Math.max(0, ...pool.filter((t) => t.days < daysPerWeek).map((t) => t.days));
+  return pool.filter((t) => t.days === biggest && biggest > 0).map((template) => ({ template, fit: "fewer" as const }));
 }
 
 export interface LibraryLookup {

@@ -1,6 +1,8 @@
 import { useNavigation } from "@react-navigation/native";
 import { HealthNote } from "../components/HealthNote";
+import { buildFlags } from "../buildConfig";
 import { UpdateCard } from "../components/UpdateCard";
+import { hasSelfUpdater } from "../logic/buildFlags";
 import React, { useCallback, useEffect, useState } from "react";
 import type { CeilingClass, RepCeilings } from "@gain/engine";
 import { View } from "react-native";
@@ -263,8 +265,9 @@ export function SettingsScreen() {
         <View style={{ paddingVertical: space.md, gap: space.sm }}>
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.privacy")}</AppText>
           <HealthNote />
-          <UpdateCard />
+          {hasSelfUpdater(buildFlags) ? <UpdateCard /> : null}
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
+          {buildFlags.pilotTemplateIds ? <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.pilotBuild")}</AppText> : null}
         </View>
       </Group>
     </Screen>

@@ -41,3 +41,29 @@ Report anything marked FAIL as an issue with a screenshot.
 | 31 | Available weights control (new) | Program > Edit > exercise > "Available weights" chip (and History > a lift > "Available weights" button): Standard steps / Steps / A list; save with kg and with lb; wrong text shows a problem under the field (not a crash); "Go back to standard steps" clears; 48 dp, keyboard does not cover the fields, light/dark, RTL | NOT TESTED |
 | 32 | Available weights change the next target (new) | Set dumbbell weights 10, 12, 14, 16 for an exercise: the next target and the logger's +/- step use only those weights; Why says "Weights you set for this exercise"; with nothing set Why says the weights are the standard steps (typical weights, not a measurement of the gym) | NOT TESTED |
 | 33 | Update keeps data (new in v0.21.0) | Install v0.21.0 over v0.20.0: history, program and gym are intact (schema 9 to 11); the program has no top sets and no own weights until set | NOT TESTED |
+
+## iOS rows (new; for the personal free-route build in [IOS.md](IOS.md))
+
+**Nothing below has been run on an iPhone.** The iOS build has never been compiled (no Mac here). Every row is NOT TESTED until you fill it in. iPhone: ______  iOS: ______  Xcode: ______  Date: ______
+
+| # | Check | How | Result |
+|---|---|---|---|
+| 34 | iOS build compiles and installs | Follow IOS.md sections 1 to 3. Note the first red error if it fails | NOT TESTED |
+| 35 | App launches, icon and splash | Dark splash with the logo, no white flash, the GAIN icon on the Home Screen | NOT TESTED |
+| 36 | Fonts | IBM Plex Sans / Plex Sans Arabic show (not the iPhone's default font) in English and Arabic | NOT TESTED |
+| 37 | Safe areas | Notch / Dynamic Island and home bar do not overlap the header, tabs, Finish or the rest dock; also inside the sheets and the exercise picker | NOT TESTED |
+| 38 | Keyboard over inputs | Tap a weight box on the 3rd set with the keyboard up: the row stays visible. Same in a sheet with a field (Available weights) and in the exercise picker's "new exercise" form | NOT TESTED |
+| 39 | Done bar on number pads | A "Done" button appears above the number pad in the logger, on Available weights and on the onboarding fields; it closes the keyboard. Also check inside a sheet | NOT TESTED |
+| 40 | Settings has no "Check for updates" | Settings > bottom: no update card; the Privacy page has no "Check for updates" paragraph; text says iPhone / iCloud where Android was named | NOT TESTED |
+| 41 | Notification permission and rest alert | Turn on the rest alert: the iOS prompt appears; finish a rest with the app in the background / screen locked: the alert arrives | NOT TESTED |
+| 42 | Training-day reminders | Pick a weekday and a time two minutes ahead: it arrives on the right weekday (Sunday = 1 in the schedule) | NOT TESTED |
+| 43 | Export / share | JSON backup, CSV, coach-card PDF and the diagnostics report open the iPhone share sheet; Save to Files works and the file opens | NOT TESTED |
+| 44 | Import | Settings > Import: the Files picker opens and a Hevy CSV and a GAIN JSON backup are read | NOT TESTED |
+| 45 | Back up and sync | Turn it on (needs the network), finish a workout, see it uploaded; recovery code shown; "Turn off and delete my backup" works | NOT TESTED |
+| 46 | Swipe-back and Finish screen | Edge-swipe goes back on normal screens; on the Finish screen it does not lose the saved workout | NOT TESTED |
+| 47 | Confirm dialogs with three buttons | "Finish with empty sets" and discard dialogs: the buttons are readable and the safe choice is clear | NOT TESTED |
+| 48 | Arabic RTL | Switch to Arabic: layout mirrored, numbers LTR, tab bar and headers sensible | NOT TESTED |
+| 49 | Light / dark and status bar | Both themes, status bar text readable | NOT TESTED |
+| 50 | Force-quit and reopen mid-workout | Log 2 sets, swipe the app away, reopen: Resume shows exactly 2 sets | NOT TESTED |
+| 51 | VoiceOver / large text | Same labels as TalkBack; Settings > Display & Brightness > Text Size largest: nothing clipped | NOT TESTED |
+| 52 | After 7 days (free route) | The app stops opening; reinstalling over it (same bundle id) keeps the data | NOT TESTED |

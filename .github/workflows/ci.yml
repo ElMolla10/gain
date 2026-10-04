@@ -29,3 +29,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run export:android -w @gain/mobile
+  # iOS cannot be built on Linux, but its JS bundle and the generated Xcode project settings can be checked: the iOS bundle must compile, and
+  # `expo prebuild --platform ios --no-install` must succeed with no Push Notifications entitlement, no Face ID string and iPhone-only devices
+  # (a free Apple ID cannot sign the first; see docs/IOS.md). Nothing here compiles or runs the app on an iPhone.
+  ios-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run export:ios -w @gain/mobile
+      - name: Check the Mac setup script's syntax
+        run: |
+          bash -n scripts/ios-setup.sh
+          shellcheck scripts/ios-setup.sh
+      - name: Generate the iOS project and check its settings
+        working-directory: apps/mobile
+        run: |
+          CI=1 npx expo prebuild --platform ios --no-install
+          ! grep -q "aps-environment" ios/GAIN/GAIN.entitlements
+          ! grep -q "NSFaceIDUsageDescription" ios/GAIN/Info.plist
+          grep -q 'TARGETED_DEVICE_FAMILY = "1"' ios/GAIN.xcodeproj/project.pbxproj
+          grep -q "PrivacyInfo.xcprivacy" ios/GAIN.xcodeproj/project.pbxproj
+          GAIN_IOS_BUNDLE_ID=com.example.gain GAIN_IOS_SCENES=1 CI=1 npx expo prebuild --platform ios --no-install
+          grep -q 'PRODUCT_BUNDLE_IDENTIFIER = "com.example.gain"' ios/GAIN.xcodeproj/project.pbxproj
+          grep -q "UIApplicationSceneManifest" ios/GAIN/Info.plist

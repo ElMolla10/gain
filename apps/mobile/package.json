@@ -11,7 +11,8 @@
     "test": "vitest run",
     "review-sheet": "vite-node scripts/review-sheet.ts",
     "pilot-metrics": "vite-node scripts/pilot-metrics.ts",
-    "export:android": "expo export --platform android"
+    "export:android": "expo export --platform android",
+    "export:ios": "expo export --platform ios"
   },
   "dependencies": {
     "@gain/engine": "*",
@@ -20,6 +21,7 @@
     "@react-navigation/native": "^7.5.0",
     "@react-navigation/native-stack": "^7.20.0",
     "expo": "~57.0.26",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.20",
     "expo-crypto": "~57.0.3",
     "expo-file-system": "~57.0.7",

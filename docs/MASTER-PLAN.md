@@ -1,6 +1,6 @@
 # GAIN master plan
 
-Rewritten 2026-10-03 (Cairo time) from the code on `main` at `cd97b06` (v0.18.0); updated 2026-10-04 for v0.19.0 (`ppl_upper_4` template, "program" spelling, Mohamed's reported priorities). Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Roadmap (one-page version of this plan): [ROADMAP.md](ROADMAP.md). Everything that already shipped, release by release, with the old milestone map and older test runs: [RELEASE-HISTORY.md](RELEASE-HISTORY.md).
+Rewritten 2026-10-03 (Cairo time) from the code on `main` at `cd97b06` (v0.18.0); updated 2026-10-04 for v0.19.0 (`ppl_upper_4` template, "program" spelling, Mohamed's reported priorities) and again for v0.20.0 (G2/G4 preparation: pilot materials, hosted draft site, Play and pilot build switches; **no gate was passed by that work**, see "Gate status" in section 3). Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Roadmap (one-page version of this plan): [ROADMAP.md](ROADMAP.md). Everything that already shipped, release by release, with the old milestone map and older test runs: [RELEASE-HISTORY.md](RELEASE-HISTORY.md). Pilot materials: [pilot/README.md](pilot/README.md). Play build and listing: [PLAY-BUILD.md](PLAY-BUILD.md), [PLAY-ASSETS.md](PLAY-ASSETS.md). Draft web pages: [site/README.md](site/README.md).
 
 **GAIN is completely free** (Android first; Arabic and English). The single authoritative statement of what that means is "Free for everyone" in [PRODUCT.md](PRODUCT.md); this plan does not restate it or add to it. Nothing in this plan is gated, priced or tiered, and no billing work is planned.
 
@@ -43,7 +43,7 @@ Sequencing rule: **no new features until the core loop works on a real Android p
      | `mix_4` | 4 | A body-part split (a different exposure pattern) |
      | `ppl_6` | 6 | Highest frequency; stress-tests short-week and logging volume |
 
-     Left out on purpose: the 40 unreviewed templates, the 18 home templates (the pilot is at one gym), the "bulking phase" shapes, and the 5x5/3x5 strength shapes. Lifters who already run a program **import it** (Hevy/Strong) instead of using any template; that is the main path. The in-app picker is not changed (that would be an app release and a feature); the pilot runner tells lifters which six to pick from.
+     Left out on purpose: the 40 unreviewed templates, the 18 home templates (the pilot is at one gym), the "bulking phase" shapes, and the 5x5/3x5 strength shapes. Lifters who already run a program **import it** (Hevy/Strong) instead of using any template; that is the main path. The in-app picker is unchanged in the normal build. **v0.20.0 adds an opt-in build switch** (`GAIN_PILOT_TEMPLATES=1`, a separate `gain-pilot-vX.Y.Z-arm64.apk`) that offers only these six; it is build-time, tiny, tested on Node and **not run on a phone**. Either that APK or "the pilot runner tells lifters which six to pick from" can be used, Mohamed's call (D13); see [pilot/PILOT-TEMPLATES.md](pilot/PILOT-TEMPLATES.md).
    - Done when: Arabic verdicts and TalkBack/large-text results are committed, every failing item on the main loop has a fix or an issue, and Mohamed has confirmed (or replaced) the six.
 5. [x] (reported by Mohamed 2026-10-04, not independently verified: pilot people arranged (the six-week pilot itself has not been reported as run)) **Run a local-only pilot with retention and usability criteria written down first, and record why users override targets.**
    - Local-only: Back up and sync stays OFF and is not offered (this overrides the "ask, do not push" line in PILOT-KIT.md section 2); nothing leaves a phone except the export a lifter chooses to send. About 10 lifters, one gym, six weeks; protocol, consent drafts, check-ins and the metrics script are in [PILOT-KIT.md](PILOT-KIT.md) and [PILOT-RETENTION-METRICS.md](PILOT-RETENTION-METRICS.md).
@@ -61,6 +61,8 @@ Sequencing rule: **no new features until the core loop works on a real Android p
    - **Why users override targets.** The app records accept / edit / reject and the lifter's edited load, but **no reason** (confirmed: the `target` table has `status` and `edited_load` only; PILOT-RETENTION-METRICS.md says "Not collected in-app"). The reason is gathered by people, not by the app:
      - Checked against [PILOT-KIT.md](PILOT-KIT.md): it **does** cover it in prose (weekly check-in "what you loaded instead of the app's number and why", the exit interview "where did the app's number feel wrong", and the report line "override reasons in the lifters' words"), and PILOT-RETENTION-METRICS.md defines the tags (too heavy / too light / equipment / felt bad / forgot / other). It does **not** give the runner a place to write each reason: the pilot sheet row has one `bugs_quotes` cell per lifter per week. Added here, in this plan only (PILOT-KIT.md and the CSV are unchanged):
      - Keep a second sheet, one row per overridden target: `pilot_code, week, exercise, app_target (load x reps), loaded (load x reps), direction (more/less/same), reason_in_their_words, tag, source (check-in / interview)`. Fill it from the week's export plus the check-in answer; tag it afterwards using the six tags above. Ask the same question the same way every week, and never suggest an answer. A target the lifter changed with no stated reason is recorded as "no reason given", not guessed.
+   - **Drafts of everything the runner needs are in [pilot/](pilot/README.md)** (2026-10-04): runbook, consent EN/AR (local-only), messages EN/AR, install-and-report guide EN/AR, FAQ, six-program doc, consent log and override-sheet templates, and `pilot-metrics` now also prints the like-for-like comparison with "repeat the last load" (columns `both_comparable / both_app_same / both_repeat_same`; synthetic-tested only). None has been used with a lifter.
+   - **The "Written before the pilot" table in PILOT-RETENTION-METRICS.md is still blank in the repo** (checked 2026-10-04) although Mohamed reports he approved thresholds: they only count once he copies them in with a date.
    - Needs before the first install (all Mohamed's): gate "Pilot ready" below.
 
 ## Freeze list (nothing here is started, promised or reviewed until Pilot validated)
@@ -80,10 +82,10 @@ Allowed while frozen: fixes for bugs found on a device or in the pilot, data-saf
 
 | What | Result |
 | --- | --- |
-| Commit | `4e6aa51` (`main`, v0.19.0, versionCode 19) |
-| Date | 2026-10-04, run in a fresh clone on the build box (Node 22.19.0, `npm ci`) |
+| Commit | `c870bfa` (`main`, after PR #132; this release bumps it to v0.20.0, versionCode 20) |
+| Date | 2026-10-04, run in a clone on the build box (Node 22.19.0, `npm ci`); CI on `main` green after #132 |
 | `npm run typecheck` | clean in all four workspaces (engine, sync, mobile, server) |
-| `npm test` | **engine 365, sync 19, mobile 747, server 90; 1,221 tests, 0 failing** (test files: engine 20, sync 1, mobile 75, server 5) |
+| `npm test` | **engine 365, sync 19, mobile 773, server 90; 1,247 tests, 0 failing** (test files: engine 20, sync 1, mobile 77, server 5) |
 | What this is | Node unit and integration tests only; SQLite stands in for the phone's SQLite and for D1. **These are not phone tests.** |
 
 CI runs `typecheck` and `test` on every PR. Older runs are in [RELEASE-HISTORY.md](RELEASE-HISTORY.md) section 5. Update this table (and only this table) when a new check is run.
@@ -104,8 +106,8 @@ CI runs `typecheck` and `test` on every PR. Older runs are in [RELEASE-HISTORY.m
 | Targets + rules (engine) | rule-v0.3 (ACSM 2009-based; the 10/12/15 rep ceilings, one-session trigger and step snapping are GAIN conventions), progression currency order, confidence, rejection memory (a jump declined 3 times stops), timed-v0.1 for seconds/metres, warm-up ladder, short-week rebuild, weekly decision (`weekly-v1`), goal pace (Theil-Sen trend). Rule docs: PROGRESSION-RULES, PACE-RULES, WEEKLY-RULES, SHORT-WEEK-RULES, WARMUPS, TIMED-EXERCISES. | **Rules are NOT trainer-reviewed** ([TRAINER-REVIEW-PACK.md](TRAINER-REVIEW-PACK.md) has blank verdicts). Honest signal: the Hevy backtest says the rule matches Mohamed's loaded weight 58% of the time versus 60% for "just repeat last load", and proposed a heavier load in 4% of sessions while he went heavier in 26%. One lifter; a flag for the trainer review and the pilot, not a bug to tune away. |
 | Exercise library + Arabic | 607 exercises (50 older + 557 added in v0.12.0), draft Arabic names and aliases, nine twin pairs for import ([EXERCISE-LIBRARY.md](EXERCISE-LIBRARY.md)). | No recorded native review; none at all of the 557 new rows. "Draft" labels stay. |
 | Back up and sync + coach links | Cloudflare Worker `gain-sync` + D1 deployed and smoke-tested (https://gain-sync.elmolla10.workers.dev). In the app: Settings > Back up and sync, **off by default**, anonymous account + 20-character **recovery code** (D3), private coach links. | Never run on a phone, never with two phones. Email sign-in answers 501 (no provider). D1 free-tier limits unmeasured; no backup outliving Time Travel. [SYNC.md](SYNC.md), [SYNC-CLIENT.md](SYNC-CLIENT.md). |
-| Privacy, diagnostics, updates | No analytics, no third-party crash reporting; local crash log with opt-in share; network use limited to the update check, opt-in sync and coach links (guarded by a test); Check for updates (GitHub releases, SHA-256 check, system installer). | Privacy policy and terms are **drafts, not legally reviewed**; no public URL. Update-over-install and the installer prompt never run. |
-| Store release | Not started. Sideload APKs only (arm64, own keystore); listing and data-safety drafts exist ([PLAY-LISTING-DRAFT.md](PLAY-LISTING-DRAFT.md), [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md)). iOS: config only, nothing built. | The self-updater's install permission conflicts with a Play build (decision needed at Store ready). |
+| Privacy, diagnostics, updates | No analytics, no third-party crash reporting; local crash log with opt-in share; network use limited to the update check, opt-in sync and coach links (guarded by a test); Check for updates (GitHub releases, SHA-256 check, system installer). | Privacy policy and terms are **drafts, not legally reviewed**. **Hosted as DRAFT pages (noindex) at https://gain-site.elmolla10.workers.dev on 2026-10-04**; no operator identity or support email yet (placeholders). Update-over-install and the installer prompt never run. |
+| Store release | Not started with Google (no Play Console account). Sideload APKs only (arm64, own keystore); listing, data-safety and asset drafts exist ([PLAY-LISTING-DRAFT.md](PLAY-LISTING-DRAFT.md), [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md), [PLAY-ASSETS.md](PLAY-ASSETS.md)). **v0.20.0: a Play build switch exists** (`GAIN_DISTRIBUTION=play` removes the self-updater card and `REQUEST_INSTALL_PACKAGES`; an AAB and APK built and the manifest measured with `aapt2`, see [PLAY-BUILD.md](PLAY-BUILD.md)). iOS: config only, nothing built. | Play build never installed on a phone, never signed with an upload key, never submitted. Signing choice (D12), screenshots (need a phone), account, closed-testing rules (unknown) all open. |
 
 Doc conflict resolved: PRODUCT.md used to say the first release is "native iOS and Android"; PLAN.md says Android first. Android first is the decision (D1) and PRODUCT.md now says so.
 
@@ -264,7 +266,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** reviewers may disagree with ACSM-based defaults or Mohamed's configuration; the Hevy backtest already shows a gap with his own behaviour.
 
 ### Step 17. Privacy policy, terms, health disclaimers, data handling
-- [~] **Status (v0.10.0, DRAFT):** policy and terms drafts with placeholders, in-app Privacy and safety page, health notes, tests comparing the code's data flows with the text. NOT reviewed by a lawyer (D6), no controller identity or contact, no public URL, no consent screen (nothing needs consent yet: no analytics). **Goal:** legal and honest copy before strangers install.
+- [~] **Status (v0.10.0, DRAFT; web pages added 2026-10-04):** policy and terms drafts with placeholders, in-app Privacy and safety page, health notes, tests comparing the code's data flows with the text. **Static draft pages (EN + AR) are in `docs/site` and hosted at https://gain-site.elmolla10.workers.dev (privacy, terms, delete-account, support, pilot guide), marked DRAFT/noindex, tested against the code in `siteDraft.test.ts`.** NOT reviewed by a lawyer (D6), no controller identity or contact, no consent screen (nothing needs consent yet: no analytics). A web account-deletion path that works without the app is specified, not built ([ACCOUNT-DELETION-SPEC.md](ACCOUNT-DELETION-SPEC.md)). **Goal:** legal and honest copy before strangers install.
 - **Deliver:** privacy policy (what is stored locally; what leaves the phone once Steps 18/21 exist), terms, in-app "training aid, not a doctor, pain means see a professional" lines, consent screen for crash/analytics (opt-in), data-retention and deletion statement.
 - **Done means:** reviewed by a lawyer or a qualified template service (decision D6); public URL for the policy (needed by the Play data safety form).
 - **Test:** compare actual data flows (code + network log) against the text.
@@ -333,7 +335,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - Removed 2026-10-03; nothing replaces it. GAIN is completely free (PRODUCT.md, "Free for everyone"). The step number is kept so older references still resolve.
 
 ### Step 25. Play internal and closed testing
-- [ ] Gate G4. **Goal:** install via the store, with signed AAB.
+- [ ] Gate G4. **2026-10-04 (v0.20.0): the Play-compatible build exists as a build switch** (no self-updater, no `REQUEST_INSTALL_PACKAGES`; AAB built, manifest measured; [PLAY-BUILD.md](PLAY-BUILD.md)). Everything that needs an account, a payment, an identity or a phone is still open. **Goal:** install via the store, with signed AAB.
 - **Deliver:** Play developer account; app signing choice; AAB builds; internal track; closed track with testers; pre-launch report fixes. Check current Play requirements for new accounts and testing tracks (**unknown**, they change).
 - **Done means:** pilot users update through Play; pre-launch report has no crashes.
 - **Test:** Play pre-launch report and device matrix.
@@ -342,7 +344,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** account verification delays; package id `app.gain.mobile` is fixed once published.
 
 ### Step 26. Store listing and assets
-- [ ] **Goal:** a listing that is accurate in Arabic and English. **Data-safety form draft from the real data flows: [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (2026-10-03, unreviewed, nothing submitted).** **v0.13.0: EN/AR text drafts, asset checklist, data-safety draft and a blockers list are in [PLAY-LISTING-DRAFT.md](PLAY-LISTING-DRAFT.md)** (drafts, no native-Arabic or legal review; no screenshots yet; privacy-policy URL and support email missing; the in-app self-updater uses the install-packages permission, which conflicts with a Play build and needs a decision).
+- [ ] **Goal:** a listing that is accurate in Arabic and English. **2026-10-04: screenshot shot list, captions, metadata table, 512 px icon and EN/AR feature-graphic drafts are in [PLAY-ASSETS.md](PLAY-ASSETS.md) and `docs/play-assets/`; no screenshot exists.** **Data-safety form draft from the real data flows: [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (2026-10-03, unreviewed, nothing submitted).** **v0.13.0: EN/AR text drafts, asset checklist, data-safety draft and a blockers list are in [PLAY-LISTING-DRAFT.md](PLAY-LISTING-DRAFT.md)** (drafts, no native-Arabic or legal review; no screenshots yet; privacy-policy URL and support email missing; the in-app self-updater uses the install-packages permission, which conflicts with a Play build and needs a decision).
 - **Deliver:** short + full descriptions (start from PRODUCT.md short description), screenshots (AR + EN, RTL and LTR, light/dark), feature graphic, icon (exists), content rating questionnaire, data safety form (must match Steps 17/18/21), privacy policy URL, support email, target countries.
 - **Done means:** the listing passes review; claims contain no medical or physique promise.
 - **Test:** compare each listing claim to a shipped feature.
@@ -388,9 +390,45 @@ The old map of future releases (v0.4.1 ... v1.x) is gone: it kept promising vers
 | Gate | Means | Exit criteria (all must hold, each with evidence committed) | Steps behind it |
 | --- | --- | --- | --- |
 | **G1. Device verified** | **Status: reported passed by Mohamed 2026-10-04 (not independently verified; no evidence committed to the repo).** The core loop works on real Android phones and nothing is lost. | Now 1-3 done. NATIVE-CHECKLIST rows 1-26 each PASS, or FAIL with an issue and a fix, on at least one real phone (two makers preferred) with model and Android version recorded; update-over-install from an older signed APK keeps all sessions and sets; force-stop mid-workout loses nothing; rest alert arrives with the screen locked (or is documented as not working, with the battery-saver tip); signing key restored from an off-box copy and verified. | 1, 10, 14 (device part), 15 (device part), 19 (key), section 5 upgrade tests |
-| **G2. Pilot ready** | It is safe and sensible to put in ten other people's hands. | G1 passed and its bugs fixed. Arabic reviewed on the phone with written verdicts; TalkBack and large-text results recorded; the six pilot programs confirmed; pilot criteria (retention, usability, stop rules) written into PILOT-RETENTION-METRICS.md with a date, by Mohamed; the override-reason sheet from Now 5 in use; consent text checked by a lawyer or accepted by Mohamed as a risk call in writing (D6); a trainer has looked at the rules the lifters will see (Step 16) or Mohamed records that they go in unreviewed; a non-technical person installs from [INSTALL-GUIDE.md](INSTALL-GUIDE.md) without help. | 8 (Arabic), 14, 16, 17 (consent), 19 |
+| **G2. Pilot ready** | **Status 2026-10-04: NOT passed; materials drafted, see "Gate status" below.** It is safe and sensible to put in ten other people's hands. | G1 passed and its bugs fixed. Arabic reviewed on the phone with written verdicts; TalkBack and large-text results recorded; the six pilot programs confirmed; pilot criteria (retention, usability, stop rules) written into PILOT-RETENTION-METRICS.md with a date, by Mohamed; the override-reason sheet from Now 5 in use; consent text checked by a lawyer or accepted by Mohamed as a risk call in writing (D6); a trainer has looked at the rules the lifters will see (Step 16) or Mohamed records that they go in unreviewed; a non-technical person installs from [INSTALL-GUIDE.md](INSTALL-GUIDE.md) without help. | 8 (Arabic), 14, 16, 17 (consent), 19 |
 | **G3. Pilot validated** | The promise holds with real lifters: the number is trusted and people come back. | The six-week local-only pilot ran with about 10 lifters at one gym; the written pilot report (agreement next to "repeat last load", override reasons in their words, retention at weeks 1/2/6, top bugs, what to change) exists; the pre-written thresholds are met or the report says plainly which were missed; no stop rule (lost sets, clearly unsafe target, broken update path) is left unresolved. If thresholds are missed, the next work is whatever the report says, not new features. | 20 |
-| **G4. Store ready** | A public Play listing can be submitted honestly. | G3 validated. Play Console account and app-signing choice; signed AAB; internal then closed testing with the pilot group; pre-launch report with no crashes; the self-updater's install permission resolved for the Play build; privacy policy at a public URL with a controller and contact, legally reviewed; data-safety form and listing (Arabic + English, real phone screenshots) match the shipped behaviour; no medical or physique claim; native-Arabic and trainer review recorded. | 17, 18 (if events are added), 25, 26 |
+| **G4. Store ready** | **Status 2026-10-04: NOT passed; Play build switch, draft site and asset drafts exist, see "Gate status" below.** A public Play listing can be submitted honestly. | G3 validated. Play Console account and app-signing choice; signed AAB; internal then closed testing with the pilot group; pre-launch report with no crashes; the self-updater's install permission resolved for the Play build; privacy policy at a public URL with a controller and contact, legally reviewed; data-safety form and listing (Arabic + English, real phone screenshots) match the shipped behaviour; no medical or physique claim; native-Arabic and trainer review recorded. | 17, 18 (if events are added), 25, 26 |
+
+### Gate status (2026-10-04, honest)
+
+Nothing below is a pass. The gates are passed by evidence in the repo; this table says what exists. "Reported" = Mohamed said so, nothing committed. "Drafted" = text or tooling exists, nobody has used it.
+
+**G1. Device verified: reported passed by Mohamed, NOT independently verified.** No results file, issue list or screenshots in the repo. Nothing after v0.18.0 (v0.19.0, v0.20.0) has been reported as run on a phone.
+
+**G2. Pilot ready: NOT passed.** Exit criteria, one by one:
+| Criterion | State |
+| --- | --- |
+| G1 passed and its bugs fixed | Reported (above); no bug list committed |
+| Arabic reviewed on the phone with written verdicts | Not in the repo (Mohamed's report only; the 557 library rows added in v0.12.0 have no review at all) |
+| TalkBack and large-text results recorded | Not in the repo |
+| Six pilot programs confirmed | Mohamed reports he approved them; the six are written in [pilot/PILOT-TEMPLATES.md](pilot/PILOT-TEMPLATES.md); an opt-in build shows only them (v0.20.0, not run on a phone); D13 open |
+| Pilot criteria written into PILOT-RETENTION-METRICS.md with a date, by Mohamed | **Not done: the table is still blank in the repo** |
+| Override-reason sheet in use | Template ready ([pilot/override-sheet-template.csv](pilot/override-sheet-template.csv)); not in use (no pilot) |
+| Consent text checked by a lawyer or accepted by Mohamed in writing (D6) | Print-ready EN/AR draft exists ([pilot/CONSENT.md](pilot/CONSENT.md)); **neither** done |
+| A trainer has looked at the rules, or Mohamed records they go in unreviewed | Neither recorded |
+| A non-technical person installs from the guide without help | Guide drafted ([pilot/GUIDE.md](pilot/GUIDE.md), print page on the site); **nobody has tried it** |
+| Pilot tooling ready | `pilot-metrics` runs and is unit-tested on invented rows and one app-exported backup; dry-run on a synthetic file recorded; **never run on a real pilot file** |
+Blocked only on people (Mohamed, a lawyer, a trainer, native Arabic readers, ten lifters): everything in that table except the last row's real file.
+
+**G3. Pilot validated: not started.**
+
+**G4. Store ready: NOT passed (needs G3 first).** What moved and what did not:
+| Criterion | State |
+| --- | --- |
+| G3 validated | No |
+| Play Console account, app-signing choice | Neither (needs Mohamed, identity checks and a fee; D12) |
+| Signed AAB | An unsigned/debug-signed AAB builds from the Play switch; no upload key, no Play signing |
+| Closed testing, pre-launch report | No (account first; Google's new-account testing rules unknown here) |
+| Self-updater's install permission resolved for the Play build | **Resolved at build level in v0.20.0** (manifest measured, not on a phone); Mohamed's acceptance open (D12) |
+| Privacy policy at a public URL, controller and contact, legally reviewed | **URL exists as a DRAFT** (https://gain-site.elmolla10.workers.dev/privacy); controller/contact are placeholders; not reviewed |
+| Account-deletion web path | Informational page hosted; self-service/manual path specified, not built |
+| Data-safety form and listing match shipped behaviour, real phone screenshots in Arabic + English | Drafts only; no screenshot exists |
+| No medical/physique claim; native-Arabic and trainer review recorded | Claims checked in drafts; no native or trainer review |
 
 After G4 (not planned in detail): launch to people Mohamed can reach (Step 27), iOS (Step 28), post-launch metrics (Step 29). Backend work that is already built (sync, coach links) is verified on devices only as part of G1/G2 if the pilot uses it; the pilot itself is local-only, so sync is **not** a gate.
 
@@ -411,6 +449,9 @@ After G4 (not planned in detail): launch to people Mohamed can reach (Step 27), 
 | D9 | Billing library | Moot: GAIN is free; no billing library (see PRODUCT.md). |
 | D10 | Do the rep ceilings 10/12/15 and the one-session trigger stay default after trainer review? | Keep until the trainer and pilot say otherwise. |
 | D11 | Android auto-backup of the app database (on, the Expo default): leave on or turn off? | Leave on until the privacy policy (Step 17) is final; the delete screen says it exists. |
+| D12 | The self-updater in a Play build | **Proposal, built, not accepted by Mohamed:** keep the updater in the sideload APK only; the Play build (`GAIN_DISTRIBUTION=play`) has no updater and no install permission. Also open: Play App Signing (Google-generated key vs enrolling the existing key `571bc5a8...c5b2`; PLAY-BUILD.md section 5). |
+| D13 | How the pilot shows only the six programs | **Open, Mohamed.** (a) tell lifters which to pick (no extra build), or (b) install the pilot APK (`gain-pilot-vX.Y.Z-arm64.apk`, v0.20.0). [pilot/PILOT-TEMPLATES.md](pilot/PILOT-TEMPLATES.md). |
+| D14 | Operator identity and support email (policy, Play listing, deletion page) | **Open, Mohamed.** Placeholders in `docs/site`; fill with `fill-contact.mjs`. Also: who answers, and the deletion request path (A manual / B self-service; ACCOUNT-DELETION-SPEC.md). |
 
 ---
 

@@ -1,0 +1,3 @@
+# DRAFT pages: not meant to be indexed until the text is reviewed and published on purpose.
+User-agent: *
+Disallow: /

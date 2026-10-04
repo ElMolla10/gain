@@ -80,7 +80,7 @@ Allowed while frozen: fixes for bugs found on a device or in the pilot, data-saf
 
 | What | Result |
 | --- | --- |
-| Commit | `f5b948b` plus the v0.19.0 version-bump commit (`main`, v0.19.0, versionCode 19) |
+| Commit | `4e6aa51` (`main`, v0.19.0, versionCode 19) |
 | Date | 2026-10-04, run in a fresh clone on the build box (Node 22.19.0, `npm ci`) |
 | `npm run typecheck` | clean in all four workspaces (engine, sync, mobile, server) |
 | `npm test` | **engine 365, sync 19, mobile 747, server 90; 1,221 tests, 0 failing** (test files: engine 20, sync 1, mobile 75, server 5) |

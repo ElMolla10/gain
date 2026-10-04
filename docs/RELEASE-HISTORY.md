@@ -4,7 +4,7 @@
 
 **Nothing in this history has recorded device evidence in the repo.** (Mohamed reports on 2026-10-04 that he installed v0.18.0 and ran the device checks; that is his report, not independently verified, and no results are committed. v0.19.0 is not reported as run on a device.) Every release below was built, unit-tested on Node and published as a GitHub pre-release; no one has recorded installing any of them on a phone (see [NATIVE-CHECKLIST.md](NATIVE-CHECKLIST.md), [DEVICE-TEST-0.4.md](DEVICE-TEST-0.4.md)).
 
-Last updated 2026-10-04 (Cairo time) at v0.20.0.
+Last updated 2026-10-04 (Cairo time) at v0.21.0.
 
 ## 1. Published releases (GitHub pre-releases, Android arm64)
 
@@ -32,6 +32,7 @@ Dates are the GitHub publish time in Cairo time. "Schema" is the last client SQL
 | v0.18.0 | 2026-10-03 22:25 | 18 | 9 | Completely free: paywall scaffold removed |
 | v0.19.0 | 2026-10-04 04:01 | 19 | 9 | New 4-day template Push / Pull / Legs / Upper (`ppl_upper_4`, 48 templates); English spelling "program" |
 | v0.20.0 | 2026-10-04 04:56 (Cairo) | 20 | 9 | Build switches only (default app unchanged): `GAIN_DISTRIBUTION=play` (no self-updater, no install permission) and `GAIN_PILOT_TEMPLATES=1` (six pilot programs; published as `gain-pilot-v0.20.0-arm64.apk`). Not device-verified |
+| v0.21.0 | 2026-10-04 (Cairo; exact time in RELEASE-PROCESS.md section 8) | 21 | 11 | Four changes Mohamed asked for: pilot-metrics repeat-last baseline now compares the same exercise, gym and setup (and assisted loads in effective terms); program rep range wins over the GAIN ceilings (rule-v0.4, setting "Use GAIN rep ceilings" off by default); top set + back-offs per exercise in the program editor; per-exercise available weights (kg/lb). Also published as `gain-pilot-v0.21.0-arm64.apk`. Not device-verified |
 
 (versionCode and schema were read from `apps/mobile/app.json` and `migrations.ts` at each tag; v0.1.0 has no versionCode in `app.json`.)
 
@@ -103,6 +104,8 @@ Rule for all steps: no step is "done" until it was run on a device (or is explic
 
 The current result is recorded once, in MASTER-PLAN.md section 1. Older runs, newest first:
 
+- v0.21.0 release run: engine 391, sync 19, mobile 833, server 90.
+- v0.20.0 release run: engine 365, sync 19, mobile 773, server 90.
 - v0.18.0 release run (clean clone of `main` before release, RELEASE-PROCESS.md section 8): engine 365, sync 19, mobile 736, server 90.
 - v0.17.0 run: engine 365, sync 19, mobile 740, server 90.
 - v0.15.0 run: engine 365, sync 19, mobile 688, server 90.

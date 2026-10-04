@@ -1,6 +1,6 @@
 # GAIN master plan
 
-Rewritten 2026-10-03 (Cairo time) from the code on `main` at `cd97b06` (v0.18.0); updated 2026-10-04 for v0.19.0 (`ppl_upper_4` template, "program" spelling, Mohamed's reported priorities) and again for v0.20.0 (G2/G4 preparation: pilot materials, hosted draft site, Play and pilot build switches; **no gate was passed by that work**, see "Gate status" in section 3). Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Roadmap (one-page version of this plan): [ROADMAP.md](ROADMAP.md). Everything that already shipped, release by release, with the old milestone map and older test runs: [RELEASE-HISTORY.md](RELEASE-HISTORY.md). Pilot materials: [pilot/README.md](pilot/README.md). Play build and listing: [PLAY-BUILD.md](PLAY-BUILD.md), [PLAY-ASSETS.md](PLAY-ASSETS.md). Draft web pages: [site/README.md](site/README.md).
+Rewritten 2026-10-03 (Cairo time) from the code on `main` at `cd97b06` (v0.18.0); updated 2026-10-04 for v0.19.0 (`ppl_upper_4` template, "program" spelling, Mohamed's reported priorities) and again for v0.20.0 (G2/G4 preparation: pilot materials, hosted draft site, Play and pilot build switches; **no gate was passed by that work**, see "Gate status" in section 3) and for v0.21.0 (four changes Mohamed explicitly asked for, overriding the feature freeze: pilot-metric baseline fix, program rep range wins (rule-v0.4), top set + back-offs, per-exercise available weights; **no gate was passed by that work**). Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Roadmap (one-page version of this plan): [ROADMAP.md](ROADMAP.md). Everything that already shipped, release by release, with the old milestone map and older test runs: [RELEASE-HISTORY.md](RELEASE-HISTORY.md). Pilot materials: [pilot/README.md](pilot/README.md). Play build and listing: [PLAY-BUILD.md](PLAY-BUILD.md), [PLAY-ASSETS.md](PLAY-ASSETS.md). Draft web pages: [site/README.md](site/README.md).
 
 **GAIN is completely free** (Android first; Arabic and English). The single authoritative statement of what that means is "Free for everyone" in [PRODUCT.md](PRODUCT.md); this plan does not restate it or add to it. Nothing in this plan is gated, priced or tiered, and no billing work is planned.
 
@@ -82,10 +82,10 @@ Allowed while frozen: fixes for bugs found on a device or in the pilot, data-saf
 
 | What | Result |
 | --- | --- |
-| Commit | `c870bfa` (`main`, after PR #132); release v0.20.0 built from `cbc5ff0` (published 2026-10-04 04:56 Cairo, pre-release, NOT device-verified) |
+| Commit | `main` after PR #138 plus the v0.21.0 version-bump PR; release v0.21.0 (pre-release, NOT device-verified; build time and hashes in RELEASE-PROCESS.md section 8). v0.20.0 was built from `cbc5ff0` |
 | Date | 2026-10-04, run in a clone on the build box (Node 22.19.0, `npm ci`); CI on `main` green after #132 |
 | `npm run typecheck` | clean in all four workspaces (engine, sync, mobile, server) |
-| `npm test` | **engine 365, sync 19, mobile 773, server 90; 1,247 tests, 0 failing** (test files: engine 20, sync 1, mobile 77, server 5) |
+| `npm test` | **engine 391, sync 19, mobile 833, server 90; 1,333 tests, 0 failing** (test files: engine 22, sync 1, mobile 79, server 5) |
 | What this is | Node unit and integration tests only; SQLite stands in for the phone's SQLite and for D1. **These are not phone tests.** |
 
 CI runs `typecheck` and `test` on every PR. Older runs are in [RELEASE-HISTORY.md](RELEASE-HISTORY.md) section 5. Update this table (and only this table) when a new check is run.
@@ -398,7 +398,7 @@ The old map of future releases (v0.4.1 ... v1.x) is gone: it kept promising vers
 
 Nothing below is a pass. The gates are passed by evidence in the repo; this table says what exists. "Reported" = Mohamed said so, nothing committed. "Drafted" = text or tooling exists, nobody has used it.
 
-**G1. Device verified: reported passed by Mohamed, NOT independently verified.** No results file, issue list or screenshots in the repo. Nothing after v0.18.0 (v0.19.0, v0.20.0) has been reported as run on a phone.
+**G1. Device verified: reported passed by Mohamed, NOT independently verified.** No results file, issue list or screenshots in the repo. Nothing after v0.18.0 (v0.19.0, v0.20.0, v0.21.0) has been reported as run on a phone.
 
 **G2. Pilot ready: NOT passed.** Exit criteria, one by one:
 | Criterion | State |
@@ -452,6 +452,9 @@ After G4 (not planned in detail): launch to people Mohamed can reach (Step 27), 
 | D12 | The self-updater in a Play build | **Proposal, built, not accepted by Mohamed:** keep the updater in the sideload APK only; the Play build (`GAIN_DISTRIBUTION=play`) has no updater and no install permission. Also open: Play App Signing (Google-generated key vs enrolling the existing key `571bc5a8...c5b2`; PLAY-BUILD.md section 5). |
 | D13 | How the pilot shows only the six programs | **Open, Mohamed.** (a) tell lifters which to pick (no extra build), or (b) install the pilot APK (`gain-pilot-vX.Y.Z-arm64.apk`, v0.20.0). [pilot/PILOT-TEMPLATES.md](pilot/PILOT-TEMPLATES.md). |
 | D14 | Operator identity and support email (policy, Play listing, deletion page) | **Open, Mohamed.** Placeholders in `docs/site`; fill with `fill-contact.mjs`. Also: who answers, and the deletion request path (A manual / B self-service; ACCOUNT-DELETION-SPEC.md). |
+| D15 | Program rep range vs the GAIN ceilings (10 / 12 / 15) | **Decided by Mohamed's request, built in v0.21.0 (rule-v0.4):** the program's own range wins; the GAIN ceiling only applies when the program has no upper bound or when the new setting "Use GAIN rep ceilings" (off by default) is on; the Why screen says which applies. Changes default progression for programs whose top differs from 10 / 12 / 15 (e.g. an imported 8-12). Old decisions keep rule-v0.3. Not tested with real lifters. |
+| D16 | Top set + back-offs | **Built in v0.21.0 at Mohamed's request:** a per-exercise choice in the program editor (straight sets by default; no rule thresholds changed). Not device-verified; Arabic strings are drafts. |
+| D17 | Weights that exist for an exercise | **Built in v0.21.0 at Mohamed's request:** a per-exercise control for dumbbell jumps, machine stack steps and barbell plates (kg or lb). Defaults unchanged (standard gym steps, typical weights); the Why text claims own weights only when the lifter set them. Applies to the exercise in every gym. |
 
 ---
 
@@ -467,9 +470,9 @@ After G4 (not planned in detail): launch to people Mohamed can reach (Step 27), 
 
 ### Migration testing: older releases to the current schema
 
-The old line here ("migrates 1 to 3") was written at v0.3.0 and is obsolete. **The client database is at schema version 9** (`LATEST_VERSION`, the last of nine numbered migrations in `apps/mobile/src/db/migrations.ts`; there is no `db/migrations` folder). The sync server's D1 schema is separate (`apps/server/migrations`, latest `0003_generation.sql`) and is not part of the on-phone upgrade.
+The old line here ("migrates 1 to 3") was written at v0.3.0 and is obsolete. **The client database is at schema version 11** (`LATEST_VERSION`, the last of eleven numbered migrations in `apps/mobile/src/db/migrations.ts`; there is no `db/migrations` folder). The sync server's D1 schema is separate (`apps/server/migrations`, latest `0003_generation.sql`) and is not part of the on-phone upgrade.
 
-Published releases by the schema they leave on a phone (from the tags; also in RELEASE-HISTORY.md): v0.1.0 = 1, v0.2.0 = 2, v0.3.0 and v0.4.0 = 3, v0.5.0 to v0.8.0 = 5, v0.9.0 = 6, v0.10.0 = 7, v0.11.0 and v0.12.0 = 8, v0.13.0 to v0.19.0 = 9. Library rows, exercise twins and settings are topped up by app code at start, not by migrations, so they must be exercised by a real update as well.
+Published releases by the schema they leave on a phone (from the tags; also in RELEASE-HISTORY.md): v0.1.0 = 1, v0.2.0 = 2, v0.3.0 and v0.4.0 = 3, v0.5.0 to v0.8.0 = 5, v0.9.0 = 6, v0.10.0 = 7, v0.11.0 and v0.12.0 = 8, v0.13.0 to v0.20.0 = 9, v0.21.0 = 11 (10: `programme_day_exercise.top_sets`; 11: `exercise.load_spec_json`; both new nullable columns, NULL = what every existing row meant). The two upgrades are tested from a copy of a real Hevy history (row-for-row preserved). Library rows, exercise twins and settings are topped up by app code at start, not by migrations, so they must be exercised by a real update as well.
 
 - **Supported upgrade sources (proposal, Mohamed to confirm):** every release a real phone could still have, one representative per schema: v0.4.0 (3), v0.8.0 (5), v0.9.0 (6), v0.10.0 (7), v0.12.0 (8), v0.17.0 (9), and each future release over v0.18.0. v0.1.0 and v0.2.0 (schemas 1 and 2) are not in the proposed set; if any phone still runs them, test that phone, otherwise say "not supported" in the install guide. Phones above version 9 (a newer app than the one installed) are refused by design, not downgraded.
 - **What exists today (Node only):** `apps/mobile/test/safety.test.ts` builds a database at each schema 1 to 8 using the *current* code's migration list truncated, writes a tiny hand-made history (3 sessions, 9 sets, one program) and checks that migrating to 9 keeps the rows, integrity and foreign keys. That proves the SQL steps, not that a real release's database upgrades. It uses invented rows, not a real user's data. (OFFLINE-SAFETY.md's "v1..v6 to v7" line was stale and is corrected.)

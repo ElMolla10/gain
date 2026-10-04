@@ -1,6 +1,7 @@
 import { classifyLift, DEFAULT_REP_CEILINGS, type Measure, mergeRepCeilings, resolveProgression, resolveRepTop, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings, type RepTopBasis } from "@gain/engine";
 import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
+import { normTopSets } from "../logic/programmeDraft";
 import { hasLoggedSets } from "./sessionSql";
 import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
 import { DEFAULT_TIMED_RANGE, measureOfKey } from "./library/measures";
@@ -237,13 +238,14 @@ export function createRepos(db: Db, deps: Deps) {
       rep_min: number;
       rep_max: number;
       rep_ceiling: number | null;
+      top_sets: number | null;
       is_goal_lift: number;
       track_effort: number;
       position: number;
       pattern: string;
     }>(
       `SELECT pde.id, pde.exercise_id, e.name_en, e.name_ar, e.aliases_ar_json, e.equipment, e.setup, e.measure, e.pattern,
-              pde.sets, pde.rep_min, pde.rep_max, pde.rep_ceiling, pde.is_goal_lift, pde.track_effort, pde.position
+              pde.sets, pde.rep_min, pde.rep_max, pde.rep_ceiling, pde.top_sets, pde.is_goal_lift, pde.track_effort, pde.position
        FROM programme_day_exercise pde JOIN exercise e ON e.id = pde.exercise_id
        WHERE pde.programme_day_id = ? AND pde.deleted_at IS NULL ORDER BY pde.position`,
       [dayId],
@@ -272,6 +274,7 @@ export function createRepos(db: Db, deps: Deps) {
           repCeilingIsCustom: false,
           repTopBasis: "program" as RepTopBasis,
           gainCeiling: r.rep_max,
+          topSets: null as number | null,
           isGoalLift: r.is_goal_lift === 1,
           trackEffort: false,
         };
@@ -306,6 +309,8 @@ export function createRepos(db: Db, deps: Deps) {
       repTopBasis: basis,
       /** The GAIN ceiling for this kind of lift, for the text that says what "Use GAIN rep ceilings" would change. */
       gainCeiling,
+      /** null = straight sets; n = top set + back-offs (only the n heaviest sets are judged). */
+      topSets: normTopSets(r.sets, r.top_sets),
       isGoalLift: r.is_goal_lift === 1,
       trackEffort: r.track_effort === 1,
       };
@@ -326,7 +331,7 @@ export function createRepos(db: Db, deps: Deps) {
       const d = DEFAULT_TIMED_RANGE[r.measure];
       return {
         id: `added:${r.id}`, exerciseId: r.id, nameEn: r.name_en, nameAr: r.name_ar, aliasesAr: JSON.parse(r.aliases_ar_json) as string[], equipment: r.equipment, setup: r.setup,
-        measure: r.measure, pattern: r.pattern, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, isGoalLift: false, trackEffort: false,
+        measure: r.measure, pattern: r.pattern, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, topSets: null as number | null, isGoalLift: false, trackEffort: false,
       };
     }
     const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings: await getRepCeilingDefaults() });
@@ -350,6 +355,7 @@ export function createRepos(db: Db, deps: Deps) {
       repCeilingIsCustom: false,
       repTopBasis: "no_upper_bound" as RepTopBasis,
       gainCeiling: policy.repCeiling,
+      topSets: null as number | null,
       isGoalLift: false,
       trackEffort: false,
     };

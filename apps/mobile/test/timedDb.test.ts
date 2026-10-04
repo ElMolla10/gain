@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { parseImport } from "@gain/engine";
 import { describe, expect, it } from "vitest";
 import { MeasureLocked } from "../src/db/programmeRepo";
-import { MIGRATIONS, migrate } from "../src/db/migrations";
+import { LATEST_VERSION, MIGRATIONS, migrate } from "../src/db/migrations";
 import { TIMED_LIBRARY, measureOfKey } from "../src/db/library/measures";
 import { addExercise, newExercise } from "../src/logic/programmeDraft";
 import { freshDb } from "./helpers";
@@ -83,7 +83,7 @@ describe("migration 9: time and distance", () => {
     const db = await at(8);
     await migrate(db);
     expect((await db.get<{ updated_at: number }>("SELECT updated_at FROM exercise WHERE id = 'e-untouched'"))!.updated_at).toBe(1_700_000_000_000);
-    expect(await migrate(db)).toMatchObject({ from: 9, to: 9 });
+    expect(await migrate(db)).toMatchObject({ from: LATEST_VERSION, to: LATEST_VERSION });
   });
   it("the database checks refuse a duration or distance out of range", async () => {
     const s = await setup();

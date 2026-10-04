@@ -113,6 +113,7 @@ export function ProgrammeScreen() {
                         </AppText>
                         <AppText ltr style={{ color: p.muted, fontSize: ty.label }}>
                           {range ? `${e.sets} × ${rangeText(range, (key, params) => t(key, params))}` : `${e.sets} ×`}
+                          {range && e.topSets ? ` · ${t("prog.ex.scheme.top")} (${e.topSets})` : ""}
                           {l && l.secondary ? ` · ${l.secondary}` : ""}
                         </AppText>
                       </View>

@@ -14,6 +14,8 @@ export interface DraftExercise {
   repCeiling: number | null;
   isGoalLift: boolean;
   trackEffort: boolean;
+  /** null = straight sets. n >= 1 = top set + back-offs: only the n heaviest sets are judged, the lighter sets after them never block progression. */
+  topSets?: number | null;
 }
 export interface DraftDay {
   name: string;
@@ -35,8 +37,13 @@ export const newExercise = (exerciseId: string, over: Partial<DraftExercise> = {
   repCeiling: null,
   isGoalLift: false,
   trackEffort: false,
+  topSets: null,
   ...over,
 });
+
+/** A top-set count that makes sense for the number of sets: needs at least one back-off set, so 1..sets-1; anything else means straight sets (null). */
+export const normTopSets = (sets: number, topSets: number | null | undefined): number | null =>
+  typeof topSets === "number" && Number.isInteger(topSets) && topSets >= 1 && Number.isInteger(sets) && sets >= 2 ? Math.min(topSets, sets - 1) : null;
 
 /** A new slot for an exercise counted in seconds or metres starts at the usual hold / carry range (the lifter edits it); reps exercises keep the plain defaults. */
 export const newExerciseFor = (exerciseId: string, measure: Measure, over: Partial<DraftExercise> = {}): DraftExercise =>
@@ -48,7 +55,7 @@ export const resetRangeFor = (d: ProgrammeDraft, exerciseId: string, measure: Me
   days: d.days.map((day) => ({
     ...day,
     exercises: day.exercises.map((e) =>
-      e.exerciseId !== exerciseId ? e : measure === "reps" ? { ...e, repMin: 6, repMax: 10, repCeiling: null } : { ...e, repMin: DEFAULT_TIMED_RANGE[measure].min, repMax: DEFAULT_TIMED_RANGE[measure].max, repCeiling: null, isGoalLift: false, trackEffort: false },
+      e.exerciseId !== exerciseId ? e : measure === "reps" ? { ...e, repMin: 6, repMax: 10, repCeiling: null } : { ...e, repMin: DEFAULT_TIMED_RANGE[measure].min, repMax: DEFAULT_TIMED_RANGE[measure].max, repCeiling: null, isGoalLift: false, trackEffort: false, topSets: null },
     ),
   })),
 });
@@ -75,9 +82,16 @@ export const removeExercise = (d: ProgrammeDraft, dayIndex: number, exIndex: num
   mapDay(d, dayIndex, (day) => ({ ...day, exercises: day.exercises.filter((_, j) => j !== exIndex) }));
 export const moveExercise = (d: ProgrammeDraft, dayIndex: number, from: number, to: number): ProgrammeDraft => mapDay(d, dayIndex, (day) => ({ ...day, exercises: move(day.exercises, from, to) }));
 export const updateExercise = (d: ProgrammeDraft, dayIndex: number, exIndex: number, patch: Partial<DraftExercise>): ProgrammeDraft =>
-  mapDay(d, dayIndex, (day) => ({ ...day, exercises: day.exercises.map((e, j) => (j === exIndex ? { ...e, ...patch } : e)) }));
+  mapDay(d, dayIndex, (day) => ({
+    ...day,
+    exercises: day.exercises.map((e, j) => {
+      if (j !== exIndex) return e;
+      const n = { ...e, ...patch };
+      return { ...n, topSets: normTopSets(n.sets, n.topSets) }; // fewer sets than top sets + 1 turns it back into straight sets
+    }),
+  }));
 
-export type DraftProblemCode = "name_empty" | "no_days" | "day_name_empty" | "day_empty" | "sets_bad" | "reps_bad" | "ceiling_bad" | "duplicate_exercise";
+export type DraftProblemCode = "name_empty" | "no_days" | "day_name_empty" | "day_empty" | "sets_bad" | "reps_bad" | "ceiling_bad" | "topsets_bad" | "duplicate_exercise";
 export interface DraftProblem {
   code: DraftProblemCode;
   day?: number;
@@ -98,6 +112,7 @@ export function validateDraft(d: ProgrammeDraft): DraftProblem[] {
       if (!Number.isInteger(e.sets) || e.sets < 1 || e.sets > MAX_SETS) out.push({ code: "sets_bad", day: di, exercise: ei });
       if (!Number.isInteger(e.repMin) || !Number.isInteger(e.repMax) || e.repMin < 1 || e.repMax < e.repMin) out.push({ code: "reps_bad", day: di, exercise: ei });
       if (e.repCeiling !== null && (!Number.isInteger(e.repCeiling) || e.repCeiling < 1 || e.repCeiling > 100)) out.push({ code: "ceiling_bad", day: di, exercise: ei });
+      if (e.topSets !== null && e.topSets !== undefined && normTopSets(e.sets, e.topSets) !== e.topSets) out.push({ code: "topsets_bad", day: di, exercise: ei });
     });
   });
   return out;
@@ -105,4 +120,4 @@ export function validateDraft(d: ProgrammeDraft): DraftProblem[] {
 
 /** Stable text of the parts of a draft that matter, to tell whether an edit changed anything. */
 export const draftFingerprint = (d: ProgrammeDraft): string =>
-  JSON.stringify([d.name.trim(), d.days.map((day) => [day.name.trim(), day.exercises.map((e) => [e.exerciseId, e.sets, e.repMin, e.repMax, e.repCeiling, e.isGoalLift, e.trackEffort])])]);
+  JSON.stringify([d.name.trim(), d.days.map((day) => [day.name.trim(), day.exercises.map((e) => [e.exerciseId, e.sets, e.repMin, e.repMax, e.repCeiling, e.isGoalLift, e.trackEffort, e.topSets ?? null])])]);

@@ -91,6 +91,17 @@ export function ProgrammeEditorView(props: {
                 }}
               />}
               {measureOf(e.exerciseId) !== "reps" ? null : (
+                <View style={{ gap: space.xs }}>
+                  <AppText style={{ fontWeight: "600" }}>{t("prog.ex.scheme")}</AppText>
+                  <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                    <Chip label={t("prog.ex.scheme.straight")} selected={!e.topSets} onPress={() => props.onChange(updateExercise(d, di, ei, { topSets: null }))} />
+                    <Chip label={t("prog.ex.scheme.top")} selected={!!e.topSets} onPress={() => props.onChange(updateExercise(d, di, ei, { topSets: e.topSets || 1 }))} />
+                  </View>
+                  {e.topSets ? <Stepper label={t("prog.ex.topSets")} value={e.topSets} min={1} max={Math.max(1, e.sets - 1)} onChange={(n) => props.onChange(updateExercise(d, di, ei, { topSets: n }))} /> : null}
+                  <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("prog.ex.schemeHint")}</AppText>
+                </View>
+              )}
+              {measureOf(e.exerciseId) !== "reps" ? null : (
                 <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
                   <Chip label={t("prog.ex.goal")} selected={e.isGoalLift} onPress={() => props.onChange(updateExercise(d, di, ei, { isGoalLift: !e.isGoalLift }))} />
                   <Chip label={t("prog.ex.effort")} selected={e.trackEffort} onPress={() => props.onChange(updateExercise(d, di, ei, { trackEffort: !e.trackEffort }))} />

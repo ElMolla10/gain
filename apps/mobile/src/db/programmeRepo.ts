@@ -1,7 +1,7 @@
 import type { EquipmentType, Measure, SetupType } from "@gain/engine";
 import { DEFAULT_TIMED_RANGE } from "./library/measures";
 import { computeExposure, type ExposureRow } from "../logic/exposure";
-import { draftFingerprint, validateDraft, type DraftProblem, type ProgrammeDraft } from "../logic/programmeDraft";
+import { draftFingerprint, normTopSets, validateDraft, type DraftProblem, type ProgrammeDraft } from "../logic/programmeDraft";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { Repos } from "./repos";
@@ -135,7 +135,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       const t = now();
       await db.run("UPDATE exercise SET measure = ?, updated_at = ? WHERE id = ?", [measure, t, exerciseId]);
       const r = await db.run(
-        "UPDATE programme_day_exercise SET rep_min = ?, rep_max = ?, rep_ceiling = NULL, track_effort = 0, updated_at = ? WHERE exercise_id = ? AND deleted_at IS NULL",
+        "UPDATE programme_day_exercise SET rep_min = ?, rep_max = ?, rep_ceiling = NULL, top_sets = NULL, track_effort = 0, updated_at = ? WHERE exercise_id = ? AND deleted_at IS NULL",
         [range.min, range.max, t, exerciseId],
       );
       return r.changes;
@@ -171,14 +171,14 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     const days = await db.all<{ id: string; name: string }>("SELECT id, name FROM programme_day WHERE programme_version_id = ? AND deleted_at IS NULL ORDER BY position", [versionId]);
     const out: ProgrammeDraft = { name: v.name, days: [] };
     for (const d of days) {
-      const ex = await db.all<{ exercise_id: string; sets: number; rep_min: number; rep_max: number; rep_ceiling: number | null; is_goal_lift: number; track_effort: number }>(
-        `SELECT exercise_id, sets, rep_min, rep_max, rep_ceiling, is_goal_lift, track_effort FROM programme_day_exercise
+      const ex = await db.all<{ exercise_id: string; sets: number; rep_min: number; rep_max: number; rep_ceiling: number | null; top_sets: number | null; is_goal_lift: number; track_effort: number }>(
+        `SELECT exercise_id, sets, rep_min, rep_max, rep_ceiling, top_sets, is_goal_lift, track_effort FROM programme_day_exercise
          WHERE programme_day_id = ? AND deleted_at IS NULL ORDER BY position`,
         [d.id],
       );
       out.days.push({
         name: d.name,
-        exercises: ex.map((e) => ({ exerciseId: e.exercise_id, sets: e.sets, repMin: e.rep_min, repMax: e.rep_max, repCeiling: e.rep_ceiling, isGoalLift: e.is_goal_lift === 1, trackEffort: e.track_effort === 1 })),
+        exercises: ex.map((e) => ({ exerciseId: e.exercise_id, sets: e.sets, repMin: e.rep_min, repMax: e.rep_max, repCeiling: e.rep_ceiling, isGoalLift: e.is_goal_lift === 1, trackEffort: e.track_effort === 1, topSets: normTopSets(e.sets, e.top_sets) })),
       });
     }
     return out;
@@ -244,9 +244,9 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       await db.run("INSERT INTO programme_day (id, programme_version_id, name, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)", [dayId, versionId, day.name.trim(), di, t, t]);
       for (const [ei, e] of day.exercises.entries()) {
         await db.run(
-          `INSERT INTO programme_day_exercise (id, programme_day_id, exercise_id, position, sets, rep_min, rep_max, rep_ceiling, is_goal_lift, track_effort, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [newId(), dayId, e.exerciseId, ei, e.sets, e.repMin, e.repMax, e.repCeiling, e.isGoalLift ? 1 : 0, e.trackEffort ? 1 : 0, t, t],
+          `INSERT INTO programme_day_exercise (id, programme_day_id, exercise_id, position, sets, rep_min, rep_max, rep_ceiling, top_sets, is_goal_lift, track_effort, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [newId(), dayId, e.exerciseId, ei, e.sets, e.repMin, e.repMax, e.repCeiling, normTopSets(e.sets, e.topSets), e.isGoalLift ? 1 : 0, e.trackEffort ? 1 : 0, t, t],
         );
       }
     }

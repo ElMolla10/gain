@@ -176,6 +176,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     programmeRepRange: { min: exercise.repRange.min, max: programMax },
     repTopBasis,
     gainCeiling,
+    ...(exercise.topSets !== undefined && (exercise.plannedSets === undefined || exercise.topSets < exercise.plannedSets) ? { topSets: exercise.topSets } : {}),
     isGoalLift: !!exercise.isGoalLift,
     trackEffort: !!exercise.trackEffort,
     bodyweightKg: bw,

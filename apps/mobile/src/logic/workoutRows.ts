@@ -69,11 +69,25 @@ const blank = (key: string, p: Prefill): SetRowDraft => ({ key, load: null, reps
  * Rows to show for one exercise: the sets already logged today (oldest first), then empty rows prefilled with today's target
  * until the program's number of working sets is reached. Never invents numbers: with no target and no history the rows are empty.
  */
-export function initialRows(saved: SavedSet[], plannedSets: number, prefill: Prefill, newKey: () => string): SetRowDraft[] {
+export function initialRows(saved: SavedSet[], plannedSets: number, prefill: Prefill, newKey: () => string, backoff?: BackoffPrefill | null): SetRowDraft[] {
   const rows = saved.map(fromSaved);
   const working = rows.filter((r) => !r.warmup).length;
-  for (let i = working; i < plannedSets; i++) rows.push(blank(newKey(), prefill));
+  for (let i = working; i < plannedSets; i++) rows.push(blank(newKey(), backoff && i >= backoff.topSets ? backoff.last[i] ?? { load: null, reps: null } : prefill));
   return rows;
+}
+
+/**
+ * Top set + back-offs: the target is for the top set(s). The back-off rows must not be pre-filled with the top set's load (they are lighter),
+ * so they show last time's set at the same position when there was one, else stay empty. Never invents a back-off number.
+ */
+export interface BackoffPrefill {
+  topSets: number;
+  /** Last session's working sets in order. */
+  last: Prefill[];
+}
+export function backoffPrefill(topSets: number | null | undefined, lastWorkingSets: { load: number; reps: number }[] | null | undefined): BackoffPrefill | null {
+  if (!topSets || topSets < 1) return null;
+  return { topSets, last: (lastWorkingSets ?? []).map((s) => ({ load: s.load, reps: s.reps })) };
 }
 
 /** After a reload from the database: logged sets in database order, then the rows not logged yet. Typed-over edits of a logged row survive. */

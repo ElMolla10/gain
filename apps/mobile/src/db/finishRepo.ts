@@ -241,7 +241,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     const decided: { ex: (typeof exercises)[number]; proposal: Proposal; lineId: string }[] = [];
     for (const ex of exercises) {
       const { proposal, lineId } = await workout.liveProposal(
-        { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, repMin: ex.repMin, repMax: ex.repMax, programmeRepMin: ex.programmeRepMin, programmeRepMax: ex.programmeRepMax, repCeiling: ex.repCeiling, repCeilingIsCustom: ex.repCeilingIsCustom, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets },
+        { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, repMin: ex.repMin, repMax: ex.repMax, programmeRepMin: ex.programmeRepMin, programmeRepMax: ex.programmeRepMax, repCeiling: ex.repCeiling, repCeilingIsCustom: ex.repCeilingIsCustom, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets, topSets: ex.topSets },
         gym,
       );
       decided.push({ ex, proposal, lineId });

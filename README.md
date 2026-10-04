@@ -27,6 +27,7 @@ npm ci                   # from the repo root; installs every workspace from pac
 npm run typecheck        # engine + sync + mobile + server
 npm test                 # all four workspaces (vitest; mobile and server use Node's built-in SQLite, no device needed)
 cd apps/mobile && npx expo start --android   # needs an Android emulator or device
+cd apps/mobile && npx expo run:ios --device   # iPhone, on a Mac only; the free-Apple-ID guide is docs/IOS.md (never built or run yet)
 npm run export:android -w @gain/mobile       # bundles the Android JS without a device (compile check)
 npm run backtest:hevy -w @gain/engine        # runs the rule over fixtures/hevy-export.csv
 ```

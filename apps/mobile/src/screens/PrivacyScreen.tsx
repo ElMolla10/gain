@@ -1,6 +1,8 @@
 import { useNavigation } from "@react-navigation/native";
 import React from "react";
+import { buildFlags } from "../buildConfig";
 import { useI18n } from "../i18n";
+import { hasSelfUpdater } from "../logic/buildFlags";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Notice, Screen } from "../ui";
 
@@ -21,7 +23,7 @@ export function PrivacyScreen() {
     <Screen>
       <Notice kind="warn">{t("privacy.draft")}</Notice>
       {block("privacy.local.title", ["privacy.local.body"])}
-      {block("privacy.leaves.title", ["privacy.leaves.update", "privacy.leaves.sync", "privacy.leaves.link", "privacy.leaves.share", "privacy.leaves.backup"])}
+      {block("privacy.leaves.title", [...(hasSelfUpdater(buildFlags) ? (["privacy.leaves.update"] as const) : []), "privacy.leaves.sync", "privacy.leaves.link", "privacy.leaves.share", "privacy.leaves.backup"])}
       {block("privacy.crash.title", ["privacy.crash.body"])}
       {block("privacy.control.title", ["privacy.control.body"])}
       {block("privacy.health.title", ["privacy.health.body", "privacy.age"])}

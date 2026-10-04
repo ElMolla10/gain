@@ -22,6 +22,7 @@ import { instantiateTemplate, templatesForDays, type Instantiated, type Template
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, Field, InlineStatus, Notice, Screen } from "../ui";
 import { HealthNote } from "../components/HealthNote";
+import { activeTemplates } from "../buildConfig";
 import { TemplateBrowser } from "../components/TemplateBrowser";
 
 type ProgrammeMode = "template" | "own" | null;
@@ -210,7 +211,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
           </>
         );
       case "programme": {
-        const offers = form.days ? templatesForDays(form.days) : [];
+        const offers = form.days ? templatesForDays(form.days, activeTemplates()) : [];
         return (
           <>
             <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.programme")}</AppText>

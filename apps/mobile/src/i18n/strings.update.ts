@@ -1,5 +1,6 @@
 /** Check for updates (v0.8.0). ARABIC IS A DRAFT TRANSLATION, still to be reviewed. */
 export const enUpdate = {
+  "settings.pilotBuild": "Pilot build: only the six pilot programs are offered.",
   "update.title": "Updates",
   "update.current": "Installed version: {v}",
   "update.androidOnly": "Updating from inside the app works on Android only.",
@@ -28,6 +29,7 @@ export const enUpdate = {
 } as const;
 
 export const arUpdate: Record<keyof typeof enUpdate, string> = {
+  "settings.pilotBuild": "نسخة التجربة: بيتعرض 6 برامج التجربة بس.",
   "update.title": "التحديثات",
   "update.current": "النسخة المثبّتة: {v}",
   "update.androidOnly": "التحديث من جوه التطبيق شغال على أندرويد بس.",

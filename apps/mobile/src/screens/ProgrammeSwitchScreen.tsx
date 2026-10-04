@@ -6,8 +6,9 @@ import { useI18n } from "../i18n";
 import { ceilingForName } from "../logic/ceilings";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { markGoalLift } from "../logic/onboarding";
+import { activeTemplates } from "../buildConfig";
 import { TemplateBrowser } from "../components/TemplateBrowser";
-import { instantiateTemplate, TEMPLATES, type Template } from "../logic/templates";
+import { instantiateTemplate, type Template } from "../logic/templates";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, InlineStatus, LoadingState, Notice, Screen, SectionTitle } from "../ui";
 
@@ -72,7 +73,7 @@ export function ProgrammeSwitchScreen() {
       ))}
       <SectionTitle>{t("prog.switch.templates")}</SectionTitle>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
-      <TemplateBrowser templates={TEMPLATES} showDaysFilter actionLabel={() => t("prog.switch.startTemplate")} disabled={busy} onPick={(tpl) => void run(() => startTemplate(tpl))} />
+      <TemplateBrowser templates={activeTemplates()} showDaysFilter actionLabel={() => t("prog.switch.startTemplate")} disabled={busy} onPick={(tpl) => void run(() => startTemplate(tpl))} />
       <BigButton variant="secondary" icon="plus" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
       <ArDraftNote />
     </Screen>

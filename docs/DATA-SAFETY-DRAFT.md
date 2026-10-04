@@ -19,7 +19,7 @@ Not present (checked in `privacyFlows.test.ts` and the dependency list): analyti
 ## 2. Permissions in the built app (the Console and users both see these)
 v0.16.0 and earlier (measured on the published APK): INTERNET, READ/WRITE_EXTERNAL_STORAGE (max SDK 32), REQUEST_INSTALL_PACKAGES, SYSTEM_ALERT_WINDOW, VIBRATE, RECEIVE_BOOT_COMPLETED, POST_NOTIFICATIONS, USE_BIOMETRIC, USE_FINGERPRINT, ACCESS_NETWORK_STATE, WAKE_LOCK, `com.google.android.c2dm.permission.RECEIVE`, plus ~20 launcher-badge permissions from the notifications library.
 **v0.17.0 removes SYSTEM_ALERT_WINDOW, READ/WRITE_EXTERNAL_STORAGE, USE_BIOMETRIC and USE_FINGERPRINT** (`blockedPermissions` in `app.json`; nothing in the source uses them). The APK's list is recorded in section 6 after the release build. Open items:
-- **REQUEST_INSTALL_PACKAGES** is there for the self-updater. Play does not allow a Play-distributed app to install APKs from elsewhere; a Play build needs the updater removed (a build flavour). This is the biggest blocker for any Play submission and needs Mohamed's decision.
+- **REQUEST_INSTALL_PACKAGES** is there for the self-updater. Play does not allow a Play-distributed app to install APKs from elsewhere; a Play build needs the updater removed. **Done at build level in v0.20.0:** `GAIN_DISTRIBUTION=play` drops the permission and the update card, and the measured Play manifest does not contain it ([PLAY-BUILD.md](PLAY-BUILD.md) section 4). Mohamed's acceptance of that approach is still needed.
 - `c2dm.RECEIVE` (push-message receive) and the badge permissions come from `expo-notifications`; GAIN schedules local notifications only and registers no push token. They stay because removing library-declared receivers without a device to test on is more dangerous than a longer list. It looks odd in a permission list; it collects nothing.
 
 ## 3. Draft answers
@@ -44,7 +44,7 @@ v0.16.0 and earlier (measured on the published APK): INTERNET, READ/WRITE_EXTERN
 | Device or other IDs | **No** | - | - | No advertising id, Android id or IMEI is read. The IP address seen by GitHub/Cloudflare (F2, F6) is not a listed type; whether Play expects it declared under "Device or other IDs" or not at all is **unknown to me** — check the current help text |
 | Location, Contacts, Photos/videos, Audio, Messages, Calendar, Financial info, Web browsing, Files and docs | No | - | - | Files: the lifter picks an import file with the system picker; its content is read on the phone and not uploaded (F1). The imported rows are synced later as ordinary workouts |
 
-"Shared" is **No** for everything: Cloudflare acts as the developer's service provider (no own use of the data), and the coach link is a user-initiated publication the lifter confirms on screen. Judgment call: if Play reviewers treat the coach link as "sharing publicly", declare Fitness info as shared for that feature and keep the in-app consent text. Data collected by F2 (GitHub) is moot in a Play build because the updater must go (section 2).
+"Shared" is **No** for everything: Cloudflare acts as the developer's service provider (no own use of the data), and the coach link is a user-initiated publication the lifter confirms on screen. Judgment call: if Play reviewers treat the coach link as "sharing publicly", declare Fitness info as shared for that feature and keep the in-app consent text. Data collected by F2 (GitHub) is moot in a Play build: the updater is not in it (`GAIN_DISTRIBUTION=play`, PLAY-BUILD.md).
 
 ### 3.3 Security practices block
 | Item | Draft answer |

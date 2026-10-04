@@ -1,5 +1,5 @@
 /**
- * An editable copy of a programme version. Pure data + pure functions, so every edit is testable without a database.
+ * An editable copy of a program version. Pure data + pure functions, so every edit is testable without a database.
  * Saving a draft never changes the version it came from: it writes a NEW version (see programmeRepo).
  */
 import type { Measure } from "@gain/engine";

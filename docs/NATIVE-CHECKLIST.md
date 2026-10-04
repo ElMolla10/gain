@@ -24,7 +24,7 @@ Install the signed arm64 APK from the v0.18.0 release over v0.17.0 (Settings > C
 | 16 | Native fonts | IBM Plex Sans / Plex Sans Arabic load (no fallback to Roboto look) | NOT TESTED |
 | 17 | Navigation | Tabs, Today > Workout > back, Change workout sheet, Android back closes the sheet | NOT TESTED |
 | 18 | Safe areas | Status bar/notch and gesture bar do not overlap the header, Finish, or the rest dock | NOT TESTED |
-| 19 | Today starter note | Fresh install (or before onboarding): "Starter programme · Edit it to match your routine." under Start; no fake history or weights | NOT TESTED |
+| 19 | Today starter note | Fresh install (or before onboarding): "Starter program · Edit it to match your routine." under Start; no fake history or weights | NOT TESTED |
 | 20 | Logger spacing | Heading, Target line, set table are close but readable; "Target 55 kg × 9 · Why" still compact | NOT TESTED |
 | 21 | Send feedback (new in v0.17.0) | Settings > Diagnostics > Send feedback: the share sheet opens with a short message (3 questions + app version, Android, language, crash-note count). Edit it, send it to yourself: it holds no sets/weights/names | NOT TESTED |
 | 22 | Import still works with fewer permissions (new) | Settings > Your data / Import: the system file picker opens and a Hevy CSV and a GAIN JSON backup are read. v0.17.0 removed the legacy storage permissions, so this is the row that would break | NOT TESTED |

@@ -3,7 +3,7 @@ import { day, tpl, x, type Template } from "../templateTypes";
 /**
  * Gym full-body, minimal and strength-first templates (v0.14.0). Common community / coaching arrangements written with library
  * exercises only; names such as "StrongLifts-style" describe the SHAPE (days, lifts, sets x reps), not the original paid or
- * branded programme, and carry none of its progression rules: progression is always GAIN's rule-v0.3 (load goes up when every
+ * branded program, and carry none of its progression rules: progression is always GAIN's rule-v0.3 (load goes up when every
  * set reaches the lift's rep ceiling). Not trainer-reviewed. Arabic is draft.
  */
 export const GYM_BASIC_TEMPLATES: Template[] = [

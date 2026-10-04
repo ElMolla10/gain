@@ -98,7 +98,7 @@ export function ProgrammeScreen() {
               {expanded
                 ? day.exercises.map((e, k) => {
                     const ex = data.library.get(e.exerciseId);
-                    // Counted in reps: show the range that is really used, and say so when the rep ceiling replaces the top of the programme's range.
+                    // Counted in reps: show the range that is really used, and say so when the rep ceiling replaces the top of the program's range.
                     const range = ex && ex.measure === "reps" ? effectiveRange({ programmeMin: e.repMin, programmeMax: e.repMax, ceiling: e.repCeiling ?? ceilingForName(ex.nameEn, data.ceilings), source: e.repCeiling !== null ? "lift" : "default" }) : null;
                     const l = ex ? exerciseLabels(ex, lang) : null;
                     return (
@@ -120,7 +120,7 @@ export function ProgrammeScreen() {
         })}
       </View>
 
-      {/* Secondary: exposure, version history and programme management sit below the days. */}
+      {/* Secondary: exposure, version history and program management sit below the days. */}
       <View style={{ gap: space.sm }}>
         <SectionTitle>{t("prog.more")}</SectionTitle>
         <Card style={{ paddingVertical: space.xs }}>

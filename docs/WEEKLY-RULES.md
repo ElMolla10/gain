@@ -24,7 +24,7 @@ The week starts on Monday unless the lifter picks another day in Settings. Weeks
 ## What accepting does
 
 - Move the date: edits the goal's target date (the only automatic change). The lifter may type another date instead.
-- Everything else (extra exposure, variation, easier week, new goal): the decision is recorded and the card says plainly that the programme is NOT edited; the lifter makes the change in the Programme tab. (An automatic programme edit is not built.)
+- Everything else (extra exposure, variation, easier week, new goal): the decision is recorded and the card says plainly that the program is NOT edited; the lifter makes the change in the Program tab. (An automatic program edit is not built.)
 
 Decisions are kept in `weekly_review` (inputs, proposal, what was applied, status, time) and listed in the Goals screen under "Past weekly reviews". They are not in `decision_log` because that table is keyed to a target.
 

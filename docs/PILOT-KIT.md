@@ -11,11 +11,11 @@ Status: **DRAFT KIT. No pilot has started and nobody has been recruited.** Every
 | Feedback channel (WhatsApp group or form) | Mohamed | [BETA-FEEDBACK.md](BETA-FEEDBACK.md) |
 | Whether the consent text below is enough for Egypt (and any EU participant) | a lawyer (D6) | Health-adjacent training data; the draft is not legal advice |
 | Whether a trainer has reviewed the rules the lifters will be shown | a trainer (Step 16) | Targets are rule-v0.3 suggestions; the review pack is [TRAINER-REVIEW-PACK.md](TRAINER-REVIEW-PACK.md) and has no verdicts |
-| The Step 1 device test has passed on at least one phone | Mohamed (a phone) | Nothing is device-verified; putting an unverified build in ten people's hands is Mohamed's risk call |
+| The Step 1 device test has passed on at least one phone | Mohamed (a phone) | Mohamed reports this passed on 2026-10-04 (not independently verified; no results committed); putting an unverified build in ten people's hands is Mohamed's risk call |
 
 ## 1. Protocol (about ten lifters, one gym, six weeks)
 1. **Who:** adults who already log workouts, train 2 or more days a week, and have an Android phone. Not for anyone with a medical condition that limits training unless their doctor is fine with it; GAIN is not medical advice. Ask for 10; expect fewer finishing.
-2. **Before week 0 (setup, ~20 min each, in person):** install from the release APK following [INSTALL-GUIDE.md](INSTALL-GUIDE.md); read and agree the consent (section 3); give the lifter a pilot code (P01..P10) written only in the pilot sheet; onboard; import their Hevy/Strong export or type the programme; check the gym's real weights are set. Write down phone model, Android version, GAIN version.
+2. **Before week 0 (setup, ~20 min each, in person):** install from the release APK following [INSTALL-GUIDE.md](INSTALL-GUIDE.md); read and agree the consent (section 3); give the lifter a pilot code (P01..P10) written only in the pilot sheet; onboard; import their Hevy/Strong export or type the program; check the gym's real weights are set. Write down phone model, Android version, GAIN version.
 3. **Week 0-5:** the lifter trains as usual and logs in GAIN. For each target the app proposes they accept, edit or reject it (that is what is measured). Nobody coaches them toward the app's number.
 4. **Weekly check-in (end of weeks 1 to 6):** send the three questions from PILOT-RETENTION-METRICS.md (days planned/done; what you loaded instead of the app's number and why; what broke or confused you). Answers go in the sheet.
 5. **Numbers:** at the end of weeks 1, 2 and 6 (and any time a lifter leaves) ask them to export (Settings > Your data > JSON backup) and send it privately. Run section 5. Keep the file only as long as needed (section 4).
@@ -26,7 +26,7 @@ Status: **DRAFT KIT. No pilot has started and nobody has been recruited.** Every
 ## 2. Setup checklist per lifter
 - [ ] Consent read, questions answered, yes recorded in the pilot sheet (date, pilot code, not the name)
 - [ ] APK installed; Settings shows the expected GAIN version
-- [ ] Language and units set; programme chosen/imported; gym weights checked
+- [ ] Language and units set; program chosen/imported; gym weights checked
 - [ ] Rest alert and (if wanted) training-day reminders switched on and a notification arrives (Android battery savers may block it)
 - [ ] Back up and sync: **ask**, do not push it. If on, write down that it is on (the data then also sits on the GAIN server in Cloudflare/ENAM)
 - [ ] They know where to report bugs and how to share the diagnostics report
@@ -38,7 +38,7 @@ Status: **DRAFT KIT. No pilot has started and nobody has been recruited.** Every
 >
 > I am testing a lifting log called GAIN. It suggests your next weight after each workout. I want to learn whether the suggestions are right and whether people keep using the app.
 >
-> **What I would take from you:** a backup file you export yourself from the app (Settings > Your data). It contains your workouts and sets, the suggestions GAIN made and whether you accepted, changed or rejected them, your programmes and settings, and anything you typed into the app such as notes, bodyweight, height or birthday if you entered them. I do not need your name; I will label your file with a code (P01, P02...). I will read only the workouts, sets and suggestions for the numbers, and I will not use the notes or body details.
+> **What I would take from you:** a backup file you export yourself from the app (Settings > Your data). It contains your workouts and sets, the suggestions GAIN made and whether you accepted, changed or rejected them, your programs and settings, and anything you typed into the app such as notes, bodyweight, height or birthday if you entered them. I do not need your name; I will label your file with a code (P01, P02...). I will read only the workouts, sets and suggestions for the numbers, and I will not use the notes or body details.
 > **Also:** your short answers in the weekly check-in, and what you tell me in the final interview.
 > **Why:** to measure how often you used the suggested weight, how often you changed it and why, and whether you were still logging in weeks 1, 2 and 6.
 > **Who sees it:** [name(s) of the people who run the pilot, and the trainer if they see it]. Nothing is sold or shared with advertisers. Results are reported as group counts and short quotes without names.

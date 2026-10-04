@@ -6,8 +6,8 @@ import { TEMPLATES, templatesForDays, TEMPLATE_GEARS, TEMPLATE_GOALS, TEMPLATE_L
 
 const opt = (v: ReturnType<typeof pickerView>, facet: string, value: string | number) => v.facets.find((f) => f.facet === facet)!.options.find((o) => o.value === value)!;
 
-describe("programme picker view", () => {
-  it("no filter: every programme, grouped by days per week, fewest days first; all five filter rows", () => {
+describe("program picker view", () => {
+  it("no filter: every program, grouped by days per week, fewest days first; all five filter rows", () => {
     const v = pickerView(TEMPLATES, NO_FILTER);
     expect(v.total).toBe(TEMPLATES.length);
     expect(v.active).toBe(0);
@@ -15,18 +15,18 @@ describe("programme picker view", () => {
     expect(v.sections.map((s) => s.days)).toEqual([...v.sections.map((s) => s.days)].sort((a, b) => a - b));
     expect(v.sections.reduce((n, s) => n + s.templates.length, 0)).toBe(TEMPLATES.length);
   });
-  it("the Home chip and the Gym chip both exist; Home shows no programme that needs a gym, Gym shows all", () => {
+  it("the Home chip and the Gym chip both exist; Home shows no program that needs a gym, Gym shows all", () => {
     const home = pickerView(TEMPLATES, toggleFilter(NO_FILTER, "venue", "home"));
     const gym = pickerView(TEMPLATES, toggleFilter(NO_FILTER, "venue", "gym"));
     expect(home.facets.find((f) => f.facet === "venue")!.options.map((o) => o.value)).toEqual(["home", "gym"]);
     expect(home.sections.flatMap((s) => s.templates).every((t) => t.gear !== "gym")).toBe(true);
     expect(home.total).toBeGreaterThanOrEqual(12);
     expect(gym.total).toBe(TEMPLATES.length);
-    // A programme usable in both appears under both.
+    // A program usable in both appears under both.
     const bothId = home.sections.flatMap((s) => s.templates)[0]!.id;
     expect(gym.sections.flatMap((s) => s.templates).map((t) => t.id)).toContain(bothId);
   });
-  it("filters combine: Home + 3 days + dumbbells + general only shows programmes that satisfy all four", () => {
+  it("filters combine: Home + 3 days + dumbbells + general only shows programs that satisfy all four", () => {
     let f = toggleFilter(NO_FILTER, "venue", "home");
     f = toggleFilter(f, "days", 3);
     f = toggleFilter(f, "gear", "dumbbell");
@@ -49,7 +49,7 @@ describe("programme picker view", () => {
     expect(pickerView(TEMPLATES, NO_FILTER).total).toBe(TEMPLATES.length);
   });
   it("an option that would show nothing is disabled (not the one already chosen), so the list is never empty by tapping", () => {
-    const f = toggleFilter(NO_FILTER, "goal", "bulking"); // bulking programmes are gym-only
+    const f = toggleFilter(NO_FILTER, "goal", "bulking"); // bulking programs are gym-only
     const v = pickerView(TEMPLATES, f);
     const home = opt(v, "venue", "home");
     expect(home.count).toBe(0);
@@ -78,7 +78,7 @@ describe("programme picker view", () => {
       expect(v.sections.map((s) => s.days)).toEqual([d]);
     }
   });
-  it("every day count 2 to 6 has at least 3 programmes and at least one usable at home (two or more for 2 to 4 days)", () => {
+  it("every day count 2 to 6 has at least 3 programs and at least one usable at home (two or more for 2 to 4 days)", () => {
     for (const d of [2, 3, 4, 5, 6]) {
       const list = TEMPLATES.filter((t) => t.days === d);
       expect(list.length, `days ${d}`).toBeGreaterThanOrEqual(3);
@@ -87,7 +87,7 @@ describe("programme picker view", () => {
   });
 });
 
-describe("programme picker text", () => {
+describe("program picker text", () => {
   it("every label the picker can show exists in English and Arabic, and the Arabic is Arabic", () => {
     const keys: string[] = ["tpl.filters", "tpl.all", "tpl.clear", "tpl.none", "tpl.count", "tpl.group", "tpl.days.n", "tpl.rotation", "tpl.arDraft", "tpl.venue.note", "tpl.bulking.note"];
     for (const v of TEMPLATE_VENUES) keys.push(`tpl.venue.${v}`);

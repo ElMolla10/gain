@@ -61,7 +61,7 @@ describe("the next session is written at the door", () => {
     expect(t.reason.key).toBe("no_history");
     expect(t.effectiveLoad).toBeNull();
   });
-  it("targets come back in programme order", async () => {
+  it("targets come back in program order", async () => {
     const { trainNext, finish, repos } = await setup();
     const r = await trainNext();
     const next = (await repos.getNextDay())!;

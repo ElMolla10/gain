@@ -74,7 +74,7 @@ export interface DayExerciseSpec {
   repCeiling?: number;
   /** True when `repCeiling` is this lift's own; false when it is the app-wide default for its kind of lift (recorded in the decision). */
   repCeilingIsCustom?: boolean;
-  /** The range the programme was written with (before the ceiling replaced its top). Omitted = repMin / repMax. */
+  /** The range the program was written with (before the ceiling replaced its top). Omitted = repMin / repMax. */
   programmeRepMin?: number;
   programmeRepMax?: number;
   isGoalLift: boolean;
@@ -127,19 +127,19 @@ const toLogged = (r: SetRow): LoggedSet => ({
   outlierStatus: r.outlierStatus,
 });
 
-/** Today's changes to one programme slot of an open workout. */
+/** Today's changes to one program slot of an open workout. */
 export interface ExerciseState {
-  /** The programme exercise this slot comes from. */
+  /** The program exercise this slot comes from. */
   slot: string;
   removed: boolean;
-  /** Exercise swapped in for today only; null = the programme's own exercise. */
+  /** Exercise swapped in for today only; null = the program's own exercise. */
   replacedBy: string | null;
   note: string;
   /** The lifter turned the automatic rest timer off for this exercise. */
   restOff: boolean;
-  /** An exercise added to today's workout that is not in the programme day (then `slot` is the exercise's own id). */
+  /** An exercise added to today's workout that is not in the program day (then `slot` is the exercise's own id). */
   added: boolean;
-  /** Order among the added exercises (1, 2, ...); null for programme slots. */
+  /** Order among the added exercises (1, 2, ...); null for program slots. */
   position: number | null;
   /** Exercises with the same group value are a superset. Null = not in one. */
   superset: string | null;
@@ -160,7 +160,7 @@ export class ExerciseHasSets extends Error {
 export function createWorkoutRepo(db: Db, deps: Deps) {
   const { newId, now } = deps;
 
-  /** Resume the open session for this programme day if there is one, otherwise create it. Never creates a second one. */
+  /** Resume the open session for this program day if there is one, otherwise create it. Never creates a second one. */
   async function startOrResumeSession(dayId: string, gymId: string): Promise<{ id: string; resumed: boolean }> {
     const find = () =>
       db.get<{ id: string; status: string }>(
@@ -177,7 +177,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
         return { id: open.id, resumed: true };
       }
       const day = await db.get<{ programme_version_id: string }>("SELECT programme_version_id FROM programme_day WHERE id = ? AND deleted_at IS NULL", [dayId]);
-      if (!day) throw new Error("Unknown programme day");
+      if (!day) throw new Error("Unknown program day");
       const id = newId();
       await db.run(
         `INSERT INTO session (id, programme_version_id, programme_day_id, gym_id, status, started_at, created_at, updated_at)
@@ -290,7 +290,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     return { records: rows.map((r) => ({ lineKey: key, jumpKind: r.jump_kind, count: r.count, lastRejectedAt: new Date(r.last_rejected_at).toISOString() })) };
   }
 
-  /** Engine proposal for one programme exercise from history that exists right now. Not stored (PR5 stores the next session's). */
+  /** Engine proposal for one program exercise from history that exists right now. Not stored (PR5 stores the next session's). */
   async function liveProposal(ex: DayExerciseSpec, gym: GymFingerprint): Promise<{ proposal: Proposal; lineId: string; line: LineIdentity }> {
     const line: LineIdentity = { exerciseId: ex.exerciseId, gymId: gym.gymId, setup: ex.setup };
     const lineId = await ensureLine(ex.exerciseId, gym.gymId, ex.setup);
@@ -446,7 +446,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     await db.run("UPDATE workout_set SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [t, t, setId]);
   }
 
-  // ---- per-workout changes to a programme slot (remove / replace / note / rest timer) ----------------------
+  // ---- per-workout changes to a program slot (remove / replace / note / rest timer) ----------------------
   async function listExerciseState(sessionId: string): Promise<ExerciseState[]> {
     const rows = await db.all<{ slot_exercise_id: string; removed: number; replaced_by: string | null; note: string | null; rest_off: number; added: number; position: number | null; superset_group: string | null }>(
       "SELECT slot_exercise_id, removed, replaced_by, note, rest_off, added, position, superset_group FROM session_exercise WHERE session_id = ? AND deleted_at IS NULL ORDER BY position, created_at",
@@ -488,7 +488,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
 
   /**
    * Take an exercise out of today's workout. Sets already logged for it are deleted (the caller asks first), so a removed exercise leaves
-   * nothing behind in history or in the next targets. The programme is untouched; restoring brings the exercise back (empty).
+   * nothing behind in history or in the next targets. The program is untouched; restoring brings the exercise back (empty).
    */
   async function removeExercise(sessionId: string, slot: string, displayExerciseId: string): Promise<void> {
     await db.transaction(async () => {
@@ -506,8 +506,8 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   }
 
   /**
-   * Add an exercise to today's workout that is not in the programme day. Nothing about the programme changes and it gets no next-session
-   * target (targets are written per programme exercise); its sets count in history and the finish summary like any other. An exercise that is
+   * Add an exercise to today's workout that is not in the program day. Nothing about the program changes and it gets no next-session
+   * target (targets are written per program exercise); its sets count in history and the finish summary like any other. An exercise that is
    * already part of the workout (in the day, swapped in, or added earlier) is refused; one the lifter removed earlier is put back.
    */
   async function addExercise(sessionId: string, exerciseId: string): Promise<{ restored: boolean }> {
@@ -524,7 +524,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
         await patchExerciseState(sessionId, exerciseId, { removed: false });
         return { restored: true };
       }
-      // In the programme day (shown, swapped away or removed: "Put back" handles those) or swapped in for another slot: never twice.
+      // In the program day (shown, swapped away or removed: "Put back" handles those) or swapped in for another slot: never twice.
       if (inDay || states.some((s) => s.replacedBy === exerciseId)) throw new ExerciseAlreadyInWorkout();
       const pos = (states.reduce((m, s) => Math.max(m, s.position ?? 0), 0)) + 1;
       await patchExerciseState(sessionId, exerciseId, { added: true, position: pos });

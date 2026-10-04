@@ -8,7 +8,7 @@ export const enSync = {
   "sync.draft": "DRAFT text, not legally reviewed. Off by default. GAIN works fully without it.",
   "sync.privacy.title": "What this does, and what it sends",
   "sync.privacy.body":
-    "If you turn this on, GAIN uploads your training data to a GAIN server (Cloudflare) so a lost or replaced phone does not lose it and a second phone can show the same data: your workouts and sets, notes, programmes, goals, bodyweight entries, height and birthday if you gave them, and the settings that describe your training. Language, theme and rest-timer settings stay on the phone.",
+    "If you turn this on, GAIN uploads your training data to a GAIN server (Cloudflare) so a lost or replaced phone does not lose it and a second phone can show the same data: your workouts and sets, notes, programs, goals, bodyweight entries, height and birthday if you gave them, and the settings that describe your training. Language, theme and rest-timer settings stay on the phone.",
   "sync.privacy.body2":
     "There is no name and no email. Your backup belongs to a random account on this phone and is opened with a recovery code that only you have. The data is NOT end-to-end encrypted: it is protected in transit and by the account, but the people who run the server could technically read it. Nobody else sees it unless you share a coach link. Turn it off any time; \"Turn off and delete my backup\" erases everything on the server.",
   "sync.status.off": "Off. Nothing leaves this phone.",

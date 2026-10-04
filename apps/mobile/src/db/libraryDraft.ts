@@ -53,7 +53,7 @@ const LEGACY_DRAFT: SeedExercise[] = [
  */
 export const DRAFT_LIBRARY: SeedExercise[] = [...LEGACY_DRAFT, ...HEVY_STYLE_LIBRARY];
 
-/** Everything the app ships: the sample programme's exercises plus the draft growth. One list for search tests and the review sheet. */
+/** Everything the app ships: the sample program's exercises plus the draft growth. One list for search tests and the review sheet. */
 export const ALL_LIBRARY: SeedExercise[] = [...SAMPLE_EXERCISES, ...DRAFT_LIBRARY];
 
 /** Every shipped exercise with its picker metadata (muscle, gear, ceiling class), by seed_key. */

@@ -11,7 +11,7 @@
 - Offline first. Client-generated UUIDs. Every row has `id`, `updated_at`, `deleted_at` (soft delete). No backend yet.
 
 ## Data model (slice subset, schema-ready for the rest)
-gym, gym_load (equipment type: dumbbell/barbell/plate/cable/machine/assisted; real loads list or increment/jump), exercise (en + ar names, ar aliases, pattern, equipment type, setup type free/assisted/bodyweight_plus_added), exercise_line (history stream per exercise + gym + setup), programme + programme_version, session, set (load, reps, optional rir, warmup flag, tags, outlier_status), goal, bodyweight_entry, target (currency spent, rule_version, path rule|model, status proposed|accepted|edited|rejected), decision_log (JSON inputs), rejection_memory.
+gym, gym_load (equipment type: dumbbell/barbell/plate/cable/machine/assisted; real loads list or increment/jump), exercise (en + ar names, ar aliases, pattern, equipment type, setup type free/assisted/bodyweight_plus_added), exercise_line (history stream per exercise + gym + setup), `programme` + `programme_version`, session, set (load, reps, optional rir, warmup flag, tags, outlier_status), goal, bodyweight_entry, target (currency spent, rule_version, path rule|model, status proposed|accepted|edited|rejected), decision_log (JSON inputs), rejection_memory.
 
 ## PR plan (draft PRs, small, never merged by the agent)
 1. PR1: scaffold monorepo + docs + CI (install, typecheck, engine tests).

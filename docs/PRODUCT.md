@@ -27,11 +27,11 @@ The first hundred users should be reachable in person: one gym, a few coaches, l
 
 ## The job it has to win
 
-Hevy is the notebook people already trust, and its Trainer only progresses programmes it generated. Strong will not tell you the next load. Alpha Progression and MacroFactor Workouts already recommend a weight and a rep target. Fitbod generates sessions that lifters keep editing.
+Hevy is the notebook people already trust, and its Trainer only progresses programs it generated. Strong will not tell you the next load. Alpha Progression and MacroFactor Workouts already recommend a weight and a rep target. Fitbod generates sessions that lifters keep editing.
 
 GAIN does not try to be all of them. It wins one job:
 
-**On the programme you already run, the next load is a weight you can actually load, decided from your history, explained, and tied to a dated goal.**
+**On the program you already run, the next load is a weight you can actually load, decided from your history, explained, and tied to a dated goal.**
 
 Switching has to be cheap. Hevy and Strong history import on day one. A progression model with no history is a guess, and a guess will not move someone off an app they already paid for.
 
@@ -53,7 +53,7 @@ Arabic, local equipment, and a visible reason are the reasons a lifter in Cairo 
 
 Language, units (kilograms preselected, pounds offered), then the minimum needed to write a first session: days per week, session length, equipment, and one goal. Height and bodyweight are optional unless a bodyweight goal is on.
 
-The user can bring a programme they already run, pick a reviewed template, or import a Hevy or Strong export. Exercises they dislike, muscles they want more of, and movements they have been told to avoid are optional. A restriction is a constraint, not a diagnosis. The app does not invent rehab.
+The user can bring a program they already run, pick a reviewed template, or import a Hevy or Strong export. Exercises they dislike, muscles they want more of, and movements they have been told to avoid are optional. A restriction is a constraint, not a diagnosis. The app does not invent rehab.
 
 Onboarding does not ask about the gym. It creates a default gym silently with standard loads in the chosen unit (2.5 kg barbell steps from a 20 kg bar, a typical dumbbell rack, 5 kg cable and machine jumps; in pounds, a 45 lb bar with 5 lb steps, 5 lb dumbbell steps and 5/10 lb stack jumps). The gym is still a list of standard weight steps, not a generic “dumbbells: yes”, and not a claim about what your gym really has: there is no Gym screen (removed in v0.8.0): the gym is a silent data-layer default and targets only use the standard loads. A gym editor may come back later if real use shows it is needed.
 
@@ -110,7 +110,7 @@ The session clock answers what to do today. The goal clock answers whether the m
 
 A goal is specific: 100 kg for 5 on bench by June, 78 kg bodyweight by a date, or “arms twice a week through March”. The app draws the pace from exposures, not from the calendar alone. A missed week moves the expected date or the required rate. It does not pretend the original date is intact.
 
-If the user is behind, the weekly decision offers one small change: an extra exposure of that lift, a variation for two weeks, or a later date. It does not overhaul the programme after one bad session.
+If the user is behind, the weekly decision offers one small change: an extra exposure of that lift, a variation for two weeks, or a later date. It does not overhaul the program after one bad session.
 
 Bodyweight uses a rolling average. One heavy day is not a trend.
 
@@ -148,9 +148,9 @@ End of session can create a private link or image for a coach: what was done, ne
 
 Every material suggestion stores the inputs: last comparable sets, increment available, effort if logged, goal pace, and the rule or model path used. “Why this weight?” opens that, not a paragraph from a chatbot. Conversational answers can sit on top later. They cannot write the plan.
 
-## Programme
+## Program
 
-Reviewed templates for full body, upper/lower, push/pull/legs, and a four-day mix, chosen for days the user actually attends. Main lifts stay stable long enough to judge. Users can edit exercises, days, and priorities. Edits show the effect on weekly exposure. Programme versions keep old sessions readable.
+Reviewed templates for full body, upper/lower, push/pull/legs, and a four-day mix, chosen for days the user actually attends. Main lifts stay stable long enough to judge. Users can edit exercises, days, and priorities. Edits show the effect on weekly exposure. Program versions keep old sessions readable.
 
 Imported routines keep their structure. The app progresses them. It does not require the user to abandon a split that already works.
 
@@ -174,7 +174,7 @@ This section is a design sketch only. No model runs in the app or on the server 
 4. Rank a substitution from equipment, pattern, and what this user has actually progressed on.
 5. Propose one weekly change when the pace is behind or sessions are being cut.
 
-It is not allowed to invent history, diagnose pain, write a rehab plan, or change the programme silently. Missing data is said out loud. Low confidence lowers the size of the suggestion, it does not hide behind a confident number.
+It is not allowed to invent history, diagnose pain, write a rehab plan, or change the program silently. Missing data is said out loud. Low confidence lowers the size of the suggestion, it does not hide behind a confident number.
 
 A later assistant can answer “what did I lift last time?” and “why is this unchanged?” by reading the decision log. That is a window, not the engine.
 
@@ -186,7 +186,7 @@ A later assistant can answer “what did I lift last time?” and “why is this
 | Active workout | Targets, last performance, logger, rest |
 | Finish | What counted, next session to accept |
 | Goals | Lift goals, bodyweight goal, pace and date |
-| Programme | Week, exercises, versions |
+| Program | Week, exercises, versions |
 | History | Sessions and one trend per lift |
 | Settings | Language, units, privacy, backup and sync, data export |
 
@@ -230,4 +230,4 @@ A user can log without fighting the screen, trust the next weight enough to load
 
 ### Short description
 
-Leave knowing the next weight. GAIN writes your next session from the one you just did, using the dumbbells and machines in your gym, and tells you if your goal is still on pace. Arabic and English. Your programme, your history, a number you can check.
+Leave knowing the next weight. GAIN writes your next session from the one you just did, using the dumbbells and machines in your gym, and tells you if your goal is still on pace. Arabic and English. Your program, your history, a number you can check.

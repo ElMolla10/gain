@@ -1,8 +1,8 @@
 import type { ProgrammeDraft } from "./programmeDraft";
 
 /**
- * Planned direct sets: how many sets and sessions each muscle group is planned to get in a normal week of this programme (indirect work is not counted).
- * It is arithmetic on the programme, nothing more. Each exercise counts once, under its main movement pattern
+ * Planned direct sets: how many sets and sessions each muscle group is planned to get in a normal week of this program (indirect work is not counted).
+ * It is arithmetic on the program, nothing more. Each exercise counts once, under its main movement pattern
  * (a squat is counted as quads, not also glutes), and the app does NOT say whether a number is enough.
  */
 export type MuscleGroup = "chest" | "back" | "shoulders" | "biceps" | "triceps" | "quads" | "hamstrings" | "calves" | "other";
@@ -51,7 +51,7 @@ export const groupOfPattern = (pattern: string): MuscleGroup => GROUP_OF[pattern
 
 export interface ExposureRow {
   group: MuscleGroup;
-  /** Sets over one full rotation of the programme's days. */
+  /** Sets over one full rotation of the program's days. */
   setsPerRotation: number;
   /** Days of the rotation that train the group at least once. */
   daysPerRotation: number;
@@ -63,7 +63,7 @@ export interface ExposureRow {
 const round1 = (x: number) => Math.round(x * 10) / 10;
 
 /**
- * `daysPerWeek` is how many days the lifter trains. A rotation of N programme days takes N / daysPerWeek weeks,
+ * `daysPerWeek` is how many days the lifter trains. A rotation of N program days takes N / daysPerWeek weeks,
  * so weekly numbers are the rotation numbers scaled by daysPerWeek / N. Unknown daysPerWeek: no weekly numbers are made up.
  */
 export function computeExposure(draft: ProgrammeDraft, patternOf: (exerciseId: string) => string | undefined, daysPerWeek: number | null): ExposureRow[] {

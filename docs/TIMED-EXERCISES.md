@@ -10,7 +10,7 @@ Each exercise has a *measure*: `reps` (everything that existed before), `time` o
 - `exercise.measure` (`reps|time|distance`, default `reps`).
 - `workout_set.duration_s` (1..3600) and `workout_set.distance_m` (>0, up to 5000). A timed set stores `reps = 1` (one hold / one carry), so every reps-based query keeps working.
 - `target.duration_s`, `target.distance_m` (the next-session target; `reps` is empty for them).
-- Library rows that are holds or carries (list in `apps/mobile/src/db/library/measures.ts`) become timed **only** when the phone has no logged set, no programme slot and no session reference for that row. Rows a lifter already uses keep counting reps; they can be switched in the programme editor ("Count this exercise in") until the first set is logged. After the first set it is locked (a line never mixes two kinds of numbers).
+- Library rows that are holds or carries (list in `apps/mobile/src/db/library/measures.ts`) become timed **only** when the phone has no logged set, no program slot and no session reference for that row. Rows a lifter already uses keep counting reps; they can be switched in the program editor ("Count this exercise in") until the first set is logged. After the first set it is locked (a line never mixes two kinds of numbers).
 - The backfill does not change `updated_at`, so it does not trigger a sync push by itself.
 - Sync: a phone on an older app version that receives timed sets parks them as `newer_app` (existing behaviour for newer schema), they apply once it updates.
 
@@ -31,5 +31,5 @@ Warm-up ladders and RIR are not offered for timed exercises. Timed sets add noth
 ## Not done / not verified
 - Not run on a device: set rows, keyboard input (`45` or `1:30`), RTL layout of "45 ث", TalkBack labels.
 - No stopwatch / countdown for the hold. The lifter types the time.
-- Custom exercises are created counted in reps; switch them in the programme editor.
+- Custom exercises are created counted in reps; switch them in the program editor.
 - A trainer has not reviewed the step size, the 2-sessions-at-top rule or the caps.

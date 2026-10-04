@@ -255,7 +255,7 @@ export interface DecisionInputs {
   asOf: string;
   /** The range the rule USED: its top is the rep ceiling (the lift's own, else the app-wide default for its kind). */
   repRange: RepRange;
-  /** The range the programme asked for, before the ceiling replaced its top. Absent in decisions stored before the fixes release. */
+  /** The range the program asked for, before the ceiling replaced its top. Absent in decisions stored before the fixes release. */
   programmeRepRange?: RepRange;
   isGoalLift: boolean;
   trackEffort: boolean;

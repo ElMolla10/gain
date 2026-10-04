@@ -103,5 +103,5 @@ export function markGoalLift(draft: ProgrammeDraft, exerciseId: string | null): 
 
 export const draftHasExercise = (draft: ProgrammeDraft, exerciseId: string): boolean => draft.days.some((d) => d.exercises.some((e) => e.exerciseId === exerciseId));
 
-/** What onboarding shows after a template is chosen: only the day titles, in order (the full split is edited later in the Programme tab). */
+/** What onboarding shows after a template is chosen: only the day titles, in order (the full split is edited later in the Program tab). */
 export const dayTitles = (draft: ProgrammeDraft): string[] => draft.days.map((d) => d.name);

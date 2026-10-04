@@ -119,7 +119,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const nameForClass = exercise.name ?? exercise.exerciseId;
   const region = exercise.bodyRegion ?? classifyLift(nameForClass).bodyRegion;
   const cfg = resolveProgression(region, exercise.progression, { name: nameForClass, ceilings: opt.repCeilings });
-  // The rep ceiling replaces the top of the programme's rep range: it is the reps that earn more load. The bottom is kept (never above the ceiling).
+  // The rep ceiling replaces the top of the program's rep range: it is the reps that earn more load. The bottom is kept (never above the ceiling).
   const hi = cfg.repCeiling;
   const lo = Math.min(exercise.repRange.min, hi);
   const repRange = { min: lo, max: hi };

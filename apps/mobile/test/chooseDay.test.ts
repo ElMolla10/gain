@@ -64,7 +64,7 @@ describe("choosing the day (data)", () => {
     return id;
   };
 
-  it("the programme has several days, the rotation only suggests the first", async () => {
+  it("the program has several days, the rotation only suggests the first", async () => {
     const { list, next } = await ready();
     expect(list.length).toBeGreaterThan(1);
     expect(next.day.id).toBe(list[0]!.id);
@@ -99,7 +99,7 @@ describe("choosing the day (data)", () => {
     const b = await c.finish.planDay(c.list[1]!.id, c.gymId);
     expect(b!.sessionId).toBe(a!.sessionId);
   });
-  it("refuses a day that is not in the active programme, and an open workout is reported", async () => {
+  it("refuses a day that is not in the active program, and an open workout is reported", async () => {
     const c = await ready();
     expect(await c.finish.planDay("nope", c.gymId)).toBeNull();
     expect(await c.workout.getOpenSession()).toBeNull();

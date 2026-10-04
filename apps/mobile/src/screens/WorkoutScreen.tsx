@@ -33,7 +33,7 @@ import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 
 type DayEx = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>[number];
-/** What is shown for one programme slot today: the programme's exercise, or the one swapped in for today. `slot` = the programme's exercise id. */
+/** What is shown for one program slot today: the program's exercise, or the one swapped in for today. `slot` = the program's exercise id. */
 type Disp = DayEx & { slot: string };
 interface ExInfo {
   proposal: Proposal;
@@ -165,14 +165,14 @@ export function WorkoutScreen() {
   const notesPending = useRef<Record<string, string>>({});
   const sessionRef = useRef<string | null>(null);
 
-  /** The exercise shown for a programme slot today. */
+  /** The exercise shown for a program slot today. */
   const makeDisp = useCallback((slotEx: DayEx, st?: ExerciseState): Disp => {
     const lib = st?.replacedBy ? libRef.current.find((l) => l.id === st.replacedBy) : undefined;
     if (lib) return { ...slotEx, exerciseId: lib.id, nameEn: lib.nameEn, nameAr: lib.nameAr, aliasesAr: lib.aliasesAr, equipment: lib.equipment, setup: lib.setup, measure: lib.measure, isGoalLift: false, repCeilingIsCustom: false, slot: slotEx.exerciseId };
     return { ...slotEx, slot: slotEx.exerciseId };
   }, []);
 
-  /** Target, reason, last performance and prefill for one shown exercise. A swapped-in exercise has no stored target (it is not in the programme). */
+  /** Target, reason, last performance and prefill for one shown exercise. A swapped-in exercise has no stored target (it is not in the program). */
   const buildInfo = useCallback(
     async (ex: Disp, sessionId: string, gym: GymFingerprint): Promise<ExInfo> => {
       const { proposal, lineId, line } = await workout.liveProposal(
@@ -213,7 +213,7 @@ export function WorkoutScreen() {
       const states: Record<string, ExerciseState> = {};
       const stateList = await workout.listExerciseState(id);
       for (const st of stateList) states[st.slot] = st;
-      // Exercises added to this workout earlier (the workout was resumed) come back after the programme's own.
+      // Exercises added to this workout earlier (the workout was resumed) come back after the program's own.
       const addedSlots: DayEx[] = [];
       for (const st of stateList.filter((x) => x.added)) {
         const ad = await repos.adHocDayExercise(st.slot);

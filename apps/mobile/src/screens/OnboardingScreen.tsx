@@ -28,7 +28,7 @@ type ProgrammeMode = "template" | "own" | null;
 
 /**
  * First-run setup: language, units, the minimum needed to write a first session (days, length, equipment, one goal),
- * the programme (a draft template or the lifter's own) and the real gym. Nothing is prefilled with a guess; every
+ * the program (a draft template or the lifter's own) and the real gym. Nothing is prefilled with a guess; every
  * gap is shown as a problem. Finishing saves everything in one step and Today then shows the first session.
  */
 export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void; rerun?: boolean }) {
@@ -60,7 +60,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
     repos.getRepCeilingDefaults().then(setCeilings);
   }, [programmes, repos, refreshLibrary]);
 
-  // A chosen template shows only its day titles and weekly exposure; the full split is edited later in the Programme tab.
+  // A chosen template shows only its day titles and weekly exposure; the full split is edited later in the Program tab.
   useEffect(() => {
     let alive = true;
     if (mode === "template" && draft) programmes.exposureOf(draft).then((r) => alive && setExposure(r)).catch(() => alive && setExposure([]));

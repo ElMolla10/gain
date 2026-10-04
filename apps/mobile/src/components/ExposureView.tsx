@@ -10,7 +10,7 @@ import { AppText, Card, InlineStatus } from "../ui";
 const n = (x: number) => isolateLtr(String(x));
 const signed = (x: number) => isolateLtr(`${x > 0 ? "+" : ""}${x}`);
 
-/** Exposure per muscle group for a programme: observed arithmetic, never a judgement. */
+/** Exposure per muscle group for a program: observed arithmetic, never a judgement. */
 export function ExposureView(props: { rows: ExposureRow[] }) {
   const { t } = useI18n();
   const p = usePalette();

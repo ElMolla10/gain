@@ -12,8 +12,8 @@ import { space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, InlineStatus, LoadingState, Notice, Screen, SectionTitle } from "../ui";
 
 /**
- * Choose a different programme: switch back to one of your own (all its versions and history stay) or start a template as a NEW programme.
- * Nothing is deleted or overwritten: the programme you leave is still in this list.
+ * Choose a different program: switch back to one of your own (all its versions and history stay) or start a template as a NEW program.
+ * Nothing is deleted or overwritten: the program you leave is still in this list.
  */
 export function ProgrammeSwitchScreen() {
   const { programmes, repos, onboarding } = useServices();

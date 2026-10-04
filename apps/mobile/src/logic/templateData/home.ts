@@ -1,7 +1,7 @@
 import { day, tpl, x, type Template } from "../templateTypes";
 
 /**
- * Home programmes (v0.14.0): dumbbell / kettlebell, resistance-band and bodyweight-only arrangements, so they need no gym. Common
+ * Home programs (v0.14.0): dumbbell / kettlebell, resistance-band and bodyweight-only arrangements, so they need no gym. Common
  * community / coaching shapes written with library exercises only. Bodyweight pulling needs a pull-up bar (or a sturdy bar / table
  * edge for rows). Band exercises use GAIN's cable load model (no kg scale: the lifter types a number they understand). Not
  * trainer-reviewed. Arabic is draft.

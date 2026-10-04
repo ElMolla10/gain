@@ -252,7 +252,7 @@ describe("per-workout exercise changes (remove / replace / note / rest timer)", 
     await workout.patchExerciseState(id, slot, { removed: false });
     expect((await workout.listExerciseState(id))[0]!.removed).toBe(false);
   });
-  it("replacing is refused once sets are logged, allowed before, and never touches the programme", async () => {
+  it("replacing is refused once sets are logged, allowed before, and never touches the program", async () => {
     const { workout, repos, id, exs, dctx } = await open();
     const slot = exs[0]!.exerciseId;
     const other = exs[1]!.exerciseId;

@@ -60,17 +60,17 @@ describe("logger spacing uses the shared tokens", () => {
   });
 });
 
-describe("starter programme: structure only, never fabricated history", () => {
-  it("Today says 'Starter programme · Edit it to match your routine.' in English; Egyptian Arabic (draft) is Arabic and the old placeholder wording is gone", () => {
-    expect(en["today.starterNote"]).toBe("Starter programme · Edit it to match your routine.");
+describe("starter program: structure only, never fabricated history", () => {
+  it("Today says 'Starter program · Edit it to match your routine.' in English; Egyptian Arabic (draft) is Arabic and the old placeholder wording is gone", () => {
+    expect(en["today.starterNote"]).toBe("Starter program · Edit it to match your routine.");
     expect(ar["today.starterNote"]).toMatch(/[\u0600-\u06FF]/);
-    expect(JSON.stringify(en)).not.toMatch(/placeholder programme|are placeholders/i);
-    expect(en["ob.skipNote"]).toContain("starter programme");
+    expect(JSON.stringify(en)).not.toMatch(/placeholder program|are placeholders/i);
+    expect(en["ob.skipNote"]).toContain("starter program");
     expect(ar["ob.skipNote"]).toContain("مبدئي");
     expect(en["prog.sampleTag"]).toContain("Starter");
     expect(ar["prog.sampleTag"]).toContain("مبدئي");
   });
-  it("the seed is a plain programme: no sessions, no sets, no targets with numbers, no decisions", async () => {
+  it("the seed is a plain program: no sessions, no sets, no targets with numbers, no decisions", async () => {
     const c = await freshDb();
     await c.repos.seedIfNeeded();
     const n = async (sql: string) => Number((await c.db.get<{ n: number }>(sql))?.n);

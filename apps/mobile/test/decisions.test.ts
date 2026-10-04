@@ -7,7 +7,7 @@ import { freshDb } from "./helpers";
 
 const L = (lang: "en" | "ar") => (k: string, p?: Record<string, string | number>) => translate(lang, k as StringKey, p);
 
-/** Three rotations of the 4-day programme so bench has history; returns every context needed. */
+/** Three rotations of the 4-day program so bench has history; returns every context needed. */
 async function setup() {
   const ctx = await freshDb();
   await ctx.repos.seedIfNeeded();

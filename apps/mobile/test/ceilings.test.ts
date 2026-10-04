@@ -14,7 +14,7 @@ async function setup() {
     for (const d of days) for (const e of await ctx.repos.listDayExercises(d.id)) out.push({ day: d.name, ...e });
     return out;
   };
-  /** Train `days` programme days (a full rotation by default; 3 days ends with Lower B written); `plan` maps an exercise name to [load, reps] x3 on the day it appears. Other days log a filler set. */
+  /** Train `days` program days (a full rotation by default; 3 days ends with Lower B written); `plan` maps an exercise name to [load, reps] x3 on the day it appears. Other days log a filler set. */
   const rotation = async (plan: Record<string, [number, number]>, days = 4) => {
     let lastWritten: string | null = null;
     for (let d = 0; d < days; d++) {
@@ -36,7 +36,7 @@ async function setup() {
   return { ...ctx, gymId, gym, all, rotation };
 }
 
-describe("rep ceilings in the seeded programme", () => {
+describe("rep ceilings in the seeded program", () => {
   it("upper body 10, legs 12, lateral raises 15 for every seeded lift", async () => {
     const { all } = await setup();
     const rows = await all();
@@ -50,7 +50,7 @@ describe("rep ceilings in the seeded programme", () => {
       expect(r.repCeilingIsCustom).toBe(false);
     }
   });
-  it("the seed programme's own ranges end at the same ceilings (what the Today screen shows)", async () => {
+  it("the seed program's own ranges end at the same ceilings (what the Today screen shows)", async () => {
     const { db } = await setup();
     const rows = await db.all<{ rep_max: number; name_en: string }>(
       "SELECT pde.rep_max, e.name_en FROM programme_day_exercise pde JOIN exercise e ON e.id = pde.exercise_id",

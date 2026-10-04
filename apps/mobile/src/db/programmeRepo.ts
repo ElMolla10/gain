@@ -8,14 +8,14 @@ import type { Repos } from "./repos";
 
 export class DraftInvalid extends Error {
   constructor(public readonly problems: DraftProblem[]) {
-    super(`Programme is not valid: ${problems.map((p) => p.code).join(", ")}`);
+    super(`Program is not valid: ${problems.map((p) => p.code).join(", ")}`);
   }
 }
 
 /** An open workout belongs to the version it was started on; switching versions under it would orphan it. */
 export class SessionInProgress extends Error {
   constructor() {
-    super("Finish your open workout before changing the programme");
+    super("Finish your open workout before changing the program");
   }
 }
 
@@ -50,7 +50,7 @@ export interface ProgrammeInfo {
   name: string;
   isSample: boolean;
   isActive: boolean;
-  /** Latest saved version number (older versions stay in the programme's history). */
+  /** Latest saved version number (older versions stay in the program's history). */
   version: number;
   versions: number;
   days: number;
@@ -77,7 +77,7 @@ export class MeasureLocked extends Error {
 }
 
 /**
- * Programme editor data layer. Editing never rewrites a saved version: "save" writes a NEW version (copy + changes).
+ * Program editor data layer. Editing never rewrites a saved version: "save" writes a NEW version (copy + changes).
  * Old versions keep their days and exercises, so sessions logged on them stay readable.
  */
 export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: FinishRepo) {
@@ -121,7 +121,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
 
   /**
    * Counts an exercise in reps, seconds or metres. Refused once any set was logged for it (the numbers already stored would change meaning).
-   * Programme slots that use it get the new unit's starting range (a reps range such as 8-12 would read as 8-12 seconds), in every saved
+   * Program slots that use it get the new unit's starting range (a reps range such as 8-12 would read as 8-12 seconds), in every saved
    * version, so the Today list and the next target stay consistent; sessions already finished are untouched. Planned targets are rewritten.
    */
   async function setExerciseMeasure(exerciseId: string, measure: Measure): Promise<{ changed: boolean; slots: number }> {
@@ -157,7 +157,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     return (id) => m.get(id);
   }
 
-  // ---- reading programmes ---------------------------------------------------------------------------------
+  // ---- reading programs ---------------------------------------------------------------------------------
   async function getActive() {
     return repos.getLatestProgrammeVersion();
   }
@@ -167,7 +167,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       "SELECT p.name AS name FROM programme_version pv JOIN programme p ON p.id = pv.programme_id WHERE pv.id = ? AND pv.deleted_at IS NULL",
       [versionId],
     );
-    if (!v) throw new Error("Unknown programme version");
+    if (!v) throw new Error("Unknown program version");
     const days = await db.all<{ id: string; name: string }>("SELECT id, name FROM programme_day WHERE programme_version_id = ? AND deleted_at IS NULL ORDER BY position", [versionId]);
     const out: ProgrammeDraft = { name: v.name, days: [] };
     for (const d of days) {
@@ -207,7 +207,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     return out;
   }
 
-  /** Every programme the lifter has (the hidden Hevy-import history programme is not one), the active one marked. Nothing is deleted by switching. */
+  /** Every program the lifter has (the hidden Hevy-import history program is not one), the active one marked. Nothing is deleted by switching. */
   async function listProgrammes(): Promise<ProgrammeInfo[]> {
     const active = await getActive();
     const rows = await db.all<{ id: string; name: string; is_sample: number; created_at: number }>("SELECT id, name, is_sample, created_at FROM programme WHERE deleted_at IS NULL AND kind = 'user' ORDER BY created_at DESC");
@@ -254,7 +254,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
   }
 
   /**
-   * Planned (not started) sessions written for another programme version are voided (soft delete, with their targets),
+   * Planned (not started) sessions written for another program version are voided (soft delete, with their targets),
    * because their days no longer exist in the current version. In-progress and finished sessions are never touched.
    */
   async function voidStalePlanned(currentVersionId: string): Promise<number> {
@@ -278,7 +278,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     if (gymId) await finish.planNextSession(gymId);
   }
 
-  /** A new programme (e.g. from a template or built from scratch). It becomes the active one unless told otherwise. */
+  /** A new program (e.g. from a template or built from scratch). It becomes the active one unless told otherwise. */
   async function createProgramme(draft: ProgrammeDraft, opts: { activate?: boolean } = {}): Promise<{ programmeId: string; versionId: string }> {
     const problems = validateDraft(draft);
     if (problems.length > 0) throw new DraftInvalid(problems);
@@ -300,17 +300,17 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
   }
 
   /**
-   * Saves an edit as version N+1. No-op (no new version) when nothing changed. The name is the programme's, not the version's.
+   * Saves an edit as version N+1. No-op (no new version) when nothing changed. The name is the program's, not the version's.
    * Rotation continues where it was (by day position); the next planned session is rewritten from the new version.
    */
   async function saveNewVersion(programmeId: string, draft: ProgrammeDraft, opts: { background?: boolean; /** Runs inside the same transaction, after the version is written: other rows that must exist together with it. */ alsoInTransaction?: (versionId: string) => Promise<void> } = {}): Promise<{ versionId: string; version: number; changed: boolean }> {
     const problems = validateDraft(draft);
     if (problems.length > 0) throw new DraftInvalid(problems);
     const cur = await db.get<{ id: string; version: number }>("SELECT id, version FROM programme_version WHERE programme_id = ? AND deleted_at IS NULL ORDER BY version DESC LIMIT 1", [programmeId]);
-    if (!cur) throw new Error("Unknown programme");
+    if (!cur) throw new Error("Unknown program");
     const before = await loadDraft(cur.id);
     if (draftFingerprint(before) === draftFingerprint(draft)) return { versionId: cur.id, version: cur.version, changed: false };
-    // `background`: a programme that is not the active one (e.g. closing a short week left behind). Nothing about today's workout or plan is touched.
+    // `background`: a program that is not the active one (e.g. closing a short week left behind). Nothing about today's workout or plan is touched.
     if (!opts.background) await assertNoOpenWorkout();
     const res = await db.transaction(async () => {
       const t = now();
@@ -327,7 +327,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
 
   async function setActiveProgramme(programmeId: string): Promise<void> {
     const p = await db.get<{ id: string }>("SELECT id FROM programme WHERE id = ? AND deleted_at IS NULL", [programmeId]);
-    if (!p) throw new Error("Unknown programme");
+    if (!p) throw new Error("Unknown program");
     await assertNoOpenWorkout();
     await repos.setSetting("active_programme_id", programmeId);
     const v = await getActive();

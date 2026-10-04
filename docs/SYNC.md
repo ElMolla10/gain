@@ -11,7 +11,7 @@ An OPTIONAL backup/sync of the lifter's data to a small Cloudflare Worker with a
 
 ## Data model
 - Every local table row is one JSON object (all columns, keys sorted = "canonical"). The local tables already have `id` (client UUID), `updated_at`, `deleted_at`.
-- **Synced tables** (parents first): see `SYNC_TABLES`. `setting` syncs only the keys in `SYNCED_SETTING_KEYS` (units, active programme/gym, onboarding state, ...). Language, RTL, rest-timer, update-check and any sync credentials never sync.
+- **Synced tables** (parents first): see `SYNC_TABLES`. `setting` syncs only the keys in `SYNCED_SETTING_KEYS` (units, active program/gym, onboarding state, ...). Language, RTL, rest-timer, update-check and any sync credentials never sync.
 - Server table `sync_row` keeps the winning version per (account, table, row id) plus `seq`, a per-account counter that grows with every accepted change. Phones pull "everything after seq N".
 - Server keeps **no event log**: idempotency comes from the row's last `event_id` (replaying it is a `duplicate`) and from the conflict rule (replaying an older version is `stale`).
 

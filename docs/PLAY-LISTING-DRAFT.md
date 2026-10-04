@@ -75,7 +75,7 @@ Rules used for every line: no medical, physique or results promise; each claim m
 | App icon | 512x512 PNG, 32-bit | Exists in the app (`assets/`); store-size export not made |
 | Feature graphic | 1024x500 PNG/JPG | Not made |
 | Phone screenshots | 2 to 8, 16:9 or 9:16, min 320 px, max 3840 px | Not made. Needs a real phone or emulator run (Mohamed's device is not available to the builder). |
-| Screens to capture | Today, logger (with target + reason), Finish with next targets, Why screen, Goals/pace, History trend, Programme editor | |
+| Screens to capture | Today, logger (with target + reason), Finish with next targets, Why screen, Goals/pace, History trend, Program editor | |
 | Variants | Arabic (RTL) and English (LTR); light and dark | |
 | Privacy policy URL | Public URL | The text is a DRAFT ([PRIVACY-POLICY-DRAFT.md](PRIVACY-POLICY-DRAFT.md)), not lawyer-reviewed (D6), not hosted |
 | Support email | Public address | Mohamed |

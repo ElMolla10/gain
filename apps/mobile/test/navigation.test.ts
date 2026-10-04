@@ -12,7 +12,7 @@ describe("P09 navigation", () => {
     expect(tabs.length).toBe(4);
     for (const t of tabs) expect(t).toMatch(/tabBarIcon: icon\("(today|plan|progress|settings)"\)/);
   });
-  it("the Programme tab is labelled Plan in English and has a short Arabic draft label", () => {
+  it("the Program tab is labelled Plan in English and has a short Arabic draft label", () => {
     expect(en["tab.programme"]).toBe("Plan");
     expect(ar["tab.programme"].length).toBeLessThanOrEqual(8);
     expect(ar["tab.programme"]).not.toBe(en["tab.programme"]);

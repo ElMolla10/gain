@@ -216,7 +216,7 @@ describe("ceilings are editable", () => {
     const ex: ExerciseSpec = { ...bench, progression: { repCeiling: 6 } };
     expect(P(ex, run(lineOf(ex.exerciseId), 100, [6, 6]), { repCeilings: { upper: 12 } }).inputs.policy).toMatchObject({ repCeiling: 6, ceilingSource: "lift" });
   });
-  it("the programme's bottom of the range survives, but never above the ceiling", () => {
+  it("the program's bottom of the range survives, but never above the ceiling", () => {
     const ex: ExerciseSpec = { ...bench, repRange: { min: 6, max: 10 }, progression: { repCeiling: 5 } };
     expect(P(ex, run(lineOf(ex.exerciseId), 100, [5, 5])).inputs.repRange).toEqual({ min: 5, max: 5 });
   });

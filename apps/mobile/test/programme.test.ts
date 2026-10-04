@@ -11,7 +11,7 @@ import { freshDb } from "./helpers";
 
 const d0: ProgrammeDraft = { name: "P", days: [{ name: "A", exercises: [newExercise("e1"), newExercise("e2")] }, { name: "B", exercises: [newExercise("e3")] }] };
 
-describe("programme draft edits", () => {
+describe("program draft edits", () => {
   it("add / remove / rename / move days without touching the original", () => {
     const d1 = addDay(d0, "C");
     expect(d1.days.map((d) => d.name)).toEqual(["A", "B", "C"]);
@@ -168,7 +168,7 @@ describe("templates", () => {
   });
 });
 
-describe("programme repo: versions", () => {
+describe("program repo: versions", () => {
   async function seeded() {
     const ctx = await freshDb();
     await ctx.repos.seedIfNeeded();
@@ -271,7 +271,7 @@ describe("programme repo: versions", () => {
     expect(r.version).toBe(3);
     expect(await programmes.loadDraft(r.versionId)).toEqual(v1);
   });
-  it("a new programme becomes active, the old one stays", async () => {
+  it("a new program becomes active, the old one stays", async () => {
     const { programmes, active, db } = await seeded();
     const exs = await programmes.listExercises();
     const squat = exs.find((e) => e.seedKey === "back_squat")!;
@@ -305,14 +305,14 @@ describe("custom exercises", () => {
   });
 });
 
-describe("switching programme (v0.8.0)", () => {
+describe("switching program (v0.8.0)", () => {
   async function seeded() {
     const ctx = await freshDb();
     await ctx.repos.seedIfNeeded();
     const active = (await ctx.programmes.getActive())!;
     return { ...ctx, ctx, active };
   }
-  it("lists every programme, marks the active one, and switching keeps all versions and history", async () => {
+  it("lists every program, marks the active one, and switching keeps all versions and history", async () => {
     const { programmes, active, db } = await seeded();
     const exs = await programmes.listExercises();
     const squat = exs.find((e) => e.seedKey === "back_squat")!;
@@ -330,7 +330,7 @@ describe("switching programme (v0.8.0)", () => {
     const back = await programmes.listProgrammes();
     expect(back.find((p) => p.programmeId === active.programmeId)!.isActive).toBe(true);
     expect(back.find((p) => p.programmeId === made.programmeId)).toMatchObject({ isActive: false, versions: 2 });
-    // The other programme's versions are still all there and the next session is planned from the programme now active.
+    // The other program's versions are still all there and the next session is planned from the program now active.
     expect(await programmes.listVersions(made.programmeId)).toHaveLength(2);
     const planned = await db.get<{ pv: string }>("SELECT programme_version_id AS pv FROM session WHERE status = 'planned' AND deleted_at IS NULL");
     expect(planned!.pv).toBe((await programmes.getActive())!.versionId);

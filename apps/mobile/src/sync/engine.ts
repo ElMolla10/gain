@@ -368,7 +368,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
   }
 
   // ---- public: turning it on ------------------------------------------------------------------------------------
-  /** Real lifter data on this phone (not just the sample programme the app seeds on first run). */
+  /** Real lifter data on this phone (not just the sample program the app seeds on first run). */
   async function hasUserData(): Promise<boolean> {
     if (await db.get("SELECT 1 AS x FROM setting WHERE id = 'onboarding_state' AND deleted_at IS NULL")) return true;
     for (const sql of [

@@ -162,7 +162,7 @@ describe("history becomes comparable lines", () => {
     const mixed = await count(db, `SELECT COUNT(*) AS n FROM workout_set ws JOIN session s ON s.id = ws.session_id JOIN exercise_line l ON l.id = ws.line_id WHERE l.gym_id <> s.gym_id`);
     expect(mixed).toBe(0);
   });
-  it("the hidden history programme is never the active programme and does not move the rotation", async () => {
+  it("the hidden history program is never the active program and does not move the rotation", async () => {
     const { imports, gymId, repos } = await setup();
     const before = await repos.getNextDay();
     await imports.importHistory({ parse: hevy, gymId, mappings: acceptAll((await imports.preview(hevy)).titles) });

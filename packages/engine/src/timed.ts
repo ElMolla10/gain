@@ -24,7 +24,7 @@ import type {
  * Time-based and distance-based exercises (plank, dead hang, wall sit, farmer's walk). DRAFT rule `timed-v0.1`, NOT reviewed by a trainer.
  *
  * Same shape as the reps rule, with the quantity measured in seconds (`time`) or metres (`distance`) instead of reps:
- *  - the rep range of the programme slot is read as the seconds / metres range (e.g. 30-60 s);
+ *  - the rep range of the program slot is read as the seconds / metres range (e.g. 30-60 s);
  *  - only working sets at the same line (exercise + gym + setup) count; warm-ups, drop sets and rejected sets never do;
  *  - session quantity = the WEAKEST working set at the heaviest load (conservative, like the reps rule);
  *  - one session of history is a low-confidence repeat; below the range = rebuild to the bottom; below the top = a small step longer

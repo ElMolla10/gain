@@ -8,7 +8,7 @@ const prog = ["a", "b", "c", "d"];
 const st = (o: StateMap): StateMap => o;
 
 describe("order, superset labels and rest (pure)", () => {
-  it("programme order, then added exercises in the order they were added; removed ones are left out", () => {
+  it("program order, then added exercises in the order they were added; removed ones are left out", () => {
     const s = st({ x: { slot: "x", added: true, position: 2 }, y: { slot: "y", added: true, position: 1 }, b: { slot: "b", removed: true } });
     expect(orderSlots(prog, s)).toEqual(["a", "c", "d", "y", "x"]);
   });
@@ -67,7 +67,7 @@ describe("add an exercise that is not in today's day", () => {
     expect(cols).toEqual(expect.arrayContaining(["added", "position", "superset_group"]));
   });
 
-  it("adds it with plain defaults, logs sets for it, keeps the programme unchanged, shows it in the finish summary", async () => {
+  it("adds it with plain defaults, logs sets for it, keeps the program unchanged, shows it in the finish summary", async () => {
     const { workout, repos, finish, id, outside, next, exs, gym, db } = await open();
     const x = outside[0]!;
     expect(await workout.addExercise(id, x.id)).toEqual({ restored: false });
@@ -77,7 +77,7 @@ describe("add an exercise that is not in today's day", () => {
     expect(ad.repMin).toBeLessThanOrEqual(ad.repMax);
     const r = await workout.logSet({ sessionId: id, exerciseId: x.id, load: 20, reps: 12 }, { gym, equipment: ad.equipment, setup: ad.setup });
     expect(r.created).toBe(true);
-    // the programme day is untouched
+    // the program day is untouched
     expect((await repos.listDayExercises(next.day.id)).map((e) => e.exerciseId)).toEqual(exs.map((e) => e.exerciseId));
     // finish: the summary lists it, and no next-session target is invented for it
     await workout.finishSession(id);
@@ -128,7 +128,7 @@ describe("add an exercise that is not in today's day", () => {
 });
 
 describe("supersets are saved per workout", () => {
-  it("setSuperset stores the group for both exercises and clears it; the programme is untouched", async () => {
+  it("setSuperset stores the group for both exercises and clears it; the program is untouched", async () => {
     const { workout, id, exs } = await open();
     const [a, b] = [exs[0]!.exerciseId, exs[1]!.exerciseId];
     await workout.setSuperset(id, joinSuperset({}, a, b));

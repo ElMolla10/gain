@@ -52,12 +52,12 @@ export function TodayScreen() {
     useCallback(() => {
       let alive = true;
       void runLoad<TodayData>(async () => {
-        // A new training week has begun: the normal programme returns (if the lifter has not already edited it).
+        // A new training week has begun: the normal program returns (if the lifter has not already edited it).
         await shortWeek.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
         const shortActive = await shortWeek.getActive();
         if (alive) setShort(shortActive);
         const next = await repos.getNextDay();
-        if (!next) return null; // no programme at all: the genuinely empty state
+        if (!next) return null; // no program at all: the genuinely empty state
         const dayList = await repos.listDays(next.versionId);
         const lists = await Promise.all(dayList.map((d) => repos.listDayExercises(d.id)));
         const marked = markSuggested(dayList.map((d, i) => ({ id: d.id, name: d.name, exercises: lists[i]!.length, sets: lists[i]!.reduce((n, e) => n + e.sets, 0) })), next.day.id);
@@ -153,7 +153,7 @@ export function TodayScreen() {
           {data.days.length > 1 ? <QuietAction label={t("today.change")} accessibilityLabel={t("today.changeLabel", { day: chosen.name })} onPress={() => setChangeOpen(true)} /> : null}
         </View>
         <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{chosen.name}</AppText>
-        {/* Separate runs, so a Latin programme name never scrambles the order of an Arabic sentence. */}
+        {/* Separate runs, so a Latin program name never scrambles the order of an Arabic sentence. */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xs }}>
           <AppText style={{ color: p.muted }}>{data.programmeName} ·</AppText>
           <AppText style={{ color: p.muted }}>{t("today.meta", { sets: chosen.sets, min: estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds) })}</AppText>

@@ -38,7 +38,7 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
     timed_repeat: "Repeat {load} {unit} for {target} {qunit}. There is not enough comparable history to push yet, so this is a smaller step on purpose.",
     timed_confirm: "Stay at {load} {unit} and repeat {target} {qunit}. That is {have} of {need} sessions at the top; the next one earns more load.",
     timed_load_up: "Go up to {load} {unit} and aim for {target} {qunit}. You reached {last} {qunit} at {prevLoad} {unit}.",
-    timed_hold_top: "Stay at {load} {unit} for {target} {qunit}. You are at the top of your range and there is no heavier {equipment} in this gym; raise the range in the programme when you want a longer target.",
+    timed_hold_top: "Stay at {load} {unit} for {target} {qunit}. You are at the top of your range and there is no heavier {equipment} in this gym; raise the range in the program when you want a longer target.",
     timed_hold_declined: "Stay at {load} {unit} for {target} {qunit}. You have declined the jump to {nextLoad} {unit} {count} times, so it will not be proposed again.",
   },
   ar: {

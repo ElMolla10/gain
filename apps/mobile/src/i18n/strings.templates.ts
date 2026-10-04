@@ -1,9 +1,9 @@
 /**
- * Strings for the programme-template picker (filters, groups, labels). English is the source.
+ * Strings for the program-template picker (filters, groups, labels). English is the source.
  * ARABIC IS A DRAFT TRANSLATION (Egyptian-leaning): needs review by Egyptian lifters and a trainer.
  */
 export const enTemplates = {
-  "tpl.filters": "Filter programmes",
+  "tpl.filters": "Filter programs",
   "tpl.filter.days": "Days per week",
   "tpl.filter.venue": "Where",
   "tpl.filter.gear": "Equipment I have",
@@ -13,11 +13,11 @@ export const enTemplates = {
   "tpl.clear": "Clear filters",
   "tpl.days.n": "{n} days",
   "tpl.group": "{n} days a week",
-  "tpl.count": "{n} programmes shown",
-  "tpl.none": "No programme matches these filters. Clear a filter to see more.",
+  "tpl.count": "{n} programs shown",
+  "tpl.none": "No program matches these filters. Clear a filter to see more.",
   "tpl.venue.home": "Home",
   "tpl.venue.gym": "Gym",
-  "tpl.venue.note": "Home = bodyweight, dumbbells or bands only. Gym shows every programme, including the ones you can also do at home.",
+  "tpl.venue.note": "Home = bodyweight, dumbbells or bands only. Gym shows every program, including the ones you can also do at home.",
   "tpl.gear.gym": "Full gym",
   "tpl.gear.dumbbell": "Dumbbells",
   "tpl.gear.band": "Bands",

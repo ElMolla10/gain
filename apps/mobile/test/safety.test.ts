@@ -31,7 +31,7 @@ const count = async (db: Db, table: string) => Number((await db.get<{ n: number 
 
 describe("upgrade paths: every older schema version migrates to the latest without losing a row", () => {
   for (let v = 1; v < LATEST_VERSION; v++) {
-    it(`v${v} -> v${LATEST_VERSION}: sessions, sets, programme and settings survive; integrity and foreign keys are clean`, async () => {
+    it(`v${v} -> v${LATEST_VERSION}: sessions, sets, program and settings survive; integrity and foreign keys are clean`, async () => {
       const db = await dbAt(v);
       expect((await migrationInfo(db)).from).toBe(v);
       const r = await migrate(db);
@@ -173,7 +173,7 @@ describe("killed in the middle of a save: nothing half-written", () => {
     expect(await ctx.workout.listSessionSets(id)).toHaveLength(1);
   });
 
-  /** A phone with one programme, repos running through the crashing wrapper, and the operations to kill. */
+  /** A phone with one program, repos running through the crashing wrapper, and the operations to kill. */
   async function rig() {
     const ctx = await freshDb();
     await ctx.repos.seedIfNeeded();
@@ -200,7 +200,7 @@ describe("killed in the middle of a save: nothing half-written", () => {
     return { ctx, c, ops };
   }
 
-  /** Every version has days and every day has exercises: a programme is never left half-written. */
+  /** Every version has days and every day has exercises: a program is never left half-written. */
   async function programmesWhole(db: Db) {
     expect(await db.all("SELECT v.id FROM programme_version v WHERE v.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM programme_day d WHERE d.programme_version_id = v.id)")).toEqual([]);
     expect(await db.all("SELECT d.id FROM programme_day d WHERE d.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM programme_day_exercise e WHERE e.programme_day_id = d.id)")).toEqual([]);
@@ -235,7 +235,7 @@ describe("killed in the middle of a save: nothing half-written", () => {
 });
 
 describe("killed while applying a short week", () => {
-  it("the new programme version and the record that brings the normal week back are saved together", async () => {
+  it("the new program version and the record that brings the normal week back are saved together", async () => {
     const { instantiateTemplate, TEMPLATES } = await import("../src/logic/templates");
     const probeWrites = async (arm: number) => {
       const ctx = await freshDb();
@@ -266,7 +266,7 @@ describe("killed while applying a short week", () => {
       const r = await probeWrites(k);
       const active = await r.ctx.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM short_week WHERE status = 'active'");
       const versions = (await r.programmes.getActive())!.version;
-      // either nothing happened (version 1, no record) or both happened: never a short programme without the record that restores the normal one
+      // either nothing happened (version 1, no record) or both happened: never a short program without the record that restores the normal one
       expect({ k, versions, active: Number(active!.n) }, `kill at write ${k}`).toSatisfy((x: { versions: number; active: number }) => (x.versions === 1 && x.active === 0) || (x.versions === 2 && x.active === 1));
     }
   });

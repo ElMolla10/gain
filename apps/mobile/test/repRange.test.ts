@@ -9,24 +9,24 @@ import { freshDb } from "./helpers";
 const T = (k: string, p: Record<string, string | number>) => en[k as keyof typeof en].replace(/\{(\w+)\}/g, (_, n) => String(p[n]));
 
 describe("P05 the effective rep range is explicit", () => {
-  it("a programme range above the default ceiling is overridden, and the text says so", () => {
+  it("a program range above the default ceiling is overridden, and the text says so", () => {
     const r = effectiveRange({ programmeMin: 8, programmeMax: 12, ceiling: ceilingForName("Barbell Bench Press", DEFAULT_REP_CEILINGS), source: "default" });
     expect(r).toMatchObject({ min: 8, max: 10, overridesProgramme: true });
     const text = rangeText(r, T);
     expect(text).toContain("Reps: 8-10");
-    expect(text).toContain("Your programme says 8-12");
+    expect(text).toContain("Your program says 8-12");
     expect(text).toContain("default rep ceiling");
   });
   it("a per-lift ceiling is named as the lift's own", () => {
     const text = rangeText(effectiveRange({ programmeMin: 6, programmeMax: 10, ceiling: 8, source: "lift" }), T);
     expect(text).toContain("this lift's own rep ceiling is 8");
   });
-  it("no extra sentence when the programme and the ceiling agree", () => {
+  it("no extra sentence when the program and the ceiling agree", () => {
     const r = effectiveRange({ programmeMin: 8, programmeMax: 10, ceiling: 10, source: "default" });
     expect(r.overridesProgramme).toBe(false);
     expect(rangeText(r, T)).toBe("Reps: 8-10. Load goes up when every set reaches 10.");
   });
-  it("a ceiling below the programme's bottom pulls the bottom down with it", () => {
+  it("a ceiling below the program's bottom pulls the bottom down with it", () => {
     expect(effectiveRange({ programmeMin: 12, programmeMax: 15, ceiling: 10, source: "default" })).toMatchObject({ min: 10, max: 10 });
   });
   it("strings are in both languages with the same placeholders", () => {
@@ -38,7 +38,7 @@ describe("P05 the effective rep range is explicit", () => {
 });
 
 describe("P05 stored decisions and the Why screen", () => {
-  it("the decision log stores the programme's own range next to the one used, and Why shows both", async () => {
+  it("the decision log stores the program's own range next to the one used, and Why shows both", async () => {
     const ctx = await freshDb();
     await ctx.repos.seedIfNeeded();
     const gymId = (await ctx.repos.getActiveGymId())!;
@@ -55,10 +55,10 @@ describe("P05 stored decisions and the Why screen", () => {
     const payload: DecisionPayload = { ...d!.payload, inputs: { ...i, programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 10 }, policy: { ...i.policy, ceilingSource: "default", repCeiling: 10 } } };
     const sections = describeDecision(payload, { ruleVersion: d!.ruleVersion, path: d!.path }, (k, p) => (en[k as keyof typeof en] ?? k).replace(/\{(\w+)\}/g, (_, n) => String(p?.[n] ?? "")), "en");
     const rule = sections.find((s) => s.title === en["why.rule"])!;
-    expect(rule.lines.join("\n")).toContain("Programme range 8-12; rep ceiling in force 10 (app-wide default for this kind of lift).");
+    expect(rule.lines.join("\n")).toContain("Program range 8-12; rep ceiling in force 10 (app-wide default for this kind of lift).");
     // and nothing extra when they agree
     const same: DecisionPayload = { ...payload, inputs: { ...payload.inputs, programmeRepRange: { min: 8, max: 10 } } };
     const s2 = describeDecision(same, { ruleVersion: "x", path: "rule" }, (k, p) => (en[k as keyof typeof en] ?? k).replace(/\{(\w+)\}/g, (_, n) => String(p?.[n] ?? "")), "en");
-    expect(s2.find((s) => s.title === en["why.rule"])!.lines.join("\n")).not.toContain("Programme range");
+    expect(s2.find((s) => s.title === en["why.rule"])!.lines.join("\n")).not.toContain("Program range");
   });
 });

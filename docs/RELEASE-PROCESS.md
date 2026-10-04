@@ -27,6 +27,8 @@ cd android
 ```
 Output: `android/app/build/outputs/apk/release/app-release.apk` (about 2.5 minutes on a warm box, 346 Gradle tasks, from a fresh clone). It is signed with the *debug* key by the generated project; step 3 replaces that signature. **arm64-v8a only**: phones with armv7 or x86 are not covered.
 
+**Build variants (v0.20.0).** The default build above is the sideload APK. A pilot variant (`GAIN_PILOT_TEMPLATES=1`) and a Google Play variant (`GAIN_DISTRIBUTION=play`) are described in [PLAY-BUILD.md](PLAY-BUILD.md); the pilot APK is published as an extra asset named `gain-pilot-vX.Y.Z-arm64.apk` (the updater ignores that name). Always `expo prebuild --clean` again when switching variants.
+
 ## 3. Sign with the release key (the SAME key as every earlier release)
 ```
 BT=~/tools/android-sdk/build-tools/36.0.0

@@ -89,12 +89,13 @@ Rules used for every line: no medical, physique or results promise; each claim m
 The draft answers now live in [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (built from the code's real data flows and the APK's permissions, with judgment calls marked). The short table that used to be here said "Collects only if the user turns on sync" and omitted the coach link, birthday/height and the permission list; do not use it.
 
 ## Known blockers before any submission
-1. **Self-update installer.** The app declares `REQUEST_INSTALL_PACKAGES` and downloads its own APK from GitHub. Play distribution generally does not allow an app to update itself outside Play, and a declared install-packages permission needs a policy exemption. The Play build would need this removed (a build flavour without the updater). Not done; needs a decision (D-number to be assigned) and a check of the current policy text.
+1. **Self-update installer.** The sideload app declares `REQUEST_INSTALL_PACKAGES` and downloads its own APK from GitHub. Play distribution generally does not allow an app to update itself outside Play, and a declared install-packages permission needs a policy exemption. **Since v0.20.0 (2026-10-04) the build switch `GAIN_DISTRIBUTION=play` removes the permission and the update card; the Play manifest was measured with `aapt2` and does not contain it** ([PLAY-BUILD.md](PLAY-BUILD.md)). Still open: Mohamed accepting this as the decision, and checking the current policy text at submission.
 2. Account, identity checks and testing-track requirements for new developer accounts: **unknown/changing**, check at the time (Step 25).
 3. Package id `app.gain.mobile` is permanent once published.
 4. Arabic copy needs native review; privacy policy needs legal review and a public URL.
 5. Pricing: GAIN is completely free. In Play Console set the app as Free, answer "No" to in-app purchases and to ads, and keep the listing free of price, trial and subscription wording. Nothing to build or configure for billing.
-6. Screenshots need a device or emulator session.
+6. Screenshots need a device or emulator session: shot list, captions, feature graphic drafts and the metadata table are in [PLAY-ASSETS.md](PLAY-ASSETS.md).
+7. Privacy policy and terms exist as hosted DRAFT pages ([site/README.md](site/README.md)); the account-deletion page spec is [ACCOUNT-DELETION-SPEC.md](ACCOUNT-DELETION-SPEC.md).
 
 ## Claim check (each listing claim vs what is shipped; not device-verified)
 

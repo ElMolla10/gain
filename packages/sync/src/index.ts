@@ -45,6 +45,7 @@ export const SYNCED_SETTING_KEYS = [
   "active_programme_id",
   "units",
   "rep_ceilings",
+  "use_gain_ceilings",
   "days_per_week",
   "session_minutes",
   "equipment_json",

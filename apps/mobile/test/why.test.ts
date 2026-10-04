@@ -44,7 +44,7 @@ describe("Why this weight? shows the logged inputs", () => {
     expect(sections[1]!.lines).toHaveLength(3);
     expect(clean(sections[2]!.lines.join(" "))).toContain("62.5");
     expect(clean(sections[2]!.lines.join(" "))).toContain("2.5");
-    expect(sections[4]!.lines.join(" ")).toContain("rule-v0.3");
+    expect(sections[4]!.lines.join(" ")).toContain("rule-v0.4");
     expect(sections[4]!.lines.join(" ")).toContain("the next real load");
   });
   it("renders in Arabic too, without leftover placeholders", async () => {

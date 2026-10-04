@@ -2,7 +2,7 @@ import { RULE_VERSION } from "./version";
 import { effectiveLoad, epley, lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
 import { findSpec, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad, allowsZero } from "./loads";
-import { classifyLift, resolveProgression } from "./policy";
+import { classifyLift, mergeRepCeilings, resolveProgression, resolveRepTop } from "./policy";
 import { isJumpBlocked, recordsForLine, REJECTION_THRESHOLD, rejectionCount, emptyRejectionMemory } from "./rejection";
 import type {
   Confidence,
@@ -11,6 +11,7 @@ import type {
   ExerciseSpec,
   GymFingerprint,
   HistorySession,
+  LiftProgression,
   LineIdentity,
   NeedsModelReason,
   Proposal,
@@ -32,6 +33,11 @@ export interface ProgressionOptions {
   stepDownAfterMisses?: number | null;
   /** Edited app-wide default rep ceilings (upper / lower / lateral_raise). A per-lift `progression.repCeiling` still wins. */
   repCeilings?: Partial<RepCeilings>;
+  /**
+   * "Use GAIN rep ceilings" (off by default, rule-v0.4). Off: the program's own top wins (a per-lift ceiling still wins over it); the GAIN ceilings (10 / 12 / 15)
+   * apply only to a program with no top. On: the GAIN ceiling for the kind of lift replaces the program's top, as in rule-v0.3 (a per-lift ceiling still wins).
+   */
+  useGainCeilings?: boolean;
   rejectionThreshold: number;
   /** Coefficient of variation of recent top-set strength estimates above which confidence drops. */
   highVarianceCv: number;
@@ -56,6 +62,7 @@ export interface ProposeContext {
 }
 
 const DAY = 86_400_000;
+const mergeGain = (over: Partial<RepCeilings> | undefined, cls: keyof RepCeilings): number => mergeRepCeilings(over)[cls];
 const LEVELS: Confidence[] = ["low", "medium", "high"];
 
 export const jumpKindLoad = (dir: "harder" | "easier", delta: number): string => `load:${dir}:${norm(delta)}`;
@@ -108,7 +115,8 @@ function lower(c: Confidence): Confidence {
 export function proposeNext(ctx: ProposeContext): Proposal {
   const opt: ProgressionOptions = { ...DEFAULT_OPTIONS, ...ctx.options };
   const { exercise, gym } = ctx;
-  if (!(exercise.repRange.min >= 1) || exercise.repRange.max < exercise.repRange.min) throw new Error("repRange must satisfy 1 <= min <= max");
+  const programMax = exercise.repRange.max ?? null;
+  if (!(exercise.repRange.min >= 1) || (programMax !== null && programMax < exercise.repRange.min)) throw new Error("repRange must satisfy 1 <= min <= max");
   const rejections = ctx.rejections ?? emptyRejectionMemory();
   const setup = exercise.setup;
   const zero = allowsZero(setup);
@@ -118,9 +126,17 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const harderDir: "above" | "below" = setup === "assisted" ? "below" : "above";
   const nameForClass = exercise.name ?? exercise.exerciseId;
   const region = exercise.bodyRegion ?? classifyLift(nameForClass).bodyRegion;
-  const cfg = resolveProgression(region, exercise.progression, { name: nameForClass, ceilings: opt.repCeilings });
-  // The rep ceiling replaces the top of the program's rep range: it is the reps that earn more load. The bottom is kept (never above the ceiling).
-  const hi = cfg.repCeiling;
+  const resolved = resolveProgression(region, exercise.progression, { name: nameForClass, ceilings: opt.repCeilings });
+  // rule-v0.4: the top of the program's own range is what earns more load. Only a ceiling set on this lift, the "Use GAIN rep ceilings" setting, or a
+  // program with no top brings in the GAIN ceiling (10 / 12 / 15). The bottom is kept (never above the top).
+  const { top: hi, basis: repTopBasis } = resolveRepTop({
+    programMax,
+    liftCeiling: resolved.ceilingSource === "lift" ? resolved.repCeiling : null,
+    gainCeiling: resolved.repCeiling,
+    useGainCeilings: opt.useGainCeilings,
+  });
+  const gainCeiling = resolved.ceilingSource === "lift" ? mergeGain(opt.repCeilings, resolved.ceilingClass) : resolved.repCeiling;
+  const cfg: LiftProgression = { ...resolved, repCeiling: hi, ceilingSource: repTopBasis === "lift" ? "lift" : repTopBasis === "program" ? "program" : "default" };
   const lo = Math.min(exercise.repRange.min, hi);
   const repRange = { min: lo, max: hi };
   const maxRatio = opt.maxJumpRatio ?? cfg.increment.maxPct;
@@ -157,7 +173,9 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     line,
     asOf: ctx.asOf,
     repRange,
-    programmeRepRange: { min: exercise.repRange.min, max: exercise.repRange.max },
+    programmeRepRange: { min: exercise.repRange.min, max: programMax },
+    repTopBasis,
+    gainCeiling,
     isGoalLift: !!exercise.isGoalLift,
     trackEffort: !!exercise.trackEffort,
     bodyweightKg: bw,

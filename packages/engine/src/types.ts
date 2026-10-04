@@ -66,6 +66,21 @@ export interface RepRange {
   max: number;
 }
 
+/** The rep range a PROGRAM asks for. `max` omitted / null = the program has no upper bound (only a bottom). */
+export interface ProgramRepRange {
+  min: number;
+  max?: number | null;
+}
+
+/**
+ * Why the top of the rep range (the reps that earn more load) is what it is (rule-v0.4):
+ *  - `lift`: the lifter set a rep ceiling on this exercise.
+ *  - `program`: the program's own top (default).
+ *  - `gain_setting`: the lifter switched on "Use GAIN rep ceilings" (10 / 12 / 15 by kind of lift, editable).
+ *  - `no_upper_bound`: the program has no top, so the GAIN ceiling for its kind of lift applies.
+ */
+export type RepTopBasis = "lift" | "program" | "gain_setting" | "no_upper_bound";
+
 export type BodyRegion = "upper" | "lower";
 /**
  * Presets. `acsm_2009` is the DEFAULT (ACSM 2009 position stand, 2-10% when the target is reached; target = the lift's rep ceiling).
@@ -134,8 +149,8 @@ export interface LiftProgression {
   ceilingClass: CeilingClass;
   /** The resolved rep ceiling: reps the weakest working set must reach to earn more load. */
   repCeiling: number;
-  /** "lift" = set on this lift; "default" = the default for its kind of lift. */
-  ceilingSource: "lift" | "default";
+  /** "lift" = set on this lift; "default" = the GAIN default for its kind of lift; "program" = the program's own top (rule-v0.4 default). Decisions stored before rule-v0.4 only have lift / default. */
+  ceilingSource: "lift" | "default" | "program";
   trigger: TriggerConfig;
   increment: IncrementConfig;
   oversizedStep: OversizedStep;
@@ -149,7 +164,8 @@ export interface ExerciseSpec {
   name?: string;
   equipment: EquipmentType;
   setup: SetupType;
-  repRange: RepRange;
+  /** The program's own range. Its top wins (rule-v0.4) unless the lift has its own ceiling or "Use GAIN rep ceilings" is on; no top = the GAIN ceiling applies. */
+  repRange: ProgramRepRange;
   /** Upper or lower body. Chooses the default rep ceiling (10 / 12). Defaults to a guess from the name, else upper. */
   bodyRegion?: BodyRegion;
   /** Per-lift progression policy overrides. */
@@ -253,10 +269,14 @@ export interface DecisionInputs {
   lineKey: string;
   line: LineIdentity;
   asOf: string;
-  /** The range the rule USED: its top is the rep ceiling (the lift's own, else the app-wide default for its kind). */
+  /** The range the rule USED: its top is what earns more load (see `repTopBasis`). */
   repRange: RepRange;
-  /** The range the program asked for, before the ceiling replaced its top. Absent in decisions stored before the fixes release. */
-  programmeRepRange?: RepRange;
+  /** The range the program asked for (`max` null = no upper bound). Absent in decisions stored before the fixes release. */
+  programmeRepRange?: { min: number; max: number | null };
+  /** Why `repRange.max` is what it is. Absent in decisions stored before rule-v0.4, which always used the lift's own or the GAIN default ceiling. */
+  repTopBasis?: RepTopBasis;
+  /** The GAIN ceiling for this kind of lift (10 / 12 / 15 or the lifter's edit): applied only for `gain_setting` and `no_upper_bound`. */
+  gainCeiling?: number;
   isGoalLift: boolean;
   trackEffort: boolean;
   bodyweightKg: number | null;

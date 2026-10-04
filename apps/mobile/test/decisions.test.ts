@@ -39,7 +39,7 @@ describe("decision log list", () => {
     expect(all.length).toBeGreaterThan(10);
     for (let i = 1; i < all.length; i++) expect(all[i - 1]!.decidedAt).toBeGreaterThanOrEqual(all[i]!.decidedAt);
     const d = all[0]!;
-    expect(d).toMatchObject({ ruleVersion: "rule-v0.3", path: "rule" });
+    expect(d).toMatchObject({ ruleVersion: "rule-v0.4", path: "rule" });
     expect(d.nameEn).toBeTruthy();
     expect(d.nameAr).toMatch(/[\u0600-\u06FF]/);
     expect(d.gymName).toBeTruthy();

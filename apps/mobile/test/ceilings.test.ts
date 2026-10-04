@@ -58,11 +58,28 @@ describe("rep ceilings in the seeded program", () => {
     expect(rows.length).toBe(SAMPLE_PROGRAMME.days.flatMap((d) => d.exercises).length);
     for (const r of rows) expect([10, 12, 15]).toContain(r.rep_max);
   });
-  it("a stale stored range (old 8-12 on an upper lift) does not hold the load: the ceiling wins", async () => {
-    const { db, all } = await setup();
+  it("rule-v0.4: a program range of 8-12 on an upper lift keeps its own top (12); the GAIN ceiling replaces it only when 'Use GAIN rep ceilings' is on", async () => {
+    const { db, all, repos } = await setup();
     await db.run("UPDATE programme_day_exercise SET rep_min = 8, rep_max = 12 WHERE exercise_id IN (SELECT id FROM exercise WHERE name_en = 'Barbell Bench Press')");
     const bench = (await all()).find((r) => r.nameEn === "Barbell Bench Press")!;
-    expect(bench.repMax).toBe(10);
+    expect(bench).toMatchObject({ repMax: 12, repCeiling: 12, programmeRepMax: 12, repTopBasis: "program", gainCeiling: 10, repCeilingIsCustom: false });
+    expect(await repos.getUseGainCeilings()).toBe(false);
+    await repos.setUseGainCeilings(true);
+    expect(await repos.getUseGainCeilings()).toBe(true);
+    const on = (await all()).find((r) => r.nameEn === "Barbell Bench Press")!;
+    expect(on).toMatchObject({ repMax: 10, programmeRepMax: 12, repTopBasis: "gain_setting" });
+    await repos.setUseGainCeilings(false);
+    expect((await all()).find((r) => r.nameEn === "Barbell Bench Press")!.repMax).toBe(12);
+  });
+  it("a ceiling set on the lift wins over the program's top and over the setting", async () => {
+    const { db, all, repos } = await setup();
+    await db.run("UPDATE programme_day_exercise SET rep_min = 8, rep_max = 12 WHERE exercise_id IN (SELECT id FROM exercise WHERE name_en = 'Barbell Bench Press')");
+    const id = (await all()).find((r) => r.nameEn === "Barbell Bench Press")!.id;
+    await repos.setLiftRepCeiling(id, 9);
+    for (const on of [false, true]) {
+      await repos.setUseGainCeilings(on);
+      expect((await all()).find((r) => r.nameEn === "Barbell Bench Press")!).toMatchObject({ repMax: 9, repTopBasis: "lift", repCeilingIsCustom: true });
+    }
   });
 });
 
@@ -83,7 +100,11 @@ describe("ceilings are editable", () => {
     const { repos, all } = await setup();
     expect(await repos.getRepCeilingDefaults()).toEqual({ upper: 10, lower: 12, lateral_raise: 15 });
     expect(await repos.setRepCeilingDefaults({ lower: 15 })).toEqual({ upper: 10, lower: 15, lateral_raise: 15 });
+    // The program's own top (12) wins until "Use GAIN rep ceilings" is switched on; then the edited ceiling is the top.
+    expect((await all()).find((r) => r.nameEn === "Leg Press")!.repCeiling).toBe(12);
+    await repos.setUseGainCeilings(true);
     expect((await all()).find((r) => r.nameEn === "Leg Press")!.repCeiling).toBe(15);
+    await repos.setUseGainCeilings(false);
     expect((await all()).find((r) => r.nameEn === "Barbell Bench Press")!.repCeiling).toBe(10);
     await expect(repos.setRepCeilingDefaults({ upper: 0 })).rejects.toThrow();
     expect(await repos.getRepCeilingDefaults()).toMatchObject({ lower: 15 });
@@ -93,6 +114,48 @@ describe("ceilings are editable", () => {
     const { repos } = await setup();
     await repos.setSetting("rep_ceilings", "{not json");
     expect(await repos.getRepCeilingDefaults()).toEqual({ upper: 10, lower: 12, lateral_raise: 15 });
+  });
+});
+
+describe("end to end (rule-v0.4): the program's own 8-12 decides, the setting brings the GAIN ceiling back", () => {
+  const benchTo812 = (db: { run: (sql: string) => Promise<unknown> }) => db.run("UPDATE programme_day_exercise SET rep_min = 8, rep_max = 12 WHERE exercise_id IN (SELECT id FROM exercise WHERE name_en = 'Barbell Bench Press')");
+  it("10 reps on an 8-12 bench press keeps the load and asks for 11; with 'Use GAIN rep ceilings' on it raises the load", async () => {
+    const a = await setup();
+    await benchTo812(a.db);
+    await a.rotation({ "Barbell Bench Press": [60, 10] });
+    const stay = (await a.rotation({ "Barbell Bench Press": [60, 10] })).find((t) => t.nameEn === "Barbell Bench Press")!;
+    expect(stay).toMatchObject({ load: 60, reps: 11, currency: "reps" });
+    const d = (await a.finish.getDecision(stay.id))!;
+    expect(d.ruleVersion).toBe("rule-v0.4");
+    expect(d.payload.inputs).toMatchObject({ repTopBasis: "program", programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 12 } });
+
+    const b = await setup();
+    await benchTo812(b.db);
+    await b.repos.setUseGainCeilings(true);
+    await b.rotation({ "Barbell Bench Press": [60, 10] });
+    const up = (await b.rotation({ "Barbell Bench Press": [60, 10] })).find((t) => t.nameEn === "Barbell Bench Press")!;
+    expect(up.currency).toBe("load");
+    expect(up.load).toBeGreaterThan(60);
+    expect((await b.finish.getDecision(up.id))!.payload.inputs).toMatchObject({ repTopBasis: "gain_setting", repRange: { min: 8, max: 10 } });
+  });
+  it("targets and decisions written under rule-v0.3 keep their recorded rule version; new ones are rule-v0.4", async () => {
+    const a = await setup();
+    await a.rotation({ "Barbell Bench Press": [60, 10] });
+    await a.db.run("UPDATE target SET rule_version = 'rule-v0.3'");
+    await a.db.run("UPDATE decision_log SET rule_version = 'rule-v0.3'");
+    await a.rotation({ "Barbell Bench Press": [60, 10] }, 2);
+    const rows = await a.db.all<{ rule_version: string }>("SELECT rule_version FROM target WHERE deleted_at IS NULL");
+    expect(rows.filter((r) => r.rule_version === "rule-v0.3").length).toBeGreaterThan(0);
+    expect(rows.filter((r) => r.rule_version === "rule-v0.4").length).toBeGreaterThan(0);
+    const logs = await a.db.all<{ rule_version: string }>("SELECT DISTINCT rule_version FROM decision_log");
+    expect(logs.map((l) => l.rule_version).sort()).toEqual(["rule-v0.3", "rule-v0.4"]);
+  });
+  it("12 reps on an 8-12 bench press raises the load with the setting off", async () => {
+    const a = await setup();
+    await benchTo812(a.db);
+    await a.rotation({ "Barbell Bench Press": [60, 12] });
+    const up = (await a.rotation({ "Barbell Bench Press": [60, 12] })).find((t) => t.nameEn === "Barbell Bench Press")!;
+    expect(up.currency).toBe("load");
   });
 });
 

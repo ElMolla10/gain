@@ -30,7 +30,7 @@ describe("P05 the effective rep range is explicit", () => {
     expect(effectiveRange({ programmeMin: 12, programmeMax: 15, ceiling: 10, source: "default" })).toMatchObject({ min: 10, max: 10 });
   });
   it("strings are in both languages with the same placeholders", () => {
-    for (const k of ["range.line", "range.override.lift", "range.override.default", "range.why", "range.src.lift", "range.src.default"] as const) {
+    for (const k of ["range.line", "range.override.lift", "range.override.default", "range.override.setting", "range.why", "range.why.program", "range.why.noTop", "range.why.setting", "range.src.lift", "range.src.default", "settings.gainCeil", "settings.gainCeil.note", "settings.ceilings.note"] as const) {
       expect(ar[k]).toMatch(/[\u0600-\u06FF]/);
       expect((en[k].match(/\{\w+\}/g) ?? []).sort()).toEqual((ar[k].match(/\{\w+\}/g) ?? []).sort());
     }
@@ -52,7 +52,8 @@ describe("P05 stored decisions and the Why screen", () => {
     expect(i.programmeRepRange).toBeDefined();
     expect(i.programmeRepRange!.min).toBeGreaterThanOrEqual(1);
     // Force a difference and render
-    const payload: DecisionPayload = { ...d!.payload, inputs: { ...i, programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 10 }, policy: { ...i.policy, ceilingSource: "default", repCeiling: 10 } } };
+    // A decision stored before rule-v0.4 has no repTopBasis: it is shown as it always was.
+    const payload: DecisionPayload = { ...d!.payload, inputs: { ...i, repTopBasis: undefined, programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 10 }, policy: { ...i.policy, ceilingSource: "default", repCeiling: 10 } } };
     const sections = describeDecision(payload, { ruleVersion: d!.ruleVersion, path: d!.path }, (k, p) => (en[k as keyof typeof en] ?? k).replace(/\{(\w+)\}/g, (_, n) => String(p?.[n] ?? "")), "en");
     const rule = sections.find((s) => s.title === en["why.rule"])!;
     expect(rule.lines.join("\n")).toContain("Program range 8-12; rep ceiling in force 10 (app-wide default for this kind of lift).");
@@ -60,5 +61,65 @@ describe("P05 stored decisions and the Why screen", () => {
     const same: DecisionPayload = { ...payload, inputs: { ...payload.inputs, programmeRepRange: { min: 8, max: 10 } } };
     const s2 = describeDecision(same, { ruleVersion: "x", path: "rule" }, (k, p) => (en[k as keyof typeof en] ?? k).replace(/\{(\w+)\}/g, (_, n) => String(p?.[n] ?? "")), "en");
     expect(s2.find((s) => s.title === en["why.rule"])!.lines.join("\n")).not.toContain("Program range");
+  });
+});
+
+describe("rule-v0.4 the Why text says where the top of the range comes from", () => {
+  const L = (k: string, p?: Record<string, string | number>) => (en[k as keyof typeof en] ?? k).replace(/\{(\w+)\}/g, (_, n) => String(p?.[n] ?? ""));
+  const base = async () => {
+    const ctx = await freshDb();
+    await ctx.repos.seedIfNeeded();
+    const gymId = (await ctx.repos.getActiveGymId())!;
+    const day = (await ctx.repos.getNextDay())!.day;
+    const planned = await ctx.finish.planDay(day.id, gymId);
+    const targets = await ctx.finish.getTargets(planned!.sessionId);
+    const d = (await ctx.finish.getDecision(targets[0]!.id))!;
+    return d;
+  };
+  const rule = (payload: DecisionPayload, version = "rule-v0.4") => describeDecision(payload, { ruleVersion: version, path: "rule" }, L, "en").find((s) => s.title === en["why.rule"])!.lines.join("\n");
+  it("program: the program's own range is named, the GAIN ceiling is mentioned as not used", async () => {
+    const d = await base();
+    const i = d.payload.inputs;
+    expect(i.repTopBasis).toBe("program");
+    const text = rule({ ...d.payload, inputs: { ...i, programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 12 }, gainCeiling: 10 } });
+    expect(text).toContain("Rep range 8-12 is your program's own, so load goes up when every set reaches 12.");
+    expect(text).toContain("GAIN's ceiling for this kind of lift would be 10");
+    expect(text).toContain("\"Use GAIN rep ceilings\" is off");
+  });
+  it("no upper bound: the GAIN ceiling is named as the reason", async () => {
+    const d = await base();
+    const i = d.payload.inputs;
+    const text = rule({ ...d.payload, inputs: { ...i, repTopBasis: "no_upper_bound", programmeRepRange: { min: 8, max: null }, repRange: { min: 8, max: 10 } } });
+    expect(text).toContain("Your program has no upper rep limit for this exercise, so GAIN's rep ceiling for this kind of lift (10) applies.");
+  });
+  it("the setting: both ranges and the setting are named", async () => {
+    const d = await base();
+    const i = d.payload.inputs;
+    const text = rule({ ...d.payload, inputs: { ...i, repTopBasis: "gain_setting", programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 10 } } });
+    expect(text).toContain("Program range 8-12; \"Use GAIN rep ceilings\" is on, so GAIN's ceiling for this kind of lift (10) applies instead of your program's top.");
+  });
+  it("a lift's own ceiling is named", async () => {
+    const d = await base();
+    const i = d.payload.inputs;
+    const text = rule({ ...d.payload, inputs: { ...i, repTopBasis: "lift", programmeRepRange: { min: 6, max: 12 }, repRange: { min: 6, max: 8 } } });
+    expect(text).toContain("Program range 6-12; rep ceiling in force 8 (this lift's own ceiling).");
+  });
+  it("a decision stored by rule-v0.3 (no repTopBasis, program range null-free) renders exactly as before and keeps its rule version", async () => {
+    const d = await base();
+    const i = d.payload.inputs;
+    const { repTopBasis: _b, gainCeiling: _g, ...old } = i;
+    const text = rule({ ...d.payload, inputs: { ...old, programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 10 }, policy: { ...i.policy, ceilingSource: "default" } } }, "rule-v0.3");
+    expect(text).toContain("rule-v0.3");
+    expect(text).toContain("Program range 8-12; rep ceiling in force 10 (app-wide default for this kind of lift).");
+    expect(text).not.toContain("Use GAIN rep ceilings");
+  });
+  it("English text never says 'programme' (the code and database names are untouched)", () => {
+    for (const k of ["range.override.setting", "range.why.program", "range.why.noTop", "range.why.setting", "settings.gainCeil", "settings.gainCeil.note", "settings.ceilings.note"] as const) expect(en[k].toLowerCase()).not.toContain("programme");
+  });
+  it("the program tab line for the setting", () => {
+    const text = rangeText(effectiveRange({ programmeMin: 8, programmeMax: 12, ceiling: 10, source: "setting" }), T);
+    expect(text).toContain("Reps: 8-10");
+    expect(text).toContain("\"Use GAIN rep ceilings\" is on");
+    expect(rangeText(effectiveRange({ programmeMin: 8, programmeMax: 12, ceiling: 12, source: "program" }), T)).toBe("Reps: 8-12. Load goes up when every set reaches 12.");
   });
 });

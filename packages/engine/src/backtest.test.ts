@@ -50,6 +50,14 @@ describe("walk-forward backtest on the real export (Mohamed's own real export, c
     const again = backtest(parsed.workouts, { repRange: { min: 6, max: 10 }, minSessions: 4 });
     expect(again.outcomes).toEqual(res.outcomes);
   });
+  it("rule-v0.4: a range with no top uses the GAIN ceilings (the Hevy backtest setup); a stated program top wins unless 'Use GAIN rep ceilings' is on", () => {
+    const noTop = backtest(parsed.workouts, { repRange: { min: 6 }, minSessions: 4 });
+    const forced = backtest(parsed.workouts, { repRange: { min: 6, max: 99 }, minSessions: 4, useGainCeilings: true });
+    expect(forced.outcomes).toEqual(noTop.outcomes);
+    const programWins = backtest(parsed.workouts, { repRange: { min: 6, max: 99 }, minSessions: 4 });
+    expect(programWins.outcomes).not.toEqual(noTop.outcomes); // a 6-99 program never reaches its top, so it never proposes more load
+    expect(summarize(programWins.outcomes).proposedUp).toBeLessThan(summarize(noTop.outcomes).proposedUp);
+  });
   it("every proposed load exists on the inferred grid", () => {
     const grids = new Map(res.grids.map((g) => [g.key, g.increment]));
     for (const o of res.outcomes) {

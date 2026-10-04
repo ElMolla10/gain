@@ -1,12 +1,14 @@
-# Backtest of rule-v0.3 on a Hevy export
+# Backtest of rule-v0.4 on a Hevy export
 
 Rows: 1049, workouts: 70, 2025-09-22 to 2026-09-29. Parser warnings: 0.
 
 **What this measures:** for each session of a lift, the rule proposes from everything *before* that session; we compare with what the lifter actually did. This is agreement with the lifter, not proof that the rule is right. **Caveats (P22):** it measures imitation of one lifter, not benefit. The load grid ("racks") is inferred from the whole export, including loads logged after the session being predicted, so it uses future information that the app would not have at the time. It is a sanity check on one person's history, not evidence the rule works for others.
 
-**Assumptions (a Hevy export has neither):** the load grid per equipment class is inferred as the greatest common divisor of every logged load in that class; the top of the rep range is each lift's rep ceiling (10 / 12 / 15, sensitivity below) and the bottom is assumed 6; no effort data (RPE is empty), so the effort currency never fires; no rejection history. Compared on the hardest working load of the session and the minimum reps at it; warm-ups are not in the export, drop sets are excluded.
+**Assumptions (a Hevy export has neither):** the load grid per equipment class is inferred as the greatest common divisor of every logged load in that class; a Hevy export has no program, so the range has no upper bound and the top is each lift's GAIN rep ceiling (10 / 12 / 15, sensitivity below; with a real program the program's own top would win under rule-v0.4) and the bottom is assumed 6; no effort data (RPE is empty), so the effort currency never fires; no rejection history. Compared on the hardest working load of the session and the minimum reps at it; warm-ups are not in the export, drop sets are excluded.
 
-## Headline: default rule (rule-v0.3) vs "repeat the last load"
+**rule-v0.4 note:** from rule-v0.4 the program's own top rep limit wins over the GAIN ceilings. This backtest has no program (a Hevy export has no rep ranges), so it models a program with no upper bound, where the GAIN ceilings still apply: the numbers are the same as under rule-v0.3. They say nothing about how a real program's own range (for example 8-12) would score; that was not measured. The previous version of this file was a little out of date (one back-extension lift was classed upper body; it is now a leg lift), so a few per-kind counts moved.
+
+## Headline: default rule (rule-v0.4) vs "repeat the last load"
 
 Default = based on ACSM 2009 (2-10% load step, snapped to standard steps; ceilings and snapping are GAIN conventions) with the lifter's rep ceilings: **10 reps upper body, 12 reps legs, 15 reps lateral raises** (classified from the exercise name). Load goes up only when the weakest working set at the current load reaches the ceiling, once. Until then: one more rep.
 
@@ -22,11 +24,11 @@ Verdict on the one number that matters most: same load as the lifter 58% vs 60% 
 
 | Kind (ceiling) | Lifts | Next sessions | Same load as lifter | Baseline: repeat last load | Rule proposed heavier | Lifter went heavier |
 |---|---|---|---|---|---|---|
-| upper body (10) | 22 | 287 | 60% | 62% | 5% (13) | 25% (71) |
-| legs (12) | 4 | 28 | 50% | 46% | 4% (1) | 39% (11) |
+| upper body (10) | 21 | 284 | 59% | 62% | 5% (13) | 25% (71) |
+| legs (12) | 5 | 31 | 55% | 52% | 3% (1) | 35% (11) |
 | lateral raise (15) | 2 | 28 | 54% | 54% | 0% (0) | 29% (8) |
 
-Classification used (by name): Back Extension (Weighted Hyperextension) -> 10; Bench Press (Barbell) -> 10; Bicep Curl (Barbell) -> 10; Bicep Curl (Cable) -> 10; Bicep Curl (Dumbbell) -> 10; Butterfly (Pec Deck) -> 10; Chest Press (Machine) -> 10; Concentration Curl -> 10; Face Pull -> 10; Hammer Curl (Dumbbell) -> 10; Incline Bench Press (Dumbbell) -> 10; Lat Pulldown (Cable) -> 10; Lateral Raise (Dumbbell) -> 15; Leg Extension (Machine) -> 12; Leg Press Horizontal (Machine) -> 12; Overhead Triceps Extension (Cable) -> 10; Rear Delt Reverse Fly (Machine) -> 10; Reverse Curl (Barbell) -> 10; Seated Cable Row - V Grip (Cable) -> 10; Seated Calf Raise -> 12; Seated Leg Curl (Machine) -> 12; Seated Palms Up Wrist Curl -> 10; Seated Shoulder Press (Machine) -> 10; Shoulder Press (Dumbbell) -> 10; Single Arm Lateral Raise (Cable) -> 15; Single Arm Tricep Extension (Dumbbell) -> 10; T Bar Row -> 10; Triceps Pushdown -> 10.
+Classification used (by name): Back Extension (Weighted Hyperextension) -> 12; Bench Press (Barbell) -> 10; Bicep Curl (Barbell) -> 10; Bicep Curl (Cable) -> 10; Bicep Curl (Dumbbell) -> 10; Butterfly (Pec Deck) -> 10; Chest Press (Machine) -> 10; Concentration Curl -> 10; Face Pull -> 10; Hammer Curl (Dumbbell) -> 10; Incline Bench Press (Dumbbell) -> 10; Lat Pulldown (Cable) -> 10; Lateral Raise (Dumbbell) -> 15; Leg Extension (Machine) -> 12; Leg Press Horizontal (Machine) -> 12; Overhead Triceps Extension (Cable) -> 10; Rear Delt Reverse Fly (Machine) -> 10; Reverse Curl (Barbell) -> 10; Seated Cable Row - V Grip (Cable) -> 10; Seated Calf Raise -> 12; Seated Leg Curl (Machine) -> 12; Seated Palms Up Wrist Curl -> 10; Seated Shoulder Press (Machine) -> 10; Shoulder Press (Dumbbell) -> 10; Single Arm Lateral Raise (Cable) -> 15; Single Arm Tricep Extension (Dumbbell) -> 10; T Bar Row -> 10; Triceps Pushdown -> 10.
 
 ## Did he raise the load when he reached the ceiling?
 
@@ -41,7 +43,7 @@ Of his 90 load increases, 9 (10%) came right after a session at or above the cei
 | Ceilings upper / legs / lateral | Same load as lifter | Rule proposed heavier | Lifter went heavier | Baseline: repeat last load |
 |---|---|---|---|---|
 | 6 / 8 / 10 | 31% | 57% | 26% | 60% |
-| 8 / 10 / 12 | 52% | 22% | 26% | 60% |
+| 8 / 10 / 12 | 52% | 21% | 26% | 60% |
 | 10 / 12 / 15 (default) | 58% | 4% | 26% | 60% |
 | 12 / 15 / 20 | 59% | 1% | 26% | 60% |
 

@@ -33,7 +33,7 @@ const pinned = (over: Partial<ExerciseSpec>, base: ExerciseSpec): ExerciseSpec =
   const spec = { ...base, ...over };
   // A test that names a preset gets that preset's own band and conventions; the 2-5% / step-down pins are for the preset-less tests.
   const legacy = spec.progression?.preset ? {} : { increment: { minPct: 0.02, maxPct: 0.05 }, oversizedStep: "spend_first" as const, stepDownAfterMisses: 3 };
-  return { ...spec, progression: { repCeiling: spec.repRange.max, ...legacy, ...spec.progression } };
+  return { ...spec, progression: { repCeiling: spec.repRange.max ?? undefined, ...legacy, ...spec.progression } };
 };
 
 export const exDb = (over: Partial<ExerciseSpec> = {}): ExerciseSpec =>

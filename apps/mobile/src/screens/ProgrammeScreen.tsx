@@ -10,7 +10,8 @@ import type { ProgrammeDraft } from "../logic/programmeDraft";
 import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, EmptyState, ListRow, LoadingState, Screen, SectionTitle } from "../ui";
 import { ceilingForName } from "../logic/ceilings";
-import { effectiveRange, rangeText } from "../logic/repRange";
+import { effectiveRange, rangeText, sourceOfBasis } from "../logic/repRange";
+import { resolveRepTop } from "@gain/engine";
 import type { RepCeilings } from "@gain/engine";
 
 type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions", params?: { versionId?: string; programmeId?: string }) => void };
@@ -23,6 +24,7 @@ interface Data {
   draft: ProgrammeDraft;
   library: Map<string, LibraryExercise>;
   ceilings: RepCeilings;
+  useGain: boolean;
 }
 
 export function ProgrammeScreen() {
@@ -41,7 +43,8 @@ export function ProgrammeScreen() {
         if (!a) return alive && setData(null);
         const [draft, lib] = await Promise.all([programmes.loadDraft(a.versionId), programmes.listExercises()]);
         const ceilings = await repos.getRepCeilingDefaults();
-        if (alive) setData({ ceilings, programmeId: a.programmeId, name: a.programmeName, version: a.version, isSample: a.isSample, draft, library: new Map(lib.map((e) => [e.id, e])) });
+        const useGain = await repos.getUseGainCeilings();
+        if (alive) setData({ ceilings, useGain, programmeId: a.programmeId, name: a.programmeName, version: a.version, isSample: a.isSample, draft, library: new Map(lib.map((e) => [e.id, e])) });
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
@@ -99,7 +102,8 @@ export function ProgrammeScreen() {
                 ? day.exercises.map((e, k) => {
                     const ex = data.library.get(e.exerciseId);
                     // Counted in reps: show the range that is really used, and say so when the rep ceiling replaces the top of the program's range.
-                    const range = ex && ex.measure === "reps" ? effectiveRange({ programmeMin: e.repMin, programmeMax: e.repMax, ceiling: e.repCeiling ?? ceilingForName(ex.nameEn, data.ceilings), source: e.repCeiling !== null ? "lift" : "default" }) : null;
+                    const top = ex && ex.measure === "reps" ? resolveRepTop({ programMax: e.repMax, liftCeiling: e.repCeiling, gainCeiling: ceilingForName(ex.nameEn, data.ceilings), useGainCeilings: data.useGain }) : null;
+                    const range = ex && top ? effectiveRange({ programmeMin: e.repMin, programmeMax: e.repMax, ceiling: top.top, source: sourceOfBasis(top.basis) }) : null;
                     const l = ex ? exerciseLabels(ex, lang) : null;
                     return (
                       <View key={e.exerciseId} style={{ minHeight: MIN_TOUCH, justifyContent: "center", borderTopWidth: k === 0 ? 1 : 0, borderColor: p.border, paddingTop: k === 0 ? space.sm : 0 }}>

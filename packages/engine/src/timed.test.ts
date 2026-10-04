@@ -142,11 +142,11 @@ describe("distance carries", () => {
 });
 
 describe("dispatch", () => {
-  it("reps exercises still go through rule-v0.3 untouched", () => {
+  it("reps exercises still go through rule-v0.4 untouched", () => {
     const ex: ExerciseSpec = { exerciseId: "bench", equipment: "barbell", setup: "free", repRange: { min: 6, max: 10 } };
     const h = [session(lineOf("bench"), "2026-09-29", [{ load: 60, reps: 8 }, { load: 60, reps: 8 }]), session(lineOf("bench"), "2026-09-26", [{ load: 60, reps: 7 }])];
     expect(proposeForMeasure({ exercise: ex, gym: gymA, asOf: ASOF, history: h })).toEqual(proposeNext({ exercise: ex, gym: gymA, asOf: ASOF, history: h }));
-    expect(proposeForMeasure({ exercise: { ...ex, measure: "reps" }, gym: gymA, asOf: ASOF, history: h }).ruleVersion).toBe("rule-v0.3");
+    expect(proposeForMeasure({ exercise: { ...ex, measure: "reps" }, gym: gymA, asOf: ASOF, history: h }).ruleVersion).toBe("rule-v0.4");
   });
   it("time and distance go to the timed rule", () => {
     expect(proposeForMeasure({ exercise: plank, gym: gymA, asOf: ASOF, history: [] }).ruleVersion).toBe("timed-v0.1");

@@ -1,4 +1,4 @@
-import { classifyLift, DEFAULT_REP_CEILINGS, type Measure, mergeRepCeilings, resolveProgression, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings } from "@gain/engine";
+import { classifyLift, DEFAULT_REP_CEILINGS, type Measure, mergeRepCeilings, resolveProgression, resolveRepTop, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings, type RepTopBasis } from "@gain/engine";
 import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
 import { hasLoggedSets } from "./sessionSql";
@@ -72,6 +72,16 @@ export function createRepos(db: Db, deps: Deps) {
     delete stored[kind];
     await setSetting("rep_ceilings", JSON.stringify(stored));
     return mergeRepCeilings(stored);
+  }
+  /**
+   * "Use GAIN rep ceilings" (rule-v0.4). Off by default: the program's own top rep limit is what earns more load. On: the ceilings above replace the top
+   * of every program range (as before rule-v0.4); a ceiling set on one lift still wins over both.
+   */
+  async function getUseGainCeilings(): Promise<boolean> {
+    return (await getSetting("use_gain_ceilings")) === "1";
+  }
+  async function setUseGainCeilings(on: boolean): Promise<void> {
+    await setSetting("use_gain_ceilings", on ? "1" : "0");
   }
   /** Set (or clear with null) the rep ceiling of ONE lift in the program. Null falls back to the default for its kind. */
   async function setLiftRepCeiling(programmeDayExerciseId: string, ceiling: number | null): Promise<void> {
@@ -239,6 +249,7 @@ export function createRepos(db: Db, deps: Deps) {
       [dayId],
     );
     const ceilings = await getRepCeilingDefaults();
+    const useGain = await getUseGainCeilings();
     return rows.map((r) => {
       if (r.measure !== "reps") {
         // Seconds or metres: the range is the lifter's own (no rep ceiling, no kind-of-lift default); its top is what earns more load.
@@ -256,15 +267,20 @@ export function createRepos(db: Db, deps: Deps) {
           repMin: r.rep_min,
           repMax: r.rep_max,
           programmeRepMin: r.rep_min,
-          programmeRepMax: r.rep_max,
+          programmeRepMax: r.rep_max as number | null,
           repCeiling: r.rep_max,
           repCeilingIsCustom: false,
+          repTopBasis: "program" as RepTopBasis,
+          gainCeiling: r.rep_max,
           isGoalLift: r.is_goal_lift === 1,
           trackEffort: false,
         };
       }
-      // The ceiling (per-lift edit, else the default for this kind of lift) is the top of the range that decides when load goes up.
-      const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, r.rep_ceiling !== null ? { repCeiling: r.rep_ceiling } : {}, { name: r.name_en, ceilings });
+      // rule-v0.4: the top of the range that decides when load goes up is the lift's own ceiling, else (only if "Use GAIN rep ceilings" is on) the GAIN
+      // ceiling for this kind of lift, else the program's own top.
+      const gainCeiling = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings }).repCeiling;
+      const { top, basis } = resolveRepTop({ programMax: r.rep_max, liftCeiling: r.rep_ceiling, gainCeiling, useGainCeilings: useGain });
+      const policy = { repCeiling: top };
       return {
       id: r.id,
       exerciseId: r.exercise_id,
@@ -278,14 +294,18 @@ export function createRepos(db: Db, deps: Deps) {
       sets: r.sets,
       /** Bottom of the program range, never above the ceiling. */
       repMin: Math.min(r.rep_min, policy.repCeiling),
-      /** Top of the range = the rep ceiling (what the Today screen shows). */
+      /** Top of the range in force (what the Today screen shows): see repTopBasis. */
       repMax: policy.repCeiling,
       /** The range the program itself was written with, before the ceiling replaced its top (P05: shown, never silent). */
       programmeRepMin: r.rep_min,
-      programmeRepMax: r.rep_max,
+      programmeRepMax: r.rep_max as number | null,
       repCeiling: policy.repCeiling,
       /** True when this lift has its own ceiling; false when it follows the default for its kind of lift. */
       repCeilingIsCustom: r.rep_ceiling !== null,
+      /** Why repMax is what it is (lift / program / gain_setting). */
+      repTopBasis: basis,
+      /** The GAIN ceiling for this kind of lift, for the text that says what "Use GAIN rep ceilings" would change. */
+      gainCeiling,
       isGoalLift: r.is_goal_lift === 1,
       trackEffort: r.track_effort === 1,
       };
@@ -306,7 +326,7 @@ export function createRepos(db: Db, deps: Deps) {
       const d = DEFAULT_TIMED_RANGE[r.measure];
       return {
         id: `added:${r.id}`, exerciseId: r.id, nameEn: r.name_en, nameAr: r.name_ar, aliasesAr: JSON.parse(r.aliases_ar_json) as string[], equipment: r.equipment, setup: r.setup,
-        measure: r.measure, pattern: r.pattern, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max, repCeiling: d.max, repCeilingIsCustom: false, isGoalLift: false, trackEffort: false,
+        measure: r.measure, pattern: r.pattern, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, isGoalLift: false, trackEffort: false,
       };
     }
     const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings: await getRepCeilingDefaults() });
@@ -324,9 +344,12 @@ export function createRepos(db: Db, deps: Deps) {
       repMin: Math.min(8, policy.repCeiling),
       repMax: policy.repCeiling,
       programmeRepMin: 8,
-      programmeRepMax: policy.repCeiling,
+      // An exercise added for today has no program range, so it has no top of its own: the GAIN ceiling for its kind of lift applies (and is shown as such).
+      programmeRepMax: null as number | null,
       repCeiling: policy.repCeiling,
       repCeilingIsCustom: false,
+      repTopBasis: "no_upper_bound" as RepTopBasis,
+      gainCeiling: policy.repCeiling,
       isGoalLift: false,
       trackEffort: false,
     };
@@ -362,6 +385,8 @@ export function createRepos(db: Db, deps: Deps) {
     setUnits,
     getRtlOverride,
     getRepCeilingDefaults,
+    getUseGainCeilings,
+    setUseGainCeilings,
     setRepCeilingDefaults,
     resetRepCeilingDefaults,
     setLiftRepCeiling,

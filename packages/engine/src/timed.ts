@@ -83,8 +83,8 @@ export function proposeTimed(ctx: TimedContext): Proposal {
   const setup = exercise.setup;
   const zero = allowsZero(setup);
   const lo = exercise.repRange.min;
-  const hi = exercise.repRange.max;
-  if (!(lo >= 1) || hi < lo) throw new Error("range must satisfy 1 <= min <= max");
+  const hi = exercise.repRange.max ?? NaN; // a timed range always has a top (the app stores one)
+  if (!(lo >= 1) || !(hi >= lo)) throw new Error("range must satisfy 1 <= min <= max");
   const cap = measure === "time" ? MAX_SECONDS : MAX_METRES;
   const rejections = ctx.rejections ?? emptyRejectionMemory();
   const threshold = ctx.options?.rejectionThreshold ?? REJECTION_THRESHOLD;

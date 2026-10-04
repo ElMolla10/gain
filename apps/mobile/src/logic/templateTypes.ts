@@ -31,7 +31,7 @@ export interface TemplateExercise {
   /** Goal lifts are marked by the lifter's goal during onboarding, not by the template. */
   mainLift?: boolean;
   /**
-   * Per-lift rep ceiling (the rep count at which the ACSM-based rule, rule-v0.3, raises the load). Omitted = the default for the kind
+   * Per-lift rep ceiling (the rep count at which the ACSM-based rule, rule-v0.4, raises the load). Omitted = the default for the kind
    * of lift (10 upper, 12 legs, 15 lateral raises). Low-rep strength templates set it to the top of their rep target (e.g. 5), so
    * "hit 5 reps on every set" is what earns more weight.
    */

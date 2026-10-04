@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>GAIN privacy policy (DRAFT)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><nav aria-label="Main"><a class="brand" href="index.html">GAIN</a><a href="privacy.html">Privacy / الخصوصية</a><a href="terms.html">Terms / الشروط</a><a href="delete-account.html">Delete data / مسح البيانات</a><a href="support.html">Support / الدعم</a></nav></header>
+<main>
+
+<h1>GAIN privacy policy</h1>
+<p class="draft" role="note">DRAFT: this text has not been reviewed by a lawyer and is not final. Who runs GAIN and how to contact them are still to be filled in. Do not rely on it as a legal document.</p>
+<p class="muted">Describes the Android test builds of GAIN (v0.19 to v0.20). Draft written 2026-10-04 from the app's code; the in-app version is Settings &gt; Privacy and safety. <a href="#ar">العربية ↓</a></p>
+<h2>1. Who is responsible</h2>
+<p><span class="ph" data-ph="operator">[operator name and address not set yet]</span>. Contact: <span class="ph" data-ph="support-email">[support email not set yet]</span>.</p>
+<h2>2. What GAIN stores, and where</h2>
+<p>Everything is saved <strong>on your phone</strong>, in GAIN's private app storage. By default there is no account and no server: everything stays on the phone. GAIN has no analytics or advertising service and does not read your contacts, location, photos, camera or microphone.</p>
+<table><thead><tr><th>Data</th><th>Why</th><th>Required?</th></tr></thead><tbody>
+<tr><td>Workouts, sets (load, reps, effort), tags (warm-up, drop set, failure), exercise notes, programs, your gym's weight list</td><td>The product: logging and next-session suggestions</td><td>Yes</td></tr>
+<tr><td>Language, units, rest timer, week start and similar settings</td><td>The product</td><td>Yes</td></tr>
+<tr><td>Goal (lift, bodyweight or muscle) and weekly review decisions</td><td>Goal pace and the weekly decision</td><td>Optional</td></tr>
+<tr><td>Bodyweight entries, height, birthday</td><td>Pace for a bodyweight goal; bodyweight exercise loads. Health-adjacent, so optional. The birthday is stored but not used for anything yet.</td><td>Optional</td></tr>
+<tr><td>Imported Hevy / Strong files</td><td>You choose a file; its workouts are copied into the app's database; the file itself is not kept</td><td>Optional</td></tr>
+<tr><td>A safety copy before an update (a full copy of your data in GAIN's private folder, written only when an update changes the database layout)</td><td>Restoring your data if an update goes wrong</td><td>On</td></tr>
+<tr><td>Crash log (error names, short messages, trimmed stack, where). No workout data.</td><td>Fixing bugs</td><td>On by default; can be switched off and cleared</td></tr>
+</tbody></table>
+<h2>3. What can leave your phone, and when</h2>
+<p>Only through something you start:</p>
+<ol>
+<li><strong>Check for updates</strong> (test builds only; Settings): the app asks GitHub (<code>api.github.com</code>) for the list of releases and, if you tap download, downloads the APK from <code>github.com</code>. GitHub can see your internet address, the request and the app's user-agent, under GitHub's own policy. No training data is sent. <em>A Google Play version of GAIN, if one is ever published, will not contain this feature.</em></li>
+<li><strong>Exports and shares</strong> (JSON backup, CSV, coach-card PDF, diagnostics report): created on the phone and handed to Android's share sheet. You choose the destination. GAIN does not send them and cannot see where they went.</li>
+<li><strong>Android's own backup:</strong> the app allows Android's backup. If it is switched on in your phone settings, Android/Google may keep a copy of the app's data in your Google account. That is Android's feature; GAIN cannot see or control it.</li>
+<li><strong>Back up and sync</strong> (Settings; <strong>OFF until you turn it on</strong>): uploads your training data (workouts, sets, notes, programs, goals, settings, and bodyweight, height and birthday if you entered them; not the crash log) to a GAIN server on Cloudflare (<code>gain-sync.elmolla10.workers.dev</code>; data location is chosen by Cloudflare, currently its North America East region) and keeps it until you delete it. It is <strong>not end-to-end encrypted</strong>. The account is anonymous: a random id and a hashed recovery code, no name or email. Without the recovery code a backup cannot be reached, and a lost code means an unreachable backup. Turning it off keeps your data on the phone; "Turn off and delete my backup" and "Delete all my data" delete the online copy. After a deletion, Cloudflare's database keeps point-in-time history for up to 7 days (free plan) before it is gone. Cloudflare can see your internet address and request metadata under its own policy.</li>
+<li><strong>Coach link</strong> (only when you tap "Share as a link" and agree on screen): that one card (session, loads and reps, next targets, pace line; no bodyweight) is stored on the same server and anyone with the link can read it, without an account, until it expires (7 days by default, 30 at most) or you stop sharing. The link is random; only a hash of it is stored.</li>
+</ol>
+<p>Nothing else. In particular: no analytics events, no crash upload, no advertising, no data selling, and no AI or model service in this version.</p>
+<h2>4. Your choices and rights</h2>
+<p>The app lets you <strong>export everything</strong> (Settings &gt; Data &gt; Your data: JSON backup and CSV), <strong>delete everything on the phone</strong>, edit or delete any set in History, and switch off and clear the crash log. Uninstalling the app removes its storage. To delete your online backup or coach links, see <a href="delete-account.html">Delete your data</a>. Copies you shared and Android backups are outside GAIN's reach.</p>
+<p class="ph">[To be written by the reviewer: legal basis/consent wording, retention periods, rights of access, correction, deletion and portability, complaint route, applicability of Egyptian data-protection law and of EU law for any EU users, international transfer notes.]</p>
+<h2>5. Children</h2>
+<p>GAIN is not designed for children. If you are under 18, train under an adult's or qualified coach's guidance. <span class="ph">[Reviewer to set the minimum age.]</span></p>
+<h2>6. Health and safety</h2>
+<p>GAIN is a training log and suggestion tool. It is not a doctor, a physiotherapist or a certified coach and gives no medical advice. Targets, pace and weekly decisions are suggestions based only on what you logged. You decide what to lift. If you have pain, dizziness, an injury or a medical condition, stop and ask a qualified professional.</p>
+<h2>7. Changes and contact</h2>
+<p>If the data flows change (for example email sign-in, analytics, an AI feature or a store version), this page and the in-app page are updated first. Contact: <span class="ph" data-ph="support-email">[support email not set yet]</span>.</p>
+<section id="ar" lang="ar" dir="rtl">
+
+<p class="draft" role="note">مسودة: النص ده لسه ماتراجعش قانونيًا وليس نهائيًا. مين اللي بيدير GAIN وإزاي تتواصل معاه لسه هيتكتب. ماتعتمدش عليه كمستند قانوني.</p>
+<h1>سياسة الخصوصية في GAIN</h1>
+<p class="muted">مسودة بالعربي (ترجمة أولية محتاجة مراجعة من متحدث أصلي). النص الإنجليزي هو المرجع لحد المراجعة. <a href="#top">English ↑</a></p>
+<h2>١. مين المسؤول</h2>
+<p><span class="ph" data-ph="operator">[operator name and address not set yet]</span>. للتواصل: <span class="ph" data-ph="support-email">[support email not set yet]</span>.</p>
+<h2>٢. اللي بيفضل على تليفونك</h2>
+<p>تمارينك ومجموعاتك وملاحظاتك وبرامجك وأهدافك وأوزان جسمك وطولك وتاريخ ميلادك (لو كتبتهم) والإعدادات وسجل الأعطال محفوظين في تخزين GAIN الخاص على التليفون. من الأصل مفيش حساب ولا سيرفر: كل حاجة بتفضل على التليفون. GAIN مفيهوش خدمة تحليلات أو إعلانات، وما بيقراش جهات اتصالك ولا موقعك ولا صورك ولا الكاميرا ولا الميكروفون.</p>
+<h2>٣. اللي ممكن يخرج من تليفونك، وبس لما إنت تتصرف</h2>
+<ol>
+<li><strong>دوّر على تحديثات</strong> (النسخ التجريبية بس): بيتصل بـ GitHub (api.github.com، وgithub.com للتنزيل). GitHub ممكن يشوف عنوان الإنترنت بتاعك وإنك سألت. مفيش حاجة من تمرينك بتتبعت. نسخة Google Play من GAIN، لو اتنشرت يوم، مش هيبقى فيها المميزة دي.</li>
+<li><strong>التصدير والمشاركة</strong> (نسخة JSON وملف CSV وكارت المدرب وتقرير التشخيص): بيتعملوا على التليفون وبيتشاركوا من قايمة المشاركة بتاعة أندرويد. إنت اللي بتختار يروحوا فين؛ GAIN مش بيبعتهم.</li>
+<li><strong>النسخ الاحتياطي بتاع أندرويد:</strong> أندرويد ممكن ياخد نسخة من بيانات التطبيق على حساب جوجل بتاعك لو شغّال في إعدادات تليفونك. ده من أندرويد مش من GAIN.</li>
+<li><strong>النسخ الاحتياطي والمزامنة</strong> (مقفولة لحد ما تشغّلها): بترفع بيانات تمرينك على سيرفر GAIN في Cloudflare، مربوطة بحساب عشوائي ورمز استرجاع، مش باسمك ولا إيميلك. مش مشفّرة من طرف لطرف. "إيقاف ومسح نسختي" و"امسح كل بياناتي" بيمسحوا النسخة اللي على السيرفر. بعد المسح قاعدة بيانات Cloudflare بتحتفظ بسجل زمني لحد ٧ أيام قبل ما يختفي.</li>
+<li><strong>رابط المدرب</strong> (بس لما تدوس "شارك كرابط" وتوافق): الكارت ده بس بيترفع على نفس السيرفر؛ أي حد معاه الرابط يقدر يقراه لحد ما ينتهي (٧ أيام افتراضيًا، ٣٠ بحد أقصى) أو توقّف المشاركة. مفيش وزن جسم على الكارت.</li>
+</ol>
+<p>مفيش حاجة تانية: مفيش أحداث تحليلات، ولا رفع لتقارير الأعطال، ولا إعلانات، ولا بيع بيانات، ولا خدمة ذكاء اصطناعي في النسخة دي.</p>
+<h2>٤. اختياراتك</h2>
+<p>من التطبيق تقدر تصدّر كل حاجة (الإعدادات > البيانات > بياناتك)، وتمسح كل حاجة على التليفون، وتعدّل أو تمسح أي مجموعة. لمسح النسخة الاحتياطية الأونلاين شوف <a href="delete-account.html">صفحة مسح البيانات</a>.</p>
+<h2>٥. الأطفال</h2>
+<p>GAIN مش متصمم للأطفال. لو سنك أقل من ١٨، تمرّن بتوجيه شخص كبير أو مدرب مؤهل.</p>
+<h2>٦. الصحة والسلامة</h2>
+<p>GAIN دفتر تمرين وأداة اقتراحات. مش دكتور ولا أخصائي علاج طبيعي ولا مدرب معتمد، ومبيدّيش نصيحة طبية. لو عندك ألم أو دوخة أو إصابة أو حالة طبية، وقّف واسأل متخصص مؤهل.</p>
+<h2>٧. التواصل</h2>
+<p><span class="ph" data-ph="support-email">[support email not set yet]</span></p>
+
+</section>
+</main>
+<footer>GAIN is a free lifting log (Android). DRAFT pages, last edited 2026-10-04. Source: <a href="https://github.com/ElMolla10/gain/tree/main/docs/site">github.com/ElMolla10/gain, docs/site</a>. / GAIN سجل تمارين مجاني (أندرويد). صفحات مسودة.</footer>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  // GAIN draft site: static pages only, no code, no database. Hosting detail: one Worker with static assets on Cloudflare's free plan,
+  // at https://gain-site.<account-subdomain>.workers.dev (same account subdomain as the gain-sync Worker). Deploy: see README.md.
+  "name": "gain-site",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page"
+  }
+}

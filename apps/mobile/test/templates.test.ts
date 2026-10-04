@@ -171,7 +171,7 @@ describe("template catalogue: weekly muscle exposure sanity", () => {
     }
   });
   it("every template with 3+ days a week trains each major area at least twice a week, except body-part splits (bro / Arnold-type), which are tagged by name", () => {
-    const SINGLE_FREQ = new Set(["mix_4", "bro_5", "arnold_3", "ppl_3", "db_ppl_3", "bw_ppl_3", "ppl_5", "phat_5", "arms_shoulders_4"]);
+    const SINGLE_FREQ = new Set(["mix_4", "bro_5", "arnold_3", "ppl_3", "ppl_upper_4", "db_ppl_3", "bw_ppl_3", "ppl_5", "phat_5", "arms_shoulders_4"]);
     for (const t of TEMPLATES.filter((x) => x.days >= 3 && !SINGLE_FREQ.has(x.id) && !FOCUSED.has(x.goal))) {
       const w = weekly(t);
       for (const [name, mus] of Object.entries(MAJOR)) {

@@ -40,7 +40,7 @@ A build made with `GAIN_PILOT_TEMPLATES=1` offers only six of the 48 (`full_body
 ## Skipped on purpose
 - **GZCLP-style** (tiered T1/T2/T3 lifts whose rep scheme changes after failed sessions, AMRAP last sets) and **5/3/1-style** (percentages of a training max in 3-4 week waves, AMRAP sets): the engine prescribes load from your own logged history within a fixed rep range and has no tiers, no percent-of-max, no wave/cycle state and no AMRAP target, so these cannot be expressed faithfully. A look-alike would be misleading, so none is shipped.
 - **PHAT's speed-work sessions** and Starting Strength's power cleans are left out of the "-style" versions.
-- Rep ranges are one number per lift (`repMin`) up to the ceiling; there is no separate per-set scheme (e.g. back-off sets).
+- Rep ranges are one number per lift (`repMin`) up to the ceiling; there is no template-level per-set scheme; a top set + back-offs choice can be set per exercise in the program editor after the program is created.
 
 ## "Bulking phase" and women-friendly / general fitness
 - `bulk_ul_4` and `bulk_ppl_6` are **higher-volume muscle-gain arrangements** (4-set compounds, 20-24 sets a session). That is all they are: GAIN gives **no food, calorie or weight-gain advice**, and the card says so.

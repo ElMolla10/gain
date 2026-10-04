@@ -80,6 +80,8 @@ export interface DayExerciseSpec {
   programmeRepMin?: number;
   /** null = the program has no top for this exercise (added for today): the GAIN rep ceiling applies. */
   programmeRepMax?: number | null;
+  /** null / omitted = straight sets. n = top set + back-offs: only the n heaviest sets are judged for progression. */
+  topSets?: number | null;
   isGoalLift: boolean;
   trackEffort: boolean;
   sets: number;
@@ -327,6 +329,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
         isGoalLift: ex.isGoalLift,
         trackEffort: ex.trackEffort,
         plannedSets: ex.sets,
+        ...(!isTimedMeasure(ex.measure) && ex.topSets !== undefined && ex.topSets !== null ? { topSets: ex.topSets } : {}),
       },
       gym,
       history,

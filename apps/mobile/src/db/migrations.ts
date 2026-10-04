@@ -350,6 +350,16 @@ ${Object.entries(TIMED_LIBRARY)
   .join("\n")}
 `,
   },
+  {
+    version: 10,
+    name: "top set + back-offs",
+    sql: `
+-- Per program exercise: NULL = straight sets (every planned set must reach the top; what every row meant before this version). n >= 1 = a top set
+-- + back-off prescription: only the n heaviest sets are judged for progression, the lighter sets after them are back-offs and never block it.
+-- Existing rows keep NULL, so nothing already planned or done changes meaning.
+ALTER TABLE programme_day_exercise ADD COLUMN top_sets INTEGER CHECK (top_sets IS NULL OR (top_sets >= 1 AND top_sets <= 11));
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

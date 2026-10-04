@@ -273,6 +273,8 @@ export interface DecisionInputs {
   repRange: RepRange;
   /** The range the program asked for (`max` null = no upper bound). Absent in decisions stored before the fixes release. */
   programmeRepRange?: { min: number; max: number | null };
+  /** Set only for a top set + back-off prescription (fewer top sets than planned sets): the number of top sets that are judged; the lighter sets after them are ignored. */
+  topSets?: number;
   /** Why `repRange.max` is what it is. Absent in decisions stored before rule-v0.4, which always used the lift's own or the GAIN default ceiling. */
   repTopBasis?: RepTopBasis;
   /** The GAIN ceiling for this kind of lift (10 / 12 / 15 or the lifter's edit): applied only for `gain_setting` and `no_upper_bound`. */

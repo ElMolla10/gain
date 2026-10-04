@@ -1,0 +1,568 @@
+{
+ "app": "gain",
+ "format": 1,
+ "schemaVersion": 9,
+ "exportedAt": "2026-10-12T15:00:00Z",
+ "tables": {
+  "session": [
+   {
+    "id": "s0",
+    "status": "finished",
+    "started_at": 1788703200000,
+    "finished_at": 1788706800000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s1",
+    "status": "finished",
+    "started_at": 1788876000000,
+    "finished_at": 1788879600000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s2",
+    "status": "finished",
+    "started_at": 1789048800000,
+    "finished_at": 1789052400000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s3",
+    "status": "finished",
+    "started_at": 1789308000000,
+    "finished_at": 1789311600000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s4",
+    "status": "finished",
+    "started_at": 1789480800000,
+    "finished_at": 1789484400000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s5",
+    "status": "finished",
+    "started_at": 1789653600000,
+    "finished_at": 1789657200000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s6",
+    "status": "finished",
+    "started_at": 1789912800000,
+    "finished_at": 1789916400000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s7",
+    "status": "finished",
+    "started_at": 1790085600000,
+    "finished_at": 1790089200000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s8",
+    "status": "finished",
+    "started_at": 1790258400000,
+    "finished_at": 1790262000000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s9",
+    "status": "finished",
+    "started_at": 1791122400000,
+    "finished_at": 1791126000000,
+    "import_key": null,
+    "deleted_at": null
+   },
+   {
+    "id": "s10",
+    "status": "finished",
+    "started_at": 1791295200000,
+    "finished_at": 1791298800000,
+    "import_key": null,
+    "deleted_at": null
+   }
+  ],
+  "workout_set": [
+   {
+    "id": "w0bench",
+    "session_id": "s0",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 60.0,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w0squat",
+    "session_id": "s0",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 80.0,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w1bench",
+    "session_id": "s1",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 62.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w1squat",
+    "session_id": "s1",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 82.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w2bench",
+    "session_id": "s2",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 62.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w2squat",
+    "session_id": "s2",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 82.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w3bench",
+    "session_id": "s3",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 62.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w3squat",
+    "session_id": "s3",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 82.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w4bench",
+    "session_id": "s4",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 67.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w4squat",
+    "session_id": "s4",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 87.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w5bench",
+    "session_id": "s5",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 67.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w5squat",
+    "session_id": "s5",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 87.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w6bench",
+    "session_id": "s6",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 67.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w6squat",
+    "session_id": "s6",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 87.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w7bench",
+    "session_id": "s7",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 70.0,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w7squat",
+    "session_id": "s7",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 90.0,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w8bench",
+    "session_id": "s8",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 72.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w8squat",
+    "session_id": "s8",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 92.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w9bench",
+    "session_id": "s9",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 72.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w9squat",
+    "session_id": "s9",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 92.5,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w10bench",
+    "session_id": "s10",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "position": 1,
+    "load": 75.0,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   },
+   {
+    "id": "w10squat",
+    "session_id": "s10",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "position": 1,
+    "load": 95.0,
+    "reps": 8,
+    "is_warmup": 0,
+    "tags_json": "[]",
+    "outlier_status": "none",
+    "deleted_at": null
+   }
+  ],
+  "target": [
+   {
+    "id": "t0bench",
+    "session_id": "s1",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 62.5,
+    "status": "edited",
+    "deleted_at": null
+   },
+   {
+    "id": "t0squat",
+    "session_id": "s1",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 82.5,
+    "status": "edited",
+    "deleted_at": null
+   },
+   {
+    "id": "t1bench",
+    "session_id": "s2",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 62.5,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t1squat",
+    "session_id": "s2",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 82.5,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t2bench",
+    "session_id": "s3",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 62.5,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t2squat",
+    "session_id": "s3",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 82.5,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t3bench",
+    "session_id": "s4",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 65.0,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t3squat",
+    "session_id": "s4",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 85.0,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t4bench",
+    "session_id": "s5",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 67.5,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t4squat",
+    "session_id": "s5",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 87.5,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t5bench",
+    "session_id": "s6",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 67.5,
+    "status": "edited",
+    "deleted_at": null
+   },
+   {
+    "id": "t5squat",
+    "session_id": "s6",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 87.5,
+    "status": "edited",
+    "deleted_at": null
+   },
+   {
+    "id": "t6bench",
+    "session_id": "s7",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 70.0,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t6squat",
+    "session_id": "s7",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 90.0,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t7bench",
+    "session_id": "s8",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 70.0,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t7squat",
+    "session_id": "s8",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 90.0,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t8bench",
+    "session_id": "s9",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 72.5,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t8squat",
+    "session_id": "s9",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 92.5,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t9bench",
+    "session_id": "s10",
+    "exercise_id": "bench",
+    "line_id": "L-bench",
+    "load": 75.0,
+    "status": "accepted",
+    "deleted_at": null
+   },
+   {
+    "id": "t9squat",
+    "session_id": "s10",
+    "exercise_id": "squat",
+    "line_id": "L-squat",
+    "load": 95.0,
+    "status": "accepted",
+    "deleted_at": null
+   }
+  ]
+ }
+}

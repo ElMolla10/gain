@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseBackup, type BackupFile } from "../src/logic/backup";
-import { computeLifterMetrics, retention, sheetCsv } from "../src/logic/pilotMetrics";
+import { agreementTotals, computeLifterMetrics, retention, sheetCsv } from "../src/logic/pilotMetrics";
 import { freshDb } from "./helpers";
 
 const DAY = 86_400_000;
@@ -73,6 +73,30 @@ describe("pilot metrics from a backup", () => {
     expect(w).toMatchObject({ sessions: 2, accepted: 1, edited: 1, rejected: 1, proposed: 1 });
     // only t1 has a number AND a logged working set (L1: warm-up, rejected outlier, drop and deleted sets ignored -> 62.5)
     expect(w).toMatchObject({ comparable: 1, same: 0, more: 1, less: 0 });
+  });
+
+  it("compares the app's number with 'repeat the last load' on the same targets (imported history counts for the baseline, not for retention)", () => {
+    const set = (id: string, sessionId: string, ex: string, load: number, extra: Record<string, string | number | null> = {}) => ({ id, session_id: sessionId, exercise_id: ex, line_id: `L-${ex}`, load, is_warmup: 0, outlier_status: "none", tags_json: "[]", deleted_at: null, ...extra });
+    const target = (id: string, ex: string, load: number) => ({ id, session_id: "s2", exercise_id: ex, line_id: `L-${ex}`, load, status: "accepted", deleted_at: null });
+    const b = backup(
+      {
+        // h0 is imported (older), s1 and s2 are real; s3 is a later session that must not be used as "previous" for s2's targets.
+        session: [session("h0", T0 - 5 * DAY, { import_key: "x" }), session("s1", T0), session("s2", T0 + DAY), session("s3", T0 + 2 * DAY)],
+        workout_set: [
+          set("a", "h0", "bench", 50), // only history for bench
+          set("b", "s1", "squat", 100), set("c", "s1", "squat", 90, { is_warmup: 1 }), // squat previous = 100
+          set("d", "s2", "bench", 55), set("e", "s2", "squat", 100), set("f", "s2", "row", 40), // row has no earlier session: not in the like-for-like count
+          set("g", "s3", "bench", 99),
+        ],
+        target: [target("t1", "bench", 55), target("t2", "squat", 105), target("t3", "row", 40)],
+      },
+      T0 + 3 * DAY,
+    );
+    const w = computeLifterMetrics(b, {}).weeks[0]!;
+    expect(w).toMatchObject({ sessions: 3, comparable: 3, same: 2, less: 1 });
+    // bench: previous 50, target 55, did 55 -> app same, repeat not. squat: previous 100, target 105, did 100 -> repeat same, app not. row: no previous.
+    expect(w).toMatchObject({ both: 2, bothAppSame: 1, bothRepeatSame: 1 });
+    expect(agreementTotals([computeLifterMetrics(b, {}), computeLifterMetrics(b, {})])).toEqual({ comparable: 6, same: 4, more: 0, less: 2, both: 4, bothAppSame: 2, bothRepeatSame: 2 });
   });
 
   it("the sheet has one row per reached week and the hand-filled columns empty", () => {

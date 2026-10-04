@@ -28,6 +28,14 @@ export interface WeekRow {
   same: number;
   more: number;
   less: number;
+  /**
+   * Like-for-like check against "repeat the last load" (the baseline of docs/BACKTEST-HEVY.md): only targets that are comparable AND whose exercise
+   * had an earlier finished session (imported history counts) with a counted working set. Among those: `bothAppSame` = the lifter loaded the app's
+   * number, `bothRepeatSame` = the lifter loaded the heaviest counted working set of that exercise's previous session.
+   */
+  both: number;
+  bothAppSame: number;
+  bothRepeatSame: number;
 }
 
 export interface LifterMetrics {
@@ -48,6 +56,8 @@ export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; 
   const sameKg = opts.sameKg ?? 0.01;
   const exportedAt = Date.parse(b.exportedAt);
   const sessions = (b.tables.session ?? []).filter(live);
+  // Every live finished session (imported ones too) for the "repeat last load" baseline; `finished` below is the real, non-imported ones only.
+  const everFinished = sessions.filter((s) => s.status === "finished" && num(s.finished_at) !== null);
   const finished = sessions.filter((s) => s.status === "finished" && num(s.finished_at) !== null && (s.import_key === null || s.import_key === undefined));
   if (finished.length === 0) return { week0Start: null, exportedAt, reachedWeek: -1, weeks: [] };
 
@@ -57,7 +67,7 @@ export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; 
   const weekOf = (ms: number) => Math.floor((ms - week0Start) / (7 * DAY));
   const reachedWeek = Math.max(0, weekOf(exportedAt));
   const lastWeek = Math.max(reachedWeek, ...finished.map((s) => weekOf(num(s.finished_at)!)));
-  const weeks: WeekRow[] = Array.from({ length: lastWeek + 1 }, (_, week) => ({ week, sessions: 0, active: false, accepted: 0, edited: 0, rejected: 0, proposed: 0, comparable: 0, same: 0, more: 0, less: 0 }));
+  const weeks: WeekRow[] = Array.from({ length: lastWeek + 1 }, (_, week) => ({ week, sessions: 0, active: false, accepted: 0, edited: 0, rejected: 0, proposed: 0, comparable: 0, same: 0, more: 0, less: 0, both: 0, bothAppSame: 0, bothRepeatSame: 0 }));
   const sessionWeek = new Map<string, number>();
   for (const s of finished) {
     const w = weekOf(num(s.finished_at)!);
@@ -68,6 +78,8 @@ export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; 
 
   // Heaviest counted working set per (session, line).
   const logged = new Map<string, number>();
+  // Heaviest counted working set per (session, exercise), for the baseline.
+  const loggedByExercise = new Map<string, number>();
   for (const st of (b.tables.workout_set ?? []).filter(live)) {
     if (st.is_warmup === 1 || st.outlier_status === "rejected") continue;
     let tags: unknown = [];
@@ -77,7 +89,22 @@ export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; 
     if (load === null) continue;
     const key = `${st.session_id}|${st.line_id}`;
     logged.set(key, Math.max(logged.get(key) ?? -Infinity, load));
+    const exKey = `${st.session_id}|${st.exercise_id}`;
+    loggedByExercise.set(exKey, Math.max(loggedByExercise.get(exKey) ?? -Infinity, load));
   }
+  const finishedAt = new Map(everFinished.map((s) => [String(s.id), num(s.finished_at)!] as const));
+  const byFinish = [...everFinished].sort((a, b2) => num(b2.finished_at)! - num(a.finished_at)!);
+  /** The load "repeat last" would give for an exercise before a session: the newest earlier finished session that has a counted set of it. */
+  const previousLoad = (sessionId: string, exerciseId: string): number | null => {
+    const at = finishedAt.get(sessionId);
+    if (at === undefined) return null;
+    for (const s of byFinish) {
+      if (num(s.finished_at)! >= at || s.id === sessionId) continue;
+      const v = loggedByExercise.get(`${s.id}|${exerciseId}`);
+      if (v !== undefined) return v;
+    }
+    return null;
+  };
 
   for (const t of (b.tables.target ?? []).filter(live)) {
     const w = sessionWeek.get(String(t.session_id));
@@ -92,12 +119,18 @@ export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; 
       if (Math.abs(did - target) <= sameKg) row.same++;
       else if (did > target) row.more++;
       else row.less++;
+      const prev = previousLoad(String(t.session_id), String(t.exercise_id));
+      if (prev !== null) {
+        row.both++;
+        if (Math.abs(did - target) <= sameKg) row.bothAppSame++;
+        if (Math.abs(did - prev) <= sameKg) row.bothRepeatSame++;
+      }
     }
   }
   return { week0Start, exportedAt, reachedWeek, weeks };
 }
 
-export const SHEET_HEADER = ["pilot_code", "week", "sessions_done", "active", "targets_accepted", "targets_edited", "targets_rejected", "targets_never_acted_on", "comparable", "loaded_same", "loaded_more", "loaded_less", "days_planned", "app_version", "on_pace_status", "bugs_quotes"] as const;
+export const SHEET_HEADER = ["pilot_code", "week", "sessions_done", "active", "targets_accepted", "targets_edited", "targets_rejected", "targets_never_acted_on", "comparable", "loaded_same", "loaded_more", "loaded_less", "both_comparable", "both_app_same", "both_repeat_same", "days_planned", "app_version", "on_pace_status", "bugs_quotes"] as const;
 
 /** Rows for the pilot sheet (docs/PILOT-RETENTION-METRICS.md). The last four columns are filled by hand from the weekly check-in. */
 export function sheetCsv(lifters: { code: string; metrics: LifterMetrics }[]): string {
@@ -105,7 +138,7 @@ export function sheetCsv(lifters: { code: string; metrics: LifterMetrics }[]): s
   for (const { code, metrics } of lifters) {
     for (const w of metrics.weeks) {
       if (w.week > metrics.reachedWeek) continue;
-      lines.push([csvCell(code), w.week, w.sessions, w.active ? 1 : 0, w.accepted, w.edited, w.rejected, w.proposed, w.comparable, w.same, w.more, w.less, "", "", "", ""].join(","));
+      lines.push([csvCell(code), w.week, w.sessions, w.active ? 1 : 0, w.accepted, w.edited, w.rejected, w.proposed, w.comparable, w.same, w.more, w.less, w.both, w.bothAppSame, w.bothRepeatSame, "", "", "", ""].join(","));
     }
   }
   return lines.join("\n") + "\n";
@@ -126,4 +159,23 @@ export function retention(all: LifterMetrics[], weeksToReport: number[] = [1, 2,
     const reachedBy = all.filter((m) => m.week0Start !== null && m.reachedWeek >= week);
     return { week, reached: reachedBy.length, retained: reachedBy.filter((m) => m.weeks[week]?.active).length };
   });
+}
+
+export interface AgreementTotals {
+  /** Targets with a number and a logged working set. */
+  comparable: number;
+  same: number;
+  more: number;
+  less: number;
+  /** The like-for-like subset that also has a previous load: how often "the app's number" and "repeat the last load" matched what was loaded. */
+  both: number;
+  bothAppSame: number;
+  bothRepeatSame: number;
+}
+
+/** Counts over every lifter and week (counts, not percentages; see docs/PILOT-RETENTION-METRICS.md "How to read the numbers"). */
+export function agreementTotals(all: LifterMetrics[]): AgreementTotals {
+  const t: AgreementTotals = { comparable: 0, same: 0, more: 0, less: 0, both: 0, bothAppSame: 0, bothRepeatSame: 0 };
+  for (const m of all) for (const w of m.weeks) for (const k of Object.keys(t) as (keyof AgreementTotals)[]) t[k] += w[k];
+  return t;
 }

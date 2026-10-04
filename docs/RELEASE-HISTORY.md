@@ -31,7 +31,7 @@ Dates are the GitHub publish time in Cairo time. "Schema" is the last client SQL
 | v0.17.0 | 2026-10-03 21:46 | 17 | 9 | Send-feedback share sheet, unused permissions removed |
 | v0.18.0 | 2026-10-03 22:25 | 18 | 9 | Completely free: paywall scaffold removed |
 | v0.19.0 | 2026-10-04 04:01 | 19 | 9 | New 4-day template Push / Pull / Legs / Upper (`ppl_upper_4`, 48 templates); English spelling "program" |
-| v0.20.0 | (see notes) | 20 | 9 | Build switches only (default app unchanged): `GAIN_DISTRIBUTION=play` (no self-updater, no install permission) and `GAIN_PILOT_TEMPLATES=1` (six pilot programs; published as `gain-pilot-v0.20.0-arm64.apk`). Not device-verified |
+| v0.20.0 | 2026-10-04 04:56 (Cairo) | 20 | 9 | Build switches only (default app unchanged): `GAIN_DISTRIBUTION=play` (no self-updater, no install permission) and `GAIN_PILOT_TEMPLATES=1` (six pilot programs; published as `gain-pilot-v0.20.0-arm64.apk`). Not device-verified |
 
 (versionCode and schema were read from `apps/mobile/app.json` and `migrations.ts` at each tag; v0.1.0 has no versionCode in `app.json`.)
 

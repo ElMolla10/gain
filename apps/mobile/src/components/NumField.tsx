@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { TextInput, View } from "react-native";
 import { AppText } from "../ui";
+import { numberPadAccessory } from "../numberPad";
 import { INPUT_HEIGHT, radius, space, usePalette } from "../theme";
 
 /**
@@ -44,6 +45,7 @@ export function NumField<T extends number>(props: {
           props.onValue(v);
         }}
         keyboardType={props.decimal ? "decimal-pad" : "number-pad"}
+        {...numberPadAccessory}
         selectTextOnFocus
         placeholder={props.placeholder ?? "—"}
         placeholderTextColor={p.muted}

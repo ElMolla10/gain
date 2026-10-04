@@ -5,7 +5,7 @@ import { UpdateCard } from "../components/UpdateCard";
 import { hasSelfUpdater } from "../logic/buildFlags";
 import React, { useCallback, useEffect, useState } from "react";
 import type { CeilingClass, RepCeilings } from "@gain/engine";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
@@ -276,7 +276,7 @@ export function SettingsScreen() {
         <View style={{ paddingVertical: space.md, gap: space.sm }}>
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.privacy")}</AppText>
           <HealthNote />
-          {hasSelfUpdater(buildFlags) ? <UpdateCard /> : null}
+          {hasSelfUpdater(buildFlags, Platform.OS) ? <UpdateCard /> : null}
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
           {buildFlags.pilotTemplateIds ? <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.pilotBuild")}</AppText> : null}
         </View>

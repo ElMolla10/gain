@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, PanResponder, Pressable, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 import { useI18n } from "../i18n";
+import { numberPadAccessory } from "../numberPad";
 import { Icon } from "./Icon";
 import { INPUT_HEIGHT, radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, QuietAction, Sheet, useInputFont } from "../ui";
@@ -55,6 +56,7 @@ export function CellInput<T extends number>(props: {
           props.onValue(v);
         }}
         keyboardType={props.decimal ? "decimal-pad" : "number-pad"}
+        {...numberPadAccessory}
         selectTextOnFocus
         placeholder={props.placeholder ?? "—"}
         placeholderTextColor={p.muted}

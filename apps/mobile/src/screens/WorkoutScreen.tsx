@@ -4,6 +4,7 @@ import * as Crypto from "expo-crypto";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, Vibration, View, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { adjustKeyboardInsets } from "../numberPad";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
 import { CellInput, MenuSheet, RestToggle, SwipeRow, TargetLine } from "../components/LogParts";
@@ -927,7 +928,7 @@ export function WorkoutScreen() {
         <InlineStatus compact kind={status.kind} icon={status.icon} text={status.text} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
         <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, rowGap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
           <Stat label={t("workout.stat.duration")}>
             <LiveDuration startedAt={loaded.startedAt} color={p.accent} />

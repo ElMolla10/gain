@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "./components/Icon";
 import { familyFor, hasArabic, scaleFor, textOf } from "./fonts";
 import { useI18n } from "./i18n";
+import { adjustKeyboardInsets, numberPadAccessory } from "./numberPad";
 import { INPUT_HEIGHT, MIN_TOUCH, PRIMARY_HEIGHT, radius, space, type as ty, usePalette } from "./theme";
 
 /**
@@ -210,6 +211,7 @@ export function Field(props: {
         placeholder={props.placeholder}
         placeholderTextColor={p.muted}
         keyboardType={props.keyboardType ?? (props.numeric ? "decimal-pad" : "default")}
+        {...(props.numeric || props.keyboardType === "number-pad" || props.keyboardType === "decimal-pad" || props.keyboardType === "numeric" ? numberPadAccessory : {})}
         multiline={props.multiline}
         style={{
           ...font,
@@ -384,7 +386,7 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
             <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", flex: 1 }}>{title}</AppText>
             <IconButton icon="close" label={t("common.close")} onPress={onClose} />
           </View>
-          <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: space.sm, gap: space.md }} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: space.sm, gap: space.md }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
             {children}
           </ScrollView>
           {footer ? <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.sm }}>{footer}</View> : null}

@@ -9,6 +9,7 @@ import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { PATTERNS } from "../logic/exposure";
 import { buildSearchIndex, GEARS, metaOf, MUSCLE_GROUPS, PICKER_PAGE, searchExercises, type Gear, type LibraryGroup } from "../logic/exerciseSearch";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { adjustKeyboardInsets } from "../numberPad";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, EmptyState, Field, FilterPanel, IconButton, InlineStatus } from "../ui";
 
@@ -67,7 +68,7 @@ export function ExercisePicker(props: {
           <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", flex: 1 }}>{t("pick.title")}</AppText>
           <IconButton icon="close" label={t("pick.close")} onPress={props.onClose} />
         </View>
-        <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl + insets.bottom }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: space.xl + insets.bottom }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
           {creating ? (
             <Card>
               <Field label={t("pick.name")} value={nameEn} onChangeText={setNameEn} />

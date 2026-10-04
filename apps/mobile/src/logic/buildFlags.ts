@@ -16,5 +16,8 @@ export function readBuildFlags(extra: unknown): BuildFlags {
   return { distribution: e.distribution === "play" ? "play" : "sideload", pilotTemplateIds: ids };
 }
 
-/** The self-updater (Settings > Check for updates, the APK download and installer hand-off) exists only in the sideload build. */
-export const hasSelfUpdater = (f: BuildFlags): boolean => f.distribution === "sideload";
+/**
+ * The self-updater (Settings > Check for updates, the APK download and installer hand-off) exists only in the sideload build, and only on
+ * Android: an iPhone cannot install an APK. `os` is `Platform.OS`; left out it means Android, which is how the APK builds have always behaved.
+ */
+export const hasSelfUpdater = (f: BuildFlags, os: string = "android"): boolean => f.distribution === "sideload" && os === "android";

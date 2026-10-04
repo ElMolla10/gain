@@ -12,7 +12,7 @@ import { ArDraftNote, BigButton, LoadingState, Notice, Screen } from "../ui";
 export function ProgrammeEditScreen() {
   const { programmes, repos } = useServices();
   const { t } = useI18n();
-  const nav = useNavigation<{ goBack: () => void }>();
+  const nav = useNavigation<{ goBack: () => void; navigate: (name: string, params?: object) => void }>();
   const params = (useRoute().params ?? {}) as { versionId?: string; programmeId?: string };
   const [draft, setDraft] = useState<ProgrammeDraft | null>(null);
   const [baseline, setBaseline] = useState<ProgrammeDraft | null>(null);
@@ -86,7 +86,7 @@ export function ProgrammeEditScreen() {
         <BigButton label={params.programmeId && nextVersion ? t("prog.save", { v: nextVersion }) : t("prog.saveNew")} onPress={() => void save()} />
       }
     >
-      <ProgrammeEditorView draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} onSetMeasure={setMeasure} />
+      <ProgrammeEditorView draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} onSetMeasure={setMeasure} onOpenLoads={(exerciseId) => nav.navigate("ExerciseLoads", { exerciseId })} />
       {touched ? problems.map((pr, i) => <Notice key={i} kind="error">{t(`prog.problem.${pr.code}` as StringKey, { day: (pr.day ?? 0) + 1 })}</Notice>) : null}
       {message ? <Notice kind="warn">{message}</Notice> : null}
       <ArDraftNote />

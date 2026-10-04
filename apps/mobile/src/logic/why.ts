@@ -1,5 +1,6 @@
 import { renderReason, type DecisionInputs, type Locale, type ReasonText } from "@gain/engine";
 import { quantityText } from "./quantity";
+import { loadsSummaryText } from "./exerciseLoads";
 import { localizeReason, unitLabel, weightText, type Unit } from "./units";
 
 export interface DecisionPayload {
@@ -60,6 +61,10 @@ export function describeDecision(
 
   const g = i.gym;
   const gymLines: string[] = [];
+  // Where the grid comes from, never implied: the lifter's own weights for this exercise, or the standard steps (a typical set, not a measurement).
+  // Decisions stored before v0.21.0 have no `loadSource` and show the standard-steps line like any default one.
+  if (g.loadSource === "exercise" && g.loadSpec) gymLines.push(L("why.loads.own", { what: loadsSummaryText(g.loadSpec, unit, unitLabel(unit, locale), L) }));
+  else if (g.anchorLoad !== null || g.nextHarderLoad !== null || g.nextEasierLoad !== null) gymLines.push(L("why.loads.gym"));
   if (g.anchorLoad !== null) gymLines.push(L("why.anchor", { load: W(g.anchorLoad), onGym: g.anchorOnGymLoads ? L("why.yes") : L("why.no") }));
   gymLines.push(g.nextHarderLoad !== null ? L("why.nextLoad", { load: W(g.nextHarderLoad), jump: W(g.jump ?? 0) }) : L("why.noNextLoad"));
   if (g.jumpTooBig !== null) {

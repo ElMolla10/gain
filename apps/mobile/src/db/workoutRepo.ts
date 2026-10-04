@@ -1,7 +1,6 @@
 import {
   checkOutlier,
   checkTimedOutlier,
-  findSpec,
   isTimedMeasure,
   lineKey,
   MAX_METRES,
@@ -10,6 +9,7 @@ import {
   proposeForMeasure,
   type ExerciseSpec,
   type GymFingerprint,
+  type GymLoadSpec,
   type HistorySession,
   type LineIdentity,
   type LoggedSet,
@@ -22,6 +22,7 @@ import {
   type SetupType,
 } from "@gain/engine";
 import type { Db, Deps } from "./driver";
+import { exerciseOwnLoads, gridFor } from "./exerciseGrid";
 
 export interface SetRow {
   id: string;
@@ -310,6 +311,11 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   }
 
   /** Engine proposal for one program exercise from history that exists right now. Not stored (PR5 stores the next session's). */
+  async function ownLoadsFor(exerciseId: string): Promise<{ loadOverride?: GymLoadSpec }> {
+    const own = await exerciseOwnLoads(db, exerciseId);
+    return own ? { loadOverride: own } : {};
+  }
+
   async function liveProposal(ex: DayExerciseSpec, gym: GymFingerprint): Promise<{ proposal: Proposal; lineId: string; line: LineIdentity }> {
     const line: LineIdentity = { exerciseId: ex.exerciseId, gymId: gym.gymId, setup: ex.setup };
     const lineId = await ensureLine(ex.exerciseId, gym.gymId, ex.setup);
@@ -330,6 +336,8 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
         trackEffort: ex.trackEffort,
         plannedSets: ex.sets,
         ...(!isTimedMeasure(ex.measure) && ex.topSets !== undefined && ex.topSets !== null ? { topSets: ex.topSets } : {}),
+        // Weights the lifter set for this exercise replace the gym's grid for it (read here so every caller agrees).
+        ...(await ownLoadsFor(ex.exerciseId)),
       },
       gym,
       history,
@@ -388,7 +396,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       if (todaySets.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: todaySets });
       outlier = isTimedMeasure(measure)
         ? checkTimedOutlier({ load: input.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history })
-        : checkOutlier({ load: input.load, reps: input.reps, rir: input.rir ?? null }, { line, history, gymSpec: findSpec(ctx.gym, ctx.equipment) });
+        : checkOutlier({ load: input.load, reps: input.reps, rir: input.rir ?? null }, { line, history, gymSpec: await gridFor(db, ctx.gym, input.exerciseId, ctx.equipment) });
     }
     const t = now();
     const pos = await db.get<{ p: number | null }>("SELECT MAX(position) AS p FROM workout_set WHERE session_id = ? AND exercise_id = ?", [input.sessionId, input.exerciseId]);
@@ -452,7 +460,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       if (others.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: others });
       outlier = isTimedMeasure(measure)
         ? checkTimedOutlier({ load: v.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history })
-        : checkOutlier({ load: v.load, reps, rir: v.rir }, { line, history, gymSpec: findSpec(ctx.gym, ctx.equipment) });
+        : checkOutlier({ load: v.load, reps, rir: v.rir }, { line, history, gymSpec: await gridFor(db, ctx.gym, row.exercise_id, ctx.equipment) });
       const unchanged = row.load === v.load && row.reps === reps && row.duration_s === q.durationS && row.distance_m === q.distanceM;
       status = row.outlier_status === "confirmed" && unchanged ? "confirmed" : outlier.outlierStatus;
     }

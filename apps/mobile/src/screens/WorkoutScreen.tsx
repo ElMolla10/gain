@@ -329,7 +329,7 @@ export function WorkoutScreen() {
       const info0 = loaded.info[ex.exerciseId];
       const lastTop = info0?.last?.sets.reduce<LoggedSet | null>((a, s0) => (a === null || s0.load > a.load ? s0 : a), null) ?? null;
       if (e0.load !== null && e0.reps !== null && lastTop && !okJumps.current.has(`${ex.exerciseId}:${e0.load}`)) {
-        const spec0 = findSpec(loaded.gym, ex.equipment);
+        const spec0 = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
         const micro = spec0 ? nextLoadAbove(spec0, lastTop.load, false) : lastTop.load + 1.25;
         const check = checkJump({ prevLoad: lastTop.load, prevReps: lastTop.reps, targetLoad: e0.load, targetReps: e0.reps, setup: ex.setup, thresholdPct: jumpThreshold, microLoad: micro });
         if (check.needsConfirm) return void setJumpAsk({ ex, row, check, load: e0.load, reps: e0.reps, prev: lastTop.load });
@@ -616,7 +616,7 @@ export function WorkoutScreen() {
     const st = exState[ex.slot] ?? NO_STATE(ex.slot);
     const labels = exerciseLabels(ex, lang);
     const pr = info.proposal;
-    const spec = findSpec(loaded.gym, ex.equipment);
+    const spec = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
     const exSets = setsByEx.get(ex.exerciseId) ?? [];
     const numbering = rowLabels(list);
     const widx = workingIndexes(list);

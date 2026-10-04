@@ -1,4 +1,5 @@
-import type { EquipmentType, Measure, SetupType } from "@gain/engine";
+import type { EquipmentType, GymLoadSpec, Measure, SetupType } from "@gain/engine";
+import { validateGym } from "../logic/gymInput";
 import { DEFAULT_TIMED_RANGE } from "./library/measures";
 import { computeExposure, type ExposureRow } from "../logic/exposure";
 import { draftFingerprint, normTopSets, validateDraft, type DraftProblem, type ProgrammeDraft } from "../logic/programmeDraft";
@@ -144,6 +145,20 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     const gymId = await repos.getActiveGymId();
     if (gymId) await finish.refreshPlannedSessions(gymId);
     return { changed: true, slots };
+  }
+
+  /**
+   * Sets (spec) or clears (null) the weights that exist for ONE exercise, in kilograms. Changes no logged set and no earlier decision; planned
+   * sessions hold targets written on the old grid, so they are rewritten (kept choices that are still weights on the new grid stay).
+   */
+  async function setExerciseLoads(exerciseId: string, spec: GymLoadSpec | null): Promise<void> {
+    const cur = await repos.getExerciseLoads(exerciseId);
+    if (!cur) throw new Error("Unknown exercise");
+    if (spec && spec.equipment !== cur.equipment) throw new Error("Weights do not match the exercise's equipment");
+    if (spec && validateGym("x", [spec]).length > 0) throw new Error("Weights are not valid");
+    await repos.setExerciseLoads(exerciseId, spec);
+    const gymId = await repos.getActiveGymId();
+    if (gymId) await finish.refreshPlannedSessions(gymId);
   }
 
   async function seedKeyMap(): Promise<Map<string, { exerciseId: string; equipment: EquipmentType }>> {
@@ -335,6 +350,6 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     await replan();
   }
 
-  return { listExercises, createExercise, setExerciseMeasure, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
+  return { listExercises, createExercise, setExerciseMeasure, setExerciseLoads, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
 }
 export type ProgrammeRepo = ReturnType<typeof createProgrammeRepo>;

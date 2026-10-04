@@ -360,6 +360,15 @@ ${Object.entries(TIMED_LIBRARY)
 ALTER TABLE programme_day_exercise ADD COLUMN top_sets INTEGER CHECK (top_sets IS NULL OR (top_sets >= 1 AND top_sets <= 11));
 `,
   },
+  {
+    version: 11,
+    name: "weights set per exercise",
+    sql: `
+-- Per exercise: the weights the lifter says exist for it, as JSON in kilograms {"loads":[..]} or {"increment":..,"min":..,"max":..}.
+-- NULL (every existing row) = the gym's grid for the exercise's equipment, exactly as before, so no existing target or decision changes.
+ALTER TABLE exercise ADD COLUMN load_spec_json TEXT;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

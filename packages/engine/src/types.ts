@@ -187,6 +187,11 @@ export interface ExerciseSpec {
    * lighter back-off sets and are ignored. Omitted = straight sets (all `plannedSets` count). Judged on the weakest of the top sets.
    */
   topSets?: number;
+  /**
+   * Weights the lifter set for THIS exercise (a list of loadable weights or a step grid). When present it replaces the gym's grid for this
+   * exercise only; omitted = the gym's grid for its equipment, exactly as before. `equipment` must equal the exercise's own.
+   */
+  loadOverride?: GymLoadSpec;
   /** How the exercise is counted. Omitted = reps. For time / distance, `repRange` is read as seconds / metres. */
   measure?: Measure;
 }
@@ -301,6 +306,9 @@ export interface DecisionInputs {
     jumpTooBig: boolean | null;
     maxJumpRatio: number;
     minJumpRatio: number;
+    /** Present only when the lifter set weights for this exercise: the exact grid that was used, so the decision stays explainable later. */
+    loadSource?: "exercise";
+    loadSpec?: GymLoadSpec;
   };
   /** The resolved policy and how close the lift is to earning more load. */
   policy: LiftProgression;

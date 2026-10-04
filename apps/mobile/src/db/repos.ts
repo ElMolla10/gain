@@ -2,6 +2,7 @@ import { classifyLift, DEFAULT_REP_CEILINGS, type Measure, mergeRepCeilings, res
 import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
 import { normTopSets } from "../logic/programmeDraft";
+import { parseStoredLoads, serializeLoads } from "../logic/exerciseLoads";
 import { hasLoggedSets } from "./sessionSql";
 import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
 import { DEFAULT_TIMED_RANGE, measureOfKey } from "./library/measures";
@@ -201,6 +202,17 @@ export function createRepos(db: Db, deps: Deps) {
     };
   }
 
+  /** The weights the lifter set for this exercise, or null (the gym's grid applies). Damaged stored text reads as null. */
+  async function getExerciseLoads(exerciseId: string): Promise<{ equipment: GymLoadSpec["equipment"]; spec: GymLoadSpec | null } | null> {
+    const r = await db.get<{ equipment: GymLoadSpec["equipment"]; load_spec_json: string | null }>("SELECT equipment, load_spec_json FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+    return r ? { equipment: r.equipment, spec: parseStoredLoads(r.load_spec_json, r.equipment) } : null;
+  }
+  /** Sets (or, with null, clears) this exercise's own weights. The row's updated_at moves so the change syncs. Changes no history. */
+  async function setExerciseLoads(exerciseId: string, spec: GymLoadSpec | null): Promise<void> {
+    const json = spec ? serializeLoads(spec) : null;
+    await db.run("UPDATE exercise SET load_spec_json = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [json, now(), exerciseId]);
+  }
+
   // ---- program / Today ----------------------------------------------------------------------------------
   /**
    * The current version of the active program (setting `active_programme_id`; before one is set, the oldest program).
@@ -243,8 +255,9 @@ export function createRepos(db: Db, deps: Deps) {
       track_effort: number;
       position: number;
       pattern: string;
+      load_spec_json: string | null;
     }>(
-      `SELECT pde.id, pde.exercise_id, e.name_en, e.name_ar, e.aliases_ar_json, e.equipment, e.setup, e.measure, e.pattern,
+      `SELECT pde.id, pde.exercise_id, e.name_en, e.name_ar, e.aliases_ar_json, e.equipment, e.setup, e.measure, e.pattern, e.load_spec_json,
               pde.sets, pde.rep_min, pde.rep_max, pde.rep_ceiling, pde.top_sets, pde.is_goal_lift, pde.track_effort, pde.position
        FROM programme_day_exercise pde JOIN exercise e ON e.id = pde.exercise_id
        WHERE pde.programme_day_id = ? AND pde.deleted_at IS NULL ORDER BY pde.position`,
@@ -275,6 +288,7 @@ export function createRepos(db: Db, deps: Deps) {
           repTopBasis: "program" as RepTopBasis,
           gainCeiling: r.rep_max,
           topSets: null as number | null,
+          loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
           isGoalLift: r.is_goal_lift === 1,
           trackEffort: false,
         };
@@ -311,6 +325,8 @@ export function createRepos(db: Db, deps: Deps) {
       gainCeiling,
       /** null = straight sets; n = top set + back-offs (only the n heaviest sets are judged). */
       topSets: normTopSets(r.sets, r.top_sets),
+      /** Weights the lifter set for this exercise (null = the gym's grid). */
+      loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
       isGoalLift: r.is_goal_lift === 1,
       trackEffort: r.track_effort === 1,
       };
@@ -322,8 +338,8 @@ export function createRepos(db: Db, deps: Deps) {
    * defaults (3 sets, rep range 8 up to the rep ceiling for this kind of lift, not a goal lift, no effort tracking). Never stored in the program.
    */
   async function adHocDayExercise(exerciseId: string): Promise<DayExercise | null> {
-    const r = await db.get<{ id: string; name_en: string; name_ar: string; aliases_ar_json: string; equipment: GymLoadSpec["equipment"]; setup: "free" | "assisted" | "bodyweight_plus_added"; measure: Measure; pattern: string }>(
-      "SELECT id, name_en, name_ar, aliases_ar_json, equipment, setup, measure, pattern FROM exercise WHERE id = ? AND deleted_at IS NULL",
+    const r = await db.get<{ id: string; name_en: string; name_ar: string; aliases_ar_json: string; equipment: GymLoadSpec["equipment"]; setup: "free" | "assisted" | "bodyweight_plus_added"; measure: Measure; pattern: string; load_spec_json: string | null }>(
+      "SELECT id, name_en, name_ar, aliases_ar_json, equipment, setup, measure, pattern, load_spec_json FROM exercise WHERE id = ? AND deleted_at IS NULL",
       [exerciseId],
     );
     if (!r) return null;
@@ -331,7 +347,7 @@ export function createRepos(db: Db, deps: Deps) {
       const d = DEFAULT_TIMED_RANGE[r.measure];
       return {
         id: `added:${r.id}`, exerciseId: r.id, nameEn: r.name_en, nameAr: r.name_ar, aliasesAr: JSON.parse(r.aliases_ar_json) as string[], equipment: r.equipment, setup: r.setup,
-        measure: r.measure, pattern: r.pattern, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, topSets: null as number | null, isGoalLift: false, trackEffort: false,
+        measure: r.measure, pattern: r.pattern, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, topSets: null as number | null, loadSpec: parseStoredLoads(r.load_spec_json, r.equipment), isGoalLift: false, trackEffort: false,
       };
     }
     const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings: await getRepCeilingDefaults() });
@@ -356,6 +372,7 @@ export function createRepos(db: Db, deps: Deps) {
       repTopBasis: "no_upper_bound" as RepTopBasis,
       gainCeiling: policy.repCeiling,
       topSets: null as number | null,
+      loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
       isGoalLift: false,
       trackEffort: false,
     };
@@ -400,6 +417,8 @@ export function createRepos(db: Db, deps: Deps) {
     topUpLibrary,
     getActiveGymId,
     loadGymFingerprint,
+    getExerciseLoads,
+    setExerciseLoads,
     getLatestProgrammeVersion,
     listDays,
     listDayExercises,

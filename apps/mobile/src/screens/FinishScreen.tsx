@@ -3,7 +3,7 @@ import { shortReason, targetText } from "../logic/nextTarget";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, nextLoadAbove, renderReason, type GymFingerprint } from "@gain/engine";
+import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type GymLoadSpec } from "@gain/engine";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Share, View } from "react-native";
 import { useServices } from "../AppContext";
@@ -27,7 +27,7 @@ interface Next {
   dayName: string;
   gym: GymFingerprint;
   targets: TargetRow[];
-  equipment: Record<string, { equipment: Parameters<typeof findSpec>[1]; setup: "free" | "assisted" | "bodyweight" | string }>;
+  equipment: Record<string, { equipment: Parameters<typeof findSpec>[1]; loadSpec: GymLoadSpec | null; setup: "free" | "assisted" | "bodyweight" | string }>;
 }
 
 export function FinishScreen() {
@@ -79,7 +79,7 @@ export function FinishScreen() {
       const gym = await repos.loadGymFingerprint(planned.gym_id);
       const exs = await repos.listDayExercises(planned.programme_day_id);
       const equipment: Next["equipment"] = {};
-      for (const e of exs) equipment[e.exerciseId] = { equipment: e.equipment, setup: e.setup };
+      for (const e of exs) equipment[e.exerciseId] = { equipment: e.equipment, setup: e.setup, loadSpec: e.loadSpec };
       setNext({ sessionId: written.sessionId, dayName: written.dayName, gym, targets: await finish.getTargets(written.sessionId), equipment });
     })().catch((e) => {
       // The workout itself is already finished and saved; only the summary could not be built. Retry instead of loading forever.
@@ -233,7 +233,7 @@ export function FinishScreen() {
           {error ? <Notice kind="error">{error}</Notice> : null}
           {next.targets.map((tg) => {
             const info = next.equipment[tg.exerciseId];
-            const spec = info ? findSpec(next.gym, info.equipment) : null;
+            const spec = info ? (info.loadSpec ?? findSpec(next.gym, info.equipment)) : null;
             const isEditing = editing?.targetId === tg.id;
             const hasTarget = !(tg.currency === "none" || (tg.effectiveLoad === null && tg.status !== "rejected")) && tg.status !== "rejected";
             return (

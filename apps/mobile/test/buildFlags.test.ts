@@ -122,9 +122,9 @@ describe("wiring in the screens (source checks; no phone here)", () => {
     expect(src("screens/OnboardingScreen.tsx")).toMatch(/templatesForDays\(form\.days, activeTemplates\(\)\)/);
     expect(src("screens/ProgrammeSwitchScreen.tsx")).toMatch(/templates=\{activeTemplates\(\)\}/);
     expect(src("screens/ProgrammeSwitchScreen.tsx")).not.toMatch(/\bTEMPLATES\b/);
-    expect(src("screens/SettingsScreen.tsx")).toMatch(/hasSelfUpdater\(buildFlags\) \? <UpdateCard \/> : null/);
+    expect(src("screens/SettingsScreen.tsx")).toMatch(/hasSelfUpdater\(buildFlags, Platform\.OS\) \? <UpdateCard \/> : null/);
     expect(src("screens/SettingsScreen.tsx")).toMatch(/settings\.pilotBuild/);
-    expect(src("screens/PrivacyScreen.tsx")).toMatch(/hasSelfUpdater\(buildFlags\)/);
+    expect(src("screens/PrivacyScreen.tsx")).toMatch(/hasSelfUpdater\(buildFlags, Platform\.OS\)/);
     expect(src("buildConfig.ts")).toMatch(/Constants\.expoConfig\?\.extra/);
   });
   it("the pilot label exists in both languages", () => {

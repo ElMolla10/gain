@@ -8,7 +8,9 @@ import { PRE_MIGRATION_FILE, PRE_RESTORE_FILE } from "../db/preMigrate";
 import { RestoreFailed, type DataCounts } from "../db/dataRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
+import { Platform } from "react-native";
 import { BackupInvalid, type BackupFile } from "../logic/backup";
+import { osTextKey } from "../logic/platform";
 import { localDateText } from "../logic/trendChart";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, InlineStatus, Notice, Screen } from "../ui";
@@ -202,7 +204,7 @@ export function DataScreen() {
         {askDelete ? (
           <>
             <AppText style={{ fontWeight: "600" }}>{t("data.delete")}</AppText>
-            <AppText>{t("data.delete.warn")}</AppText>
+            <AppText>{t(osTextKey("data.delete.warn", Platform.OS))}</AppText>
             {hasOnline ? <AppText>{t("data.delete.online")}</AppText> : null}
             {onlineFailed ? <InlineStatus kind="error" text={t("data.delete.onlineFailed")} /> : null}
             <BigButton variant="danger" label={t("data.delete.ask")} onPress={() => wipe()} />

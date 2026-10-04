@@ -5,6 +5,7 @@
 export const enCommon = {
   "common.draftAr": "Arabic text on this screen is a draft translation, still to be reviewed.",
   "common.save": "Save",
+  "common.done": "Done",
   "common.cancel": "Cancel",
   "common.back": "Back",
   "common.next": "Next",
@@ -23,6 +24,7 @@ export const enCommon = {
 export const arCommon: Record<keyof typeof enCommon, string> = {
   "common.draftAr": "النص العربي في الشاشة دي ترجمة مبدئية لسه محتاجة مراجعة.",
   "common.save": "حفظ",
+  "common.done": "تم",
   "common.cancel": "إلغاء",
   "common.back": "رجوع",
   "common.next": "التالي",

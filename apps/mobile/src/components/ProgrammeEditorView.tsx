@@ -29,6 +29,8 @@ export function ProgrammeEditorView(props: {
   onLibraryChanged?: () => void;
   /** Switch how an exercise is counted (reps / seconds / metres). Throws when sets are already logged for it. Absent = the chips are not shown. */
   onSetMeasure?: (exerciseId: string, measure: Measure) => Promise<void>;
+  /** Open the screen where the weights that exist for an exercise are set. Absent = the chip is not shown (e.g. during onboarding). */
+  onOpenLoads?: (exerciseId: string) => void;
 }) {
   const { t, lang } = useI18n();
   const p = usePalette();
@@ -108,6 +110,7 @@ export function ProgrammeEditorView(props: {
                 </View>
               )}
               <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                {props.onOpenLoads ? <Chip label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} /> : null}
                 <Chip label={t("prog.up")} onPress={() => props.onChange(moveExercise(d, di, ei, ei - 1))} />
                 <Chip label={t("prog.down")} onPress={() => props.onChange(moveExercise(d, di, ei, ei + 1))} />
                 <Chip label={t("prog.ex.remove")} tone="danger" onPress={() => props.onChange(removeExercise(d, di, ei))} />

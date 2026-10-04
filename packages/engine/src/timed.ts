@@ -1,7 +1,7 @@
 
 import { lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
-import { allowsZero, findSpec, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad } from "./loads";
+import { allowsZero, specForExercise, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad } from "./loads";
 import { classifyLift, resolveProgression } from "./policy";
 import { median } from "./line";
 import { recentTrustedSets, type OutlierResult } from "./outlier";
@@ -106,7 +106,8 @@ export function proposeTimed(ctx: TimedContext): Proposal {
     const sm = summarizeTimed(s, measure, setup);
     if (sm) summaries.push(sm);
   }
-  const spec = findSpec(gym, exercise.equipment);
+  const spec = specForExercise(gym, exercise);
+  const loadRec: Pick<DecisionInputs["gym"], "loadSource" | "loadSpec"> = exercise.loadOverride ? { loadSource: "exercise", loadSpec: exercise.loadOverride } : {};
   const baseInputs = (): DecisionInputs => ({
     measure,
     lineKey: key,
@@ -129,6 +130,7 @@ export function proposeTimed(ctx: TimedContext): Proposal {
       jumpTooBig: null,
       maxJumpRatio: policy.increment.maxPct,
       minJumpRatio: policy.increment.minPct,
+      ...loadRec,
     },
     policy,
     readiness: { targetReps: hi, qualifyingSessions: 0, requiredSessions: TIMED_SESSIONS_AT_TOP, fastTracked: false, stalled: false },

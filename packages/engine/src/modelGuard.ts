@@ -69,7 +69,7 @@ export function vetModelAdvice(request: ModelRequest, gym: GymFingerprint, advic
   const { ruleProposal, inputs } = request;
   if (!ruleProposal.needsModel.needed) return { ok: false, reason: "not_flagged" };
   if (inputs.sessions.length === 0 || ruleProposal.status === "no_history") return { ok: false, reason: "no_history" };
-  const spec = findSpec(gym, inputs.gym.equipment);
+  const spec = inputs.gym.loadSpec ?? findSpec(gym, inputs.gym.equipment);
   if (!spec || ruleProposal.status === "no_gym_loads") return { ok: false, reason: "no_gym_loads" };
 
   if (typeof advice !== "object" || advice === null) return { ok: false, reason: "bad_shape" };

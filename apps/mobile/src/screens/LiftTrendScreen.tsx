@@ -1,5 +1,5 @@
 import { targetPhrase } from "../logic/quantity";
-import { useFocusEffect, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import type { LiftTrend } from "@gain/engine";
 import { useServices } from "../AppContext";
@@ -10,13 +10,14 @@ import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { directionKey, localDateText } from "../logic/trendChart";
 import { kgToUnit } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, Card, EmptyState, LoadingState, Screen } from "../ui";
+import { AppText, BigButton, Card, EmptyState, LoadingState, Screen } from "../ui";
 
 /** One trend per lift: the top set of each workout, drawn as bars, with plain words for the direction. */
 export function LiftTrendScreen() {
   const { history } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
+  const nav = useNavigation<{ navigate: (name: string, params?: object) => void }>();
   const lineId = (useRoute().params as { lineId: string }).lineId;
   const [data, setData] = useState<{ lift: LiftItem; trend: LiftTrend } | null | "none">(null);
 
@@ -62,6 +63,7 @@ export function LiftTrendScreen() {
         {trend.latest ? <AppText>{t("trend.latest", { set: setText(trend.latest), date: localDateText(trend.latest.at) })}</AppText> : null}
         {trend.best ? <AppText>{t("trend.best", { set: setText(trend.best), date: localDateText(trend.best.at) })}</AppText> : null}
       </Card>
+      <BigButton variant="secondary" label={t("loads.open")} onPress={() => nav.navigate("ExerciseLoads", { exerciseId: lift.exerciseId })} />
       {recent.length > 0 ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("trend.recent")}</AppText>

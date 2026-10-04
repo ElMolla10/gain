@@ -1,7 +1,7 @@
 import { RULE_VERSION } from "./version";
 import { effectiveLoad, epley, lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
-import { findSpec, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad, allowsZero } from "./loads";
+import { specForExercise, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad, allowsZero } from "./loads";
 import { classifyLift, mergeRepCeilings, resolveProgression, resolveRepTop } from "./policy";
 import { isJumpBlocked, recordsForLine, REJECTION_THRESHOLD, rejectionCount, emptyRejectionMemory } from "./rejection";
 import type {
@@ -155,7 +155,8 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const newestSession = sorted[0];
   const pendingOutlier = !!newestSession?.sets.some((x) => !x.warmup && x.outlierStatus === "unconfirmed");
 
-  const spec = findSpec(gym, exercise.equipment);
+  const spec = specForExercise(gym, exercise);
+  const loadRec: Pick<DecisionInputs["gym"], "loadSource" | "loadSpec"> = exercise.loadOverride ? { loadSource: "exercise", loadSpec: exercise.loadOverride } : {};
   const emptyGym: DecisionInputs["gym"] = {
     equipment: exercise.equipment,
     anchorLoad: null,
@@ -167,6 +168,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     jumpTooBig: null,
     maxJumpRatio: maxRatio,
     minJumpRatio: minRatio,
+    ...loadRec,
   };
   const baseInputs = (): DecisionInputs => ({
     lineKey: key,
@@ -331,6 +333,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
       jumpTooBig: tooBig,
       maxJumpRatio: maxRatio,
       minJumpRatio: minRatio,
+      ...loadRec,
     },
     policy: cfg,
     readiness: { targetReps, qualifyingSessions: qualifying, requiredSessions: trig.sessions, requiredSetsAtTop: needSets, fastTracked, stalled },

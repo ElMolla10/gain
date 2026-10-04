@@ -116,6 +116,17 @@ export function findSpec(gym: GymFingerprint, equipment: GymLoadSpec["equipment"
   return gym.loads.find((l) => l.equipment === equipment) ?? null;
 }
 
+/** The grid used for one exercise: the weights the lifter set for it, else the gym's grid for its equipment (null = none known). */
+export function specForExercise(gym: GymFingerprint, exercise: { equipment: GymLoadSpec["equipment"]; loadOverride?: GymLoadSpec | null }): GymLoadSpec | null {
+  return exercise.loadOverride ?? findSpec(gym, exercise.equipment);
+}
+
+/** The same gym with this exercise's own weights in place of the grid for its equipment (a copy; null/undefined override = the gym unchanged). */
+export function withExerciseLoads(gym: GymFingerprint, equipment: GymLoadSpec["equipment"], override: GymLoadSpec | null | undefined): GymFingerprint {
+  if (!override) return gym;
+  return { gymId: gym.gymId, loads: [...gym.loads.filter((l) => l.equipment !== equipment), { ...override, equipment }] };
+}
+
 /** Every load that exists up to `upTo` (needed for increment grids). */
 export function listLoads(spec: GymLoadSpec, upTo?: number, zero = false): number[] {
   validateGymLoadSpec(spec);

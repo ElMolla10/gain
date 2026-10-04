@@ -16,6 +16,8 @@ describe("migration 10: top set + back-offs (upgrade from schema 9 with real dat
     const cur = await populatedWithRealHistory();
     expect(LATEST_VERSION).toBeGreaterThanOrEqual(10);
     const before = await dumpAll(cur.db);
+    // columns added by later migrations do not exist at schema 10
+    before.exercise = (before.exercise as Record<string, unknown>[]).map(({ load_spec_json: _l, ...rest }) => rest);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000); // the real 70-workout export is in there
     const old = await copyAtVersion(cur.db, 9);
     expect((await old.get<{ user_version: number }>("PRAGMA user_version"))!.user_version).toBe(9);

@@ -12,6 +12,7 @@ import {
 } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import type { Repos } from "./repos";
+import { gridFor } from "./exerciseGrid";
 import type { WorkoutRepo } from "./workoutRepo";
 import { summarizeExercise, type ExerciseSummary } from "../logic/summary";
 import type { DecisionPayload } from "../logic/why";
@@ -313,7 +314,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         }
         if (tg.effectiveLoad === null) continue;
         const meta = await db.get<{ equipment: Parameters<typeof findSpec>[1]; setup: SetupType }>("SELECT equipment, setup FROM exercise WHERE id = ?", [tg.exerciseId]);
-        const spec = meta ? findSpec(gym, meta.equipment) : null;
+        const spec = meta ? await gridFor(db, gym, tg.exerciseId, meta.equipment) : null;
         if (meta && spec && !isGymLoad(spec, tg.effectiveLoad, meta.setup !== "free")) stale.push(tg);
       }
       await db.transaction(async () => {
@@ -363,7 +364,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   /** Edit the load. It must be one of the standard steps for this equipment. Editing is neither a rejection nor an acceptance of the jump. */
   async function editTargetLoad(targetId: string, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType, reps?: number): Promise<void> {
     const tr = await mustGet(targetId);
-    const spec = findSpec(gym, equipment);
+    const spec = await gridFor(db, gym, tr.exerciseId, equipment);
     if (spec && !isGymLoad(spec, load, setup !== "free")) throw new Error("That load is not one of the standard steps");
     if (!(load >= 0)) throw new Error("Invalid load");
     if (reps !== undefined && !(Number.isInteger(reps) && reps >= 1 && reps <= 100)) throw new Error("Invalid reps");

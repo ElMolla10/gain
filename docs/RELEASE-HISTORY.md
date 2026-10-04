@@ -4,7 +4,7 @@
 
 **Nothing in this history has recorded device evidence in the repo.** (Mohamed reports on 2026-10-04 that he installed v0.18.0 and ran the device checks; that is his report, not independently verified, and no results are committed. v0.19.0 is not reported as run on a device.) Every release below was built, unit-tested on Node and published as a GitHub pre-release; no one has recorded installing any of them on a phone (see [NATIVE-CHECKLIST.md](NATIVE-CHECKLIST.md), [DEVICE-TEST-0.4.md](DEVICE-TEST-0.4.md)).
 
-Last updated 2026-10-04 (Cairo time) at `main` 4e6aa51 (v0.19.0).
+Last updated 2026-10-04 (Cairo time) at v0.20.0.
 
 ## 1. Published releases (GitHub pre-releases, Android arm64)
 
@@ -31,6 +31,7 @@ Dates are the GitHub publish time in Cairo time. "Schema" is the last client SQL
 | v0.17.0 | 2026-10-03 21:46 | 17 | 9 | Send-feedback share sheet, unused permissions removed |
 | v0.18.0 | 2026-10-03 22:25 | 18 | 9 | Completely free: paywall scaffold removed |
 | v0.19.0 | 2026-10-04 04:01 | 19 | 9 | New 4-day template Push / Pull / Legs / Upper (`ppl_upper_4`, 48 templates); English spelling "program" |
+| v0.20.0 | (see notes) | 20 | 9 | Build switches only (default app unchanged): `GAIN_DISTRIBUTION=play` (no self-updater, no install permission) and `GAIN_PILOT_TEMPLATES=1` (six pilot programs; published as `gain-pilot-v0.20.0-arm64.apk`). Not device-verified |
 
 (versionCode and schema were read from `apps/mobile/app.json` and `migrations.ts` at each tag; v0.1.0 has no versionCode in `app.json`.)
 

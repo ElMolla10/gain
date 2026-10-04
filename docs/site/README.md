@@ -27,3 +27,10 @@ Uses `wrangler.jsonc` (Worker name `gain-site`, assets from `./public`). GitHub 
 - [ ] Delete-account page: a request path that works without the app ([../ACCOUNT-DELETION-SPEC.md](../ACCOUNT-DELETION-SPEC.md)).
 - [ ] Remove DRAFT banners, `noindex` (meta, header, robots.txt) on purpose; update `siteDraft.test.ts` accordingly.
 - [ ] Re-check against the code at submission; every new data flow updates the page first.
+
+## Hosting record
+| When (Cairo) | What | Where |
+| --- | --- | --- |
+| 2026-10-04 04:29 | First deploy of the six DRAFT pages from `main` at PR #131 (placeholders unfilled, noindex), with `npx wrangler@4.147.0 deploy` from `docs/site` using the wrangler login already on the build box (Cloudflare account of Mohamed, free plan, Worker `gain-site`, static assets only) | https://gain-site.elmolla10.workers.dev (pages: `/privacy`, `/terms`, `/delete-account`, `/support`, `/pilot-guide`; `.html` URLs redirect to these) |
+
+Note: wrangler needs a `node_modules` folder to exist under `docs/site` for its cache (`mkdir docs/site/node_modules`; git-ignored). To take the site down: `npx wrangler@4.147.0 delete gain-site`. Re-deploy after any change to `public/`; nothing is deployed automatically.

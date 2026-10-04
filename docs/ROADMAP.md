@@ -1,8 +1,8 @@
 # Roadmap
 
-The full plan (the "Now" list, the freeze list, the status by screen, numbered steps, gates, decisions, risks) lives in **[MASTER-PLAN.md](MASTER-PLAN.md)**. Start with its "Now" section. What already shipped, release by release (v0.1.0 to v0.19.0), the old milestone map and older test runs are in **[RELEASE-HISTORY.md](RELEASE-HISTORY.md)**.
+The full plan (the "Now" list, the freeze list, the status by screen, numbered steps, gates, decisions, risks) lives in **[MASTER-PLAN.md](MASTER-PLAN.md)**. Start with its "Now" section. What already shipped, release by release (v0.1.0 to v0.20.0), the old milestone map and older test runs are in **[RELEASE-HISTORY.md](RELEASE-HISTORY.md)**.
 
-**Where things stand (2026-10-04, v0.19.0):** GAIN is completely free (see "Free for everyone" in [PRODUCT.md](PRODUCT.md)), Android first, Arabic and English. 19 pre-release APKs exist. Mohamed reports (2026-10-04, **not independently verified**; no results are committed to the repo) that he installed v0.18.0 on his phone, ran the device checks, stored the signing key, approved the pilot templates and thresholds and arranged reviewers and pilot people, and that the Device verified gate passed. v0.19.0 itself has not been reported as run on a device. No new feature work happens until the pilot is validated, except the one template (`ppl_upper_4`) Mohamed explicitly asked for in v0.19.0.
+**Where things stand (2026-10-04, v0.20.0):** GAIN is completely free (see "Free for everyone" in [PRODUCT.md](PRODUCT.md)), Android first, Arabic and English. 20 pre-release APKs exist. Mohamed reports (2026-10-04, **not independently verified**; no results are committed to the repo) that he installed v0.18.0 on his phone, ran the device checks, stored the signing key, approved the pilot templates and thresholds and arranged reviewers and pilot people, and that the Device verified gate passed. v0.19.0 itself has not been reported as run on a device. No new feature work happens until the pilot is validated, except the one template (`ppl_upper_4`) Mohamed explicitly asked for in v0.19.0.
 
 ## Now (in this order; all five reported done by Mohamed on 2026-10-04, not independently verified)
 
@@ -13,6 +13,8 @@ The full plan (the "Now" list, the freeze list, the status by screen, numbered s
 5. Run a local-only pilot with retention and usability criteria written first, recording why users override targets.
 
 ## Gates
+
+*2026-10-04: G2 and G4 are NOT passed. Pilot materials, a hosted DRAFT privacy/terms/deletion site, a Play build switch and listing-asset drafts now exist; what blocks the gates is people, accounts and a phone. Itemised in MASTER-PLAN section 3 "Gate status".*
 
 | Gate | Means |
 | --- | --- |

@@ -20,10 +20,11 @@ const gym: GymFingerprint = {
 const P = (exercise: ExerciseSpec, history: ProposeContext["history"], options?: ProposeContext["options"]) =>
   proposeNext({ exercise, gym, history, asOf: ASOF, options });
 
+// The GAIN ceilings (10 / 12 / 15) apply when the program has no upper bound (rule-v0.4), so these specs have only a bottom.
 // NOTE: no testkit spec helpers here: the ceiling must come from the lift's NAME / region, not from a pinned test value.
-const bench: ExerciseSpec = { exerciseId: "Bench Press (Barbell)", equipment: "barbell", setup: "free", repRange: { min: 6, max: 10 } };
-const legPress: ExerciseSpec = { exerciseId: "Leg Press (Machine)", equipment: "machine", setup: "free", repRange: { min: 8, max: 12 } };
-const lateral: ExerciseSpec = { exerciseId: "Lateral Raise (Cable)", equipment: "cable", setup: "free", repRange: { min: 10, max: 15 } };
+const bench: ExerciseSpec = { exerciseId: "Bench Press (Barbell)", equipment: "barbell", setup: "free", repRange: { min: 6 } };
+const legPress: ExerciseSpec = { exerciseId: "Leg Press (Machine)", equipment: "machine", setup: "free", repRange: { min: 8 } };
+const lateral: ExerciseSpec = { exerciseId: "Lateral Raise (Cable)", equipment: "cable", setup: "free", repRange: { min: 10 } };
 
 describe("classification by name", () => {
   it("lateral raises, every variant", () => {
@@ -122,9 +123,12 @@ describe("the ceiling is where load goes up: 10 upper, 12 legs, 15 lateral raise
     expect(at.load).toBeGreaterThan(100);
     expect(at.reps).toBe(6);
   });
-  it("upper body: even an old 8-12 range does not hold the load past 10", () => {
+  it("upper body: with 'Use GAIN rep ceilings' on, an 8-12 range does not hold the load past 10 (rule-v0.3 behaviour, now opt-in)", () => {
     const ex: ExerciseSpec = { ...bench, repRange: { min: 8, max: 12 } };
-    expect(P(ex, run(lineOf(ex.exerciseId), 100, [10, 10])).currency).toBe("load");
+    const p = P(ex, run(lineOf(ex.exerciseId), 100, [10, 10]), { useGainCeilings: true });
+    expect(p.currency).toBe("load");
+    expect(p.inputs.repTopBasis).toBe("gain_setting");
+    expect(p.inputs.repRange).toEqual({ min: 8, max: 10 });
   });
   it("legs: 11 reps is not enough, 12 is", () => {
     const l = lineOf(legPress.exerciseId);
@@ -154,16 +158,16 @@ describe("the ceiling is where load goes up: 10 upper, 12 legs, 15 lateral raise
       ["Single Arm Lateral Raise (Cable)", "cable"],
       ["Lateral Raise (Machine)", "machine"],
     ] as const) {
-      const ex: ExerciseSpec = { exerciseId: name, equipment, setup: "free", repRange: { min: 8, max: 12 } };
+      const ex: ExerciseSpec = { exerciseId: name, equipment, setup: "free", repRange: { min: 8 } };
       const p = P(ex, run(lineOf(name), 40, [13, 14]));
       expect(p.inputs.policy.repCeiling, name).toBe(15);
       expect(p.load, name).toBe(40);
     }
   });
   it("the name can come from `name` while the id is an opaque key", () => {
-    const ex: ExerciseSpec = { exerciseId: "7f3a-uuid", name: "Seated Lateral Raise (Machine)", equipment: "machine", setup: "free", repRange: { min: 10, max: 12 } };
+    const ex: ExerciseSpec = { exerciseId: "7f3a-uuid", name: "Seated Lateral Raise (Machine)", equipment: "machine", setup: "free", repRange: { min: 10 } };
     expect(P(ex, run(lineOf("7f3a-uuid"), 20, [12, 12])).inputs.policy.repCeiling).toBe(15);
-    const sq: ExerciseSpec = { exerciseId: "7f3a-uuid", name: "Barbell Back Squat", equipment: "barbell", setup: "free", repRange: { min: 6, max: 10 } };
+    const sq: ExerciseSpec = { exerciseId: "7f3a-uuid", name: "Barbell Back Squat", equipment: "barbell", setup: "free", repRange: { min: 6 } };
     expect(P(sq, run(lineOf("7f3a-uuid"), 100, [10, 10])).inputs.policy.repCeiling).toBe(12);
   });
   it("one session reaching the ceiling is enough; the rep before it is not", () => {

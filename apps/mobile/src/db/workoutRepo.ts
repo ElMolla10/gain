@@ -5,6 +5,7 @@ import {
   isTimedMeasure,
   lineKey,
   MAX_METRES,
+  mergeRepCeilings,
   MAX_SECONDS,
   proposeForMeasure,
   type ExerciseSpec,
@@ -17,6 +18,7 @@ import {
   type OutlierStatus,
   type Proposal,
   type RejectionMemory,
+  type RepCeilings,
   type SetupType,
 } from "@gain/engine";
 import type { Db, Deps } from "./driver";
@@ -76,7 +78,8 @@ export interface DayExerciseSpec {
   repCeilingIsCustom?: boolean;
   /** The range the program was written with (before the ceiling replaced its top). Omitted = repMin / repMax. */
   programmeRepMin?: number;
-  programmeRepMax?: number;
+  /** null = the program has no top for this exercise (added for today): the GAIN rep ceiling applies. */
+  programmeRepMax?: number | null;
   isGoalLift: boolean;
   trackEffort: boolean;
   sets: number;
@@ -290,6 +293,20 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     return { records: rows.map((r) => ({ lineKey: key, jumpKind: r.jump_kind, count: r.count, lastRejectedAt: new Date(r.last_rejected_at).toISOString() })) };
   }
 
+  /** The lifter's app-wide GAIN rep ceilings (edits over 10 / 12 / 15) and whether "Use GAIN rep ceilings" is on. Read where the rule runs, so a change applies to the next proposal. */
+  async function appWideCeilings(): Promise<Partial<RepCeilings>> {
+    const r = await db.get<{ value: string }>("SELECT value FROM setting WHERE id = 'rep_ceilings' AND deleted_at IS NULL");
+    try {
+      return r ? mergeRepCeilings(JSON.parse(r.value) as Partial<RepCeilings>) : {};
+    } catch {
+      return {}; // a damaged setting never blocks a workout
+    }
+  }
+  async function useGainCeilings(): Promise<boolean> {
+    const r = await db.get<{ value: string }>("SELECT value FROM setting WHERE id = 'use_gain_ceilings' AND deleted_at IS NULL");
+    return r?.value === "1";
+  }
+
   /** Engine proposal for one program exercise from history that exists right now. Not stored (PR5 stores the next session's). */
   async function liveProposal(ex: DayExerciseSpec, gym: GymFingerprint): Promise<{ proposal: Proposal; lineId: string; line: LineIdentity }> {
     const line: LineIdentity = { exerciseId: ex.exerciseId, gymId: gym.gymId, setup: ex.setup };
@@ -303,9 +320,9 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
         measure: ex.measure,
         equipment: ex.equipment,
         setup: ex.setup,
-        repRange: { min: ex.programmeRepMin ?? ex.repMin, max: ex.programmeRepMax ?? ex.repMax },
-        // Only a ceiling the lifter set on this lift is a per-lift ceiling; the resolved app-wide default goes in as the default for every kind
-        // (same number, but the stored decision then says "default", not "this lift's own").
+        // rule-v0.4: the program's own range; its top wins unless the lift has its own ceiling or "Use GAIN rep ceilings" is on.
+        repRange: { min: ex.programmeRepMin ?? ex.repMin, max: ex.programmeRepMax === undefined ? ex.repMax : ex.programmeRepMax },
+        // Only a ceiling the lifter set on this lift is a per-lift ceiling; the app-wide ceilings go in via options.
         progression: ex.repCeiling !== undefined && ex.repCeilingIsCustom !== false && !isTimedMeasure(ex.measure) ? { repCeiling: ex.repCeiling } : undefined,
         isGoalLift: ex.isGoalLift,
         trackEffort: ex.trackEffort,
@@ -315,7 +332,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       history,
       rejections,
       asOf: new Date(now()).toISOString(),
-      options: ex.repCeiling !== undefined && ex.repCeilingIsCustom === false && !isTimedMeasure(ex.measure) ? { repCeilings: { upper: ex.repCeiling, lower: ex.repCeiling, lateral_raise: ex.repCeiling } } : undefined,
+      options: isTimedMeasure(ex.measure) ? undefined : { repCeilings: await appWideCeilings(), useGainCeilings: await useGainCeilings() },
     });
     return { proposal, lineId, line };
   }

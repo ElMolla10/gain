@@ -408,7 +408,7 @@ describe("assisted and bodyweight lines", () => {
 describe("result shape", () => {
   it("carries rule version, inputs, reason key + params and is JSON-safe", () => {
     const p = P({ history: run(dbLine, 30, [10, 10, 11]) });
-    expect(p.ruleVersion).toBe("rule-v0.3");
+    expect(p.ruleVersion).toBe("rule-v0.4");
     expect(p.reason.key).toBe("reps_in_range");
     expect(p.reason.params).toMatchObject({ load: 30, reps: 12, nextLoad: 32.5, equipment: "dumbbell" });
     expect(p.inputs.sessions[0]).toMatchObject({ topLoad: 30, repsAtTop: 11 });

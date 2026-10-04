@@ -21,19 +21,22 @@ out(`# Backtest of ${RULE_VERSION} on a Hevy export`);
 out();
 out(`Rows: ${rowCount}, workouts: ${workouts.length}, ${dates[0]?.slice(0, 10)} to ${dates[dates.length - 1]?.slice(0, 10)}. Parser warnings: ${warnings.length}.`);
 out();
-out("**What this measures:** for each session of a lift, the rule proposes from everything *before* that session; we compare with what the lifter actually did. This is agreement with the lifter, not proof that the rule is right.");
+out("**What this measures:** for each session of a lift, the rule proposes from everything *before* that session; we compare with what the lifter actually did. This is agreement with the lifter, not proof that the rule is right. **Caveats (P22):** it measures imitation of one lifter, not benefit. The load grid (\"racks\") is inferred from the whole export, including loads logged after the session being predicted, so it uses future information that the app would not have at the time. It is a sanity check on one person's history, not evidence the rule works for others.");
 out();
-out("**Assumptions (a Hevy export has neither):** the load grid per equipment class is inferred as the greatest common divisor of every logged load in that class; the top of the rep range is each lift's rep ceiling (10 / 12 / 15, sensitivity below) and the bottom is assumed 6; no effort data (RPE is empty), so the effort currency never fires; no rejection history. Compared on the hardest working load of the session and the minimum reps at it; warm-ups are not in the export, drop sets are excluded.");
+out("**Assumptions (a Hevy export has neither):** the load grid per equipment class is inferred as the greatest common divisor of every logged load in that class; a Hevy export has no program, so the range has no upper bound and the top is each lift's GAIN rep ceiling (10 / 12 / 15, sensitivity below; with a real program the program's own top would win under rule-v0.4) and the bottom is assumed 6; no effort data (RPE is empty), so the effort currency never fires; no rejection history. Compared on the hardest working load of the session and the minimum reps at it; warm-ups are not in the export, drop sets are excluded.");
 out();
 
-const BOTTOM = { min: 6, max: 10 }; // bottom of the range is assumed; the top is replaced by each lift's rep ceiling
+out("**rule-v0.4 note:** from rule-v0.4 the program's own top rep limit wins over the GAIN ceilings. This backtest has no program (a Hevy export has no rep ranges), so it models a program with no upper bound, where the GAIN ceilings still apply: the numbers are the same as under rule-v0.3. They say nothing about how a real program's own range (for example 8-12) would score; that was not measured. The previous version of this file was a little out of date (one back-extension lift was classed upper body; it is now a leg lift), so a few per-kind counts moved.");
+out();
+
+const BOTTOM = { min: 6 }; // bottom of the range is assumed; a Hevy export has no program, so there is no top and each lift's GAIN rep ceiling applies (rule-v0.4: the program's own top would win)
 const base = backtest(workouts, { repRange: BOTTOM, minSessions: 4 });
 const sb = summarize(base.outcomes);
 const conv = summarize(backtest(workouts, { repRange: BOTTOM, minSessions: 4, progression: { preset: "coaching_conventions" } }).outcomes);
 
 out(`## Headline: default rule (${RULE_VERSION}) vs "repeat the last load"`);
 out();
-out("Default = ACSM 2009 (2-10% load step, snapped to real loads) with the lifter's rep ceilings: **10 reps upper body, 12 reps legs, 15 reps lateral raises** (classified from the exercise name). Load goes up only when the weakest working set at the current load reaches the ceiling, once. Until then: one more rep.");
+out("Default = based on ACSM 2009 (2-10% load step, snapped to standard steps; ceilings and snapping are GAIN conventions) with the lifter's rep ceilings: **10 reps upper body, 12 reps legs, 15 reps lateral raises** (classified from the exercise name). Load goes up only when the weakest working set at the current load reaches the ceiling, once. Until then: one more rep.");
 out();
 out("| | Same load as lifter | Same load and reps | Lifter met or beat it | Rule proposed heavier | Lifter went heavier | Rule held/lowered while he went up | Rule went up while he held/lowered |");
 out("|---|---|---|---|---|---|---|---|");

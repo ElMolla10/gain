@@ -304,7 +304,7 @@ describe("picker: filter and grouping logic", () => {
   });
 });
 
-describe("every template works with the real library, the program repo, the switcher, rule-v0.3 and the short-week rebuild", () => {
+describe("every template works with the real library, the program repo, the switcher, rule-v0.4 and the short-week rebuild", () => {
   async function ctxWithLibrary() {
     const ctx = await freshDb();
     await ctx.repos.seedIfNeeded();
@@ -403,7 +403,7 @@ describe("every template works with the real library, the program repo, the swit
       else expect(tg!.load!, `${id} hit`).toBeGreaterThan(60);
     }
   });
-  it("a full rotation of every template logs, finishes and writes next-session targets under rule-v0.3 (strength lines with a ceiling of 5 earn more weight at 5 reps)", async () => {
+  it("a full rotation of every template logs, finishes and writes next-session targets under rule-v0.4 (strength lines with a ceiling of 5 earn more weight at 5 reps)", async () => {
     const ctx = await ctxWithLibrary();
     const gymId = (await ctx.repos.getActiveGymId())!;
     const gym = await ctx.repos.loadGymFingerprint(gymId);
@@ -428,7 +428,7 @@ describe("every template works with the real library, the program repo, the swit
           expect(targets.length, `${t.id}/${next.day.name}`).toBeGreaterThan(0);
           for (const tg of targets) {
             checked++;
-            expect(tg.ruleVersion, `${t.id}/${tg.nameEn}`).toBe("rule-v0.3");
+            expect(tg.ruleVersion, `${t.id}/${tg.nameEn}`).toBe("rule-v0.4");
             expect(tg.reason.key, `${t.id}/${tg.nameEn}`).toBeTruthy();
           }
         }

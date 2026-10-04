@@ -1,1 +1,1 @@
-export const RULE_VERSION = "rule-v0.3";
+export const RULE_VERSION = "rule-v0.4";

@@ -19,9 +19,9 @@ const B = (c: Partial<ProposeContext> & Pick<ProposeContext, "history">) => prop
 const D = (c: Partial<ProposeContext> & Pick<ProposeContext, "history">) => proposeNext({ exercise: cDb(), gym: gymA, asOf: ASOF, ...c });
 
 describe("rule version", () => {
-  it("is rule-v0.3", () => {
-    expect(RULE_VERSION).toBe("rule-v0.3");
-    expect(B({ history: run(barLine, 100, [10, 10]) }).ruleVersion).toBe("rule-v0.3");
+  it("is rule-v0.4", () => {
+    expect(RULE_VERSION).toBe("rule-v0.4");
+    expect(B({ history: run(barLine, 100, [10, 10]) }).ruleVersion).toBe("rule-v0.4");
   });
 });
 

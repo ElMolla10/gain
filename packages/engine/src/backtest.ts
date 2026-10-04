@@ -1,7 +1,7 @@
 import { equipmentFromTitle, toLoggedSets, type HevyWorkout } from "./hevy";
 import { bodyRegionFromTitle } from "./policy";
 import { proposeNext } from "./progression";
-import type { Currency, EquipmentType, ExerciseSpec, GymFingerprint, HistorySession, LiftProgressionConfig, LineIdentity, RepCeilings, RepRange } from "./types";
+import type { Currency, EquipmentType, ExerciseSpec, GymFingerprint, HistorySession, LiftProgressionConfig, LineIdentity, ProgramRepRange, RepCeilings, RepRange } from "./types";
 
 /**
  * Walk-forward check of the rule against a lifter's own history: for each session of a lift, propose from everything
@@ -116,8 +116,10 @@ function actualTop(sets: ExerciseSeries["sessions"][number]["sets"]): { load: nu
 }
 
 export interface BacktestOptions {
-  /** Only the bottom is used; the top is replaced by the rep ceiling. */
-  repRange: RepRange;
+  /** The program's range. Omit `max` to model a program with no upper bound (the GAIN ceiling for each lift then applies, as in the Hevy backtest). */
+  repRange: ProgramRepRange;
+  /** "Use GAIN rep ceilings": replace the program's top with the GAIN ceiling even when the range has one. */
+  useGainCeilings?: boolean;
   /** Edited app-wide default ceilings (sensitivity checks). */
   repCeilings?: Partial<RepCeilings>;
   /** Only lifts with at least this many sessions are evaluated. */
@@ -154,7 +156,7 @@ export function backtest(workouts: HevyWorkout[], opts: BacktestOptions): { outc
     for (const [i, sess] of s.sessions.entries()) {
       const actual = actualTop(sess.sets);
       if (i >= 1 && actual) {
-        const p = proposeNext({ exercise, gym, history: hist, asOf: sess.performedAt, options: opts.repCeilings ? { repCeilings: opts.repCeilings } : undefined });
+        const p = proposeNext({ exercise, gym, history: hist, asOf: sess.performedAt, options: opts.repCeilings || opts.useGainCeilings ? { ...(opts.repCeilings ? { repCeilings: opts.repCeilings } : {}), ...(opts.useGainCeilings ? { useGainCeilings: true } : {}) } : undefined });
         const last = actualTop(s.sessions[i - 1]!.sets);
         const pl = p.load;
         const loadMatch = pl !== null && Math.abs(pl - actual.load) < 1e-6;

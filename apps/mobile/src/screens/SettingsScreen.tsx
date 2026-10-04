@@ -25,8 +25,10 @@ function CeilingsCard() {
   const { t } = useI18n();
   const { repos } = useServices();
   const [c, setC] = useState<RepCeilings | null>(null);
+  const [useGain, setUseGain] = useState(false);
   useEffect(() => {
     void repos.getRepCeilingDefaults().then(setC);
+    void repos.getUseGainCeilings().then(setUseGain);
   }, [repos]);
   const bump = useCallback(
     async (kind: CeilingClass, d: number) => {
@@ -38,6 +40,15 @@ function CeilingsCard() {
   if (!c) return null;
   return (
     <Block title={t("settings.ceilings")} note={t("settings.ceilings.note")}>
+      <SwitchRow
+        label={t("settings.gainCeil")}
+        note={t("settings.gainCeil.note")}
+        value={useGain}
+        onChange={(on) => {
+          setUseGain(on);
+          void repos.setUseGainCeilings(on);
+        }}
+      />
       {KINDS.map((k) => (
         <Stepper key={k} label={t(`settings.ceilings.${k}` as const)} value={c[k]} min={1} max={100} onChange={(n) => void bump(k, n - c[k])} />
       ))}

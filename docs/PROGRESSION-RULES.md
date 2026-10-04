@@ -1,4 +1,6 @@
-# Progression rules (rule-v0.3)
+# Progression rules (rule-v0.4)
+
+**rule-v0.4 (v0.21.0): the program's own rep range wins.** Until rule-v0.3 the GAIN rep ceilings (10 / 12 / 15) silently replaced the top of an imported or hand-written program's range (an 8-12 program progressed at 10, shown as 8-10). From rule-v0.4 the **top of the program's own range is what earns more load**. The GAIN ceilings are used only (a) for an exercise whose program has **no upper rep limit** (the Why screen then says so), (b) when the lifter switches on **Settings > "Use GAIN rep ceilings"** (off by default, labelled; it restores the rule-v0.3 behaviour for every exercise), and (c) as the starting top when a program is built from a template (the template stores that number as its top). A rep ceiling set on one exercise still wins over both. Nothing else in the rule changed (load grid, 2-10% band, snapping, one-session trigger, sets needed, confidence, rejection memory). Decisions already stored keep their recorded rule version (`rule-v0.3`); only new ones say `rule-v0.4`. Consequence to know about: editing the app-wide ceilings in Settings no longer changes a program that has its own top unless the setting is on.
 
 **The default rule is based on the ACSM 2009 position stand** (source 1 below): raise the load 2-10% when the lifter can do the target. It is not a literal implementation of ACSM: the 10/12/15 rep ceilings, the one-session trigger and the snapping to standard steps are GAIN conventions. On top of it sits **Mohamed's own configuration**: what "the target" is, and how often it has to be hit.
 
@@ -6,7 +8,7 @@ Nothing here was tuned to any one lifter's history. The Hevy backtest (`docs/BAC
 
 ## The default rule in one paragraph
 
-Load goes up only when the **weakest working set at the current load reaches that lift's rep ceiling**: **10 reps for upper-body lifts, 12 for legs, 15 for lateral raises** (any variant). One session at the ceiling is enough. Until then the target is one more rep at the same load. The step is 2-10% of the load (ACSM), taken as the smallest real load in the gym that fits the band. If even the smallest real step is bigger than 10% (light loads, e.g. a 2.5 kg dumbbell jump from 10 kg to 12.5 kg for lateral raises at 15 reps), the load increase is **still proposed**: the lifter reached the ceiling and nothing smaller exists, so pause / tempo is not spent first. The Why screen says the step is above the guide. Two cases stay cautious: a bodyweight line with no bodyweight on file (the step's share cannot be measured), and the opt-in `coaching_conventions` preset (`oversizedStep: "spend_first"`: effort, quality, then load). If the lifter declines the oversized jump repeatedly, effort / quality are offered instead, as for any declined jump.
+Load goes up only when the **weakest working set at the current load reaches that lift's rep ceiling**: **the top of the program's own rep range** (rule-v0.4; before that always the GAIN ceiling: **10 reps for upper-body lifts, 12 for legs, 15 for lateral raises**, any variant, which is still what applies when the program has no upper limit or the setting is on). One session at the ceiling is enough. Until then the target is one more rep at the same load. The step is 2-10% of the load (ACSM), taken as the smallest real load in the gym that fits the band. If even the smallest real step is bigger than 10% (light loads, e.g. a 2.5 kg dumbbell jump from 10 kg to 12.5 kg for lateral raises at 15 reps), the load increase is **still proposed**: the lifter reached the ceiling and nothing smaller exists, so pause / tempo is not spent first. The Why screen says the step is above the guide. Two cases stay cautious: a bodyweight line with no bodyweight on file (the step's share cannot be measured), and the opt-in `coaching_conventions` preset (`oversizedStep: "spend_first"`: effort, quality, then load). If the lifter declines the oversized jump repeatedly, effort / quality are offered instead, as for any declined jump.
 
 | Layer | What | Where it comes from |
 |---|---|---|
@@ -16,7 +18,9 @@ Load goes up only when the **weakest working set at the current load reaches tha
 
 **Where this departs from ACSM's wording, on purpose.** ACSM says: increase "when the individual can perform the current workload for 1-2 repetitions over the desired number on two consecutive training sessions". Mohamed asked for load to go up when he *reaches* the ceiling, so by default `extraReps` is 0 and `sessions` is 1. The literal ACSM trigger is still available as the `acsm_2009_strict` preset (1 rep over the ceiling, two consecutive sessions).
 
-## Default rep ceilings
+## Default rep ceilings (GAIN ceilings)
+
+Used when the program has no top for the exercise, when "Use GAIN rep ceilings" is on, and for the top of a program built from a template.
 
 | Kind of lift | Ceiling | How a lift is classified |
 |---|---|---|
@@ -26,7 +30,7 @@ Load goes up only when the **weakest working set at the current load reaches tha
 
 A lift can carry an explicit `bodyRegion`; otherwise it is classified from `ExerciseSpec.name` (or `exerciseId`, which is the exercise title for Hevy imports). Known grey areas: back extension / hyperextension is classed upper (it is not in the leg list); hanging leg raise is abs, so upper.
 
-**Editable at two levels.** Per lift: `progression.repCeiling` (the mobile app stores it per program exercise; `NULL` = follow the default). Per kind of lift, app-wide: `options.repCeilings` in the engine, the "Reps that earn more weight" card in Settings in the app. A per-lift value beats the app-wide one, which beats the built-in 10 / 12 / 15. The ceiling replaces the top of the program's rep range; the bottom of the range is kept (never above the ceiling).
+**Editable at two levels.** Per lift: `progression.repCeiling` (the mobile app stores it per program exercise; `NULL` = follow the default). Per kind of lift, app-wide: `options.repCeilings` in the engine, the "Reps that earn more weight" card in Settings in the app. A per-lift value beats the app-wide one, which beats the built-in 10 / 12 / 15. A per-lift ceiling replaces the top of the program's rep range always; the GAIN ceilings do so only in the cases above (rule-v0.4); the bottom of the range is kept (never above the top).
 
 ## Opt-in conventions (off by default)
 
@@ -79,7 +83,7 @@ Known limits stated by the sources and kept in mind: the 2-for-2 rule may push l
 {
   exerciseId: "...",
   name: "Lateral Raise (Cable)",         // classifies the lift: upper 10 / legs 12 / lateral raise 15
-  repRange: { min: 10, max: 15 },        // the top is superseded by the ceiling
+  repRange: { min: 10, max: 15 },        // the program's own range; its top wins (rule-v0.4). Omit max = no upper limit: the GAIN ceiling applies
   bodyRegion: "lower",                   // optional: skip the name guess
   trackEffort: true,                     // enables the effort currency
   progression: {
@@ -91,7 +95,7 @@ Known limits stated by the sources and kept in mind: the 2-for-2 rule may push l
     stall: null,                                 // opt-in, e.g. { sessions: 4, deloadPct: 0.10 }
   },
 }
-// app-wide: proposeNext({ ..., options: { repCeilings: { upper: 10, lower: 12, lateral_raise: 15 } } })
+// app-wide: proposeNext({ ..., options: { repCeilings: { upper: 10, lower: 12, lateral_raise: 15 }, useGainCeilings: false } })   // useGainCeilings: true = GAIN ceilings replace every program top (rule-v0.3 behaviour)
 ```
 
 Resolution order: default (acsm_2009), then the named preset, then explicit fields. `resolveProgression` validates and throws on nonsense. The resolved policy (including the ceiling and where it came from) and how close the lift is to earning load (`readiness`) are stored in the decision inputs, so the Why screen can show them.
@@ -107,13 +111,15 @@ Resolution order: default (acsm_2009), then the named preset, then explicit fiel
 
 ## Sanity check against Mohamed's Hevy history
 
-Details in `docs/BACKTEST-HEVY.md`. 343 next-sessions, 70 workouts. The export has no per-lift rep ranges, RIR or gym loads, so the load grid is inferred and the bottom of the range assumed. With the 10 / 12 / 15 ceilings the rule proposed the same load he used 58% of the time; just repeating the last load gives 60%, so **the rule does not beat repeat-last on this measure**. It proposed a heavier load in 4% of sessions (and in 14 of the 19 next-sessions that followed a session at the ceiling, now that an oversized real step no longer waits behind pause / tempo); he actually went heavier in 26%. Only 10% of his 90 load increases came right after a session at the ceiling, so he normally raises the load well before reaching 10 / 12 / 15 reps (median 7 reps before an increase). That is a flag about the gap between this instruction and his past behaviour, not a target: no threshold was changed to close it.
+Details in `docs/BACKTEST-HEVY.md`. 343 next-sessions, 70 workouts. The export has no per-lift rep ranges, RIR or gym loads, so the load grid is inferred and the bottom of the range assumed. The export has no program, so the backtest models a program with no upper limit (GAIN ceilings apply; rule-v0.4 gives the same numbers as rule-v0.3 here, and nothing was measured about program-wins ranges). With the 10 / 12 / 15 ceilings the rule proposed the same load he used 58% of the time; just repeating the last load gives 60%, so **the rule does not beat repeat-last on this measure**. It proposed a heavier load in 4% of sessions (and in 14 of the 19 next-sessions that followed a session at the ceiling, now that an oversized real step no longer waits behind pause / tempo); he actually went heavier in 26%. Only 10% of his 90 load increases came right after a session at the ceiling, so he normally raises the load well before reaching 10 / 12 / 15 reps (median 7 reps before an increase). That is a flag about the gap between this instruction and his past behaviour, not a target: no threshold was changed to close it.
 
 ## Big-jump confirmation (fixes release, P04)
 A proposed load more than **10%** above what the lifter did last time (same exercise, gym and setup; free-weight style loads only) is not applied silently. Ticking such a row in the logger, or pressing Accept on the Finish screen, first shows the size of the jump and four choices: use the proposed load anyway, repeat last time's load and reps, the same load with one more rep, or a "microload" (the smallest real step above last time's load, offered only when it is smaller than the proposed jump). The threshold is a setting (`jump_confirm_pct`, default 10; `0` switches the question off); there is no screen for it yet. Logic: `apps/mobile/src/logic/jumpGuard.ts`. The engine's own rule (increment band, rejection memory) is unchanged. Not verified on a phone.
 
-## Effective rep range (fixes release, P05)
-The rule replaces the TOP of the program's rep range with the **rep ceiling** (the lift's own ceiling if one was set, else the app-wide default for its kind of lift: 10 upper, 12 lower, 15 lateral raise, editable in Settings), because the ceiling is what earns more load. A program of 8-12 on the bench press therefore progresses at 10 unless the lift has its own ceiling. This is unchanged behaviour, now stated: the Program tab shows the range in force per exercise and says when it differs from the program's range and why; the Why screen adds "Program range 8-12; rep ceiling in force 10 (app-wide default for this kind of lift)"; the ceiling field in the program editor says it replaces the top of the range. Decisions now store the program's own range (`programmeRepRange`) next to the range used (`repRange`); older stored decisions lack it and show no such line.
+## Effective rep range (fixes release P05, changed in rule-v0.4)
+**rule-v0.4:** the top in force is, in order, the lift's own ceiling, the GAIN ceiling when "Use GAIN rep ceilings" is on, the program's own top, and the GAIN ceiling when the program has no top (`resolveRepTop` in the engine, used by both the rule and the Program tab, so what the app shows is what the rule uses). A program of 8-12 on the bench press now progresses at 12. The text below is how rule-v0.3 worked (kept because decisions stored under it still read this way):
+
+rule-v0.3: the rule replaced the TOP of the program's rep range with the **rep ceiling** (the lift's own ceiling if one was set, else the app-wide default for its kind of lift: 10 upper, 12 lower, 15 lateral raise, editable in Settings), because the ceiling is what earns more load. A program of 8-12 on the bench press therefore progressed at 10 unless the lift had its own ceiling. That was stated, not silent: the Program tab shows the range in force per exercise and says when it differs from the program's range and why; the Why screen adds "Program range 8-12; rep ceiling in force 10 (app-wide default for this kind of lift)"; the ceiling field in the program editor says it replaces the top of the range. Decisions store the program's own range (`programmeRepRange`, `max` null = no upper limit) next to the range used (`repRange`), and from rule-v0.4 also `repTopBasis` (`lift` / `program` / `gain_setting` / `no_upper_bound`) and the GAIN ceiling that would apply (`gainCeiling`); the Why screen words each case ("Rep range 8-12 is your program's own...", "Your program has no upper rep limit for this exercise, so GAIN's rep ceiling ... applies", "... Use GAIN rep ceilings is on..."). Older stored decisions lack these fields and show what they always showed.
 
 ## "Weakest set at the top load", partial sessions, top set + back-off (fixes release, P21)
 - **Reps of a session** = the weakest set at its top load: the FEWEST reps in any working set at the heaviest load of that session (warm-ups, drop sets and unconfirmed outliers excluded). Lighter sets of the same session (back-offs) are not part of it. The Why screen says this in plain words.

@@ -1,5 +1,6 @@
 import type {
   BodyRegion,
+  RepTopBasis,
   CeilingClass,
   IncrementConfig,
   OversizedStep,
@@ -188,4 +189,19 @@ export function resolveProgression(region: BodyRegion = "upper", cfg: LiftProgre
     stepDownAfterMisses,
     stall,
   };
+}
+
+/**
+ * The top of the rep range, i.e. the reps the weakest set must reach to earn more load (rule-v0.4). Order:
+ *  1. a ceiling the lifter set on THIS lift (`liftCeiling`);
+ *  2. "Use GAIN rep ceilings" is on: the GAIN ceiling for the kind of lift (`gainCeiling`);
+ *  3. the program's own top (`programMax`), which is the default;
+ *  4. the program has no top: the GAIN ceiling for the kind of lift.
+ * Shared by the engine and the app, so what the Program tab shows is what the rule uses.
+ */
+export function resolveRepTop(i: { programMax: number | null | undefined; liftCeiling?: number | null; gainCeiling: number; useGainCeilings?: boolean }): { top: number; basis: RepTopBasis } {
+  if (i.liftCeiling !== undefined && i.liftCeiling !== null) return { top: i.liftCeiling, basis: "lift" };
+  if (i.useGainCeilings) return { top: i.gainCeiling, basis: "gain_setting" };
+  if (i.programMax !== undefined && i.programMax !== null) return { top: i.programMax, basis: "program" };
+  return { top: i.gainCeiling, basis: "no_upper_bound" };
 }

@@ -83,10 +83,20 @@ export function describeDecision(
     L("why.ruleVersion", { version: meta.ruleVersion, path: meta.path }),
     L("why.range", { min: i.repRange.min, max: i.repRange.max }),
   ];
-  // The rule replaces the top of the program's range with the rep ceiling. Say so whenever the two differ (never silent).
+  // Say where the top of the range comes from, never silently (rule-v0.4). Decisions stored before rule-v0.4 have no `repTopBasis`: they always used a
+  // ceiling (the lift's own or the GAIN default), shown as before when it differed from the program's top.
   const pr = i.programmeRepRange;
-  if (pr && pr.max !== i.repRange.max && i.measure !== "time" && i.measure !== "distance") {
-    ruleLines.push(L("range.why", { pmin: pr.min, pmax: pr.max, max: i.repRange.max, source: L(i.policy.ceilingSource === "lift" ? "range.src.lift" : "range.src.default") }));
+  const reps = i.measure !== "time" && i.measure !== "distance";
+  if (reps && i.repTopBasis === "program") {
+    ruleLines.push(L("range.why.program", { pmin: pr?.min ?? i.repRange.min, max: i.repRange.max, gain: i.gainCeiling ?? i.repRange.max }));
+  } else if (reps && i.repTopBasis === "no_upper_bound") {
+    ruleLines.push(L("range.why.noTop", { max: i.repRange.max }));
+  } else if (reps && i.repTopBasis === "gain_setting") {
+    ruleLines.push(L("range.why.setting", { pmin: pr?.min ?? i.repRange.min, pmax: pr?.max ?? i.repRange.max, max: i.repRange.max }));
+  } else if (reps && i.repTopBasis === "lift") {
+    ruleLines.push(L("range.why", { pmin: pr?.min ?? i.repRange.min, pmax: pr?.max ?? i.repRange.max, max: i.repRange.max, source: L("range.src.lift") }));
+  } else if (reps && pr && pr.max !== i.repRange.max) {
+    ruleLines.push(L("range.why", { pmin: pr.min, pmax: pr.max ?? i.repRange.max, max: i.repRange.max, source: L(i.policy.ceilingSource === "lift" ? "range.src.lift" : "range.src.default") }));
   }
   if (i.trackEffort) ruleLines.push(L("why.effortTracked"));
   if (p.needsModel.needed) ruleLines.push(L("why.needsModel"));

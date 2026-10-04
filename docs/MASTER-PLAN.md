@@ -82,7 +82,7 @@ Allowed while frozen: fixes for bugs found on a device or in the pilot, data-saf
 
 | What | Result |
 | --- | --- |
-| Commit | `c870bfa` (`main`, after PR #132; this release bumps it to v0.20.0, versionCode 20) |
+| Commit | `c870bfa` (`main`, after PR #132); release v0.20.0 built from `cbc5ff0` (published 2026-10-04 04:56 Cairo, pre-release, NOT device-verified) |
 | Date | 2026-10-04, run in a clone on the build box (Node 22.19.0, `npm ci`); CI on `main` green after #132 |
 | `npm run typecheck` | clean in all four workspaces (engine, sync, mobile, server) |
 | `npm test` | **engine 365, sync 19, mobile 773, server 90; 1,247 tests, 0 failing** (test files: engine 20, sync 1, mobile 77, server 5) |

@@ -28,6 +28,15 @@ export const GYM_SPLIT_TEMPLATES: Template[] = [
     ],
   }),
   tpl({
+    id: "ppl_upper_4", days: 4, en: "Push / Pull / Legs / Upper", ar: "دفع / سحب / أرجل / علوي", level: "intermediate", gear: "gym", goal: "hypertrophy",
+    schedule: [
+      day("Push", "دفع", [x("bench_press", 3, 6, true), x("shoulder_press_db", 3, 8), x("incline_db_press", 3, 8), x("lateral_raise_db", 3, 10), x("triceps_pushdown", 3, 8)]),
+      day("Pull", "سحب", [x("lat_pulldown", 3, 8, true), x("seated_cable_row", 3, 8), x("db_row", 3, 8), x("face_pull", 3, 8), x("db_curl", 3, 8), x("hammer_curl", 2, 8)]),
+      day("Legs", "أرجل", [x("back_squat", 3, 8, true), x("romanian_deadlift", 3, 8), x("leg_press", 3, 8), x("leg_curl", 3, 8), x("leg_extension", 3, 8), x("calf_raise", 3, 8)]),
+      day("Upper", "علوي", [x("chest_press_machine", 3, 10), x("assisted_pullup", 3, 6), x("machine_shoulder_press", 3, 10), x("seated_row_machine", 3, 10), x("cable_fly", 2, 12), x("rear_delt_fly_db", 2, 12), x("cable_curl", 2, 10), x("overhead_triceps_cable", 2, 10)]),
+    ],
+  }),
+  tpl({
     id: "phul_4", days: 4, en: "Power + hypertrophy upper / lower, 4 days (PHUL-style)", ar: "قوة + تضخيم علوي / سفلي، 4 أيام (على طريقة PHUL)", level: "intermediate", gear: "gym", goal: "strength",
     schedule: [
       day("Power upper", "علوي قوة", [x("bench_press", 4, 4, true, 6), x("barbell_row", 3, 5, false, 8), x("incline_db_press", 3, 6), x("lat_pulldown", 2, 8), x("overhead_press_barbell", 3, 5, false, 8), x("db_curl", 2, 8), x("skullcrusher", 2, 8)]),

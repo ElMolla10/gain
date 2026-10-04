@@ -65,7 +65,7 @@ Sequencing rule: **no new features until the core loop works on a real Android p
 
 ## Freeze list (nothing here is started, promised or reviewed until Pilot validated)
 
-- **New programme templates** (the 47 stay as they are; no new ones, no re-tuning).
+- **New programme templates** (the 47 stay as they are; no re-tuning; no new ones except `ppl_upper_4`, added in v0.19.0 on Mohamed's explicit request, now 48 templates in all).
 - **AI / model layer** (Step 23). Nothing calls a model; the guardrail code stays as tests only.
 - **Billing implementation of any kind.** There is none and none is planned; GAIN is free (PRODUCT.md).
 - **Further cosmetic redesigns** (the v0.16 lime identity stays until a phone shows a real problem; fix usability bugs, do not restyle).

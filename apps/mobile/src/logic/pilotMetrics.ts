@@ -6,7 +6,14 @@
  * Choices the doc leaves open (stated here so they can be argued with): "local time of the phone" is a minutes-east-of-UTC offset given by the
  * caller (a backup does not record it); "the load actually logged" for a target is the HEAVIEST non-warm-up, non-drop, non-rejected set of that
  * exercise line in the target's session; "same as target" means within 0.01 kg of the app's own target load.
+ *
+ * Like the engine, history is only comparable on the same exercise, the same gym and the same setup (`lineKey`): the "repeat the last load"
+ * baseline uses the previous finished session of the target's own line, never the same exercise at another gym or in another setup.
+ * Loads are compared in EFFECTIVE-load terms: for an assisted exercise the number logged is the assistance, which LOWERS the load, so the
+ * heaviest set is the one with the least assistance and "more" means less assistance; with a bodyweight entry the effective load is
+ * bodyweight - assistance (or bodyweight + added), without any it is the signed load relative to bodyweight (-assistance / +added).
  */
+import { effectiveLoad, lineKey, type SetupType } from "@gain/engine";
 import type { BackupFile } from "./backup";
 
 const DAY = 86_400_000;
@@ -49,6 +56,7 @@ export interface LifterMetrics {
 }
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const asSetup = (v: unknown): SetupType => (v === "assisted" || v === "bodyweight_plus_added" ? v : "free");
 const live = (r: Row) => r.deleted_at === null || r.deleted_at === undefined;
 
 export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; sameKg?: number } = {}): LifterMetrics {
@@ -76,10 +84,42 @@ export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; 
   }
   for (const w of weeks) w.active = w.sessions > 0;
 
-  // Heaviest counted working set per (session, line).
+  // Which exercise, gym and setup a line_id stands for (the engine's lineKey). A line missing from the backup falls back to its own id plus the
+  // exercise's setup, so older or partial files still work; they just cannot be compared across gyms.
+  const lineRows = new Map((b.tables.exercise_line ?? []).filter(live).map((l) => [String(l.id), l] as const));
+  const exerciseSetup = new Map((b.tables.exercise ?? []).map((e) => [String(e.id), asSetup(e.setup)] as const));
+  const keyOfLine = (lineId: string, exerciseId: string): { key: string; setup: SetupType } => {
+    const l = lineRows.get(lineId);
+    if (l) {
+      const setup = asSetup(l.setup);
+      return { key: lineKey({ exerciseId: String(l.exercise_id), gymId: String(l.gym_id), setup }), setup };
+    }
+    return { key: `line:${lineId}`, setup: exerciseSetup.get(exerciseId) ?? "free" };
+  };
+  // Bodyweight at a moment: the latest entry at or before it, else the earliest entry; null when the backup has none (then loads are compared
+  // relative to bodyweight, which is the same thing within one session).
+  const bwEntries = (b.tables.bodyweight_entry ?? [])
+    .filter(live)
+    .map((e) => ({ at: num(e.measured_at), kg: num(e.weight_kg) }))
+    .filter((e): e is { at: number; kg: number } => e.at !== null && e.kg !== null && e.kg > 0)
+    .sort((x, y) => x.at - y.at);
+  const bodyweightAt = (ms: number): number | null => {
+    if (bwEntries.length === 0) return null;
+    let kg = bwEntries[0]!.kg;
+    for (const e of bwEntries) if (e.at <= ms) kg = e.kg;
+    return kg;
+  };
+  /** Effective load: larger = harder, for every setup. */
+  const effective = (setup: SetupType, load: number, at: number): number => {
+    const bw = bodyweightAt(at);
+    if (bw !== null) return effectiveLoad(setup, load, bw) ?? load;
+    return setup === "assisted" ? -load : load;
+  };
+  const sessionFinish = new Map(sessions.map((s) => [String(s.id), num(s.finished_at)] as const));
+
+  // Heaviest (highest effective load) counted working set per (session, line_id), and per (session, lineKey) for the baseline.
   const logged = new Map<string, number>();
-  // Heaviest counted working set per (session, exercise), for the baseline.
-  const loggedByExercise = new Map<string, number>();
+  const loggedByLine = new Map<string, number>();
   for (const st of (b.tables.workout_set ?? []).filter(live)) {
     if (st.is_warmup === 1 || st.outlier_status === "rejected") continue;
     let tags: unknown = [];
@@ -87,20 +127,22 @@ export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; 
     if (Array.isArray(tags) && tags.includes("drop")) continue;
     const load = num(st.load);
     if (load === null) continue;
+    const { key: lk, setup } = keyOfLine(String(st.line_id), String(st.exercise_id));
+    const eff = effective(setup, load, sessionFinish.get(String(st.session_id)) ?? exportedAt);
     const key = `${st.session_id}|${st.line_id}`;
-    logged.set(key, Math.max(logged.get(key) ?? -Infinity, load));
-    const exKey = `${st.session_id}|${st.exercise_id}`;
-    loggedByExercise.set(exKey, Math.max(loggedByExercise.get(exKey) ?? -Infinity, load));
+    logged.set(key, Math.max(logged.get(key) ?? -Infinity, eff));
+    const exKey = `${st.session_id}|${lk}`;
+    loggedByLine.set(exKey, Math.max(loggedByLine.get(exKey) ?? -Infinity, eff));
   }
   const finishedAt = new Map(everFinished.map((s) => [String(s.id), num(s.finished_at)!] as const));
   const byFinish = [...everFinished].sort((a, b2) => num(b2.finished_at)! - num(a.finished_at)!);
-  /** The load "repeat last" would give for an exercise before a session: the newest earlier finished session that has a counted set of it. */
-  const previousLoad = (sessionId: string, exerciseId: string): number | null => {
+  /** The effective load "repeat last" would give for a line before a session: the newest earlier finished session that has a counted set of that same line. */
+  const previousLoad = (sessionId: string, lk: string): number | null => {
     const at = finishedAt.get(sessionId);
     if (at === undefined) return null;
     for (const s of byFinish) {
       if (num(s.finished_at)! >= at || s.id === sessionId) continue;
-      const v = loggedByExercise.get(`${s.id}|${exerciseId}`);
+      const v = loggedByLine.get(`${s.id}|${lk}`);
       if (v !== undefined) return v;
     }
     return null;
@@ -115,14 +157,17 @@ export function computeLifterMetrics(b: BackupFile, opts: { tzMinutes?: number; 
     const target = num(t.load);
     const did = logged.get(`${t.session_id}|${t.line_id}`);
     if (target !== null && did !== undefined) {
+      const { key: lk, setup } = keyOfLine(String(t.line_id), String(t.exercise_id));
+      const at = sessionFinish.get(String(t.session_id)) ?? exportedAt;
+      const targetEff = effective(setup, target, at);
       row.comparable++;
-      if (Math.abs(did - target) <= sameKg) row.same++;
-      else if (did > target) row.more++;
+      if (Math.abs(did - targetEff) <= sameKg) row.same++;
+      else if (did > targetEff) row.more++;
       else row.less++;
-      const prev = previousLoad(String(t.session_id), String(t.exercise_id));
+      const prev = previousLoad(String(t.session_id), lk);
       if (prev !== null) {
         row.both++;
-        if (Math.abs(did - target) <= sameKg) row.bothAppSame++;
+        if (Math.abs(did - targetEff) <= sameKg) row.bothAppSame++;
         if (Math.abs(did - prev) <= sameKg) row.bothRepeatSame++;
       }
     }

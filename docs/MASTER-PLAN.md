@@ -1,6 +1,6 @@
 # GAIN master plan
 
-Rewritten 2026-10-03 (Cairo time) from the code on `main` at `cd97b06` (v0.18.0). Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Roadmap (one-page version of this plan): [ROADMAP.md](ROADMAP.md). Everything that already shipped, release by release, with the old milestone map and older test runs: [RELEASE-HISTORY.md](RELEASE-HISTORY.md).
+Rewritten 2026-10-03 (Cairo time) from the code on `main` at `cd97b06` (v0.18.0); updated 2026-10-04 for v0.19.0 (`ppl_upper_4` template, "program" spelling, Mohamed's reported priorities). Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Roadmap (one-page version of this plan): [ROADMAP.md](ROADMAP.md). Everything that already shipped, release by release, with the old milestone map and older test runs: [RELEASE-HISTORY.md](RELEASE-HISTORY.md).
 
 **GAIN is completely free** (Android first; Arabic and English). The single authoritative statement of what that means is "Free for everyone" in [PRODUCT.md](PRODUCT.md); this plan does not restate it or add to it. Nothing in this plan is gated, priced or tiered, and no billing work is planned.
 
@@ -80,15 +80,15 @@ Allowed while frozen: fixes for bugs found on a device or in the pilot, data-saf
 
 | What | Result |
 | --- | --- |
-| Commit | `cd97b06` (`main`, v0.18.0, versionCode 18) |
-| Date | 2026-10-03, run in a fresh clone on the build box (Node 22.19.0, `npm ci`) |
+| Commit | `f5b948b` plus the v0.19.0 version-bump commit (`main`, v0.19.0, versionCode 19) |
+| Date | 2026-10-04, run in a fresh clone on the build box (Node 22.19.0, `npm ci`) |
 | `npm run typecheck` | clean in all four workspaces (engine, sync, mobile, server) |
-| `npm test` | **engine 365, sync 19, mobile 736, server 90; 1,210 tests, 0 failing** (test files: engine 20, sync 1, mobile 73, server 5) |
+| `npm test` | **engine 365, sync 19, mobile 747, server 90; 1,221 tests, 0 failing** (test files: engine 20, sync 1, mobile 75, server 5) |
 | What this is | Node unit and integration tests only; SQLite stands in for the phone's SQLite and for D1. **These are not phone tests.** |
 
 CI runs `typecheck` and `test` on every PR. Older runs are in [RELEASE-HISTORY.md](RELEASE-HISTORY.md) section 5. Update this table (and only this table) when a new check is run.
 
-### Status by screen (current UI: v0.16 electric-lime identity, as of v0.18.0)
+### Status by screen (current UI: v0.16 electric-lime identity, as of v0.19.0)
 
 **On a phone: no row below has ever been run on a device.** "Built" means code exists and the logic is unit-tested on Node; layout, keyboard, fonts, RTL, TalkBack, performance and delivery are all unseen. Screen design: [DESIGN.md](DESIGN.md) (web-rendered screenshots in `docs/design-screens/` are not phone screenshots). The four bottom tabs are **Today, Plan, Progress, Settings**; the logger and Finish open from Today.
 
@@ -428,7 +428,7 @@ After G4 (not planned in detail): launch to people Mohamed can reach (Step 27), 
 
 The old line here ("migrates 1 to 3") was written at v0.3.0 and is obsolete. **The client database is at schema version 9** (`LATEST_VERSION`, the last of nine numbered migrations in `apps/mobile/src/db/migrations.ts`; there is no `db/migrations` folder). The sync server's D1 schema is separate (`apps/server/migrations`, latest `0003_generation.sql`) and is not part of the on-phone upgrade.
 
-Published releases by the schema they leave on a phone (from the tags; also in RELEASE-HISTORY.md): v0.1.0 = 1, v0.2.0 = 2, v0.3.0 and v0.4.0 = 3, v0.5.0 to v0.8.0 = 5, v0.9.0 = 6, v0.10.0 = 7, v0.11.0 and v0.12.0 = 8, v0.13.0 to v0.18.0 = 9. Library rows, exercise twins and settings are topped up by app code at start, not by migrations, so they must be exercised by a real update as well.
+Published releases by the schema they leave on a phone (from the tags; also in RELEASE-HISTORY.md): v0.1.0 = 1, v0.2.0 = 2, v0.3.0 and v0.4.0 = 3, v0.5.0 to v0.8.0 = 5, v0.9.0 = 6, v0.10.0 = 7, v0.11.0 and v0.12.0 = 8, v0.13.0 to v0.19.0 = 9. Library rows, exercise twins and settings are topped up by app code at start, not by migrations, so they must be exercised by a real update as well.
 
 - **Supported upgrade sources (proposal, Mohamed to confirm):** every release a real phone could still have, one representative per schema: v0.4.0 (3), v0.8.0 (5), v0.9.0 (6), v0.10.0 (7), v0.12.0 (8), v0.17.0 (9), and each future release over v0.18.0. v0.1.0 and v0.2.0 (schemas 1 and 2) are not in the proposed set; if any phone still runs them, test that phone, otherwise say "not supported" in the install guide. Phones above version 9 (a newer app than the one installed) are refused by design, not downgraded.
 - **What exists today (Node only):** `apps/mobile/test/safety.test.ts` builds a database at each schema 1 to 8 using the *current* code's migration list truncated, writes a tiny hand-made history (3 sessions, 9 sets, one program) and checks that migrating to 9 keeps the rows, integrity and foreign keys. That proves the SQL steps, not that a real release's database upgrades. It uses invented rows, not a real user's data. (OFFLINE-SAFETY.md's "v1..v6 to v7" line was stale and is corrected.)

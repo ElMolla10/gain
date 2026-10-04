@@ -2,7 +2,7 @@
   "expo": {
     "name": "GAIN",
     "slug": "gain",
-    "version": "0.18.0",
+    "version": "0.19.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "backgroundColor": "#10120E",
@@ -50,7 +50,7 @@
     },
     "android": {
       "package": "app.gain.mobile",
-      "versionCode": 18,
+      "versionCode": 19,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": ["REQUEST_INSTALL_PACKAGES"],
       "blockedPermissions": [

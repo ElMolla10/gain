@@ -57,7 +57,7 @@ export async function makePhone(w: World, opts: { skewMs?: number; ip?: string; 
     await repos.topUpLibrary();
     await repos.setSetting("onboarding_state", "done");
   };
-  /** Log and finish one workout on the next day of the programme. */
+  /** Log and finish one workout on the next day of the program. */
   const trainOnce = async (load = 50, reps = 10) => {
     const gymId = (await repos.getActiveGymId())!;
     const gym = await repos.loadGymFingerprint(gymId);

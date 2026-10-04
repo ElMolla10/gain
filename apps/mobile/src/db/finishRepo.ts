@@ -154,7 +154,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     FROM target t JOIN exercise e ON e.id = t.exercise_id WHERE t.deleted_at IS NULL`;
 
   async function getTargets(sessionId: string): Promise<TargetRow[]> {
-    // Programme order (the exercise's position in that day), not insertion order.
+    // Program order (the exercise's position in that day), not insertion order.
     const rows = await db.all<RawTarget>(
       `${TARGET_SELECT.replace("FROM target t JOIN exercise e ON e.id = t.exercise_id", "FROM target t JOIN exercise e ON e.id = t.exercise_id JOIN session s ON s.id = t.session_id LEFT JOIN programme_day_exercise pde ON pde.programme_day_id = s.programme_day_id AND pde.exercise_id = t.exercise_id AND pde.deleted_at IS NULL")}
        AND t.session_id = ? ORDER BY pde.position, e.name_en`,
@@ -174,7 +174,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   }
 
   /**
-   * The next session is written at the door: when a workout finishes, the next programme day gets a planned session
+   * The next session is written at the door: when a workout finishes, the next program day gets a planned session
    * and one target per exercise, each with its reason and logged inputs. Idempotent: existing targets are kept
    * (so accepted / edited / rejected choices are never overwritten); calling it again changes nothing.
    * Returns null when there is no next day or that day is already in progress.
@@ -185,7 +185,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return planNextSession(finished.gym_id);
   }
 
-  /** Plans the next (suggested) programme day at this gym: a planned session plus a target per exercise. Same rules as writeNextSessionTargets. */
+  /** Plans the next (suggested) program day at this gym: a planned session plus a target per exercise. Same rules as writeNextSessionTargets. */
   async function planNextSession(gymId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
     const next = await repos.getNextDay();
     if (!next) return null;
@@ -193,10 +193,10 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   }
 
   /**
-   * Plans ONE day of the active programme (the suggested one, or the one the lifter chose on Today): a planned session with a target per
+   * Plans ONE day of the active program (the suggested one, or the one the lifter chose on Today): a planned session with a target per
    * exercise. Only one planned session exists at a time, so planned sessions for other days (a suggestion the lifter skipped, a day that
    * was missed) are voided: missed workouts never stack up. Finished and in-progress sessions are never touched. Null when that day's
-   * workout is already in progress, or the day is not part of the active programme.
+   * workout is already in progress, or the day is not part of the active program.
    */
   async function planDay(dayId: string, gymId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
     const active = await repos.getLatestProgrammeVersion();

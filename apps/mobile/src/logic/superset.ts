@@ -1,6 +1,6 @@
 /**
- * Order, grouping and rest-timer rules for today's list of exercises: programme slots in programme order, exercises the lifter added
- * after them, and supersets pulled next to each other. Pure, so it is tested without a phone. Nothing here touches the programme.
+ * Order, grouping and rest-timer rules for today's list of exercises: program slots in program order, exercises the lifter added
+ * after them, and supersets pulled next to each other. Pure, so it is tested without a phone. Nothing here touches the program.
  */
 export interface SlotState {
   slot: string;
@@ -15,7 +15,7 @@ export type StateMap = Record<string, Partial<SlotState> | undefined>;
 const SS = "ss-";
 
 /**
- * Slots in the order they are shown. `programmeSlots` = the day's exercises in programme order. Added exercises follow, by the order they
+ * Slots in the order they are shown. `programmeSlots` = the day's exercises in program order. Added exercises follow, by the order they
  * were added. Removed ones are left out. The members of a superset (2 or more shown exercises with the same group) are shown together,
  * at the place of the first member, keeping their own relative order.
  */

@@ -3,7 +3,7 @@
 Status: **built and unit-tested; never opened on a phone.** Every Arabic name and alias is a DRAFT (see [ARABIC-REVIEW-SHEET.md](ARABIC-REVIEW-SHEET.md)). English names follow Hevy's "Name (Equipment)" style but were **not checked against Hevy's app or list** (see "What is not verified").
 
 ## What ships
-- **607 exercises**: 50 that shipped before v0.12.0 (20 sample-programme exercises + 30 draft library rows, names unchanged) plus **557 new rows**. Counts are asserted by `apps/mobile/test/library.test.ts` (>= 500 total, >= 450 added by the library lists).
+- **607 exercises**: 50 that shipped before v0.12.0 (20 sample-program exercises + 30 draft library rows, names unchanged) plus **557 new rows**. Counts are asserted by `apps/mobile/test/library.test.ts` (>= 500 total, >= 450 added by the library lists).
 - Spread by picker group (primary muscle): chest 55, back 75 (lats, upper back, lower back), shoulders 71 (front, side, rear delts), biceps 36, triceps 42, forearms 25, quads 72, hamstrings 39, glutes 31, calves 15, core 68 (abs, obliques), traps 11, neck 8, hips 19 (adductors, abductors, hip flexors), full body 40. A test requires every group >= 8 rows.
 - Spread by gear: barbell 100, dumbbell 102, cable 86, machine 65, plate-loaded 38, Smith 24, kettlebell 25, band 30, EZ bar 5, trap bar 6, bodyweight 110, suspension 10, assisted 6 (test: every gear >= 5).
 - Setups: 481 free, 120 bodyweight + added, 6 assisted. Ceiling classes: 406 upper (10), 191 leg (12), 10 lateral raise (15).
@@ -55,6 +55,6 @@ Names and metadata only. No descriptions, cues, images or video were copied from
 
 A few movements were shipped twice: once under an older GAIN name and once under the Hevy-style name (for example "Conventional Deadlift" and "Deadlift (Barbell)"). The pairs are listed in `apps/mobile/src/db/library/equivalents.ts` (9 pairs; identical movement, gear, muscle and setup only. Variants such as single-arm, incline, rope or lying stay separate).
 
-**Nothing is merged, renamed or deleted.** Phones keep both rows and all history on either. The only effect: when a file import's title matches a row that has no use on this phone (no logged sets, no gym line, no programme slot) and its twin does, the import suggests the twin that is in use, so one lift does not split into two histories. The lifter can still pick another exercise on the import screen. If neither is in use, the exact name match is kept.
+**Nothing is merged, renamed or deleted.** Phones keep both rows and all history on either. The only effect: when a file import's title matches a row that has no use on this phone (no logged sets, no gym line, no program slot) and its twin does, the import suggests the twin that is in use, so one lift does not split into two histories. The lifter can still pick another exercise on the import screen. If neither is in use, the exact name match is kept.
 
 Not done: hiding a twin in the picker, or moving history from one row to the other. Both would change what a phone already shows and need a decision (and a real-phone check) first.

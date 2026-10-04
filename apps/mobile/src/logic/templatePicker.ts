@@ -3,7 +3,7 @@ import { daysAvailable, facetCounts, filterTemplates, groupByDays, NO_FILTER, ty
 import { TEMPLATE_GEARS, TEMPLATE_GOALS, TEMPLATE_LEVELS, TEMPLATE_VENUES, type Template } from "./templateTypes";
 
 /**
- * The programme picker as data: which filter chips exist, how many programmes each would show, which are greyed out, and the
+ * The program picker as data: which filter chips exist, how many programs each would show, which are greyed out, and the
  * grouped list. Pure, so the screens stay thin and the behaviour is tested without rendering.
  */
 export interface FacetOption {

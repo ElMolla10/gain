@@ -9,7 +9,7 @@ async function setup() {
   await ctx.repos.seedIfNeeded();
   const gymId = (await ctx.repos.getActiveGymId())!;
   const gym = await ctx.repos.loadGymFingerprint(gymId);
-  /** Train the next programme day; `plan` maps exercise name to [load, reps, warmup?] sets. */
+  /** Train the next program day; `plan` maps exercise name to [load, reps, warmup?] sets. */
   const train = async (plan: Record<string, [number, number, boolean?][]>) => {
     // The day that holds the first exercise of the plan (bench is on Upper A only).
     const wanted = Object.keys(plan)[0]!;

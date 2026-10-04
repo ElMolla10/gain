@@ -9,7 +9,7 @@ import type { Template } from "./templateTypes";
 export * from "./templateTypes";
 
 /**
- * Programme templates built ONLY from the exercises already in the library.
+ * Program templates built ONLY from the exercises already in the library.
  *
  * REVIEW STATUS: every template here is `reviewed: false`. PRODUCT.md says a trainer reviews templates before any coaching
  * claim is made; no trainer has reviewed these yet, so the app labels them "draft, not yet reviewed by a trainer". They are

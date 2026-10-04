@@ -73,7 +73,7 @@ export function createRepos(db: Db, deps: Deps) {
     await setSetting("rep_ceilings", JSON.stringify(stored));
     return mergeRepCeilings(stored);
   }
-  /** Set (or clear with null) the rep ceiling of ONE lift in the programme. Null falls back to the default for its kind. */
+  /** Set (or clear with null) the rep ceiling of ONE lift in the program. Null falls back to the default for its kind. */
   async function setLiftRepCeiling(programmeDayExerciseId: string, ceiling: number | null): Promise<void> {
     if (ceiling !== null) validateRepCeiling(ceiling);
     await db.run("UPDATE programme_day_exercise SET rep_ceiling = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [ceiling, now(), programmeDayExerciseId]);
@@ -125,7 +125,7 @@ export function createRepos(db: Db, deps: Deps) {
         );
         for (const [ei, ex] of day.exercises.entries()) {
           const exerciseId = exId.get(ex.key);
-          if (!exerciseId) throw new Error(`Seed programme refers to unknown exercise ${ex.key}`);
+          if (!exerciseId) throw new Error(`Seed program refers to unknown exercise ${ex.key}`);
           await db.run(
             `INSERT INTO programme_day_exercise (id, programme_day_id, exercise_id, position, sets, rep_min, rep_max, is_goal_lift, track_effort, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
@@ -190,9 +190,9 @@ export function createRepos(db: Db, deps: Deps) {
     };
   }
 
-  // ---- programme / Today ----------------------------------------------------------------------------------
+  // ---- program / Today ----------------------------------------------------------------------------------
   /**
-   * The current version of the active programme (setting `active_programme_id`; before one is set, the oldest programme).
+   * The current version of the active program (setting `active_programme_id`; before one is set, the oldest program).
    * Older versions stay in the database so the sessions logged on them remain readable.
    */
   async function getLatestProgrammeVersion(): Promise<{ versionId: string; programmeId: string; programmeName: string; version: number; isSample: boolean } | null> {
@@ -276,11 +276,11 @@ export function createRepos(db: Db, deps: Deps) {
       measure: r.measure,
       pattern: r.pattern,
       sets: r.sets,
-      /** Bottom of the programme range, never above the ceiling. */
+      /** Bottom of the program range, never above the ceiling. */
       repMin: Math.min(r.rep_min, policy.repCeiling),
       /** Top of the range = the rep ceiling (what the Today screen shows). */
       repMax: policy.repCeiling,
-      /** The range the programme itself was written with, before the ceiling replaced its top (P05: shown, never silent). */
+      /** The range the program itself was written with, before the ceiling replaced its top (P05: shown, never silent). */
       programmeRepMin: r.rep_min,
       programmeRepMax: r.rep_max,
       repCeiling: policy.repCeiling,
@@ -293,8 +293,8 @@ export function createRepos(db: Db, deps: Deps) {
   }
 
   /**
-   * An exercise the lifter added to today's workout without it being in the programme: the same shape as a programme exercise with plain
-   * defaults (3 sets, rep range 8 up to the rep ceiling for this kind of lift, not a goal lift, no effort tracking). Never stored in the programme.
+   * An exercise the lifter added to today's workout without it being in the program: the same shape as a program exercise with plain
+   * defaults (3 sets, rep range 8 up to the rep ceiling for this kind of lift, not a goal lift, no effort tracking). Never stored in the program.
    */
   async function adHocDayExercise(exerciseId: string): Promise<DayExercise | null> {
     const r = await db.get<{ id: string; name_en: string; name_ar: string; aliases_ar_json: string; equipment: GymLoadSpec["equipment"]; setup: "free" | "assisted" | "bodyweight_plus_added"; measure: Measure; pattern: string }>(
@@ -333,7 +333,7 @@ export function createRepos(db: Db, deps: Deps) {
   }
 
   /**
-   * The next programme day in rotation: the day after the most recently FINISHED session's day, else the first day.
+   * The next program day in rotation: the day after the most recently FINISHED session's day, else the first day.
    * Missed workouts are not completed workouts, so only finished sessions advance the rotation.
    */
   async function getNextDay(): Promise<{ versionId: string; programmeName: string; day: { id: string; name: string; position: number }; dayCount: number } | null> {
@@ -341,7 +341,7 @@ export function createRepos(db: Db, deps: Deps) {
     if (!v) return null;
     const days = await listDays(v.versionId);
     if (days.length === 0) return null;
-    // Rotation continues across programme versions: the day after the last finished day's POSITION (any version of this programme).
+    // Rotation continues across program versions: the day after the last finished day's POSITION (any version of this program).
     const last = await db.get<{ position: number }>(
       `SELECT pd.position AS position FROM session s
        JOIN programme_day pd ON pd.id = s.programme_day_id

@@ -9,8 +9,8 @@ import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, FilterPanel } from "../ui";
 
 /**
- * Programme templates grouped by days per week, with filters for days, Home / Gym, the equipment you have, goal and level.
- * Used by the first-run setup (days already known, so no days filter) and the programme switcher. Nothing is chosen for you.
+ * Program templates grouped by days per week, with filters for days, Home / Gym, the equipment you have, goal and level.
+ * Used by the first-run setup (days already known, so no days filter) and the program switcher. Nothing is chosen for you.
  */
 export function TemplateBrowser(props: {
   templates: readonly Template[];

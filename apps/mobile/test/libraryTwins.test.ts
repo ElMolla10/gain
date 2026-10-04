@@ -55,14 +55,14 @@ describe("library twins (same movement under two seed keys)", () => {
     const s = await setup();
     const legacy = await s.id("deadlift");
     const hevyStyle = await s.id("deadlift_barbell");
-    // the lifter's programme plans the older "Conventional Deadlift" row
+    // the lifter's program plans the older "Conventional Deadlift" row
     const active = (await s.programmes.getActive())!;
     const draft = await s.programmes.loadDraft(active.versionId);
     await s.programmes.saveNewVersion(active.programmeId, addExercise(draft, 0, newExercise(legacy, { sets: 3, repMin: 3, repMax: 6 })));
     const before = await s.db.all("SELECT id, seed_key, name_en, updated_at, deleted_at FROM exercise ORDER BY id");
     const p0 = await s.imports.preview(parseImport(csv("Deadlift (Barbell)", "Sep 29, 2026")));
     const t0 = p0.titles.find((t) => t.title === "Deadlift (Barbell)")!;
-    // the sample programme already plans the older Conventional Deadlift, so that one is in use and the other is not
+    // the sample program already plans the older Conventional Deadlift, so that one is in use and the other is not
     const used = await s.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM programme_day_exercise WHERE exercise_id = ? AND deleted_at IS NULL", [legacy]);
     expect(used!.n).toBeGreaterThan(0);
     expect((await s.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM programme_day_exercise WHERE exercise_id = ? AND deleted_at IS NULL", [hevyStyle]))!.n).toBe(0);

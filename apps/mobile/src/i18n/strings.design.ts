@@ -18,7 +18,7 @@ export const enDesign = {
   "history.emptyAction": "Open Today",
   "trend.axis": "{from} to {to}",
   "trend.chartLabel": "{dir}. {n} workouts, oldest first.",
-  "prog.more": "Programme details",
+  "prog.more": "Program details",
   "today.meta": "{sets} sets · ~{min} min",
   "today.targets": "Next targets",
   "today.noTargetsYet": "Targets appear here after your first finished workout.",

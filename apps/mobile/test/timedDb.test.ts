@@ -22,7 +22,7 @@ async function setup() {
   const gymId = (await ctx.repos.getActiveGymId())!;
   const gym = await ctx.repos.loadGymFingerprint(gymId);
   const idOf = async (key: string) => (await ctx.db.get<{ id: string }>("SELECT id FROM exercise WHERE seed_key = ? AND deleted_at IS NULL", [key]))!.id;
-  /** Put an exercise on every day of a new programme version so the next session carries a target for it. */
+  /** Put an exercise on every day of a new program version so the next session carries a target for it. */
   const planOnDayOne = async (exerciseId: string, over = {}) => {
     const active = (await ctx.programmes.getActive())!;
     const draft = await ctx.programmes.loadDraft(active.versionId);

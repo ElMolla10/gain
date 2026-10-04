@@ -38,7 +38,7 @@ describe("short week data layer", () => {
     await expect(shortWeek.preview(9, null)).rejects.toBeInstanceOf(ShortWeekInvalid);
   });
 
-  it("apply saves a new programme version and remembers the original; goal lifts are never cut", async () => {
+  it("apply saves a new program version and remembers the original; goal lifts are never cut", async () => {
     const { shortWeek, programmes, active, bench } = await setup();
     const a = await shortWeek.apply(3, null, NOW);
     expect(a.originalVersionId).toBe(active.versionId);
@@ -52,7 +52,7 @@ describe("short week data layer", () => {
     await expect(shortWeek.apply(2, null, NOW)).rejects.toBeInstanceOf(ShortWeekActive);
   });
 
-  it("undo brings the original programme back as another new version", async () => {
+  it("undo brings the original program back as another new version", async () => {
     const { shortWeek, programmes, active, draft } = await setup();
     await shortWeek.apply(2, 30, NOW);
     expect((await shortWeek.undo()).restored).toBe(true);
@@ -73,7 +73,7 @@ describe("short week data layer", () => {
     expect(await shortWeek.getActive()).toBeNull();
   });
 
-  it("if the lifter edited the programme during the short week, their edit is kept", async () => {
+  it("if the lifter edited the program during the short week, their edit is kept", async () => {
     const { shortWeek, programmes, active } = await setup();
     const a = await shortWeek.apply(3, null, NOW);
     const d = await programmes.loadDraft(a.shortVersionId);
@@ -104,21 +104,21 @@ describe("short week data layer", () => {
   });
 });
 
-describe("short week + programme switch (known bug, fixed)", () => {
+describe("short week + program switch (known bug, fixed)", () => {
   async function otherProgramme(ctx: Awaited<ReturnType<typeof setup>>) {
     const exs = await ctx.programmes.listExercises();
     const draft = { name: "Other", days: [{ name: "Day X", exercises: [newExercise(exs[0]!.id, { isGoalLift: true }), newExercise(exs[1]!.id)] }, { name: "Day Y", exercises: [newExercise(exs[2]!.id)] }] };
     return { draft, made: await ctx.programmes.createProgramme(draft) };
   }
 
-  it("the short week stays with its programme: not shown, not reused as the original of the new one", async () => {
+  it("the short week stays with its program: not shown, not reused as the original of the new one", async () => {
     const ctx = await setup();
     const { shortWeek, programmes, active } = ctx;
     const a = await shortWeek.apply(2, null, NOW);
     const { draft, made } = await otherProgramme(ctx);
     expect((await programmes.getActive())!.programmeId).toBe(made.programmeId);
     expect(await shortWeek.getActive()).toBeNull();
-    // a preview on the new programme is built from the NEW programme, never from the old programme's original
+    // a preview on the new program is built from the NEW program, never from the old program's original
     const p = await shortWeek.preview(1, null);
     expect(p.programmeId).toBe(made.programmeId);
     expect(p.originalVersionId).toBe(made.versionId);
@@ -133,7 +133,7 @@ describe("short week + programme switch (known bug, fixed)", () => {
     expect((await shortWeek.getActive())!.id).toBe(a.id);
   });
 
-  it("when the week ends, a short week left on another programme is closed without touching the active programme or its plan", async () => {
+  it("when the week ends, a short week left on another program is closed without touching the active program or its plan", async () => {
     const ctx = await setup();
     const { shortWeek, programmes, repos, db, active, draft } = ctx;
     await shortWeek.apply(2, null, NOW);
@@ -141,9 +141,9 @@ describe("short week + programme switch (known bug, fixed)", () => {
     const planBefore = await db.all("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL");
     const r = await shortWeek.endIfExpired(NOW + 3 * DAY + 1000);
     expect(r).toEqual({ ended: true, restored: true });
-    expect((await programmes.getActive())!.programmeId).toBe(made.programmeId); // still the programme the lifter chose
+    expect((await programmes.getActive())!.programmeId).toBe(made.programmeId); // still the program the lifter chose
     expect(await db.all("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL")).toEqual(planBefore); // plan untouched
-    // the old programme is back to normal for when they return
+    // the old program is back to normal for when they return
     await programmes.setActiveProgramme(active.programmeId);
     expect(await programmes.loadDraft((await programmes.getActive())!.versionId)).toEqual(draft);
     expect(await shortWeek.getActive()).toBeNull();

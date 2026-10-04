@@ -6,7 +6,7 @@ import { validateDraft } from "../src/logic/programmeDraft";
 import { rebuildShortWeek } from "../src/logic/shortWeek";
 import { freshDb } from "./helpers";
 
-/** v0.19.0: the 4-day "Push / Pull / Legs / Upper" programme Mohamed asked for (no equivalent existed in the 47). */
+/** v0.19.0: the 4-day "Push / Pull / Legs / Upper" program Mohamed asked for (no equivalent existed in the 47). */
 const T = () => TEMPLATES.find((t) => t.id === "ppl_upper_4")!;
 const catalog = new Map(CATALOG.map((c) => [c.key, c]));
 const lib = new Map(CATALOG.map((c) => [c.key, { exerciseId: `id-${c.key}`, equipment: c.equipment }]));

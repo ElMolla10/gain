@@ -35,12 +35,12 @@ export const enFixes = {
   "jump.reps": "Same weight, one more rep: {load} × {reps}",
   "jump.micro": "Smaller step: {load} × {reps}",
   "range.line": "Reps: {min}-{max}. Load goes up when every set reaches {max}.",
-  "range.override.lift": "Your programme says {pmin}-{pmax}, but this lift's own rep ceiling is {max}, so that is where load goes up.",
-  "range.override.default": "Your programme says {pmin}-{pmax}, but the default rep ceiling for this kind of lift is {max} (Settings), so that is where load goes up. Set a ceiling on the lift to change it.",
-  "range.why": "Programme range {pmin}-{pmax}; rep ceiling in force {max} ({source}).",
+  "range.override.lift": "Your program says {pmin}-{pmax}, but this lift's own rep ceiling is {max}, so that is where load goes up.",
+  "range.override.default": "Your program says {pmin}-{pmax}, but the default rep ceiling for this kind of lift is {max} (Settings), so that is where load goes up. Set a ceiling on the lift to change it.",
+  "range.why": "Program range {pmin}-{pmax}; rep ceiling in force {max} ({source}).",
   "range.src.lift": "this lift's own ceiling",
   "range.src.default": "app-wide default for this kind of lift",
-  "why.warning.fewer_sets_than_planned": "Fewer sets were done at the top load than the programme prescribes, so last session did not count towards more load.",
+  "why.warning.fewer_sets_than_planned": "Fewer sets were done at the top load than the program prescribes, so last session did not count towards more load.",
   "why.weakestNote": "\"Reps\" for a session means the weakest set at its top load: the fewest reps in any working set at the heaviest load of that session. Load goes up when that weakest set reaches the ceiling and at least {n} set(s) were done at that load.",
 } as const;
 

@@ -67,7 +67,7 @@ const blank = (key: string, p: Prefill): SetRowDraft => ({ key, load: null, reps
 
 /**
  * Rows to show for one exercise: the sets already logged today (oldest first), then empty rows prefilled with today's target
- * until the programme's number of working sets is reached. Never invents numbers: with no target and no history the rows are empty.
+ * until the program's number of working sets is reached. Never invents numbers: with no target and no history the rows are empty.
  */
 export function initialRows(saved: SavedSet[], plannedSets: number, prefill: Prefill, newKey: () => string): SetRowDraft[] {
   const rows = saved.map(fromSaved);

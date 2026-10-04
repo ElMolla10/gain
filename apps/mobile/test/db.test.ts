@@ -72,7 +72,7 @@ describe("constraints", () => {
 });
 
 describe("seed (sample data)", () => {
-  it("seeds a labelled sample gym, ~20 exercises with Arabic names/aliases, and a sample programme", async () => {
+  it("seeds a labelled sample gym, ~20 exercises with Arabic names/aliases, and a sample program", async () => {
     const { db, repos } = await freshDb();
     expect(await repos.seedIfNeeded()).toEqual({ seeded: true });
     const gym = await db.get<{ name: string; is_sample: number }>("SELECT name, is_sample FROM gym");
@@ -198,7 +198,7 @@ describe("settings and Today", () => {
     expect(ex[0]!.nameAr).toMatch(/[\u0600-\u06FF]/);
     expect(ex[0]!.aliasesAr.length).toBeGreaterThan(0);
   });
-  it("the schema allows only one open session per programme day (no duplicate sessions)", async () => {
+  it("the schema allows only one open session per program day (no duplicate sessions)", async () => {
     const { repos, db } = await freshDb();
     await repos.seedIfNeeded();
     const next = (await repos.getNextDay())!;

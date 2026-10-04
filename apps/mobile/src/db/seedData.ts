@@ -1,5 +1,5 @@
 /**
- * SAMPLE DATA ONLY. Nothing here is real: the gym is a placeholder rack, the programme is a generic upper/lower example,
+ * SAMPLE DATA ONLY. Nothing here is real: the gym is a placeholder rack, the program is a generic upper/lower example,
  * and the Arabic names/aliases are a DRAFT that must be reviewed by Egyptian lifters/trainers before release.
  * Every sample row is stored with is_sample = 1 and named "(sample)" so it can never be mistaken for the user's data.
  */
@@ -71,7 +71,7 @@ export interface SeedDayExercise {
 }
 
 /**
- * SAMPLE programme: a generic 4-day upper/lower example, not a recommendation.
+ * SAMPLE program: a generic 4-day upper/lower example, not a recommendation.
  * The top of each range is the lift's default REP CEILING (the reps that earn more load): 10 upper body, 12 legs,
  * 15 lateral raises. The ceiling actually used is resolved from the exercise name and any per-lift edit, not from repMax.
  */

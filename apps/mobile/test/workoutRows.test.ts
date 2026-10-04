@@ -8,7 +8,7 @@ const target = { load: 60, reps: 8 };
 const s = (id: string, load: number, reps: number, warmup = false): SavedSet => ({ id, load, reps, rir: null, warmup });
 
 describe("workout rows (single list)", () => {
-  it("shows the programme's sets as rows with today's target as GHOST text (boxes empty), nothing invented without one", () => {
+  it("shows the program's sets as rows with today's target as GHOST text (boxes empty), nothing invented without one", () => {
     const rows = initialRows([], 3, target, key);
     expect(rows).toHaveLength(3);
     expect(rows.every((r) => r.load === null && r.reps === null && r.ghostLoad === 60 && r.ghostReps === 8 && !r.saved)).toBe(true);

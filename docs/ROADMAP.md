@@ -1,23 +1,23 @@
 # Roadmap
 
-The full plan (the "Now" list, the freeze list, the status by screen, numbered steps, gates, decisions, risks) lives in **[MASTER-PLAN.md](MASTER-PLAN.md)**. Start with its "Now" section. What already shipped, release by release (v0.1.0 to v0.18.0), the old milestone map and older test runs are in **[RELEASE-HISTORY.md](RELEASE-HISTORY.md)**.
+The full plan (the "Now" list, the freeze list, the status by screen, numbered steps, gates, decisions, risks) lives in **[MASTER-PLAN.md](MASTER-PLAN.md)**. Start with its "Now" section. What already shipped, release by release (v0.1.0 to v0.19.0), the old milestone map and older test runs are in **[RELEASE-HISTORY.md](RELEASE-HISTORY.md)**.
 
-**Where things stand (2026-10-03, v0.18.0, `main` cd97b06):** GAIN is completely free (see "Free for everyone" in [PRODUCT.md](PRODUCT.md)), Android first, Arabic and English. 18 pre-release APKs exist and **none has a recorded run on a real phone.** So the roadmap is no longer a list of future versions; it is four gates, and no new feature work happens until the first one is passed.
+**Where things stand (2026-10-04, v0.19.0):** GAIN is completely free (see "Free for everyone" in [PRODUCT.md](PRODUCT.md)), Android first, Arabic and English. 19 pre-release APKs exist. Mohamed reports (2026-10-04, **not independently verified**; no results are committed to the repo) that he installed v0.18.0 on his phone, ran the device checks, stored the signing key, approved the pilot templates and thresholds and arranged reviewers and pilot people, and that the Device verified gate passed. v0.19.0 itself has not been reported as run on a device. No new feature work happens until the pilot is validated, except the one template (`ppl_upper_4`) Mohamed explicitly asked for in v0.19.0.
 
-## Now (in this order)
+## Now (in this order; all five reported done by Mohamed on 2026-10-04, not independently verified)
 
 1. Install the current signed APK on a real Android phone and complete onboarding, import, log, finish, next target.
 2. Verify keyboard, screen lock, rest alerts, force-stop recovery and update-over-install without data loss.
 3. Back up the signing key and prove it can be recovered.
-4. Review Arabic, TalkBack, large text and the small set of programmes offered to pilot users (six proposed from the 47 templates).
+4. Review Arabic, TalkBack, large text and the small set of programs offered to pilot users (six proposed from the 47 templates).
 5. Run a local-only pilot with retention and usability criteria written first, recording why users override targets.
 
 ## Gates
 
 | Gate | Means |
 | --- | --- |
-| **G1. Device verified** | The core loop and the failure cases work on real Android phones; updates keep all data; the signing key is recoverable. |
-| **G2. Pilot ready** | Arabic, TalkBack and large text reviewed; pilot programmes chosen; criteria and consent written down; a non-technical person can install from the guide. |
+| **G1. Device verified** | *Reported passed by Mohamed 2026-10-04, not independently verified; no evidence committed.* The core loop and the failure cases work on real Android phones; updates keep all data; the signing key is recoverable. |
+| **G2. Pilot ready** | Arabic, TalkBack and large text reviewed; pilot programs chosen; criteria and consent written down; a non-technical person can install from the guide. |
 | **G3. Pilot validated** | A six-week, local-only pilot of about 10 lifters at one gym produced a written report that meets (or honestly misses) the criteria set beforehand. |
 | **G4. Store ready** | Play account, signed AAB, closed testing, accurate listing and data-safety form, privacy policy at a public URL with legal review. |
 

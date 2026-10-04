@@ -1,4 +1,4 @@
-/** Today: the lifter picks which of the programme's days to do. The rotation only SUGGESTS one; nothing is forced. */
+/** Today: the lifter picks which of the program's days to do. The rotation only SUGGESTS one; nothing is forced. */
 export interface DayLite {
   id: string;
   name: string;
@@ -10,7 +10,7 @@ export interface DayChoice extends DayLite {
   suggested: boolean;
 }
 
-/** Days in programme order with the suggested one marked. A suggestion that is not in the list marks nothing. */
+/** Days in program order with the suggested one marked. A suggestion that is not in the list marks nothing. */
 export const markSuggested = (days: DayLite[], suggestedId: string | null): DayChoice[] => days.map((d) => ({ ...d, suggested: d.id === suggestedId }));
 
 /**

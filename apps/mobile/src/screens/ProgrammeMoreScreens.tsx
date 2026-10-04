@@ -8,7 +8,7 @@ import type { ExposureRow } from "../logic/exposure";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, EmptyState, InlineStatus, LoadingState, Screen } from "../ui";
 
-/** Secondary views of the active programme, one tap from the Plan tab: weekly exposure per muscle, and saved versions. */
+/** Secondary views of the active program, one tap from the Plan tab: weekly exposure per muscle, and saved versions. */
 export function ProgrammeExposureScreen() {
   const { programmes } = useServices();
   const { t } = useI18n();

@@ -3,7 +3,7 @@ import { groupOfPattern, type MuscleGroup } from "./exposure";
 import type { DraftDay, DraftExercise, ProgrammeDraft } from "./programmeDraft";
 
 /**
- * Short-week rebuild: "I can train D days" and/or "I have M minutes" turns the normal programme into a smaller one for ONE week.
+ * Short-week rebuild: "I can train D days" and/or "I have M minutes" turns the normal program into a smaller one for ONE week.
  * Pure functions, no I/O. Nothing is cut silently: every cut is returned in `cuts` so the lifter sees the list before saving.
  *
  * Rules, in order of what is protected most:
@@ -22,7 +22,7 @@ export const MIN_ACCESSORY_SETS = 2;
 export const MIN_GOAL_SETS = 3;
 
 export interface RebuildOptions {
-  /** Days the lifter can train this week: 1 .. number of programme days. */
+  /** Days the lifter can train this week: 1 .. number of program days. */
   days: number;
   /** Minutes per session, or null for no limit. Estimated with `estimateDayMinutes` (sets + rest + warm-ups + moving between exercises). */
   minutes: number | null;
@@ -36,7 +36,7 @@ export interface RebuildOptions {
 export type CutKind = "day_dropped" | "exercise_removed" | "sets_reduced" | "moved";
 export interface Cut {
   kind: CutKind;
-  /** The day name in the ORIGINAL programme. */
+  /** The day name in the ORIGINAL program. */
   day: string;
   exerciseId?: string;
   fromSets?: number;

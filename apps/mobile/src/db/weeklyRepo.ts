@@ -38,7 +38,7 @@ const toStored = (r: Row): StoredReview => ({
 /**
  * Weekly one-decision review data layer. One review per training week, written once the week is over. It reads the lifter's logs,
  * runs the weekly rule, stores the proposal, and changes NOTHING until the lifter taps. Only a "move the date" proposal edits
- * anything (the goal's target date); the other proposals are recorded and shown, and the lifter applies them in the Programme tab.
+ * anything (the goal's target date); the other proposals are recorded and shown, and the lifter applies them in the Program tab.
  * Weeks are computed in the lifter's local time: pass `tzOffsetMs` (local minus UTC, in ms; `-getTimezoneOffset() * 60000` on a phone).
  */
 export function createWeeklyRepo(db: Db, deps: Deps, repos: Repos, goals: GoalRepo) {

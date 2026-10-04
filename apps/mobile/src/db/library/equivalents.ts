@@ -3,7 +3,7 @@
  *
  * Nothing is merged, renamed or deleted. A phone may already hold both rows with history on either, and that history stays exactly where
  * it is. The groups are used only to steer import title matching: when a title matches one row of a group but the lifter's own history or
- * programmes already sit on another row of the same group, the import suggests the row in use, so one lift does not split into two lines.
+ * programs already sit on another row of the same group, the import suggests the row in use, so one lift does not split into two lines.
  * The lifter can still change the suggestion on the import screen.
  *
  * Only identical movements are listed. Variants (single-arm, incline, rope, straight-bar, lying vs seated) are different lifts and stay apart.
@@ -30,7 +30,7 @@ export function equivalentsOf(seedKey: string | null | undefined): string[] {
 }
 
 /**
- * Which key an import should land on. `usage` is how many logged sets and programme lines each key already has on this phone.
+ * Which key an import should land on. `usage` is how many logged sets and program lines each key already has on this phone.
  * Keeps `matched` unless it is unused and a twin is used; with several used twins the busiest wins (the earlier key breaks a tie).
  */
 export function preferUsedTwin(matched: string, usage: ReadonlyMap<string, number>): string {

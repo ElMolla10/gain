@@ -3,19 +3,19 @@ import type { Template, TemplateGear, TemplateGoal, TemplateLevel, TemplateVenue
 /** Picker filters. `null` = no filter on that facet. */
 export interface TemplateFilter {
   days: number | null;
-  /** Home vs gym: Home = programmes that need only bodyweight, dumbbells or bands; Gym = all programmes that can be done in a gym, which includes the home ones. */
+  /** Home vs gym: Home = programs that need only bodyweight, dumbbells or bands; Gym = all programs that can be done in a gym, which includes the home ones. */
   venue: TemplateVenue | null;
-  /** "I have": a full gym covers everything; dumbbells / bands cover their own programmes plus the bodyweight ones; nothing covers the bodyweight ones only. */
+  /** "I have": a full gym covers everything; dumbbells / bands cover their own programs plus the bodyweight ones; nothing covers the bodyweight ones only. */
   gear: TemplateGear | null;
   goal: TemplateGoal | null;
   level: TemplateLevel | null;
 }
 export const NO_FILTER: TemplateFilter = { days: null, venue: null, gear: null, goal: null, level: null };
 
-/** True when a lifter who has `have` can do a programme that needs `needs`. Dumbbells and bands do not stand in for each other. */
+/** True when a lifter who has `have` can do a program that needs `needs`. Dumbbells and bands do not stand in for each other. */
 export const gearFits = (needs: TemplateGear, have: TemplateGear): boolean => have === "gym" || needs === have || needs === "bodyweight";
 
-/** Where a template can be done. Everything can be done at a gym; only bodyweight / dumbbell / band programmes can be done at home. */
+/** Where a template can be done. Everything can be done at a gym; only bodyweight / dumbbell / band programs can be done at home. */
 export const venuesOf = (t: Template): TemplateVenue[] => (t.gear === "gym" ? ["gym"] : ["home", "gym"]);
 export const usableAtHome = (t: Template): boolean => t.gear !== "gym";
 

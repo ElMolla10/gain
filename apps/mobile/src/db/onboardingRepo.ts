@@ -19,7 +19,7 @@ export type OnboardingState = "done" | "skipped" | null;
 
 export interface CompleteInput {
   profile: Profile;
-  /** The first programme, already shaped (from a template or built by the lifter). */
+  /** The first program, already shaped (from a template or built by the lifter). */
   programme: ProgrammeDraft;
   /**
    * Optional. Leave it out (what onboarding does) and a default gym is created silently from the profile's unit, unless the lifter
@@ -29,8 +29,8 @@ export interface CompleteInput {
 }
 
 /**
- * Onboarding data layer. `complete` is one step: it saves the answers, a default gym (made silently; refined later in the Gym tab) and the first programme, retires the
- * sample gym and sample programme when nothing was logged on them, and plans the first session, so there is no half-done state
+ * Onboarding data layer. `complete` is one step: it saves the answers, a default gym (made silently; refined later in the Gym tab) and the first program, retires the
+ * sample gym and sample program when nothing was logged on them, and plans the first session, so there is no half-done state
  * that shows a mix of sample and real data.
  */
 export function createOnboardingRepo(db: Db, deps: Deps, repos: Repos, gyms: GymRepo, programmes: ProgrammeRepo) {
@@ -47,7 +47,7 @@ export function createOnboardingRepo(db: Db, deps: Deps, repos: Repos, gyms: Gym
   }
 
   /**
-   * An install that already has the lifter's own data (a finished session, or a gym / programme that is not the sample) should not be
+   * An install that already has the lifter's own data (a finished session, or a gym / program that is not the sample) should not be
    * pushed through setup. Returns true when it marked the install as set up.
    */
   async function markExistingInstall(): Promise<boolean> {

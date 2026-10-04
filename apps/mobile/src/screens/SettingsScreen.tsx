@@ -18,7 +18,7 @@ import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "..
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
 
-/** The default rep ceilings (reps at which load goes up) per kind of lift. Per-lift overrides live on the programme row. */
+/** The default rep ceilings (reps at which load goes up) per kind of lift. Per-lift overrides live on the program row. */
 function CeilingsCard() {
   const { t } = useI18n();
   const { repos } = useServices();

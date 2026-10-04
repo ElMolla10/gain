@@ -15,7 +15,7 @@ describe("P12 loading / empty / error are different states", () => {
     expect(await runLoad(async () => Promise.reject(new Error("db")), seen)).toEqual({ kind: "error" });
     expect(seen).toHaveBeenCalledOnce();
   });
-  it("Today uses the three states and offers a retry; a failed read is no longer shown as 'no programme'", () => {
+  it("Today uses the three states and offers a retry; a failed read is no longer shown as 'no program'", () => {
     const today = src("screens/TodayScreen.tsx");
     expect(today).toContain("runLoad");
     expect(today).toContain('state.kind === "error"');

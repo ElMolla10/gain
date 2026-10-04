@@ -12,7 +12,7 @@ Everything is saved **on your phone**, in GAIN's private app storage (a SQLite d
 
 | Data | Why | Required? |
 | --- | --- | --- |
-| Workouts, sets (load, reps, effort), tags (warm-up, drop set, failure), exercise notes, programmes, gym load list | the product: logging and next-session targets | yes |
+| Workouts, sets (load, reps, effort), tags (warm-up, drop set, failure), exercise notes, programs, gym load list | the product: logging and next-session targets | yes |
 | Language, units, rest-timer, week-start and similar settings | the product | yes |
 | Goal (lift, bodyweight or muscle) and weekly review decisions | pace and weekly decision | optional |
 | Bodyweight entries, height, birthday | pace for a bodyweight goal; body-weight exercise loads. Health-adjacent, so optional. The birthday is stored but not used for anything yet. | optional |
@@ -28,7 +28,7 @@ Only through something you start:
 2. **Exports and shares:** JSON backup, CSV, coach-card PDF and the diagnostics report are created on the phone and handed to Android's share sheet. You pick the destination (WhatsApp, e-mail, Drive...). GAIN does not send them and cannot see where they went.
 3. **Android backup:** the app allows Android's own backup (decision D11 still open). If backup is on in your phone settings, Android/Google may keep a copy of the app data in your Google account. That is Android's feature; GAIN cannot see or control it. If we turn it off, the policy changes.
 
-4. **Back up and sync (Settings, OFF by default; Step 21):** only if you turn it on. GAIN uploads your training data (sessions, sets, programmes, targets, goals, settings; not the crash log) to a GAIN server on Cloudflare (`gain-sync.elmolla10.workers.dev`, data location not chosen by GAIN) and keeps it until you delete it. It is not end-to-end encrypted. The account is anonymous: a random id and a recovery-code hash. Without the code the backup cannot be reached. Turning it off keeps the data on your phone; "Delete everything" deletes the online copy first. Cloudflare can see your internet address and request metadata under its own policy.
+4. **Back up and sync (Settings, OFF by default; Step 21):** only if you turn it on. GAIN uploads your training data (sessions, sets, programs, targets, goals, settings; not the crash log) to a GAIN server on Cloudflare (`gain-sync.elmolla10.workers.dev`, data location not chosen by GAIN) and keeps it until you delete it. It is not end-to-end encrypted. The account is anonymous: a random id and a recovery-code hash. Without the code the backup cannot be reached. Turning it off keeps the data on your phone; "Delete everything" deletes the online copy first. Cloudflare can see your internet address and request metadata under its own policy.
 5. **Coach link (Finish screen):** only when you tap "Share as a link" and agree on screen. That ONE card (what you did, next targets, pace line; no bodyweight) is stored on the server and anyone with the link can read it without an account until it expires (7 days by default, 30 at most) or you stop sharing. The link text is random and only a hash of it is stored.
 
 Nothing else. In particular: no analytics events, no crash upload, no advertising, no data selling, no model or AI service in this version.

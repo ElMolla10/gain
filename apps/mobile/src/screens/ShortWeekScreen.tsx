@@ -12,7 +12,7 @@ import { AppText, BigButton, Card, Chip, InlineStatus, Notice, Screen } from "..
 
 const MINUTES = [30, 45, 60, 75, 90];
 
-/** "I can train D days / I have M minutes": preview of the cut list and exposure change, then save as a new programme version, or undo. */
+/** "I can train D days / I have M minutes": preview of the cut list and exposure change, then save as a new program version, or undo. */
 export function ShortWeekScreen() {
   const { shortWeek, programmes } = useServices();
   const { t, lang } = useI18n();

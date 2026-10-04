@@ -1,7 +1,7 @@
 import { day, tpl, x, type Template } from "../templateTypes";
 
 /**
- * Gym split programmes (v0.14.0): PPL variants, upper/lower hybrids, PHUL- and PHAT-style, bro split, Arnold split, torso/limbs,
+ * Gym split programs (v0.14.0): PPL variants, upper/lower hybrids, PHUL- and PHAT-style, bro split, Arnold split, torso/limbs,
  * volume and "bulking-phase" emphasis, glute and arms/shoulders specialisation. Common community / coaching arrangements written with
  * library exercises only. "PHUL-style", "PHAT-style" and "Arnold split" name a SHAPE (which muscles on which day), simplified to what the
  * library and GAIN's rule-v0.3 can express: no speed days, no percentage waves. Not trainer-reviewed. Arabic is draft.

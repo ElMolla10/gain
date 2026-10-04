@@ -4,7 +4,7 @@ Status: **implemented and unit-tested; NOT verified on a real phone** (Node's `n
 
 ## Rules the code follows
 1. **Nothing needs the network.** The only network code is the update check, which runs only when you tap (see PRIVACY-POLICY-DRAFT.md; `test/privacyFlows.test.ts` guards it).
-2. **A set is saved by one transaction.** Logging a set, saving a programme, restoring a backup, deleting everything and applying a short week each commit atomically. `test/safety.test.ts` crashes the database at every statement of those operations ("kill injection") and checks that after reopening the data is either the old state or the complete new state, never a half. This found one real bug, fixed here: applying a short week wrote the short programme and its "restore afterwards" record in two steps, so a kill between them left a short programme with no way back. Now one transaction.
+2. **A set is saved by one transaction.** Logging a set, saving a program, restoring a backup, deleting everything and applying a short week each commit atomically. `test/safety.test.ts` crashes the database at every statement of those operations ("kill injection") and checks that after reopening the data is either the old state or the complete new state, never a half. This found one real bug, fixed here: applying a short week wrote the short program and its "restore afterwards" record in two steps, so a kill between them left a short program with no way back. Now one transaction.
 3. **Updates never lose data.**
    - Migrations are numbered, each runs in a transaction, and a failing one rolls back and leaves the old database untouched (tested).
    - A database written by a *newer* app than the one running is refused, not "downgraded" (tested).
@@ -24,7 +24,7 @@ expo-sqlite transactions on one connection are not exclusive: a statement issued
 
 What changed: the sync engine, restore-from-backup and delete-everything now use a second connection to the same file (`openExpoMaintenanceDb`). SQLite itself isolates the two (WAL: readers see the last committed state, writers take turns for up to the busy timeout), and the maintenance transactions start with `BEGIN IMMEDIATE`. The foreign-key switch is therefore local to that connection.
 
-What did not change, honestly: on the everyday connection a short transaction (starting a workout, saving a programme) can still absorb a statement issued at the very same moment by another screen. Those transactions take milliseconds and the app has one user, and the existing mutex already stops two transactions interleaving. Moving every repo to a transaction-scoped handle would remove it; that is a larger change left for later. The second connection is tested on Linux with two real connections to one file (`test/maintenanceDb.test.ts`); it has NOT been run under real expo-sqlite on a phone.
+What did not change, honestly: on the everyday connection a short transaction (starting a workout, saving a program) can still absorb a statement issued at the very same moment by another screen. Those transactions take milliseconds and the app has one user, and the existing mutex already stops two transactions interleaving. Moving every repo to a transaction-scoped handle would remove it; that is a larger change left for later. The second connection is tested on Linux with two real connections to one file (`test/maintenanceDb.test.ts`); it has NOT been run under real expo-sqlite on a phone.
 
 ## Backups are verified (fixes release)
 

@@ -14,7 +14,7 @@ import { EffectView, ExposureView } from "./ExposureView";
 import { ExercisePicker } from "./ExercisePicker";
 
 /**
- * The programme editor body, shared by the Programme tab and onboarding. Pure UI over a ProgrammeDraft:
+ * The program editor body, shared by the Program tab and onboarding. Pure UI over a ProgrammeDraft:
  * every edit returns a new draft; saving is the caller's job (a save writes a new version, see programmeRepo).
  * `baseline` is the saved version being edited; with it the editor shows what the edit changes in weekly exposure.
  */

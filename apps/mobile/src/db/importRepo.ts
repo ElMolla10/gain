@@ -250,7 +250,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return { kind: "new", nameEn: title.trim(), pattern: guessPattern(title), equipment: c.equipment, setup: c.setup };
   }
 
-  /** The hidden programme day that imported sessions hang on (sessions need one). Created on first import. */
+  /** The hidden program day that imported sessions hang on (sessions need one). Created on first import. */
   async function ensureHistoryDay(): Promise<{ versionId: string; dayId: string }> {
     const v = await db.get<{ vid: string }>(
       `SELECT pv.id AS vid FROM programme_version pv JOIN programme p ON p.id = pv.programme_id

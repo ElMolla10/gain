@@ -1,6 +1,6 @@
 /**
  * Loading, empty and error are three different things. A screen that treats a failed read as "nothing here" tells a lifter with a
- * programme that they have none. `runLoad` keeps them apart: null means empty, a throw means error (retry), a value means ready.
+ * program that they have none. `runLoad` keeps them apart: null means empty, a throw means error (retry), a value means ready.
  */
 export type Load<T> = { kind: "loading" } | { kind: "empty" } | { kind: "error" } | { kind: "ready"; data: T };
 

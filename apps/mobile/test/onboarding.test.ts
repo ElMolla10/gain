@@ -82,7 +82,7 @@ describe("onboarding complete", () => {
     expect(await onboarding.markExistingInstall()).toBe(false);
   });
 
-  it("saves the answers, the real rack and the first programme; retires the sample; plans the first session", async () => {
+  it("saves the answers, the real rack and the first program; retires the sample; plans the first session", async () => {
     const { onboarding, repos, gyms, programmes, finish, db, profile, draft, rack, sampleGym, sampleProg, bench } = await setup();
     const r = await onboarding.complete({ profile, programme: draft, gym: { name: "Club", loads: rack } });
     expect(await onboarding.getState()).toBe("done");
@@ -98,7 +98,7 @@ describe("onboarding complete", () => {
     expect(await repos.getActiveGymId()).toBe(r.gymId);
     const fp = await repos.loadGymFingerprint(r.gymId);
     expect(findSpec(fp, "dumbbell")!.loads).toEqual([10, 12.5, 15, 20, 22.5, 25]);
-    // programme active, goal lift marked, sample retired
+    // program active, goal lift marked, sample retired
     const active = (await programmes.getActive())!;
     expect(active.programmeId).toBe(r.programmeId);
     expect(active.isSample).toBe(false);
@@ -114,7 +114,7 @@ describe("onboarding complete", () => {
     expect(targets.every((t) => t.currency === "none" && t.load === null)).toBe(true);
   });
 
-  it("refuses a bad profile, rack or programme before writing anything", async () => {
+  it("refuses a bad profile, rack or program before writing anything", async () => {
     const { onboarding, profile, draft, rack, db, repos } = await setup();
     await expect(onboarding.complete({ profile: { ...profile, daysPerWeek: 0 }, programme: draft, gym: { name: "Club", loads: rack } })).rejects.toBeInstanceOf(ProfileInvalid);
     await expect(onboarding.complete({ profile, programme: draft, gym: { name: "", loads: rack } })).rejects.toBeInstanceOf(GymInvalid);

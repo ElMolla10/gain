@@ -4,7 +4,7 @@
 
 **Nothing in this history has recorded device evidence in the repo.** (Mohamed reports on 2026-10-04 that he installed v0.18.0 and ran the device checks; that is his report, not independently verified, and no results are committed. v0.19.0 is not reported as run on a device.) Every release below was built, unit-tested on Node and published as a GitHub pre-release; no one has recorded installing any of them on a phone (see [NATIVE-CHECKLIST.md](NATIVE-CHECKLIST.md), [DEVICE-TEST-0.4.md](DEVICE-TEST-0.4.md)).
 
-Last updated 2026-10-04 (Cairo time) at `main` f5b948b plus the v0.19.0 bump (v0.19.0).
+Last updated 2026-10-04 (Cairo time) at `main` 4e6aa51 (v0.19.0).
 
 ## 1. Published releases (GitHub pre-releases, Android arm64)
 
@@ -30,7 +30,7 @@ Dates are the GitHub publish time in Cairo time. "Schema" is the last client SQL
 | v0.16.0 | 2026-10-03 18:04 | 16 | 9 | Electric-lime identity, session-first Today, compact logger |
 | v0.17.0 | 2026-10-03 21:46 | 17 | 9 | Send-feedback share sheet, unused permissions removed |
 | v0.18.0 | 2026-10-03 22:25 | 18 | 9 | Completely free: paywall scaffold removed |
-| v0.19.0 | (see GitHub release) | 19 | 9 | New 4-day template Push / Pull / Legs / Upper (`ppl_upper_4`, 48 templates); English spelling "program" |
+| v0.19.0 | 2026-10-04 04:01 | 19 | 9 | New 4-day template Push / Pull / Legs / Upper (`ppl_upper_4`, 48 templates); English spelling "program" |
 
 (versionCode and schema were read from `apps/mobile/app.json` and `migrations.ts` at each tag; v0.1.0 has no versionCode in `app.json`.)
 
@@ -52,7 +52,7 @@ Dates are the GitHub publish time in Cairo time. "Schema" is the last client SQL
 - **v0.13.0:** timed exercises (plank, dead hang, carries: seconds / metres, migration 9), opt-in training-day reminders, paywall scaffold (OFF, no billing; **removed again 2026-10-03, GAIN is completely free**), library twin map for import, trainer-review pack, Play listing drafts, pilot retention-metrics doc. All unit-tested only, not device-verified; nothing here is trainer-reviewed. See [TIMED-EXERCISES.md](TIMED-EXERCISES.md), [REMINDERS.md](REMINDERS.md). The scaffold document was deleted with the scaffold.
 - **v0.17.0:** small: a "Send feedback" share-sheet message in Diagnostics and unused library permissions (overlay, shared storage, biometrics) removed from the manifest. Not device-verified. Also in the repo since then (docs/tools, no app change): pilot kit and metrics script, Play data-safety draft, live quota check, kill-switch and D1 restore rehearsal. See [PILOT-KIT.md](PILOT-KIT.md), [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md).
 - **v0.18.0:** GAIN is completely free: no subscriptions, in-app purchases or paid tiers; the v0.13.0 paywall scaffold and its Plans page were removed (PR #121). Unit-tested only, not device-verified.
-- **v0.19.0:** at Mohamed's explicit request (overriding the template freeze for this one template): 4-day template `ppl_upper_4` "Push / Pull / Legs / Upper" (gym, hypertrophy; no equivalent existed among the 47), now 48 templates; English UI text, docs and comments now say "program" instead of "programme" (database names, stored values, sync tables, import/export formats, route names, i18n keys and Arabic text unchanged; this file's older entries keep the spelling they were written with); plan docs record Mohamed's report that the five "Now" priorities are done and the Device verified gate passed (reported, not independently verified). Unit-tested only, NOT device-verified, not trainer-reviewed; the Arabic template name is a draft.
+- **v0.19.0:** at Mohamed's explicit request (overriding the template freeze for this one template): 4-day template `ppl_upper_4` "Push / Pull / Legs / Upper" (gym, hypertrophy; no equivalent existed among the 47), now 48 templates; English UI text, docs and comments now say "program" instead of "programme" (database names, stored values, sync tables, import/export formats, route names, i18n keys and Arabic text unchanged; this file's older entries keep the spelling they were written with); plan docs record Mohamed's report that the five "Now" priorities are done and the Device verified gate passed (reported, not independently verified). Unit-tested only, NOT device-verified, not trainer-reviewed; the Arabic template name is a draft. APK `gain-v0.19.0-arm64.apk` SHA-256 `fb61376f36e62b7f4e0aecf64fea03ce699f140f8af762ea3576df6b1990f22f` (re-downloaded from GitHub and re-hashed: identical; signer 571bc5a8...c5b2). Tests: engine 365, sync 19, mobile 747, server 90.
 - **v1.0:** Play Store public launch (Arabic + English).
 - **v1.x:** iOS, post-launch metrics.
 

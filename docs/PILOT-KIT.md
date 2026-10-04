@@ -2,6 +2,8 @@
 
 Status: **DRAFT KIT. No pilot has started and nobody has been recruited.** Everything below is for Mohamed to adapt. The consent text has had **no legal review** (D6) and the Arabic is a builder's draft nobody native has read. Success thresholds are blank on purpose (D5, in [PILOT-RETENTION-METRICS.md](PILOT-RETENTION-METRICS.md)). GAIN has no analytics: numbers come from the lifter's own backup file, a weekly check-in and the pilot sheet.
 
+**Finished drafts of the pilot materials (2026-10-04) live in [pilot/](pilot/README.md):** runbook, print-ready consent (EN/AR, local-only), WhatsApp messages (EN/AR), one-page install-and-report guide (EN/AR), FAQ, the six pilot programs and how to show only them, consent log and override sheet templates. Where they differ from this page (local-only consent, no sync paragraph), they win; this page stays the protocol and the stop rules.
+
 ## 0. What has to be decided by a person before the first install
 | Decision | Who | Why it blocks |
 | --- | --- | --- |
@@ -28,10 +30,12 @@ Status: **DRAFT KIT. No pilot has started and nobody has been recruited.** Every
 - [ ] APK installed; Settings shows the expected GAIN version
 - [ ] Language and units set; program chosen/imported; gym weights checked
 - [ ] Rest alert and (if wanted) training-day reminders switched on and a notification arrives (Android battery savers may block it)
-- [ ] Back up and sync: **ask**, do not push it. If on, write down that it is on (the data then also sits on the GAIN server in Cloudflare/ENAM)
+- [ ] Back up and sync: **OFF and not offered** in the planned local-only pilot (MASTER-PLAN Now 5 overrides the older "ask, do not push" wording). If a lifter turned it on anyway, write that down (the data then also sits on the GAIN server in Cloudflare/ENAM) and use the deletion steps in section 4
 - [ ] They know where to report bugs and how to share the diagnostics report
 
 ## 3. Consent text (DRAFT, not legally reviewed)
+
+> **Superseded for the planned pilot by [pilot/CONSENT.md](pilot/CONSENT.md)** (local-only: Back up and sync is not offered, so the sync paragraph below does not apply). Kept here as the longer original.
 
 ### English
 > **GAIN pilot: what I am asking you to agree to**
@@ -74,13 +78,13 @@ Status: **DRAFT KIT. No pilot has started and nobody has been recruited.** Every
 - Do not forward backups by chat apps that keep copies; ask for the share sheet to a private email or a USB cable.
 
 ## 5. Pilot sheet and numbers
-Template: [pilot/pilot-sheet-template.csv](pilot/pilot-sheet-template.csv) (same columns as the table in PILOT-RETENTION-METRICS.md). Fill the first twelve columns automatically from the backups:
+Template: [pilot/pilot-sheet-template.csv](pilot/pilot-sheet-template.csv) (same columns as the table in PILOT-RETENTION-METRICS.md). Fill the first fifteen columns automatically from the backups (use absolute file paths: the npm script runs inside `apps/mobile`):
 ```
 npm ci
-npm run pilot-metrics -w @gain/mobile -- --tz-minutes 180 ~/pilot/P01.json ~/pilot/P02.json > ~/pilot/sheet.csv
+npm run pilot-metrics -w @gain/mobile -- --tz-minutes 180 $HOME/pilot/P01.json $HOME/pilot/P02.json > $HOME/pilot/sheet.csv
 ```
-It prints the CSV on stdout (one row per lifter per week reached) and, on stderr, "week N: retained X of Y who reached it". `--tz-minutes` is the lifters' offset from UTC (a backup does not record it; Cairo is 180 in summer time and 120 in winter). The last four columns (days planned, app version, on-pace status, bugs/quotes) come from the check-ins by hand.
-The definitions are exactly those of PILOT-RETENTION-METRICS.md, with three stated choices (see `apps/mobile/src/logic/pilotMetrics.ts`): week 0 starts at local midnight of the first finished non-imported session; "the load actually logged" is the heaviest counted working set (no warm-up, drop set or rejected outlier) of that exercise in the target's session; "loaded the same" is within 0.01 kg of the app's own target load (so an edited target counts as "more"/"less" than the app's number, which is how the doc defines agreement). Targets for sessions the lifter never finished are not counted anywhere. Unit-tested on synthetic backups and one exported by the app's own code; **not yet run on a real pilot file**.
+It prints the CSV on stdout (one row per lifter per week reached) and, on stderr, "week N: retained X of Y who reached it", the totals of targets compared with what was loaded, and a like-for-like line against "repeat the last load" (columns `both_comparable`, `both_app_same`, `both_repeat_same`: among targets that also have an earlier session of that exercise, how often the lifter loaded the app's number and how often repeating the previous load would have matched; imported history counts for that baseline). Dry run on a synthetic file: [pilot/sample/README.md](pilot/sample/README.md). `--tz-minutes` is the lifters' offset from UTC (a backup does not record it; Cairo is 180 in summer time and 120 in winter). The last four columns (days planned, app version, on-pace status, bugs/quotes) come from the check-ins by hand.
+The definitions are exactly those of PILOT-RETENTION-METRICS.md, with three stated choices (see `apps/mobile/src/logic/pilotMetrics.ts`): week 0 starts at local midnight of the first finished non-imported session; "the load actually logged" is the heaviest counted working set (no warm-up, drop set or rejected outlier) of that exercise in the target's session; "loaded the same" is within 0.01 kg of the app's own target load (so an edited target counts as "more"/"less" than the app's number, which is how the doc defines agreement). Targets for sessions the lifter never finished are not counted anywhere. Unit-tested on synthetic backups and one exported by the app's own code; **not yet run on a real pilot file** (v0.19.x+ adds the repeat-last comparison, also tested on invented rows only).
 
 ## 6. Bug reports
 - Testers: the template in [BETA-FEEDBACK.md](BETA-FEEDBACK.md) (paste into the WhatsApp group description) or, for people with a GitHub account, the issue template `.github/ISSUE_TEMPLATE/bug_report.md`. Never ask for a backup file in a bug report.

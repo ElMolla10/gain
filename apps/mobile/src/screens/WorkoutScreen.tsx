@@ -19,7 +19,7 @@ import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
-import { buildMoveActions, completedWorkoutSlots, joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels, type MoveDirection } from "../logic/superset";
+import { applyMovePositions, buildMoveActions, completedWorkoutSlots, joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels, type MoveDirection } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
@@ -520,13 +520,8 @@ export function WorkoutScreen() {
     try {
       const result = await workout.moveExercise(loaded.sessionId, slot, direction);
       if (result.outcome !== "moved") return;
-      setExState((current) => {
-        const next = { ...current };
-        result.order.forEach((id, index) => {
-          next[id] = { ...(next[id] ?? NO_STATE(id)), position: index + 1 };
-        });
-        return next;
-      });
+      // Apply only the order the transaction committed. A thrown write never reaches this line, so the screen stays on the saved order.
+      setExState((current) => applyMovePositions(current, result.order, NO_STATE));
     } catch (e) {
       diagnostics.record("error", "move workout exercise", e);
       Alert.alert(t("workout.move.failed"));
@@ -913,10 +908,7 @@ export function WorkoutScreen() {
     ? buildMoveActions(order, exState, completedSlots, menuEx.slot, {
         up: t("workout.menu.moveUp"),
         down: t("workout.menu.moveDown"),
-        accessibilityLabel: (direction) => {
-          const action = direction === "up" ? t("workout.menu.moveUp") : t("workout.menu.moveDown");
-          return t("workout.move.a11y", { exercise: exerciseLabels(menuEx, lang).primary, direction: action });
-        },
+        accessibilityLabel: (direction) => t(direction === "up" ? "workout.move.upA11y" : "workout.move.downA11y", { exercise: exerciseLabels(menuEx, lang).primary }),
       })
     : [];
   const dockVisible = timerOpen || timerRunning || restOver;

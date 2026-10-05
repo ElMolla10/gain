@@ -1,8 +1,14 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildMoveActions, completedWorkoutSlots, joinSuperset, leaveSuperset, moveWorkoutSlot, orderSlots, restAfterSet, supersetLabels, type StateMap } from "../src/logic/superset";
-import { ExerciseAlreadyInWorkout } from "../src/db/workoutRepo";
-import { LATEST_VERSION } from "../src/db/migrations";
-import { freshDb } from "./helpers";
+import type { Db } from "../src/db/driver";
+import { LATEST_VERSION, migrate } from "../src/db/migrations";
+import { createRepos } from "../src/db/repos";
+import { createWorkoutRepo, ExerciseAlreadyInWorkout } from "../src/db/workoutRepo";
+import { applyMovePositions, buildMoveActions, completedWorkoutSlots, joinSuperset, leaveSuperset, moveWorkoutSlot, orderSlots, restAfterSet, supersetLabels, type SlotState, type StateMap } from "../src/logic/superset";
+import { freshDb, testDeps } from "./helpers";
+import { openNodeDb } from "./nodeDriver";
 
 const prog = ["a", "b", "c", "d"];
 const st = (o: StateMap): StateMap => o;
@@ -79,7 +85,22 @@ describe("order, superset labels and rest (pure)", () => {
       { direction: "down", label: "Move down", accessibilityLabel: "Move Bench Press down" },
     ]);
     expect(buildMoveActions(["a", "b", "c"], {}, new Set(), "a", copy).map((action) => action.direction)).toEqual(["down"]);
+    expect(buildMoveActions(["a", "b", "c"], {}, new Set(), "c", copy).map((action) => action.direction)).toEqual(["up"]);
     expect(buildMoveActions(["a", "b", "c"], {}, new Set(["c"]), "c", copy)).toEqual([]);
+  });
+
+  it("keeps the displayed order equal to the saved order, including after a superset block moves", () => {
+    const blank = (slot: string): SlotState => ({ slot, removed: false, added: false, position: null, superset: null });
+    const programme = ["a", "b", "c", "d"];
+    const states: Record<string, SlotState | undefined> = {
+      b: { slot: "b", removed: false, added: false, position: null, superset: "g" },
+      c: { slot: "c", removed: false, added: false, position: null, superset: "g" },
+    };
+    const moved = moveWorkoutSlot(orderSlots(programme, states), states, new Set(), "c", "down");
+    expect(moved).toEqual({ order: ["a", "d", "b", "c"], outcome: "moved" });
+    const shown = orderSlots(programme, applyMovePositions(states, moved.order, blank));
+    expect(shown).toEqual(moved.order);
+    expect(orderSlots(programme, states)).toEqual(["a", "b", "c", "d"]);
   });
 
   it("classifies completion from prescribed working sets, not a partial set, warm-up, drop set, or rejected typo", () => {
@@ -284,7 +305,125 @@ describe("mid-workout exercise order", () => {
     await expect(workout.moveExercise(id, exs[1]!.exerciseId, "down")).rejects.toThrow(/not in progress/);
     expect(await workout.listExerciseState(id)).toEqual([]);
   });
+
+  it("moves the first exercise only downward and the last only upward, then stops at the ends", async () => {
+    const { workout, id, exs } = await open();
+    const ids = exs.map((e) => e.exerciseId);
+    const saved = async () => orderSlots(ids, Object.fromEntries((await workout.listExerciseState(id)).map((state) => [state.slot, state])));
+    expect(await workout.moveExercise(id, ids[0]!, "up")).toEqual({ order: ids, outcome: "boundary" });
+    expect(await workout.listExerciseState(id)).toEqual([]);
+    expect(await workout.moveExercise(id, ids.at(-1)!, "down")).toEqual({ order: ids, outcome: "boundary" });
+    expect(await workout.listExerciseState(id)).toEqual([]);
+
+    const moving = ids[0]!;
+    let order = [...ids];
+    for (let i = 0; i < ids.length - 1; i++) {
+      const from = order.indexOf(moving);
+      order = [...order.slice(0, from), order[from + 1]!, moving, ...order.slice(from + 2)];
+      expect(await workout.moveExercise(id, moving, "down")).toEqual({ order, outcome: "moved" });
+      expect(await saved()).toEqual(order);
+    }
+    expect(order.at(-1)).toBe(moving);
+    expect(await workout.moveExercise(id, moving, "down")).toMatchObject({ outcome: "boundary" });
+    expect(await saved()).toEqual(order);
+    for (let i = 0; i < ids.length - 1; i++) {
+      const from = order.indexOf(moving);
+      order = [...order.slice(0, from - 1), moving, order[from - 1]!, ...order.slice(from + 1)];
+      expect(await workout.moveExercise(id, moving, "up")).toEqual({ order, outcome: "moved" });
+      expect(await saved()).toEqual(order);
+    }
+    expect(await workout.moveExercise(id, moving, "up")).toMatchObject({ outcome: "boundary" });
+    expect(await saved()).toEqual(ids);
+  });
+
+  it("moves a superset as one block past both ends without splitting it or its logged sets", async () => {
+    const { workout, id, exs, gym } = await open();
+    const ids = exs.map((e) => e.exerciseId);
+    expect(ids.length).toBeGreaterThanOrEqual(4);
+    const [b, c] = [exs[1]!, exs[2]!];
+    await workout.setSuperset(id, joinSuperset({}, b.exerciseId, c.exerciseId));
+    const logged = await workout.logSet({ sessionId: id, exerciseId: b.exerciseId, load: 42.5, reps: 6 }, { gym, equipment: b.equipment, setup: b.setup });
+    const before = (await workout.listSessionSets(id)).find((set) => set.id === logged.id)!;
+    let order = orderSlots(ids, Object.fromEntries((await workout.listExerciseState(id)).map((state) => [state.slot, state])));
+    const blockAt = () => order.indexOf(b.exerciseId);
+    while (blockAt() > 0) {
+      const next = await workout.moveExercise(id, c.exerciseId, "up");
+      expect(next.outcome).toBe("moved");
+      order = next.order;
+      expect(order.indexOf(c.exerciseId)).toBe(order.indexOf(b.exerciseId) + 1);
+    }
+    expect(await workout.moveExercise(id, b.exerciseId, "up")).toMatchObject({ outcome: "boundary" });
+    while (blockAt() < order.length - 2) {
+      const next = await workout.moveExercise(id, b.exerciseId, "down");
+      expect(next.outcome).toBe("moved");
+      order = next.order;
+      expect(order.indexOf(c.exerciseId)).toBe(order.indexOf(b.exerciseId) + 1);
+    }
+    expect(await workout.moveExercise(id, c.exerciseId, "down")).toMatchObject({ outcome: "boundary" });
+    const after = (await workout.listSessionSets(id)).find((set) => set.id === logged.id)!;
+    expect({ exerciseId: after.exerciseId, lineId: after.lineId, position: after.position, load: after.load, reps: after.reps }).toEqual({
+      exerciseId: before.exerciseId,
+      lineId: before.lineId,
+      position: before.position,
+      load: 42.5,
+      reps: 6,
+    });
+    const again = await workout.logSet({ sessionId: id, exerciseId: b.exerciseId, load: 42.5, reps: 7 }, { gym, equipment: b.equipment, setup: b.setup });
+    const second = (await workout.listSessionSets(id)).find((set) => set.id === again.id)!;
+    expect(second.exerciseId).toBe(b.exerciseId);
+    expect(second.lineId).toBe(before.lineId);
+    expect(second.position).toBe(before.position + 1);
+    expect(orderSlots(ids, Object.fromEntries((await workout.listExerciseState(id)).map((state) => [state.slot, state])))).toEqual(order);
+  });
+
+  it("keeps the previous order when a later position write fails, and a new connection sees a committed order", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "gain-reorder-"));
+    const path = join(dir, "gain.db");
+    try {
+      const db = openNodeDb(path);
+      const first = await sessionOn(db);
+      const ids = first.exs.map((e) => e.exerciseId);
+      const moved = await first.workout.moveExercise(first.id, ids[1]!, "up");
+      expect(moved.order).toEqual([ids[1], ids[0], ...ids.slice(2)]);
+
+      let updates = 0;
+      const failing: Db = {
+        exec: (sql) => db.exec(sql),
+        all: (sql, params) => db.all(sql, params),
+        get: (sql, params) => db.get(sql, params),
+        run: async (sql, params) => {
+          if (sql.startsWith("UPDATE session_exercise SET position")) {
+            updates += 1;
+            if (updates === 2) throw new Error("injected sqlite failure");
+          }
+          return db.run(sql, params);
+        },
+        transaction: (fn) => db.transaction(fn),
+      };
+      const retry = createWorkoutRepo(failing, testDeps());
+      await expect(retry.moveExercise(first.id, ids[1]!, "down")).rejects.toThrow(/injected sqlite failure/);
+      expect(orderSlots(ids, Object.fromEntries((await first.workout.listExerciseState(first.id)).map((state) => [state.slot, state])))).toEqual(moved.order);
+
+      const reloaded = createWorkoutRepo(openNodeDb(path), testDeps());
+      expect(orderSlots(ids, Object.fromEntries((await reloaded.listExerciseState(first.id)).map((state) => [state.slot, state])))).toEqual(moved.order);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
+
+async function sessionOn(db: Db) {
+  await migrate(db);
+  const deps = testDeps();
+  const repos = createRepos(db, deps);
+  const workout = createWorkoutRepo(db, deps);
+  await repos.seedIfNeeded();
+  const gymId = (await repos.getActiveGymId())!;
+  const next = (await repos.getNextDay())!;
+  const exs = await repos.listDayExercises(next.day.id);
+  const { id } = await workout.startOrResumeSession(next.day.id, gymId);
+  return { workout, id, exs };
+}
 
 describe("CSV export carries failure sets and supersets", () => {
   it("writes set_type failure/dropset and one superset_id per superset, and the Hevy parser reads them back", async () => {

@@ -87,7 +87,8 @@ export function completedWorkoutSlots(
 
 /**
  * Move one uncompleted exercise by one visible place. A real superset is one block: selecting either member moves the whole group, and
- * a logged set on any member locks the group. This changes only an array of session slot ids; callers persist the returned order.
+ * the group is locked only when a member is in `completedSlots`. A partial set does not lock it. This changes only an array of session
+ * slot ids; callers persist the returned order.
  */
 export function moveWorkoutSlot(
   order: readonly string[],
@@ -121,6 +122,20 @@ export function moveWorkoutSlot(
   const next = [...blocks];
   [next[from], next[to]] = [next[to]!, next[from]!];
   return { order: next.flat(), outcome: "moved" };
+}
+
+/** Positions that `orderSlots` reads back as `order`. Existing slot fields stay; only `position` changes. */
+export function applyMovePositions<T extends { position: number | null }>(
+  states: Readonly<Record<string, T | undefined>>,
+  order: readonly string[],
+  blank: (slot: string) => T,
+): Record<string, T> {
+  const next: Record<string, T> = {};
+  for (const [slot, state] of Object.entries(states)) if (state) next[slot] = { ...state };
+  order.forEach((id, index) => {
+    next[id] = { ...(next[id] ?? blank(id)), position: index + 1 };
+  });
+  return next;
 }
 
 export interface MoveAction {

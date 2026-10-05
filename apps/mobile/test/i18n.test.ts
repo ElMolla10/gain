@@ -21,12 +21,17 @@ describe("strings", () => {
   it("has concise move actions and exercise-specific TalkBack copy in English and Arabic", () => {
     const english = en as Record<string, string>;
     const arabic = ar as Record<string, string>;
-    for (const key of ["workout.menu.moveUp", "workout.menu.moveDown", "workout.move.a11y", "workout.move.failed"]) {
+    for (const key of ["workout.menu.moveUp", "workout.menu.moveDown", "workout.move.upA11y", "workout.move.downA11y", "workout.move.failed"]) {
       expect(english[key], key).toBeTruthy();
       expect(arabic[key], key).toMatch(/[\u0600-\u06FF]/);
     }
-    expect(english["workout.move.a11y"]).toContain("{exercise}");
-    expect(english["workout.move.a11y"]).toContain("{direction}");
+    expect(translate("ar", "workout.menu.moveUp")).toBe("حرّكه لفوق");
+    expect(translate("ar", "workout.menu.moveDown")).toBe("حرّكه لتحت");
+    // The action stays in the Arabic sentence. Only the exercise name is isolated, so TalkBack does not read "حرّكه لفوق" as LTR.
+    expect(translate("ar", "workout.move.upA11y", { exercise: "Bench Press" })).toBe(`تمرين ${LRI}Bench Press${PDI}: حرّكه لفوق`);
+    expect(translate("ar", "workout.move.downA11y", { exercise: "سكوات" })).toBe(`تمرين ${LRI}سكوات${PDI}: حرّكه لتحت`);
+    expect(translate("en", "workout.move.upA11y", { exercise: "Bench Press" })).toBe(`${LRI}Bench Press${PDI}: Move up`);
+    expect(translate("en", "workout.move.downA11y", { exercise: "Squat" })).toBe(`${LRI}Squat${PDI}: Move down`);
   });
 });
 

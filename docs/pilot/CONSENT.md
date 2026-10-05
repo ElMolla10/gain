@@ -24,7 +24,7 @@ Fill-in values (decide once, then search-and-replace in this file):
 > I am testing a lifting log called GAIN. After each workout it suggests your next weight. I want to learn whether the suggestions are right and whether people keep using the app. This is a test version and it can have bugs.
 >
 > **What I would take from you**
-> 1. A backup file you export yourself from the app (Settings > Your data > Export a full backup). It contains your workouts and sets, the suggestions GAIN made and whether you accepted, changed or rejected them, your programs and settings, and anything you typed into the app such as notes, bodyweight, height or birthday if you entered them. I do not need your name: your file is labelled with a code (P01, P02...). I will read only workouts, sets and suggestions, to get numbers. I will not use your notes or body details.
+> 1. A backup file you export yourself from the app (Settings > Your data > Export a full backup). It contains your workouts and sets, the suggestions GAIN made and whether you accepted, changed or rejected them, your programs and settings, and anything you typed into the app such as notes, bodyweight, height or birthday if you entered them. I do not need your name: your file is labelled with a code (P01, P02...). I will read workouts, sets and suggestions, and use bodyweight entries only when needed to compare effective loads for assisted or weighted-bodyweight movements. I will not use notes, height or birthday.
 > 2. Your short answers in the weekly check-in (three questions) and what you tell me in the final conversation.
 >
 > **Why:** to count how often you used the suggested weight, how often you changed it and why, and whether you were still logging in weeks 1, 2 and 6.
@@ -55,7 +55,7 @@ Fill-in values (decide once, then search-and-replace in this file):
 > أنا بجرّب تطبيق تسجيل تمارين اسمه GAIN. بعد كل تمرينة بيقترح عليك الوزن الجاي. عايز أعرف الاقتراحات صح ولا لأ، وهل الناس بتكمّل تستخدم التطبيق. دي نسخة تجريبية وممكن يكون فيها أخطاء.
 >
 > **اللي هاخده منك**
-> ١. ملف نسخة احتياطية إنت بتصدّره بنفسك من التطبيق (الإعدادات > بياناتك > صدّر نسخة احتياطية كاملة). فيه تمارينك ومجموعاتك، واقتراحات GAIN وإنت قبلتها ولا عدّلتها ولا رفضتها، وبرامجك وإعداداتك، وأي حاجة كتبتها جوه التطبيق زي الملاحظات أو وزن الجسم أو الطول أو تاريخ الميلاد لو دخلتهم. مش محتاج اسمك: ملفك بيتسمّى بكود (P01, P02...). هقرأ التمارين والمجموعات والاقتراحات بس عشان الأرقام، ومش هستخدم الملاحظات ولا بيانات الجسم.
+> ١. ملف نسخة احتياطية إنت بتصدّره بنفسك من التطبيق (الإعدادات > بياناتك > صدّر نسخة احتياطية كاملة). فيه تمارينك ومجموعاتك، واقتراحات GAIN وإنت قبلتها ولا عدّلتها ولا رفضتها، وبرامجك وإعداداتك، وأي حاجة كتبتها جوه التطبيق زي الملاحظات أو وزن الجسم أو الطول أو تاريخ الميلاد لو دخلتهم. مش محتاج اسمك: ملفك بيتسمّى بكود (P01, P02...). هقرأ التمارين والمجموعات والاقتراحات، وهستخدم قياسات وزن الجسم بس لو لازمة لمقارنة الحمل الفعلي في التمارين المساعدة أو تمارين وزن الجسم بوزن إضافي. مش هستخدم الملاحظات ولا الطول ولا تاريخ الميلاد.
 > ٢. إجاباتك القصيرة في المتابعة الأسبوعية (٣ أسئلة) وكلامك في المحادثة الأخيرة.
 >
 > **ليه:** عشان أحسب كام مرة استخدمت الوزن المقترح، وكام مرة غيّرته وليه، وهل كنت لسه بتسجّل في الأسابيع ١ و٢ و٦.

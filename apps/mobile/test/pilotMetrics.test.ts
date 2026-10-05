@@ -59,11 +59,13 @@ describe("pilot metrics from a backup", () => {
   });
 
   it("targets are counted by status in the week their session finished, and compared with the heaviest counted working set", () => {
-    const set = (id: string, load: number, extra: Record<string, string | number | null> = {}) => ({ id, session_id: "s2", line_id: "L1", load, is_warmup: 0, outlier_status: "none", tags_json: "[]", deleted_at: null, ...extra });
-    const target = (id: string, status: string, load: number | null, line = "L1", extra: Record<string, string | number | null> = {}) => ({ id, session_id: "s2", line_id: line, load, status, deleted_at: null, ...extra });
+    const set = (id: string, load: number, extra: Record<string, string | number | null> = {}) => ({ id, session_id: "s2", exercise_id: "bench", line_id: "L1", load, is_warmup: 0, outlier_status: "none", tags_json: "[]", deleted_at: null, ...extra });
+    const target = (id: string, status: string, load: number | null, line = "L1", extra: Record<string, string | number | null> = {}) => ({ id, session_id: "s2", exercise_id: "bench", line_id: line, load, status, deleted_at: null, ...extra });
     const b = backup(
       {
         session: [session("s1", T0), session("s2", T0 + DAY)],
+        exercise: [{ id: "bench", equipment: "barbell", setup: "free", deleted_at: null }],
+        exercise_line: [{ id: "L1", exercise_id: "bench", gym_id: "g", setup: "free", deleted_at: null }],
         workout_set: [set("a", 40, { is_warmup: 1 }), set("b", 60), set("c", 62.5), set("d", 100, { outlier_status: "rejected" }), set("e", 90, { tags_json: '["drop"]' }), set("f", 70, { deleted_at: 9 })],
         target: [target("t1", "accepted", 60), target("t2", "edited", 62.5, "L2"), target("t3", "rejected", null, "L3"), target("t4", "proposed", 60, "L1", { deleted_at: 3 }), target("t5", "proposed", 60, "L4")],
       },
@@ -82,6 +84,8 @@ describe("pilot metrics from a backup", () => {
       {
         // h0 is imported (older), s1 and s2 are real; s3 is a later session that must not be used as "previous" for s2's targets.
         session: [session("h0", T0 - 5 * DAY, { import_key: "x" }), session("s1", T0), session("s2", T0 + DAY), session("s3", T0 + 2 * DAY)],
+        exercise: ["bench", "squat", "row"].map((id) => ({ id, equipment: "barbell", setup: "free", deleted_at: null })),
+        exercise_line: ["bench", "squat", "row"].map((id) => ({ id: `L-${id}`, exercise_id: id, gym_id: "g", setup: "free", deleted_at: null })),
         workout_set: [
           set("a", "h0", "bench", 50), // only history for bench
           set("b", "s1", "squat", 100), set("c", "s1", "squat", 90, { is_warmup: 1 }), // squat previous = 100
@@ -101,15 +105,109 @@ describe("pilot metrics from a backup", () => {
 
   describe("the repeat-last baseline only uses the same line (exercise + gym + setup) and effective load", () => {
     type R = Record<string, string | number | null>;
+    const exercise = (id: string, equipment: string, setup: string): R => ({ id, equipment, setup, deleted_at: null });
     const line = (id: string, ex: string, gym: string, setup: string): R => ({ id, exercise_id: ex, gym_id: gym, setup, deleted_at: null });
     const set = (id: string, sessionId: string, lineId: string, ex: string, load: number, extra: R = {}): R => ({ id, session_id: sessionId, exercise_id: ex, line_id: lineId, load, is_warmup: 0, outlier_status: "none", tags_json: "[]", deleted_at: null, ...extra });
     const target = (id: string, sessionId: string, lineId: string, ex: string, load: number): R => ({ id, session_id: sessionId, exercise_id: ex, line_id: lineId, load, status: "accepted", deleted_at: null });
     const week0 = (b: BackupFile) => computeLifterMetrics(b, {}).weeks[0]!;
 
+    it("excludes load comparisons when exercise, equipment, gym or setup metadata cannot establish the line", () => {
+      const base = {
+        session: [session("s1", T0), session("s2", T0 + DAY)],
+        workout_set: [set("a", "s1", "L", "bench", 60), set("b", "s2", "L", "bench", 60)],
+        target: [target("t", "s2", "L", "bench", 60)],
+      };
+      const cases = [
+        backup({ ...base, exercise: [exercise("bench", "barbell", "free")] }, T0 + 3 * DAY),
+        backup({ ...base, exercise: [exercise("bench", "barbell", "free")], exercise_line: [{ id: "L", exercise_id: "bench", gym_id: "g", deleted_at: null }] }, T0 + 3 * DAY),
+        backup({ ...base, exercise: [{ id: "bench", setup: "free", deleted_at: null }], exercise_line: [line("L", "bench", "g", "free")] }, T0 + 3 * DAY),
+      ];
+
+      for (const b of cases) expect(week0(b)).toMatchObject({ comparable: 0, same: 0, more: 0, less: 0, both: 0 });
+    });
+
+    it("uses soft-deleted exercise and line metadata to identify historical sets instead of discarding their setup", () => {
+      const b = backup(
+        {
+          session: [session("s1", T0), session("s2", T0 + DAY)],
+          exercise: [{ ...exercise("bench", "barbell", "free"), deleted_at: T0 + DAY }],
+          exercise_line: [
+            { ...line("L-old", "bench", "g", "free"), deleted_at: T0 + DAY },
+            line("L-new", "bench", "g", "free"),
+          ],
+          workout_set: [set("a", "s1", "L-old", "bench", 60), set("b", "s2", "L-new", "bench", 60)],
+          target: [target("t", "s2", "L-new", "bench", 62.5)],
+        },
+        T0 + 3 * DAY,
+      );
+
+      expect(week0(b)).toMatchObject({ comparable: 1, less: 1, both: 1, bothAppSame: 0, bothRepeatSame: 1 });
+    });
+
+    it("does not infer an earlier bodyweight from a later measurement", () => {
+      const b = backup(
+        {
+          session: [session("s1", T0), session("s2", T0 + 20 * DAY)],
+          bodyweight_entry: [{ id: "w1", weight_kg: 84, measured_at: T0 + 10 * DAY, deleted_at: null }],
+          exercise: [exercise("assistedpull", "assisted", "assisted")],
+          exercise_line: [line("LA", "assistedpull", "g", "assisted")],
+          workout_set: [set("a", "s1", "LA", "assistedpull", 20), set("b", "s2", "LA", "assistedpull", 20)],
+          target: [target("t", "s2", "LA", "assistedpull", 20)],
+        },
+        T0 + 25 * DAY,
+      );
+
+      // Current target vs logged load is knowable at s2. Repeat-last effective load is not: s1 has no bodyweight at or before it.
+      expect(computeLifterMetrics(b, {}).weeks[2]).toMatchObject({ comparable: 1, same: 1, both: 0, bothAppSame: 0, bothRepeatSame: 0 });
+    });
+
+    it("excludes assisted and bodyweight-plus-added targets when effective load is unknowable", () => {
+      for (const [ex, equipment, setup] of [
+        ["assistedpull", "assisted", "assisted"],
+        ["dip", "plate", "bodyweight_plus_added"],
+      ] as const) {
+        const b = backup(
+          {
+            session: [session("s1", T0), session("s2", T0 + DAY)],
+            exercise: [exercise(ex, equipment, setup)],
+            exercise_line: [line("L", ex, "g", setup)],
+            workout_set: [set("a", "s1", "L", ex, 20), set("b", "s2", "L", ex, 20)],
+            target: [target("t", "s2", "L", ex, 20)],
+          },
+          T0 + 3 * DAY,
+        );
+
+        expect(week0(b)).toMatchObject({ comparable: 0, same: 0, more: 0, less: 0, both: 0 });
+      }
+    });
+
+    it("excludes negative loads and unconfirmed outliers from the agreement and repeat-last denominators", () => {
+      const b = backup(
+        {
+          session: [session("s0", T0 - DAY), session("s1", T0), session("s2", T0 + DAY)],
+          exercise: [exercise("bench", "barbell", "free")],
+          exercise_line: [line("L", "bench", "g", "free")],
+          workout_set: [
+            set("old-valid", "s0", "L", "bench", 50),
+            set("newer-invalid", "s1", "L", "bench", -5),
+            set("actual", "s2", "L", "bench", 50),
+            set("pending-outlier", "s2", "L", "bench", 500, { outlier_status: "unconfirmed" }),
+          ],
+          target: [target("valid", "s2", "L", "bench", 50), target("invalid", "s2", "L", "bench", -5)],
+        },
+        T0 + 3 * DAY,
+      );
+
+      // The negative s1 set is not a baseline, so repeat-last reaches back to s0's valid 50 kg.
+      // The pending 500 kg outlier and negative target are not comparisons at all.
+      expect(week0(b)).toMatchObject({ comparable: 1, same: 1, more: 0, less: 0, both: 1, bothAppSame: 1, bothRepeatSame: 1 });
+    });
+
     it("a previous session of the same exercise at ANOTHER gym is not the baseline", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY)],
+          exercise: [exercise("bench", "barbell", "free")],
           exercise_line: [line("LA", "bench", "gymA", "free"), line("LB", "bench", "gymB", "free")],
           workout_set: [set("a", "s1", "LA", "bench", 100), set("b", "s2", "LB", "bench", 60)],
           target: [target("t", "s2", "LB", "bench", 60)],
@@ -124,6 +222,7 @@ describe("pilot metrics from a backup", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY), session("s3", T0 + 2 * DAY)],
+          exercise: [exercise("bench", "barbell", "free")],
           exercise_line: [line("LA", "bench", "gymA", "free"), line("LB", "bench", "gymB", "free")],
           workout_set: [set("a", "s1", "LA", "bench", 60), set("b", "s2", "LB", "bench", 100), set("c", "s3", "LA", "bench", 60)],
           target: [target("t", "s3", "LA", "bench", 62.5)],
@@ -138,6 +237,8 @@ describe("pilot metrics from a backup", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY)],
+          bodyweight_entry: [{ id: "w", weight_kg: 80, measured_at: T0 - DAY, deleted_at: null }],
+          exercise: [exercise("pullup", "plate", "free")],
           exercise_line: [line("LF", "pullup", "g", "free"), line("LP", "pullup", "g", "bodyweight_plus_added")],
           workout_set: [set("a", "s1", "LF", "pullup", 0), set("b", "s2", "LP", "pullup", 10)],
           target: [target("t", "s2", "LP", "pullup", 10)],
@@ -151,6 +252,8 @@ describe("pilot metrics from a backup", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY)],
+          bodyweight_entry: [{ id: "w", weight_kg: 80, measured_at: T0 - DAY, deleted_at: null }],
+          exercise: [exercise("assistedpull", "assisted", "assisted")],
           exercise_line: [line("LA", "assistedpull", "g", "assisted")],
           // s1: 30 kg assistance then a harder 20 kg set. s2: target 20, lifter did 15 kg assistance (harder than target).
           workout_set: [set("a", "s1", "LA", "assistedpull", 30), set("b", "s1", "LA", "assistedpull", 20), set("c", "s2", "LA", "assistedpull", 15), set("d", "s2", "LA", "assistedpull", 25)],
@@ -166,6 +269,8 @@ describe("pilot metrics from a backup", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY), session("s3", T0 + 2 * DAY)],
+          bodyweight_entry: [{ id: "w", weight_kg: 80, measured_at: T0 - DAY, deleted_at: null }],
+          exercise: [exercise("assistedpull", "assisted", "assisted")],
           exercise_line: [line("LA", "assistedpull", "g", "assisted")],
           workout_set: [set("a", "s1", "LA", "assistedpull", 20), set("b", "s2", "LA", "assistedpull", 25), set("c", "s3", "LA", "assistedpull", 25)],
           target: [target("t2", "s2", "LA", "assistedpull", 20), target("t3", "s3", "LA", "assistedpull", 25)],
@@ -183,6 +288,7 @@ describe("pilot metrics from a backup", () => {
         {
           session: [session("s1", T0), session("s2", T0 + 20 * DAY)],
           bodyweight_entry: [{ id: "w1", weight_kg: 90, measured_at: T0 - DAY, deleted_at: null }, { id: "w2", weight_kg: 84, measured_at: T0 + 10 * DAY, deleted_at: null }],
+          exercise: [exercise("assistedpull", "assisted", "assisted")],
           exercise_line: [line("LA", "assistedpull", "g", "assisted")],
           workout_set: [set("a", "s1", "LA", "assistedpull", 20), set("b", "s2", "LA", "assistedpull", 20)],
           target: [target("t", "s2", "LA", "assistedpull", 20)],
@@ -193,23 +299,30 @@ describe("pilot metrics from a backup", () => {
       expect(computeLifterMetrics(b, {}).weeks[2]).toMatchObject({ comparable: 1, same: 1, both: 1, bothAppSame: 1, bothRepeatSame: 0 });
     });
 
-    it("added weight on a bodyweight exercise compares like a normal load (heavier added = more)", () => {
+    it("weighted bodyweight adds the bodyweight measured at each session", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY)],
+          bodyweight_entry: [
+            { id: "w1", weight_kg: 80, measured_at: T0 - DAY, deleted_at: null },
+            { id: "w2", weight_kg: 75, measured_at: T0 + DAY / 2, deleted_at: null },
+          ],
+          exercise: [exercise("dip", "plate", "bodyweight_plus_added")],
           exercise_line: [line("LD", "dip", "g", "bodyweight_plus_added")],
-          workout_set: [set("a", "s1", "LD", "dip", 10), set("b", "s2", "LD", "dip", 12.5)],
+          workout_set: [set("a", "s1", "LD", "dip", 10), set("b", "s2", "LD", "dip", 15)],
           target: [target("t", "s2", "LD", "dip", 10)],
         },
         T0 + 3 * DAY,
       );
-      expect(week0(b)).toMatchObject({ comparable: 1, more: 1, both: 1, bothAppSame: 0, bothRepeatSame: 0 });
+      // Prior effective load = 80 + 10 = 90; current actual = 75 + 15 = 90; current target = 75 + 10 = 85.
+      expect(week0(b)).toMatchObject({ comparable: 1, more: 1, both: 1, bothAppSame: 0, bothRepeatSame: 1 });
     });
 
     it("deleted lines and sets in other gyms never leak into the baseline", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY)],
+          exercise: [exercise("row", "barbell", "free")],
           exercise_line: [line("LA", "row", "g", "free")],
           workout_set: [set("a", "s1", "LA", "row", 50, { deleted_at: 1 }), set("b", "s2", "LA", "row", 55)],
           target: [target("t", "s2", "LA", "row", 55)],

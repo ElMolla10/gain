@@ -23,6 +23,7 @@ import {
 } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import { exerciseOwnLoads, gridFor } from "./exerciseGrid";
+import { completedWorkoutSlots, moveWorkoutSlot, orderSlots, type MoveDirection, type MoveOutcome, type StateMap } from "../logic/superset";
 
 export interface SetRow {
   id: string;
@@ -145,7 +146,7 @@ export interface ExerciseState {
   restOff: boolean;
   /** An exercise added to today's workout that is not in the program day (then `slot` is the exercise's own id). */
   added: boolean;
-  /** Order among the added exercises (1, 2, ...); null for program slots. */
+  /** Display order for the session after a reorder; before that, only added exercises have a position. */
   position: number | null;
   /** Exercises with the same group value are a superset. Null = not in one. */
   superset: string | null;
@@ -567,9 +568,39 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     });
   }
 
+  /**
+   * Move one uncompleted exercise for this open workout only. A superset moves as one block and is locked once any member is complete
+   * (its prescribed working sets are saved). A partial set does not lock it. The visible order is persisted atomically. Program positions,
+   * set rows and progression lines are never changed.
+   */
+  async function moveExercise(sessionId: string, slot: string, direction: MoveDirection): Promise<{ order: string[]; outcome: MoveOutcome }> {
+    const session = await getSession(sessionId);
+    if (!session || session.status !== "in_progress") throw new Error("Session is not in progress");
+    const programme = await db.all<{ exercise_id: string; sets: number }>(
+      "SELECT exercise_id, sets FROM programme_day_exercise WHERE programme_day_id = ? AND deleted_at IS NULL ORDER BY position",
+      [session.programme_day_id],
+    );
+    const states = await listExerciseState(sessionId);
+    const stateMap: StateMap = Object.fromEntries(states.map((state) => [state.slot, state]));
+    const current = orderSlots(programme.map((row) => row.exercise_id), stateMap);
+    const stateBySlot = new Map(states.map((state) => [state.slot, state]));
+    const targetBySlot = new Map(programme.map((row) => [row.exercise_id, row.sets]));
+    const completedSlots = completedWorkoutSlots(
+      current.map((id) => ({ slot: id, exerciseId: stateBySlot.get(id)?.replacedBy ?? id, sets: targetBySlot.get(id) ?? 3 })),
+      await listSessionSets(sessionId),
+    );
+    const result = moveWorkoutSlot(current, stateMap, completedSlots, slot, direction);
+    if (result.outcome !== "moved") return result;
+    await db.transaction(async () => {
+      for (let i = 0; i < result.order.length; i++) await patchExerciseState(sessionId, result.order[i]!, { position: i + 1 });
+    });
+    return result;
+  }
+
   return {
     addExercise,
     setSuperset,
+    moveExercise,
     listExerciseState,
     patchExerciseState,
     clearExerciseSets,

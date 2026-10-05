@@ -1,0 +1,133 @@
+# Installable test APK for a pull request.
+# assembleRelease embeds the JS bundle. A debug build type does not, so it is not a standalone install.
+# The generated project signs this release build with the disposable debug keystore (CN=Android Debug).
+# This workflow must not see the release keystore. The APK keeps package app.gain.mobile, so Android
+# will not install it over a release-signed GAIN.
+name: Android test APK
+on:
+  pull_request:
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: android-apk-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  android-apk:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: android-actions/setup-android@v4
+        with:
+          log-accepted-android-sdk-licenses: "false"
+      - run: npm ci
+      - name: Generate the Android project
+        working-directory: apps/mobile
+        run: CI=1 npx expo prebuild --platform android --clean --no-install
+      - name: Require the disposable debug key before compiling
+        working-directory: apps/mobile/android
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess, sys
+          head = subprocess.check_output(["git", "-C", os.environ["GITHUB_WORKSPACE"], "rev-parse", "HEAD"], text=True).strip()
+          if head != os.environ["HEAD_SHA"]:
+              sys.exit(f"checked out {head}, expected pull request head {os.environ['HEAD_SHA']}")
+          text = pathlib.Path("app/build.gradle").read_text()
+          if "gain-release" in text or ".jks" in text or "571bc5a8" in text.lower():
+              sys.exit("release key material must not appear in the generated Gradle file")
+          stores = re.findall(r"storeFile\s+file\('([^']+)'\)", text)
+          signs = re.findall(r"signingConfig\s+(\S+)", text)
+          names = sorted(p.name for p in pathlib.Path("app").iterdir() if p.suffix in {".keystore", ".jks"})
+          if stores != ["debug.keystore"] or signs != ["signingConfigs.debug", "signingConfigs.debug"] or names != ["debug.keystore"]:
+              sys.exit(f"expected only the disposable debug keystore, found stores={stores} signs={signs} files={names}")
+          PY
+      - name: Build a release APK signed with the disposable debug key
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon -Dorg.gradle.jvmargs=-Xmx2g
+      - name: Reject the release signing key and record the commit
+        working-directory: apps/mobile/android
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RELEASE_CERT_SHA256: 571bc5a8ce699054ae7bffe0fc912fd1faf9de7dfd3d3eb962b1b8578315c5b2
+          DEBUG_CERT_SHA256: fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, os, pathlib, re, subprocess, sys
+          head = subprocess.check_output(["git", "-C", os.environ["GITHUB_WORKSPACE"], "rev-parse", "HEAD"], text=True).strip()
+          if head != os.environ["HEAD_SHA"]:
+              sys.exit(f"checked out {head}, expected pull request head {os.environ['HEAD_SHA']}")
+          apk = pathlib.Path("app/build/outputs/apk/release/app-release.apk")
+          if not apk.is_file():
+              sys.exit("missing app-release.apk")
+          home = pathlib.Path(os.environ["ANDROID_HOME"])
+          def tool(name):
+              found = sorted(home.glob(f"build-tools/*/{name}"))
+              if not found:
+                  sys.exit(f"{name} not found under ANDROID_HOME")
+              return str(found[-1])
+          cert = subprocess.check_output([tool("apksigner"), "verify", "--print-certs", str(apk)], text=True)
+          print(cert)
+          release = os.environ["RELEASE_CERT_SHA256"]
+          debug = os.environ["DEBUG_CERT_SHA256"]
+          digests = [re.sub(r"[^0-9a-f]", "", item.lower()) for item in re.findall(r"SHA-256 digest:\s*([0-9A-Fa-f:]+)", cert)]
+          if release in digests:
+              sys.exit("release signing key must not be used in CI")
+          if digests != [debug] or "CN=Android Debug" not in cert or "Signer #2" in cert:
+              sys.exit("APK is not signed with the disposable Android debug certificate")
+          badging = subprocess.check_output([tool("aapt2"), "dump", "badging", str(apk)], text=True)
+          package = [line.strip() for line in badging.splitlines() if line.startswith("package: ")]
+          abis = [line.strip() for line in badging.splitlines() if line.startswith("native-code:")]
+          if package != [line for line in package if "name='app.gain.mobile'" in line] or len(package) != 1:
+              sys.exit(f"unexpected package line: {package}")
+          if abis != ["native-code: 'arm64-v8a'"]:
+              sys.exit(f"unexpected abi: {abis}")
+          out = pathlib.Path(os.environ["RUNNER_TEMP"]) / "apk"
+          out.mkdir(parents=True)
+          dest = out / f"gain-{head}.apk"
+          dest.write_bytes(apk.read_bytes())
+          digest = hashlib.sha256(dest.read_bytes()).hexdigest()
+          (out / "BUILD.txt").write_text(
+              "\n".join([
+                  f"commit: {head}",
+                  "package: app.gain.mobile",
+                  package[0],
+                  "variant: release",
+                  "abi: arm64-v8a",
+                  "signing: disposable Android debug keystore (CN=Android Debug)",
+                  f"signer-sha256: {debug}",
+                  "cannot-update-release-install: yes",
+                  f"release-signer-rejected: {release}",
+                  f"apk-sha256: {digest}",
+                  "",
+                  cert,
+              ])
+          )
+          print(f"artifact files: {dest.name} BUILD.txt")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gain-android-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/apk/gain-${{ github.event.pull_request.head.sha }}.apk
+            ${{ runner.temp }}/apk/BUILD.txt
+          retention-days: 7
+          if-no-files-found: error

@@ -2,6 +2,7 @@
  * The active workout as one list: every exercise shows its set rows. A row is either logged (saved on the phone, has a set id)
  * or not yet. Pure helpers, no I/O, so the rules are tested without a phone.
  */
+import { ROLE_BACKOFF_TAG, ROLE_TOP_TAG, type SetRole } from "@gain/engine";
 export interface SetRowDraft {
   /** Set id: generated once per row, so a double tap on "log" can never insert the same set twice. */
   key: string;
@@ -69,10 +70,13 @@ const blank = (key: string, p: Prefill): SetRowDraft => ({ key, load: null, reps
  * Rows to show for one exercise: the sets already logged today (oldest first), then empty rows prefilled with today's target
  * until the program's number of working sets is reached. Never invents numbers: with no target and no history the rows are empty.
  */
-export function initialRows(saved: SavedSet[], plannedSets: number, prefill: Prefill, newKey: () => string, backoff?: BackoffPrefill | null): SetRowDraft[] {
+export function initialRows(saved: SavedSet[], plannedSets: number, prefill: Prefill, newKey: () => string, backoff?: BackoffPrefill | null, perSet?: Prefill[] | null): SetRowDraft[] {
   const rows = saved.map(fromSaved);
   const working = rows.filter((r) => !r.warmup).length;
-  for (let i = working; i < plannedSets; i++) rows.push(blank(newKey(), backoff && i >= backoff.topSets ? backoff.last[i] ?? { load: null, reps: null } : prefill));
+  for (let i = working; i < plannedSets; i++) {
+    const ghost = perSet ? (perSet[i] ?? { load: null, reps: null }) : backoff && i >= backoff.topSets ? (backoff.last[i] ?? { load: null, reps: null }) : prefill;
+    rows.push(blank(newKey(), ghost));
+  }
   return rows;
 }
 
@@ -88,6 +92,59 @@ export interface BackoffPrefill {
 export function backoffPrefill(topSets: number | null | undefined, lastWorkingSets: { load: number; reps: number }[] | null | undefined): BackoffPrefill | null {
   if (!topSets || topSets < 1) return null;
   return { topSets, last: (lastWorkingSets ?? []).map((s) => ({ load: s.load, reps: s.reps })) };
+}
+
+/** Ghosts for a stored per-set plan. A missing position stays empty, never filled from another set. */
+export function perSetGhosts(targets: { position: number; load: number | null; reps: number | null }[] | null | undefined, plannedSets: number): Prefill[] | null {
+  if (!targets || targets.length === 0) return null;
+  const out: Prefill[] = [];
+  for (let i = 0; i < plannedSets; i++) {
+    const t = targets.find((x) => x.position === i + 1);
+    out.push(t ? { load: t.load, reps: t.reps } : { load: null, reps: null });
+  }
+  return out;
+}
+
+/**
+ * Which ghosts the logger shows. A stored per-set plan that was not rejected wins, and the old back-off prefill is not also applied.
+ * Rejected, straight-set and older targets keep the previous behaviour.
+ */
+export function loggerGhosts(args: {
+  timed: boolean;
+  topSets: number | null | undefined;
+  lastWorking: { load: number; reps: number }[] | null | undefined;
+  stored: { status: string; setTargets: { position: number; load: number | null; reps: number | null }[] | null } | null;
+  plannedSets: number;
+}): { backoff: BackoffPrefill | null; perSet: Prefill[] | null } {
+  if (args.timed) return { backoff: null, perSet: null };
+  if (args.stored && args.stored.status !== "rejected" && args.stored.setTargets && args.stored.setTargets.length > 0) {
+    return { backoff: null, perSet: perSetGhosts(args.stored.setTargets, args.plannedSets) };
+  }
+  return { backoff: backoffPrefill(args.topSets, args.lastWorking), perSet: null };
+}
+
+/** 0-based index among non-warmup, non-drop rows. -1 when this row is not a working set. */
+export function workingIndexOf(rows: { key: string; warmup: boolean; tags?: readonly string[] }[], key: string): number {
+  let n = -1;
+  for (const r of rows) {
+    if (r.warmup || r.tags?.includes("drop")) continue;
+    n++;
+    if (r.key === key) return n;
+  }
+  return -1;
+}
+
+/** Top-set slot vs back-off slot from the row's place. Null when this exercise is straight sets. */
+export function roleForWorkingIndex(topSets: number | null | undefined, workingIndex: number): SetRole | null {
+  if (!topSets || topSets < 1 || workingIndex < 0) return null;
+  return workingIndex < topSets ? "top" : "backoff";
+}
+
+/** Adds or clears the role tag. Other tags (drop, failure, ...) stay. */
+export function withRoleTag(tags: readonly string[], role: SetRole | null): string[] {
+  const rest = tags.filter((t) => t !== ROLE_TOP_TAG && t !== ROLE_BACKOFF_TAG);
+  if (!role) return rest;
+  return [...rest, role === "top" ? ROLE_TOP_TAG : ROLE_BACKOFF_TAG];
 }
 
 /** After a reload from the database: logged sets in database order, then the rows not logged yet. Typed-over edits of a logged row survive. */

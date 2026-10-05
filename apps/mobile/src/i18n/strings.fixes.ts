@@ -46,7 +46,12 @@ export const enFixes = {
   "range.src.default": "app-wide default for this kind of lift",
   "why.warning.fewer_sets_than_planned": "Fewer sets were done at the top load than the program prescribes, so last session did not count towards more load.",
   "why.weakestNote": "\"Reps\" for a session means the weakest set at its top load: the fewest reps in any working set at the heaviest load of that session. Load goes up when that weakest set reaches the ceiling and at least {n} set(s) were done at that load.",
-  "why.topSets": "Top set + back-offs: only your {n} heaviest set(s) decide whether weight goes up. The lighter back-off sets after them are ignored for progression.",
+  "why.topSets": "Top set + back-offs: only your first {n} working set(s) decide whether weight goes up. Sets after them are back-offs and are ignored for progression, even if one of them is heavier. A lighter set among those first sets still counts as a top set.",
+  "why.weakestNoteTop": "\"Reps\" for a session means the weakest of those top sets: the fewest reps at the hardest load among your first {top} working set(s), in the order you logged them. A heavier set logged after them does not become the top load. Load goes up when that weakest set reaches the ceiling and at least {n} set(s) were done at that load.",
+  "finish.set.top": "Top set {n}: {text}",
+  "finish.set.backoff": "Back-off {n}: {text}",
+  "finish.set.empty": "not set",
+  "finish.set.edit": "Edit set {n}",
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
@@ -96,5 +101,10 @@ export const arFixes: Record<keyof typeof enFixes, string> = {
   "range.src.default": "الافتراضي العام لنوع التمرين",
   "why.warning.fewer_sets_than_planned": "اتعملت مجموعات أقل على أتقل وزن من اللي البرنامج طالبه، فالجلسة اللي فاتت ما اتحسبتش لزيادة الوزن.",
   "why.weakestNote": "\"العدّات\" في الجلسة معناها أضعف مجموعة على أتقل وزن: أقل عدد عدّات في أي مجموعة شغل على أتقل وزن في الجلسة. الوزن بيزيد لما أضعف مجموعة توصل للسقف وتتعمل {n} مجموعة على الأقل على الوزن ده.",
-  "why.topSets": "مجموعة تقيلة + مجموعات أخف: بس أتقل {n} مجموعة هي اللي بتحدد لو الوزن هيزيد. المجموعات الأخف اللي بعدها مش بتتحسب في التقدّم.",
+  "why.topSets": "مجموعة تقيلة + مجموعات أخف: بس أول {n} مجموعة شغل هي اللي بتحدد لو الوزن هيزيد. المجموعات اللي بعدها مش بتتحسب في التقدّم، حتى لو واحدة منهم أتقل. مجموعة أخف وسط المجموعات الأولى دي لسه مجموعة تقيلة.",
+  "why.weakestNoteTop": "\"العدّات\" في الجلسة معناها أضعف مجموعة من المجموعات التقيلة: أقل عدد عدّات على أتقل وزن من أول {top} مجموعة شغل، بنفس الترتيب اللي سجلتهم بيه. مجموعة أتقل بعدهم مش بتبقى هي الوزن الأساسي. الوزن بيزيد لما أضعف مجموعة توصل للسقف وتتعمل {n} مجموعة على الأقل على الوزن ده.",
+  "finish.set.top": "مجموعة تقيلة {n}: {text}",
+  "finish.set.backoff": "مجموعة أخف {n}: {text}",
+  "finish.set.empty": "مش متحدد",
+  "finish.set.edit": "عدّل المجموعة {n}",
 };

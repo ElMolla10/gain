@@ -41,6 +41,7 @@ Report anything marked FAIL as an issue with a screenshot.
 | 31 | Available weights control (new) | Program > Edit > exercise > "Available weights" chip (and History > a lift > "Available weights" button): Standard steps / Steps / A list; save with kg and with lb; wrong text shows a problem under the field (not a crash); "Go back to standard steps" clears; 48 dp, keyboard does not cover the fields, light/dark, RTL | NOT TESTED |
 | 32 | Available weights change the next target (new) | Set dumbbell weights 10, 12, 14, 16 for an exercise: the next target and the logger's +/- step use only those weights; Why says "Weights you set for this exercise"; with nothing set Why says the weights are the standard steps (typical weights, not a measurement of the gym) | NOT TESTED |
 | 33 | Update keeps data (new in v0.21.0) | Install v0.21.0 over v0.20.0: history, program and gym are intact (schema 9 to 11); the program has no top sets and no own weights until set | NOT TESTED |
+| 53 | Per-set next targets (new) | A top-set + back-off exercise: Finish lists each set (top vs back-off), editing a back-off does not change the top weight, the logger ghosts those numbers and does not put the top weight on an empty back-off, Today shows the list. A straight-set exercise still has one target. Arabic is a draft. Not checked on a device. | NOT TESTED |
 
 ## iOS rows (new; for the personal free-route build in [IOS.md](IOS.md))
 

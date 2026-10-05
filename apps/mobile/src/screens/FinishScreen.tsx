@@ -38,7 +38,7 @@ export function FinishScreen() {
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [next, setNext] = useState<Next | null | "none">(null);
-  const [editing, setEditing] = useState<{ targetId: string; load: number } | null>(null);
+  const [editing, setEditing] = useState<{ targetId: string; load: number; position?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notices, setNotices] = useState<Record<string, string>>({});
   const [sharing, setSharing] = useState(false);
@@ -247,10 +247,28 @@ export function FinishScreen() {
                   <TargetStrip label={t("target.label")} value={isolateLtr(targetText(tg, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") }))} reason={shortReason(renderReason(localizeReason(tg.reason, unit, lang), lang))} />
                 )}
                 <InlineStatus kind={tg.status === "rejected" ? "warn" : tg.status === "proposed" ? "info" : "success"} text={t(`finish.status.${tg.status}` as never)} />
+                {tg.setTargets && tg.status !== "rejected" && !isEditing ? (
+                  <View style={{ gap: space.sm }}>
+                    {tg.setTargets.map((s) => {
+                      const text = s.load !== null && s.reps !== null ? `${formatLoad(s.load, lang, unit)} × ${s.reps}` : t("finish.set.empty");
+                      return (
+                        <View key={s.position} style={{ gap: space.xs }}>
+                          <AppText ltr>{isolateLtr(t(s.role === "top" ? "finish.set.top" : "finish.set.backoff", { n: s.position, text }))}</AppText>
+                          <BigButton
+                            variant="quiet"
+                            label={t("finish.set.edit", { n: s.position })}
+                            onPress={() => setEditing({ targetId: tg.id, load: s.load ?? tg.effectiveLoad ?? tg.load ?? 0, position: s.position })}
+                          />
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
                 {notices[tg.id] ? <AppText style={{ fontWeight: "600" }}>{notices[tg.id]}</AppText> : null}
 
                 {isEditing && editing ? (
                   <View style={{ gap: space.md }}>
+                    {editing.position != null ? <AppText style={{ fontWeight: "600" }}>{t("finish.set.edit", { n: editing.position })}</AppText> : null}
                     <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
                       <IconButton icon="minus" label={`${t("finish.edit")} −`} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free", unit).load })} />
                       <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: ty.load, fontWeight: "600" }}>{weightText(editing.load, unit)} {unitText}</AppText>
@@ -261,7 +279,8 @@ export function FinishScreen() {
                       onPress={() =>
                         act(async () => {
                           if (!info) return;
-                          await finish.editTargetLoad(tg.id, editing.load, next.gym, info.equipment, info.setup as "free");
+                          if (editing.position != null) await finish.editSetTarget(tg.id, editing.position, editing.load, next.gym, info.equipment, info.setup as "free");
+                          else await finish.editTargetLoad(tg.id, editing.load, next.gym, info.equipment, info.setup as "free");
                           setEditing(null);
                         })
                       }

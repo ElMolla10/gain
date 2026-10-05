@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BackupInvalid } from "../src/logic/backup";
 import { LATEST_VERSION, MIGRATIONS, migrate } from "../src/db/migrations";
 import { addExercise, draftFingerprint, newExercise, normTopSets, updateExercise, validateDraft, type ProgrammeDraft } from "../src/logic/programmeDraft";
-import { backoffPrefill, initialRows } from "../src/logic/workoutRows";
+import { backoffPrefill, initialRows, loggerGhosts, roleForWorkingIndex, withRoleTag, workingIndexOf } from "../src/logic/workoutRows";
 import { describeDecision } from "../src/logic/why";
 import { ar, en } from "../src/i18n/strings";
 import { freshDb } from "./helpers";
@@ -18,6 +18,7 @@ describe("migration 10: top set + back-offs (upgrade from schema 9 with real dat
     const before = await dumpAll(cur.db);
     // columns added by later migrations do not exist at schema 10
     before.exercise = (before.exercise as Record<string, unknown>[]).map(({ load_spec_json: _l, ...rest }) => rest);
+    before.target = ((before.target ?? []) as Record<string, unknown>[]).map(({ set_targets_json: _s, ...rest }) => rest);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000); // the real 70-workout export is in there
     const old = await copyAtVersion(cur.db, 9);
     expect((await old.get<{ user_version: number }>("PRAGMA user_version"))!.user_version).toBe(9);
@@ -145,7 +146,7 @@ describe("end to end: back-off sets do not block progression", () => {
       }
       return (await s.finish.getTargets(written!)).find((t) => t.exerciseId === benchId)!;
     };
-    return { ...s, trainRotation, benchId };
+    return { ...s, trainRotation, benchId, gym };
   }
   const plan = [{ load: 60, reps: 10 }, { load: 50, reps: 12 }, { load: 50, reps: 12 }, { load: 50, reps: 12 }];
 
@@ -155,6 +156,7 @@ describe("end to end: back-off sets do not block progression", () => {
     const t = await s.trainRotation(plan);
     expect(t.currency).not.toBe("load");
     expect(t.load).toBe(60);
+    expect(t.setTargets).toBeNull();
   });
   it("top set + back-offs: the same session earns more weight, and the Why text says only the top set counts", async () => {
     const s = await bench(1);
@@ -166,7 +168,7 @@ describe("end to end: back-off sets do not block progression", () => {
     expect(d.payload.inputs.topSets).toBe(1);
     expect(d.payload.inputs.readiness.requiredSetsAtTop).toBe(1);
     const lines = describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, L, "en").find((x) => x.title === en["why.rule"])!.lines.join("\n");
-    expect(lines).toContain("Top set + back-offs: only your 1 heaviest set(s) decide whether weight goes up. The lighter back-off sets after them are ignored for progression.");
+    expect(lines).toContain("Top set + back-offs: only your first 1 working set(s) decide whether weight goes up. Sets after them are back-offs and are ignored for progression, even if one of them is heavier. A lighter set among those first sets still counts as a top set.");
   });
   it("top set + back-offs still needs the top set itself to reach the top of the range", async () => {
     const s = await bench(1);
@@ -183,6 +185,44 @@ describe("end to end: back-off sets do not block progression", () => {
     expect(d.payload.inputs.topSets).toBeUndefined();
     expect(describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, L, "en").flatMap((x) => x.lines).join("\n")).not.toContain("Top set + back-offs");
   });
+  it("a heavier set logged after the top slot is not the anchor, and the next target lists each set without copying the top load onto a back-off", async () => {
+    const s = await bench(1);
+    const heavyLater = [{ load: 60, reps: 10 }, { load: 80, reps: 8 }, { load: 50, reps: 12 }, { load: 50, reps: 12 }];
+    await s.trainRotation(heavyLater);
+    const t = await s.trainRotation(heavyLater);
+    const d = (await s.finish.getDecision(t.id))!;
+    expect(d.payload.inputs.sessions[0]!.topLoad).toBe(60);
+    expect(t.load).not.toBe(80);
+    expect(t.setTargets).toEqual([
+      { position: 1, role: "top", load: t.load, reps: t.reps },
+      { position: 2, role: "backoff", load: 80, reps: 8 },
+      { position: 3, role: "backoff", load: 50, reps: 12 },
+      { position: 4, role: "backoff", load: 50, reps: 12 },
+    ]);
+  });
+  it("editing a back-off changes only that slot; editing the headline moves every top slot; accept restores the top slots", async () => {
+    const s = await bench(1);
+    await s.trainRotation(plan);
+    const t = await s.trainRotation(plan);
+    const meta = (await s.db.get<{ equipment: "barbell"; setup: "free" }>("SELECT equipment, setup FROM exercise WHERE id = ?", [s.benchId]))!;
+    await s.finish.editSetTarget(t.id, 2, 40, s.gym, meta.equipment, meta.setup);
+    const edited = (await s.finish.getTargets(t.sessionId)).find((x) => x.id === t.id)!;
+    expect(edited.status).toBe("edited");
+    expect(edited.setTargets?.[1]).toMatchObject({ role: "backoff", load: 40 });
+    expect(edited.setTargets?.[0]?.load).toBe(t.setTargets?.[0]?.load);
+    expect(edited.effectiveLoad).toBe(t.load);
+    await s.finish.editTargetLoad(t.id, 62.5, s.gym, meta.equipment, meta.setup);
+    const head = (await s.finish.getTargets(t.sessionId)).find((x) => x.id === t.id)!;
+    expect(head.editedLoad).toBe(62.5);
+    expect(head.setTargets!.filter((x) => x.role === "top").every((x) => x.load === 62.5)).toBe(true);
+    expect(head.setTargets![1]!.load).toBe(40);
+    await s.finish.acceptTarget(t.id);
+    const acc = (await s.finish.getTargets(t.sessionId)).find((x) => x.id === t.id)!;
+    expect(acc.status).toBe("accepted");
+    expect(acc.effectiveLoad).toBe(t.load);
+    expect(acc.setTargets![0]!.load).toBe(t.load);
+    expect(acc.setTargets![1]!.load).toBe(40);
+  });
 });
 
 describe("the logger rows for back-offs", () => {
@@ -198,6 +238,38 @@ describe("the logger rows for back-offs", () => {
   it("straight sets are unchanged", () => {
     expect(initialRows([], 3, { load: 60, reps: 10 }, key).map((r) => r.ghostLoad)).toEqual([60, 60, 60]);
     expect(backoffPrefill(null, [])).toBeNull();
+  });
+  it("a stored per-set plan replaces the back-off prefill, and a rejected plan does not", () => {
+    const stored = {
+      status: "proposed",
+      setTargets: [
+        { position: 1, load: 100, reps: 8 },
+        { position: 2, load: 80, reps: 12 },
+        { position: 3, load: null, reps: null },
+        { position: 4, load: null, reps: null },
+      ],
+    };
+    const live = loggerGhosts({ timed: false, topSets: 1, lastWorking: [{ load: 100, reps: 8 }, { load: 70, reps: 12 }], stored, plannedSets: 4 });
+    expect(live.backoff).toBeNull();
+    const rows = initialRows([], 4, { load: 100, reps: 8 }, key, live.backoff, live.perSet);
+    expect(rows.map((r) => [r.ghostLoad, r.ghostReps])).toEqual([[100, 8], [80, 12], [null, null], [null, null]]);
+    const rejected = loggerGhosts({ timed: false, topSets: 1, lastWorking: [{ load: 100, reps: 8 }, { load: 70, reps: 12 }], stored: { ...stored, status: "rejected" }, plannedSets: 4 });
+    expect(rejected.perSet).toBeNull();
+    expect(rejected.backoff?.last[1]).toEqual({ load: 70, reps: 12 });
+  });
+  it("role tags follow working-set order and skip warm-ups and drop sets", () => {
+    const rows = [
+      { key: "w", warmup: true, tags: [] as string[] },
+      { key: "a", warmup: false, tags: [] as string[] },
+      { key: "d", warmup: false, tags: ["drop"] },
+      { key: "b", warmup: false, tags: ["failure"] },
+    ];
+    expect(roleForWorkingIndex(1, workingIndexOf(rows, "a"))).toBe("top");
+    expect(roleForWorkingIndex(1, workingIndexOf(rows, "b"))).toBe("backoff");
+    expect(roleForWorkingIndex(1, workingIndexOf(rows, "w"))).toBeNull();
+    expect(roleForWorkingIndex(null, 0)).toBeNull();
+    expect(withRoleTag(["failure"], "backoff")).toEqual(["failure", "role:backoff"]);
+    expect(withRoleTag(["role:top", "failure"], null)).toEqual(["failure"]);
   });
 });
 
@@ -236,7 +308,7 @@ describe("export, import and older files", () => {
 
 describe("strings", () => {
   it("English and Egyptian Arabic (draft) exist with the same placeholders, and English says 'program'", () => {
-    for (const k of ["prog.ex.scheme", "prog.ex.scheme.straight", "prog.ex.scheme.top", "prog.ex.topSets", "prog.ex.schemeHint", "prog.problem.topsets_bad", "why.topSets", "workout.topset.note"] as const) {
+    for (const k of ["prog.ex.scheme", "prog.ex.scheme.straight", "prog.ex.scheme.top", "prog.ex.topSets", "prog.ex.schemeHint", "prog.problem.topsets_bad", "why.topSets", "why.weakestNoteTop", "workout.topset.note", "finish.set.top", "finish.set.backoff", "finish.set.empty", "finish.set.edit"] as const) {
       expect(ar[k], k).toMatch(/[\u0600-\u06FF]/);
       expect((en[k].match(/\{\w+\}/g) ?? []).sort()).toEqual((ar[k].match(/\{\w+\}/g) ?? []).sort());
       expect(en[k].toLowerCase()).not.toContain("programme");

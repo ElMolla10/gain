@@ -1,6 +1,7 @@
 import { RULE_VERSION } from "./version";
 import { effectiveLoad, epley, lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
+import { selectJudgedSets } from "./setTargets";
 import { specForExercise, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad, allowsZero } from "./loads";
 import { classifyLift, mergeRepCeilings, resolveProgression, resolveRepTop } from "./policy";
 import { isJumpBlocked, recordsForLine, REJECTION_THRESHOLD, rejectionCount, emptyRejectionMemory } from "./rejection";
@@ -69,11 +70,13 @@ export const jumpKindLoad = (dir: "harder" | "easier", delta: number): string =>
 export const jumpKindEffort = (rir: number): string => `effort:rir${rir}`;
 export const jumpKindQuality = (q: QualityChange): string => `quality:${q}`;
 
-/** Per-session summary of the hardest trusted working load. Null when the session has no trusted working set. */
+/** Per-session summary. Straight sets: the hardest trusted working load of the session. A top-set scheme: the hardest load inside the judged group only (see selectJudgedSets). Null when the session has no trusted working set. */
 function summarize(
   s: HistorySession,
   setup: LineIdentity["setup"],
   counts: { warmup: number; drop: number; outlier: number },
+  topSets: number | undefined,
+  plannedSets: number | undefined,
 ): SessionSummary | null {
   for (const x of s.sets) {
     if (x.warmup) counts.warmup++;
@@ -82,10 +85,12 @@ function summarize(
   }
   const trusted = s.sets.filter((x) => isTrustedWorkingSet(x) && x.reps >= 1 && Number.isFinite(x.load));
   if (trusted.length === 0) return null;
+  const judged = selectJudgedSets(trusted, topSets, plannedSets);
+  const pool = judged.length > 0 ? judged : trusted;
   const harder = (a: number, b: number) => (setup === "assisted" ? a < b : a > b);
-  let top = trusted[0]!.load;
-  for (const x of trusted) if (harder(x.load, top)) top = x.load;
-  const atTop = trusted.filter((x) => Math.abs(x.load - top) < 1e-6);
+  let top = pool[0]!.load;
+  for (const x of pool) if (harder(x.load, top)) top = x.load;
+  const atTop = pool.filter((x) => Math.abs(x.load - top) < 1e-6);
   const rirs = atTop.map((x) => x.rir).filter((r): r is number => typeof r === "number");
   const tags = [...new Set(atTop.flatMap((x) => x.tags ?? []))];
   return {
@@ -149,7 +154,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const sorted = sortNewestFirst(comparable);
   const summaries: SessionSummary[] = [];
   for (const s of sorted) {
-    const sm = summarize(s, setup, counts);
+    const sm = summarize(s, setup, counts, exercise.topSets, exercise.plannedSets);
     if (sm) summaries.push(sm);
   }
   const newestSession = sorted[0];

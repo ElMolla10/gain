@@ -14,7 +14,7 @@ export interface DraftExercise {
   repCeiling: number | null;
   isGoalLift: boolean;
   trackEffort: boolean;
-  /** null = straight sets. n >= 1 = top set + back-offs: only the n heaviest sets are judged, the lighter sets after them never block progression. */
+  /** null = straight sets. n >= 1 = top set + back-offs: the first n working sets are judged. A lighter set among them is still a top set, and a heavier set after them is not. */
   topSets?: number | null;
 }
 export interface DraftDay {

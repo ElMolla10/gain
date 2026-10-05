@@ -105,7 +105,10 @@ export function describeDecision(
   }
   if (i.trackEffort) ruleLines.push(L("why.effortTracked"));
   if (p.needsModel.needed) ruleLines.push(L("why.needsModel"));
-  if (i.measure === undefined || i.measure === "reps") ruleLines.push(L("why.weakestNote", { n: i.readiness.requiredSetsAtTop ?? 1 }));
+  if (i.measure === undefined || i.measure === "reps") {
+    if (i.topSets !== undefined) ruleLines.push(L("why.weakestNoteTop", { n: i.readiness.requiredSetsAtTop ?? i.topSets, top: i.topSets }));
+    else ruleLines.push(L("why.weakestNote", { n: i.readiness.requiredSetsAtTop ?? 1 }));
+  }
   if (i.topSets !== undefined && (i.measure === undefined || i.measure === "reps")) ruleLines.push(L("why.topSets", { n: i.topSets }));
   for (const w of p.warnings) ruleLines.push(L(`why.warning.${w}`));
   out.push({ title: L("why.rule"), lines: ruleLines });

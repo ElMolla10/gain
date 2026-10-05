@@ -323,7 +323,7 @@ export function createRepos(db: Db, deps: Deps) {
       repTopBasis: basis,
       /** The GAIN ceiling for this kind of lift, for the text that says what "Use GAIN rep ceilings" would change. */
       gainCeiling,
-      /** null = straight sets; n = top set + back-offs (only the n heaviest sets are judged). */
+      /** null = straight sets; n = top set + back-offs (the first n working sets are judged, not the heaviest). */
       topSets: normTopSets(r.sets, r.top_sets),
       /** Weights the lifter set for this exercise (null = the gym's grid). */
       loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),

@@ -27,7 +27,7 @@ import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type Jump
 import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
-import { acceptGhost, addRow, backoffPrefill, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { acceptGhost, addRow, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, loggerGhosts, markSaved, mergeRows, pendingCount, removeRow, roleForWorkingIndex, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, withRoleTag, workingIndexOf, type Prefill, type SetRowDraft } from "../logic/workoutRows";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
@@ -229,7 +229,8 @@ export function WorkoutScreen() {
         if (st?.removed) continue;
         const ex = makeDisp(slotEx, st);
         info[ex.exerciseId] = await buildInfo(ex, id, gym);
-        initial[ex.exerciseId] = initialRows(all.filter((s) => s.exerciseId === ex.exerciseId).map(toSaved), ex.sets, info[ex.exerciseId]!.prefill, () => Crypto.randomUUID(), (isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info[ex.exerciseId]!.last?.sets)));
+        const ghosts = loggerGhosts({ timed: isTimed(ex.measure), topSets: ex.topSets, lastWorking: info[ex.exerciseId]!.last?.sets, stored: info[ex.exerciseId]!.stored, plannedSets: ex.sets });
+        initial[ex.exerciseId] = initialRows(all.filter((s) => s.exerciseId === ex.exerciseId).map(toSaved), ex.sets, info[ex.exerciseId]!.prefill, () => Crypto.randomUUID(), ghosts.backoff, ghosts.perSet);
       }
       const session = await workout.getSession(id);
       setExState(states);
@@ -344,9 +345,11 @@ export function WorkoutScreen() {
     const q = eff.reps as number; // reps, or seconds / metres for a timed exercise
     const qf = quantityFields(q, ex.measure);
     const ctx = { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup };
+    const role = !isTimed(ex.measure) && !row.warmup && !isDropRow(row) ? roleForWorkingIndex(ex.topSets, workingIndexOf(rows[ex.exerciseId] ?? [], row.key)) : null;
+    const tags = withRoleTag(row.tags, role);
     try {
       if (!row.saved) {
-        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
         // No rest timer after a warm-up or a drop set (the next set follows straight away).
         // In a superset the rest comes after the last exercise of the round only.
@@ -356,7 +359,7 @@ export function WorkoutScreen() {
           setTimer((tm) => startTimer(tm, Date.now()));
         }
       } else if (row.dirty) {
-        const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+        const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
       }
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
@@ -465,7 +468,8 @@ export function WorkoutScreen() {
     const info = await buildInfo(ex, lo.sessionId, lo.gym);
     const saved = (await workout.listSessionSets(lo.sessionId, ex.exerciseId)).map(toSaved);
     setLoaded((cur) => (cur && cur !== "nogym" ? { ...cur, info: { ...cur.info, [ex.exerciseId]: info } } : cur));
-    setRows((r) => ({ ...r, [ex.exerciseId]: initialRows(saved, ex.sets, info.prefill, () => Crypto.randomUUID(), (isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info.last?.sets))) }));
+    const ghosts = loggerGhosts({ timed: isTimed(ex.measure), topSets: ex.topSets, lastWorking: info.last?.sets, stored: info.stored, plannedSets: ex.sets });
+    setRows((r) => ({ ...r, [ex.exerciseId]: initialRows(saved, ex.sets, info.prefill, () => Crypto.randomUUID(), ghosts.backoff, ghosts.perSet) }));
   }
 
   async function replaceWith(slot: string, exerciseId: string) {

@@ -183,8 +183,10 @@ export interface ExerciseSpec {
    */
   plannedSets?: number;
   /**
-   * Top-set / back-off prescription: only this many sets (the heaviest ones) are judged for progression; the remaining planned sets are
-   * lighter back-off sets and are ignored. Omitted = straight sets (all `plannedSets` count). Judged on the weakest of the top sets.
+   * Top-set / back-off prescription. Only this many working sets are judged, taken in log order (or the sets tagged
+   * `role:top` when any set in the session carries a role tag). The sets after them are back-offs and are ignored,
+   * even when one of them is heavier. A lighter set inside the judged group stays a top set: it is not reclassified
+   * as a back-off because of its weight. Omitted = straight sets (the heaviest load of the whole session is judged).
    */
   topSets?: number;
   /**
@@ -278,7 +280,7 @@ export interface DecisionInputs {
   repRange: RepRange;
   /** The range the program asked for (`max` null = no upper bound). Absent in decisions stored before the fixes release. */
   programmeRepRange?: { min: number; max: number | null };
-  /** Set only for a top set + back-off prescription (fewer top sets than planned sets): the number of top sets that are judged; the lighter sets after them are ignored. */
+  /** Set only for a top set + back-off prescription (fewer top sets than planned sets): how many working sets, in log order, are judged. Sets after them are ignored even if heavier. */
   topSets?: number;
   /** Why `repRange.max` is what it is. Absent in decisions stored before rule-v0.4, which always used the lift's own or the GAIN default ceiling. */
   repTopBasis?: RepTopBasis;

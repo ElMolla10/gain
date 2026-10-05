@@ -3,7 +3,7 @@ import { shortReason, targetText } from "../logic/nextTarget";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type GymLoadSpec } from "@gain/engine";
+import { emptyBackoffStart, findSpec, nextLoadAbove, renderReason, type GymFingerprint, type GymLoadSpec } from "@gain/engine";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Share, View } from "react-native";
 import { useServices } from "../AppContext";
@@ -251,13 +251,19 @@ export function FinishScreen() {
                   <View style={{ gap: space.sm }}>
                     {tg.setTargets.map((s) => {
                       const text = s.load !== null && s.reps !== null ? `${formatLoad(s.load, lang, unit)} × ${s.reps}` : t("finish.set.empty");
+                      const spoken = s.load !== null && s.reps !== null ? `${weightText(s.load, unit)} ${unitText} × ${s.reps}` : t("finish.set.empty");
                       return (
                         <View key={s.position} style={{ gap: space.xs }}>
-                          <AppText ltr>{isolateLtr(t(s.role === "top" ? "finish.set.top" : "finish.set.backoff", { n: s.position, text }))}</AppText>
+                          <AppText>{t(s.role === "top" ? "finish.set.top" : "finish.set.backoff", { n: s.position, text })}</AppText>
                           <BigButton
                             variant="quiet"
                             label={t("finish.set.edit", { n: s.position })}
-                            onPress={() => setEditing({ targetId: tg.id, load: s.load ?? tg.effectiveLoad ?? tg.load ?? 0, position: s.position })}
+                            accessibilityHint={spoken}
+                            onPress={() => {
+                              const headline = tg.effectiveLoad ?? tg.load ?? 0;
+                              const start = s.load !== null ? s.load : s.role === "backoff" ? emptyBackoffStart(headline, spec, (info?.setup ?? "free") !== "free") : headline;
+                              setEditing({ targetId: tg.id, load: start, position: s.position });
+                            }}
                           />
                         </View>
                       );

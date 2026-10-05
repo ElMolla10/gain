@@ -223,6 +223,52 @@ describe("end to end: back-off sets do not block progression", () => {
     expect(acc.setTargets![0]!.load).toBe(t.load);
     expect(acc.setTargets![1]!.load).toBe(40);
   });
+  it("rejecting leaves the per-set plan in place, and editing one back-off does not change another", async () => {
+    const s = await bench(1);
+    await s.trainRotation(plan);
+    const t = await s.trainRotation(plan);
+    const meta = (await s.db.get<{ equipment: "barbell"; setup: "free" }>("SELECT equipment, setup FROM exercise WHERE id = ?", [s.benchId]))!;
+    await s.finish.editSetTarget(t.id, 2, 40, s.gym, meta.equipment, meta.setup);
+    await s.finish.editSetTarget(t.id, 3, 45, s.gym, meta.equipment, meta.setup);
+    const edited = (await s.finish.getTargets(t.sessionId)).find((x) => x.id === t.id)!;
+    expect(edited.setTargets?.[1]?.load).toBe(40);
+    expect(edited.setTargets?.[2]?.load).toBe(45);
+    expect(edited.setTargets?.[0]?.load).toBe(t.setTargets?.[0]?.load);
+    expect(edited.setTargets?.[3]?.load).toBe(t.setTargets?.[3]?.load);
+    const before = edited.setTargets;
+    await s.finish.rejectTarget(t.id);
+    const rejected = (await s.finish.getTargets(t.sessionId)).find((x) => x.id === t.id)!;
+    expect(rejected.status).toBe("rejected");
+    expect(rejected.editedLoad).toBeNull();
+    expect(rejected.effectiveLoad).toBeNull();
+    expect(rejected.setTargets).toEqual(before);
+    const ghosts = loggerGhosts({ timed: false, topSets: 1, lastWorking: plan, stored: rejected, plannedSets: 4 });
+    expect(ghosts.perSet).toBeNull();
+  });
+  it("a back-off logged before the top set is not copied onto the wrong slot", async () => {
+    const s = await bench(1);
+    const gymId = (await s.repos.getActiveGymId())!;
+    const a = (await s.programmes.getActive())!;
+    const draft = await s.programmes.loadDraft(a.versionId);
+    let written: string | null = null;
+    for (let d = 0; d < draft.days.length; d++) {
+      const next = (await s.repos.getNextDay())!;
+      const exs = await s.repos.listDayExercises(next.day.id);
+      const { id } = await s.workout.startOrResumeSession(next.day.id, gymId);
+      const mine = exs.find((e) => e.exerciseId === s.benchId) ?? exs[0]!;
+      if (mine.exerciseId === s.benchId) {
+        await s.workout.logSet({ sessionId: id, exerciseId: mine.exerciseId, load: 80, reps: 12, tags: ["slot:2", "role:backoff"] }, { gym: s.gym, equipment: mine.equipment, setup: mine.setup });
+        await s.workout.logSet({ sessionId: id, exerciseId: mine.exerciseId, load: 100, reps: 8, tags: ["slot:1", "role:top"] }, { gym: s.gym, equipment: mine.equipment, setup: mine.setup });
+      } else await s.workout.logSet({ sessionId: id, exerciseId: mine.exerciseId, load: 40, reps: 10 }, { gym: s.gym, equipment: mine.equipment, setup: mine.setup });
+      s.deps.tick(1000);
+      await s.workout.finishSession(id);
+      written = (await s.finish.writeNextSessionTargets(id))!.sessionId;
+      s.deps.tick(DAY);
+    }
+    const t = (await s.finish.getTargets(written!)).find((x) => x.exerciseId === s.benchId)!;
+    expect(t.setTargets?.[1]).toMatchObject({ position: 2, role: "backoff", load: 80, reps: 12 });
+    expect(t.setTargets?.[0]?.load).not.toBe(80);
+  });
 });
 
 describe("the logger rows for back-offs", () => {
@@ -251,8 +297,9 @@ describe("the logger rows for back-offs", () => {
     };
     const live = loggerGhosts({ timed: false, topSets: 1, lastWorking: [{ load: 100, reps: 8 }, { load: 70, reps: 12 }], stored, plannedSets: 4 });
     expect(live.backoff).toBeNull();
-    const rows = initialRows([], 4, { load: 100, reps: 8 }, key, live.backoff, live.perSet);
+    const rows = initialRows([], 4, { load: 100, reps: 8 }, key, live.backoff, live.perSet, 1);
     expect(rows.map((r) => [r.ghostLoad, r.ghostReps])).toEqual([[100, 8], [80, 12], [null, null], [null, null]]);
+    expect(rows.map((r) => r.tags)).toEqual([["slot:1", "role:top"], ["slot:2", "role:backoff"], ["slot:3", "role:backoff"], ["slot:4", "role:backoff"]]);
     const rejected = loggerGhosts({ timed: false, topSets: 1, lastWorking: [{ load: 100, reps: 8 }, { load: 70, reps: 12 }], stored: { ...stored, status: "rejected" }, plannedSets: 4 });
     expect(rejected.perSet).toBeNull();
     expect(rejected.backoff?.last[1]).toEqual({ load: 70, reps: 12 });

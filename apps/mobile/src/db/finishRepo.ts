@@ -7,6 +7,7 @@ import {
   parseSetTargets,
   REJECTION_THRESHOLD,
   findSpec,
+  workingLoadsBySlot,
   type GymFingerprint,
   type LineIdentity,
   type LoggedSet,
@@ -263,7 +264,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         plannedSets: ex.sets,
         topSets: ex.measure === "reps" ? ex.topSets : null,
         top: { load: proposal.load, reps: proposal.reps },
-        lastWorking: (last?.sets ?? []).map((s) => ({ load: s.load, reps: s.reps })),
+        lastWorking: workingLoadsBySlot(last?.sets ?? []),
       });
       decided.push({ ex, proposal, lineId, setTargets });
     }

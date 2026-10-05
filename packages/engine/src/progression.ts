@@ -70,14 +70,14 @@ export const jumpKindLoad = (dir: "harder" | "easier", delta: number): string =>
 export const jumpKindEffort = (rir: number): string => `effort:rir${rir}`;
 export const jumpKindQuality = (q: QualityChange): string => `quality:${q}`;
 
-/** Per-session summary. Straight sets: the hardest trusted working load of the session. A top-set scheme: the hardest load inside the judged group only (see selectJudgedSets). Null when the session has no trusted working set. */
+/** Per-session summary. Straight sets: the hardest trusted working load of the session. A top-set scheme: the hardest load inside the judged group only (see selectJudgedSets). Null when the session has no trusted working set. `{ missingTop: true }` when the scheme's tags name no top set: back-off loads are not used. */
 function summarize(
   s: HistorySession,
   setup: LineIdentity["setup"],
   counts: { warmup: number; drop: number; outlier: number },
   topSets: number | undefined,
   plannedSets: number | undefined,
-): SessionSummary | null {
+): SessionSummary | { missingTop: true; performedAt: string } | null {
   for (const x of s.sets) {
     if (x.warmup) counts.warmup++;
     else if (x.tags?.includes("drop")) counts.drop++;
@@ -86,11 +86,11 @@ function summarize(
   const trusted = s.sets.filter((x) => isTrustedWorkingSet(x) && x.reps >= 1 && Number.isFinite(x.load));
   if (trusted.length === 0) return null;
   const judged = selectJudgedSets(trusted, topSets, plannedSets);
-  const pool = judged.length > 0 ? judged : trusted;
+  if (judged.length === 0) return { missingTop: true, performedAt: s.performedAt };
   const harder = (a: number, b: number) => (setup === "assisted" ? a < b : a > b);
-  let top = pool[0]!.load;
-  for (const x of pool) if (harder(x.load, top)) top = x.load;
-  const atTop = pool.filter((x) => Math.abs(x.load - top) < 1e-6);
+  let top = judged[0]!.load;
+  for (const x of judged) if (harder(x.load, top)) top = x.load;
+  const atTop = judged.filter((x) => Math.abs(x.load - top) < 1e-6);
   const rirs = atTop.map((x) => x.rir).filter((r): r is number => typeof r === "number");
   const tags = [...new Set(atTop.flatMap((x) => x.tags ?? []))];
   return {
@@ -152,10 +152,32 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const { comparable, incomparable } = splitComparable(line, ctx.history);
   const counts = { warmup: 0, drop: 0, outlier: 0 };
   const sorted = sortNewestFirst(comparable);
-  const summaries: SessionSummary[] = [];
+  const raw: (SessionSummary | { missingTop: true; performedAt: string })[] = [];
   for (const s of sorted) {
     const sm = summarize(s, setup, counts, exercise.topSets, exercise.plannedSets);
-    if (sm) summaries.push(sm);
+    if (sm) raw.push(sm);
+  }
+  // Newest first. A session whose tags name no top set does not adopt a back-off load. It repeats the nearest older
+  // real top (setsAtTop 0, so it cannot earn a jump). If no older top exists, the session is left out: no invented load.
+  const summaries: SessionSummary[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const sm = raw[i]!;
+    if (!("missingTop" in sm)) {
+      summaries.push(sm);
+      continue;
+    }
+    const older = raw.slice(i + 1).find((x): x is SessionSummary => !("missingTop" in x));
+    if (!older) continue;
+    summaries.push({
+      performedAt: sm.performedAt,
+      topLoad: older.topLoad,
+      repsAtTop: older.repsAtTop,
+      lastSetReps: older.repsAtTop,
+      setsAtTop: 0,
+      workingSets: 0,
+      rir: null,
+      tags: [],
+    });
   }
   const newestSession = sorted[0];
   const pendingOutlier = !!newestSession?.sets.some((x) => !x.warmup && x.outlierStatus === "unconfirmed");

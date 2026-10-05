@@ -469,6 +469,10 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     return { outlier };
   }
 
+  async function setSetTags(setId: string, tags: string[]): Promise<void> {
+    await db.run("UPDATE workout_set SET tags_json = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [JSON.stringify(tags), now(), setId]);
+  }
+
   async function deleteSet(setId: string): Promise<void> {
     const t = now();
     await db.run("UPDATE workout_set SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [t, t, setId]);
@@ -592,6 +596,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     setOutlierStatus,
     updateLiveSet,
     deleteSet,
+    setSetTags,
   };
 }
 export type WorkoutRepo = ReturnType<typeof createWorkoutRepo>;

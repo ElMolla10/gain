@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { proposeNext } from "./progression";
-import { acceptSetTargets, applyHeadlineLoad, applySlotLoad, buildSetTargets, parseSetTargets, ROLE_BACKOFF_TAG, ROLE_TOP_TAG, selectJudgedSets } from "./setTargets";
+import { acceptSetTargets, applyHeadlineLoad, applySlotLoad, buildSetTargets, emptyBackoffStart, parseSetTargets, progressionAnchor, ROLE_BACKOFF_TAG, ROLE_TOP_TAG, selectJudgedSets, SLOT_TAG_PREFIX, tagsForLoggedSet, workingLoadsBySlot } from "./setTargets";
+import { findSpec } from "./loads";
 import { ASOF, exBar, gymA, lineOf, S, session } from "./testkit";
 
 const line = lineOf("bench");
@@ -23,9 +24,13 @@ describe("selectJudgedSets", () => {
     const tagged = [S(70, 8, { tags: [ROLE_TOP_TAG] }), S(100, 10, { tags: [ROLE_BACKOFF_TAG] }), S(90, 10, { tags: [ROLE_TOP_TAG] })];
     expect(selectJudgedSets(tagged, 1, 3).map((s) => s.load)).toEqual([70, 90]);
   });
-  it("role tags that name no top set fall back to the first n", () => {
+  it("role or slot tags that name no top set do not fall back onto a back-off", () => {
     const onlyBack = [S(60, 8, { tags: [ROLE_BACKOFF_TAG] }), S(100, 8)];
-    expect(selectJudgedSets(onlyBack, 1, 2).map((s) => s.load)).toEqual([60]);
+    expect(selectJudgedSets(onlyBack, 1, 2)).toEqual([]);
+    const slotted = [S(110, 8, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG] })];
+    expect(selectJudgedSets(slotted, 1, 3)).toEqual([]);
+    const kept = [S(100, 8, { tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] }), S(110, 8, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG] })];
+    expect(selectJudgedSets(kept, 1, 3).map((s) => s.load)).toEqual([100]);
   });
 });
 
@@ -69,6 +74,44 @@ describe("buildSetTargets", () => {
     expect(accepted.filter((s) => s.role === "top").every((s) => s.load === 100 && s.reps === 8)).toBe(true);
     expect(accepted.find((s) => s.position === 3)!.load).toBe(75);
   });
+  it("a missing slot stays empty instead of copying another set", () => {
+    const t = buildSetTargets({
+      plannedSets: 3,
+      topSets: 1,
+      top: { load: 100, reps: 8 },
+      lastWorking: [{ load: 100, reps: 8 }, null, { load: 70, reps: 12 }],
+    });
+    expect(t?.[1]).toMatchObject({ role: "backoff", load: null, reps: null });
+    expect(t?.[2]).toMatchObject({ role: "backoff", load: 70, reps: 12 });
+  });
+  it("working loads line up by slot, with a hole where a set is missing", () => {
+    expect(
+      workingLoadsBySlot([
+        { load: 80, reps: 12, tags: [`${SLOT_TAG_PREFIX}3`, ROLE_BACKOFF_TAG] },
+        { load: 100, reps: 8, tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] },
+        { load: 40, reps: 5, warmup: true, tags: ["slot:9"] },
+      ]),
+    ).toEqual([{ load: 100, reps: 8 }, null, { load: 80, reps: 12 }]);
+    expect(workingLoadsBySlot([{ load: 90, reps: 8 }, { load: 70, reps: 12, tags: ["drop"] }])).toEqual([{ load: 90, reps: 8 }]);
+  });
+  it("a logged slot stays put, and a role with no slot is not given a new index", () => {
+    expect(tagsForLoggedSet({ tags: [`${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG], warmup: false, topSets: 1, plannedSets: 4, slot: 1 })).toEqual([`${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG]);
+    expect(tagsForLoggedSet({ tags: [ROLE_BACKOFF_TAG, "failure"], warmup: false, topSets: 1, plannedSets: 4, slot: 1 })).toEqual(["failure", ROLE_BACKOFF_TAG]);
+    expect(tagsForLoggedSet({ tags: ["failure"], warmup: false, topSets: 1, plannedSets: 4, slot: 2 })).toEqual(["failure", `${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG]);
+    expect(tagsForLoggedSet({ tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG], warmup: true, topSets: 1, plannedSets: 4, slot: 1 })).toEqual([]);
+    expect(tagsForLoggedSet({ tags: ["failure"], warmup: false, topSets: null, plannedSets: 4, slot: 1 })).toEqual(["failure"]);
+  });
+  it("an empty back-off editor starts one step under the headline, not on it", () => {
+    const spec = findSpec(gymA, "barbell");
+    expect(emptyBackoffStart(100, spec, false)).toBe(97.5);
+    expect(emptyBackoffStart(20, spec, false)).toBe(20);
+  });
+  it("the jump anchor ignores a heavier back-off and is null when the top set is missing", () => {
+    const sets = [S(100, 8, { tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] }), S(140, 6, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG] })];
+    expect(progressionAnchor(sets, 1, 4)?.load).toBe(100);
+    expect(progressionAnchor([S(140, 6, { tags: [ROLE_BACKOFF_TAG] })], 1, 4)).toBeNull();
+    expect(progressionAnchor([S(80, 8), S(140, 6)], null, 2)?.load).toBe(140);
+  });
   it("parses stored JSON and refuses a bad shape", () => {
     const raw = JSON.stringify(buildSetTargets({ plannedSets: 2, topSets: 1, top: { load: 40, reps: 8 }, lastWorking: [] }));
     expect(parseSetTargets(raw)?.[0]).toMatchObject({ role: "top", load: 40 });
@@ -111,5 +154,31 @@ describe("progression uses position, not weight, once a top-set scheme is on", (
     const p = P(h, { plannedSets: 2, topSets: 1 });
     expect(p.inputs.sessions[0]!.topLoad).toBe(70);
     expect(p.load).toBe(70);
+  });
+  it("different loads and reps inside the top slots stay inside the group, and a heavier later set does not", () => {
+    const mixed = [session(line, day(28), [S(100, 8), S(90, 12), S(110, 10)])];
+    const p = P(mixed, { plannedSets: 3, topSets: 2 });
+    expect(p.inputs.sessions[0]!.topLoad).toBe(100);
+    expect(p.inputs.sessions[0]!.setsAtTop).toBe(1);
+    expect(p.inputs.sessions[0]!.repsAtTop).toBe(8);
+    const reps = [session(line, day(28), [S(100, 10), S(100, 6), S(70, 12)])];
+    const q = P(reps, { plannedSets: 3, topSets: 2 });
+    expect(q.inputs.sessions[0]!.topLoad).toBe(100);
+    expect(q.inputs.sessions[0]!.repsAtTop).toBe(6);
+    expect(q.inputs.sessions[0]!.setsAtTop).toBe(2);
+  });
+  it("a session with only back-offs repeats the previous top load and does not jump", () => {
+    const older = session(line, day(20), [S(100, 10, { tags: [ROLE_TOP_TAG] }), S(80, 12, { tags: [ROLE_BACKOFF_TAG] })]);
+    const newer = session(line, day(28), [S(110, 8, { tags: [ROLE_BACKOFF_TAG] })]);
+    const p = P([older, newer], { plannedSets: 2, topSets: 1 });
+    expect(p.inputs.sessions[0]!.topLoad).toBe(100);
+    expect(p.inputs.sessions[0]!.setsAtTop).toBe(0);
+    expect(p.load).toBe(100);
+    expect(p.currency).not.toBe("load");
+  });
+  it("a first session that is only back-offs does not invent that load", () => {
+    const p = P([session(line, day(28), [S(110, 8, { tags: [ROLE_BACKOFF_TAG] })])], { plannedSets: 2, topSets: 1 });
+    expect(p.status).toBe("no_history");
+    expect(p.load).toBeNull();
   });
 });

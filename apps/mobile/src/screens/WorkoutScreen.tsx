@@ -19,7 +19,7 @@ import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
-import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels } from "../logic/superset";
+import { buildMoveActions, completedWorkoutSlots, joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels, type MoveDirection } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
@@ -515,6 +515,24 @@ export function WorkoutScreen() {
     }
   }
 
+  async function moveExerciseToday(slot: string, direction: MoveDirection) {
+    if (!loaded || loaded === "nogym") return;
+    try {
+      const result = await workout.moveExercise(loaded.sessionId, slot, direction);
+      if (result.outcome !== "moved") return;
+      setExState((current) => {
+        const next = { ...current };
+        result.order.forEach((id, index) => {
+          next[id] = { ...(next[id] ?? NO_STATE(id)), position: index + 1 };
+        });
+        return next;
+      });
+    } catch (e) {
+      diagnostics.record("error", "move workout exercise", e);
+      Alert.alert(t("workout.move.failed"));
+    }
+  }
+
   /** Superset: the chosen exercises are saved with the same group, shown next to each other, and rest after the last one. */
   async function applySuperset(change: Record<string, string | null>) {
     if (!loaded || loaded === "nogym") return;
@@ -563,6 +581,7 @@ export function WorkoutScreen() {
     const s = loaded.slots.find((x) => x.exerciseId === slot);
     return s ? [makeDisp(s, exState[slot])] : [];
   });
+  const completedSlots = completedWorkoutSlots(shown.map((ex) => ({ slot: ex.slot, exerciseId: ex.exerciseId, sets: ex.sets })), sets);
   const removedSlots = loaded.slots.filter((s) => exState[s.exerciseId]?.removed);
 
   /** Finishing never throws out of the handler: on failure the workout stays open (sets are already saved) and a retry is offered. */
@@ -890,6 +909,16 @@ export function WorkoutScreen() {
   };
 
   const menuEx = menuFor ? shown.find((e) => e.slot === menuFor) : undefined;
+  const menuMoveActions = menuEx
+    ? buildMoveActions(order, exState, completedSlots, menuEx.slot, {
+        up: t("workout.menu.moveUp"),
+        down: t("workout.menu.moveDown"),
+        accessibilityLabel: (direction) => {
+          const action = direction === "up" ? t("workout.menu.moveUp") : t("workout.menu.moveDown");
+          return t("workout.move.a11y", { exercise: exerciseLabels(menuEx, lang).primary, direction: action });
+        },
+      })
+    : [];
   const dockVisible = timerOpen || timerRunning || restOver;
 
   return (
@@ -1037,6 +1066,7 @@ export function WorkoutScreen() {
           menuEx
             ? [
                 { label: t("workout.menu.notes"), onPress: () => setTimeout(() => noteInputs.current[menuEx.slot]?.focus(), 150) },
+                ...menuMoveActions.map((action) => ({ ...action, onPress: () => void moveExerciseToday(menuEx.slot, action.direction) })),
                 ...(exState[menuEx.slot]?.added ? [] : [{ label: t("workout.menu.replace"), onPress: () => startReplace(menuEx) }]),
                 ...(shown.length > 1 ? [{ label: t("workout.menu.superset"), onPress: () => setSsFor(menuEx.slot) }] : []),
                 ...(ssLabel[menuEx.slot] ? [{ label: t("workout.menu.supersetLeave"), onPress: () => void applySuperset(leaveSuperset(menuEx.slot)) }] : []),

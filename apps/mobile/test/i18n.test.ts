@@ -18,6 +18,16 @@ describe("strings", () => {
       expect(ar[k], k).toMatch(/[\u0600-\u06FF]/);
     }
   });
+  it("has concise move actions and exercise-specific TalkBack copy in English and Arabic", () => {
+    const english = en as Record<string, string>;
+    const arabic = ar as Record<string, string>;
+    for (const key of ["workout.menu.moveUp", "workout.menu.moveDown", "workout.move.a11y", "workout.move.failed"]) {
+      expect(english[key], key).toBeTruthy();
+      expect(arabic[key], key).toMatch(/[\u0600-\u06FF]/);
+    }
+    expect(english["workout.move.a11y"]).toContain("{exercise}");
+    expect(english["workout.move.a11y"]).toContain("{direction}");
+  });
 });
 
 describe("direction", () => {

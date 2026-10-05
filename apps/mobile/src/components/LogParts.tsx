@@ -133,12 +133,21 @@ export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string
  * An action sheet built on the shared Sheet: heading, explicit close button, Android back dismisses. Ordinary choices are rows in the
  * body; destructive ones (danger) are set apart in the footer.
  */
-export function MenuSheet(props: { visible: boolean; title: string; /** Kept for callers: sheet headings always wrap. */ wrapTitle?: boolean; onClose: () => void; items: { label: string; danger?: boolean; selected?: boolean; onPress: () => void }[] }) {
+interface MenuItem {
+  label: string;
+  accessibilityLabel?: string;
+  danger?: boolean;
+  selected?: boolean;
+  onPress: () => void;
+}
+
+export function MenuSheet(props: { visible: boolean; title: string; /** Kept for callers: sheet headings always wrap. */ wrapTitle?: boolean; onClose: () => void; items: MenuItem[] }) {
   const p = useLogPalette();
-  const row = (it: { label: string; danger?: boolean; selected?: boolean; onPress: () => void }, i: number) => (
+  const row = (it: MenuItem, i: number) => (
     <Pressable
       key={`${i}:${it.label}`}
       accessibilityRole="button"
+      accessibilityLabel={it.accessibilityLabel ?? it.label}
       accessibilityState={{ selected: !!it.selected }}
       onPress={() => {
         props.onClose();

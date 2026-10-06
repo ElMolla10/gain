@@ -1,5 +1,5 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, nextLoadAbove, progressionAnchor, renderReason, slotOfTags, workingLoadsBySlot, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
+import { findSpec, nextLoadAbove, progressionAnchor, renderReason, slotOfTags, topIdentityKnown, workingLoadsBySlot, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, Vibration, View, type TextStyle } from "react-native";
@@ -639,7 +639,7 @@ export function WorkoutScreen() {
     const numbering = rowLabels(list);
     const widx = workingIndexes(list);
     const useSlots = !isTimed(ex.measure) && list.some((r) => !r.warmup && !r.tags.includes("drop") && slotOfTags(r.tags) != null);
-    const slottedPrev = useSlots ? workingLoadsBySlot(info.last?.sets ?? []) : null;
+    const slottedPrev = useSlots && topIdentityKnown(info.last?.sets ?? []) ? workingLoadsBySlot(info.last?.sets ?? []) : null;
     const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
     const timed = isTimed(ex.measure);
     const qUnits = { s: t("qty.s"), m: t("qty.m") };

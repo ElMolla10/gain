@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { proposeNext } from "./progression";
+import { renderReason } from "./reasons";
 import { acceptSetTargets, applyHeadlineLoad, applySlotLoad, buildSetTargets, emptyBackoffStart, parseSetTargets, progressionAnchor, ROLE_BACKOFF_TAG, ROLE_TOP_TAG, selectJudgedSets, SLOT_TAG_PREFIX, tagsForLoggedSet, workingLoadsBySlot } from "./setTargets";
 import { findSpec } from "./loads";
 import { ASOF, exBar, gymA, lineOf, S, session } from "./testkit";
@@ -16,9 +17,9 @@ describe("selectJudgedSets", () => {
     expect(selectJudgedSets(sets, null, 3)).toEqual(sets);
     expect(selectJudgedSets(sets, 3, 3)).toEqual(sets);
   });
-  it("a scheme with no role tags judges the first n sets, not the heaviest", () => {
-    expect(selectJudgedSets(sets, 1, 3).map((s) => s.load)).toEqual([80]);
-    expect(selectJudgedSets(sets, 2, 3).map((s) => s.load)).toEqual([80, 70]);
+  it("a scheme with no slot or role tag judges nothing", () => {
+    expect(selectJudgedSets(sets, 1, 3)).toEqual([]);
+    expect(selectJudgedSets(sets, 2, 3)).toEqual([]);
   });
   it("role tags win over position, and a lighter tagged top set is not dropped", () => {
     const tagged = [S(70, 8, { tags: [ROLE_TOP_TAG] }), S(100, 10, { tags: [ROLE_BACKOFF_TAG] }), S(90, 10, { tags: [ROLE_TOP_TAG] })];
@@ -110,6 +111,7 @@ describe("buildSetTargets", () => {
     const sets = [S(100, 8, { tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] }), S(140, 6, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG] })];
     expect(progressionAnchor(sets, 1, 4)?.load).toBe(100);
     expect(progressionAnchor([S(140, 6, { tags: [ROLE_BACKOFF_TAG] })], 1, 4)).toBeNull();
+    expect(progressionAnchor([S(80, 12), S(100, 8)], 1, 4)).toBeNull();
     expect(progressionAnchor([S(80, 8), S(140, 6)], null, 2)?.load).toBe(140);
   });
   it("parses stored JSON and refuses a bad shape", () => {
@@ -124,11 +126,17 @@ describe("buildSetTargets", () => {
 });
 
 describe("progression uses position, not weight, once a top-set scheme is on", () => {
-  it("a heavier set logged after the top-set slot is not the anchor", () => {
+  it("an unmarked session, heavy set logged last, is not presented as a top and does not earn a jump", () => {
     const h = [session(line, day(28), [S(80, 10), S(80, 12), S(100, 8), S(100, 8)])];
     const p = P(h, { topSets: 1 });
-    expect(p.inputs.sessions[0]!.topLoad).toBe(80);
-    expect(p.load).toBe(80);
+    expect(p.load).toBeNull();
+    expect(p.reps).toBeNull();
+    expect(p.currency).toBe("none");
+    expect(p.confidence).toBe("low");
+    expect(p.reason.key).toBe("ambiguous_top");
+    expect(p.inputs.sessions).toEqual([]);
+    expect(renderReason(p.reason, "en")).toMatch(/Set the weight yourself/);
+    expect(renderReason(p.reason, "ar")).toMatch(/[\u0600-\u06FF]/);
   });
   it("the same session with no scheme still anchors on the heaviest set", () => {
     const h = [session(line, day(28), [S(80, 10), S(100, 8)])];
@@ -136,8 +144,51 @@ describe("progression uses position, not weight, once a top-set scheme is on", (
     expect(p.inputs.sessions[0]!.topLoad).toBe(100);
     expect(p.load).toBe(100);
   });
-  it("a lighter set inside the first n is still judged, so one heavy set is not enough when two top sets are prescribed", () => {
-    const one = (d: number) => session(line, day(d), [S(100, 10), S(80, 12), S(110, 8), S(80, 12)]);
+  it("repeated unmarked sessions logged light first and heavy last do not earn more load", () => {
+    const one = (d: number) => session(line, day(d), [S(80, 12), S(100, 10), S(80, 12), S(80, 12)]);
+    const p = P([one(20), one(24), one(28)], { topSets: 1 });
+    expect(p.currency).not.toBe("load");
+    expect(p.load).toBeNull();
+    expect(p.confidence).toBe("low");
+    expect(p.reason.key).toBe("ambiguous_top");
+    expect(p.inputs.sessions).toEqual([]);
+  });
+  it("the same order with a stored slot on the heavy set is the top and can earn more load", () => {
+    const one = (d: number) => session(line, day(d), [
+      S(80, 12, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG] }),
+      S(100, 10, { tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] }),
+      S(80, 12, { tags: [`${SLOT_TAG_PREFIX}3`, ROLE_BACKOFF_TAG] }),
+      S(80, 12, { tags: [`${SLOT_TAG_PREFIX}4`, ROLE_BACKOFF_TAG] }),
+    ]);
+    const p = P([one(24), one(28)], { topSets: 1 });
+    expect(p.inputs.sessions[0]!.topLoad).toBe(100);
+    expect(p.currency).toBe("load");
+    expect(p.load).toBeGreaterThan(100);
+  });
+  it("a newer unmarked session does not let an older tagged top earn a jump", () => {
+    const older = session(line, day(20), [S(100, 10, { tags: [ROLE_TOP_TAG, `${SLOT_TAG_PREFIX}1`] }), S(80, 12, { tags: [ROLE_BACKOFF_TAG, `${SLOT_TAG_PREFIX}2`] })]);
+    const newer = session(line, day(28), [S(80, 12), S(140, 8)]);
+    const p = P([older, newer], { plannedSets: 2, topSets: 1 });
+    expect(p.load).toBeNull();
+    expect(p.currency).not.toBe("load");
+    expect(p.reason.key).toBe("ambiguous_top");
+    expect(p.inputs.sessions).toEqual([]);
+  });
+  it("a newer tagged top ignores an older unmarked heavier session", () => {
+    const older = session(line, day(20), [S(140, 8), S(80, 12)]);
+    const tagged = (d: number) => session(line, day(d), [S(100, 10, { tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] }), S(80, 12, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_BACKOFF_TAG] })]);
+    const p = P([older, tagged(24), tagged(28)], { plannedSets: 2, topSets: 1 });
+    expect(p.inputs.sessions.map((s) => s.topLoad)).toEqual([100, 100]);
+    expect(p.currency).toBe("load");
+    expect(p.load).toBeGreaterThan(100);
+  });
+  it("a lighter tagged top set is still judged, so one heavy set is not enough when two top sets are prescribed", () => {
+    const one = (d: number) => session(line, day(d), [
+      S(100, 10, { tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] }),
+      S(80, 12, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_TOP_TAG] }),
+      S(110, 8, { tags: [`${SLOT_TAG_PREFIX}3`, ROLE_BACKOFF_TAG] }),
+      S(80, 12, { tags: [`${SLOT_TAG_PREFIX}4`, ROLE_BACKOFF_TAG] }),
+    ]);
     const p = P([one(20), one(24), one(28)], { topSets: 2 });
     expect(p.inputs.sessions[0]!.topLoad).toBe(100);
     expect(p.inputs.sessions[0]!.setsAtTop).toBe(1);
@@ -155,13 +206,21 @@ describe("progression uses position, not weight, once a top-set scheme is on", (
     expect(p.inputs.sessions[0]!.topLoad).toBe(70);
     expect(p.load).toBe(70);
   });
-  it("different loads and reps inside the top slots stay inside the group, and a heavier later set does not", () => {
-    const mixed = [session(line, day(28), [S(100, 8), S(90, 12), S(110, 10)])];
+  it("different loads and reps inside the tagged top slots stay inside the group, and a heavier later set does not", () => {
+    const mixed = [session(line, day(28), [
+      S(100, 8, { tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] }),
+      S(90, 12, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_TOP_TAG] }),
+      S(110, 10, { tags: [`${SLOT_TAG_PREFIX}3`, ROLE_BACKOFF_TAG] }),
+    ])];
     const p = P(mixed, { plannedSets: 3, topSets: 2 });
     expect(p.inputs.sessions[0]!.topLoad).toBe(100);
     expect(p.inputs.sessions[0]!.setsAtTop).toBe(1);
     expect(p.inputs.sessions[0]!.repsAtTop).toBe(8);
-    const reps = [session(line, day(28), [S(100, 10), S(100, 6), S(70, 12)])];
+    const reps = [session(line, day(28), [
+      S(100, 10, { tags: [`${SLOT_TAG_PREFIX}1`, ROLE_TOP_TAG] }),
+      S(100, 6, { tags: [`${SLOT_TAG_PREFIX}2`, ROLE_TOP_TAG] }),
+      S(70, 12, { tags: [`${SLOT_TAG_PREFIX}3`, ROLE_BACKOFF_TAG] }),
+    ])];
     const q = P(reps, { plannedSets: 3, topSets: 2 });
     expect(q.inputs.sessions[0]!.topLoad).toBe(100);
     expect(q.inputs.sessions[0]!.repsAtTop).toBe(6);

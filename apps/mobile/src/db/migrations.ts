@@ -355,8 +355,8 @@ ${Object.entries(TIMED_LIBRARY)
     name: "top set + back-offs",
     sql: `
 -- Per program exercise: NULL = straight sets (every planned set must reach the top; what every row meant before this version). n >= 1 = a top set
--- + back-off prescription. As of schema 12 the judged sets are the first n working sets in log order (or the sets tagged role:top), not the
--- n heaviest loads. A heavier set logged after them is still a back-off. Existing rows keep NULL, so nothing already planned changes meaning.
+-- + back-off prescription. Judged sets are those stored with a top slot or role, not log order and not the n heaviest loads.
+-- A session with no slot and no role does not earn more load. Existing rows keep NULL, so nothing already planned changes meaning.
 ALTER TABLE programme_day_exercise ADD COLUMN top_sets INTEGER CHECK (top_sets IS NULL OR (top_sets >= 1 AND top_sets <= 11));
 `,
   },
@@ -375,8 +375,8 @@ ALTER TABLE exercise ADD COLUMN load_spec_json TEXT;
     sql: `
 -- One headline target is still the row. This JSON is the per-set plan for a top-set + back-off exercise only:
 -- [{"position":1,"role":"top"|"backoff","load":number|null,"reps":number|null}, ...]. NULL on every existing row, and on
--- every straight-set target, means "one target for the exercise", exactly as before. Role is the working-set position
--- (or an explicit tag logged with the set), never "this set was lighter, so it must be a back-off".
+-- every straight-set target, means "one target for the exercise", exactly as before. Role is a stored slot or an explicit tag,
+-- never "this set was lighter, so it must be a back-off". An old session with no slot or role is not lined up as top then back-off.
 ALTER TABLE target ADD COLUMN set_targets_json TEXT;
 `,
   },

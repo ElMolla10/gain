@@ -14,7 +14,7 @@ export interface DraftExercise {
   repCeiling: number | null;
   isGoalLift: boolean;
   trackEffort: boolean;
-  /** null = straight sets. n >= 1 = top set + back-offs: the first n working sets are judged. A lighter set among them is still a top set, and a heavier set after them is not. */
+  /** null = straight sets. n >= 1 = top set + back-offs: only sets stored as the top set are judged. Untagged history is not guessed from log order. */
   topSets?: number | null;
 }
 export interface DraftDay {

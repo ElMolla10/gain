@@ -2,7 +2,7 @@
  * The active workout as one list: every exercise shows its set rows. A row is either logged (saved on the phone, has a set id)
  * or not yet. Pure helpers, no I/O, so the rules are tested without a phone.
  */
-import { ROLE_BACKOFF_TAG, ROLE_TOP_TAG, SLOT_TAG_PREFIX, roleOfTags, slotOfTags, tagsForLoggedSet, tagsWithSlot, workingLoadsBySlot, type SetRole } from "@gain/engine";
+import { ROLE_BACKOFF_TAG, ROLE_TOP_TAG, SLOT_TAG_PREFIX, roleOfTags, slotOfTags, tagsForLoggedSet, tagsWithSlot, topIdentityKnown, workingLoadsBySlot, type SetRole } from "@gain/engine";
 export interface SetRowDraft {
   /** Set id: generated once per row, so a double tap on "log" can never insert the same set twice. */
   key: string;
@@ -212,7 +212,9 @@ export interface BackoffPrefill {
 }
 export function backoffPrefill(topSets: number | null | undefined, lastWorkingSets: { load: number; reps: number; warmup?: boolean; tags?: readonly string[] }[] | null | undefined): BackoffPrefill | null {
   if (!topSets || topSets < 1) return null;
-  return { topSets, last: workingLoadsBySlot(lastWorkingSets ?? []).map((s) => (s ? { load: s.load, reps: s.reps } : { load: null, reps: null })) };
+  const known = topIdentityKnown(lastWorkingSets ?? []);
+  const lined = known ? workingLoadsBySlot(lastWorkingSets ?? []) : [];
+  return { topSets, last: lined.map((s) => (s ? { load: s.load, reps: s.reps } : { load: null, reps: null })) };
 }
 
 /** Ghosts for a stored per-set plan. A missing position stays empty, never filled from another set. */

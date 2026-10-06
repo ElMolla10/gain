@@ -183,10 +183,9 @@ export interface ExerciseSpec {
    */
   plannedSets?: number;
   /**
-   * Top-set / back-off prescription. Only this many working sets are judged, taken in log order (or the sets tagged
-   * `role:top` when any set in the session carries a role tag). The sets after them are back-offs and are ignored,
-   * even when one of them is heavier. A lighter set inside the judged group stays a top set: it is not reclassified
-   * as a back-off because of its weight. Omitted = straight sets (the heaviest load of the whole session is judged).
+   * Top-set / back-off prescription. Only sets whose stored tags say they are top sets are judged (`slot:N` within the count, or `role:top`).
+   * A lighter tagged top set stays a top set. A heavier set tagged as a back-off is not the top. A session with no slot and no role tag is not judged:
+   * log order is not used to guess, and it does not earn more load. Omitted = straight sets (the heaviest load of the whole session is judged).
    */
   topSets?: number;
   /**
@@ -228,6 +227,7 @@ export type ReasonKey =
   | "hold_no_heavier_load"
   | "hold_assisted_floor"
   | "low_confidence_repeat"
+  | "ambiguous_top"
   | "no_history"
   | "no_gym_loads"
   | "timed_longer"
@@ -280,7 +280,7 @@ export interface DecisionInputs {
   repRange: RepRange;
   /** The range the program asked for (`max` null = no upper bound). Absent in decisions stored before the fixes release. */
   programmeRepRange?: { min: number; max: number | null };
-  /** Set only for a top set + back-off prescription (fewer top sets than planned sets): how many working sets, in log order, are judged. Sets after them are ignored even if heavier. */
+  /** Set only for a top set + back-off prescription (fewer top sets than planned sets): how many working sets are the top sets when a slot or role was stored. Untagged history is not judged from log order. */
   topSets?: number;
   /** Why `repRange.max` is what it is. Absent in decisions stored before rule-v0.4, which always used the lift's own or the GAIN default ceiling. */
   repTopBasis?: RepTopBasis;

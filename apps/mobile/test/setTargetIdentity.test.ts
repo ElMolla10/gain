@@ -62,7 +62,10 @@ describe("set identity", () => {
   });
 
   it("an added back-off copies the last back-off, never the top load, and straight sets are not stamped", () => {
-    const scheme = initialRows([], 2, { load: 100, reps: 8 }, key(), backoffPrefill(1, [{ load: 100, reps: 8 }, { load: 70, reps: 10 }]));
+    const scheme = initialRows([], 2, { load: 100, reps: 8 }, key(), backoffPrefill(1, [
+      { load: 100, reps: 8, tags: ["slot:1", "role:top"] },
+      { load: 70, reps: 10, tags: ["slot:2", "role:backoff"] },
+    ]));
     const added = addRow(scheme, { load: 100, reps: 8 }, key(), 1);
     expect(slotOfTags(added[added.length - 1]!.tags)).toBe(3);
     expect(added[added.length - 1]!.ghostLoad).toBe(70);

@@ -239,10 +239,12 @@ export function FinishScreen() {
             return (
               <Card key={tg.id}>
                 <AppText style={{ fontWeight: "600" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
-                {tg.currency === "none" || (tg.effectiveLoad === null && tg.status !== "rejected") ? (
-                  <AppText style={{ color: p.muted }}>{t("finish.noTarget")}</AppText>
-                ) : tg.status === "rejected" ? (
+                {tg.status === "rejected" ? (
                   <AppText style={{ color: p.muted }}>{t("finish.rejectedNote")}</AppText>
+                ) : tg.reason.key === "ambiguous_top" ? (
+                  <AppText style={{ color: p.muted }}>{renderReason(localizeReason(tg.reason, unit, lang), lang)}</AppText>
+                ) : tg.currency === "none" || tg.effectiveLoad === null ? (
+                  <AppText style={{ color: p.muted }}>{t("finish.noTarget")}</AppText>
                 ) : (
                   <TargetStrip label={t("target.label")} value={isolateLtr(targetText(tg, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") }))} reason={shortReason(renderReason(localizeReason(tg.reason, unit, lang), lang))} />
                 )}
@@ -260,8 +262,10 @@ export function FinishScreen() {
                             label={t("finish.set.edit", { n: s.position })}
                             accessibilityHint={spoken}
                             onPress={() => {
-                              const headline = tg.effectiveLoad ?? tg.load ?? 0;
-                              const start = s.load !== null ? s.load : s.role === "backoff" ? emptyBackoffStart(headline, spec, (info?.setup ?? "free") !== "free") : headline;
+                              const headline = tg.effectiveLoad ?? tg.load;
+                              const allowZero = (info?.setup ?? "free") !== "free";
+                              const floor = spec?.loads && spec.loads.length > 0 ? Math.min(...spec.loads) : (spec?.min ?? spec?.increment ?? 0);
+                              const start = s.load !== null ? s.load : headline != null && s.role === "backoff" ? emptyBackoffStart(headline, spec, allowZero) : headline != null ? headline : floor;
                               setEditing({ targetId: tg.id, load: start, position: s.position });
                             }}
                           />
@@ -295,7 +299,7 @@ export function FinishScreen() {
                   </View>
                 ) : (
                   <View style={{ gap: space.sm }}>
-                    {tg.currency !== "none" && tg.load !== null ? (
+                    {tg.currency !== "none" && tg.load !== null && !(tg.status === "rejected" && tg.setTargets) ? (
                       <>
                         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
                           <View style={{ flexGrow: 1, flexBasis: 150 }}>

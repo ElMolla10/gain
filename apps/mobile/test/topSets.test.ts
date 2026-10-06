@@ -130,7 +130,7 @@ describe("end to end: back-off sets do not block progression", () => {
     const benchId = (await s.db.get<{ id: string }>("SELECT id FROM exercise WHERE name_en = 'Barbell Bench Press'"))!.id;
     draft = { ...draft, days: draft.days.map((d) => ({ ...d, exercises: d.exercises.map((e) => (e.exerciseId === benchId ? { ...e, sets: 4, repMin: 6, repMax: 10, topSets } : e)) })) };
     await s.programmes.saveNewVersion(a.programmeId, draft);
-    const trainRotation = async (plan: { load: number; reps: number }[]) => {
+    const trainRotation = async (plan: { load: number; reps: number; tags?: string[] }[], opts?: { legacyUntagged?: boolean }) => {
       let written: string | null = null;
       for (let d = 0; d < draft.days.length; d++) {
         const next = (await s.repos.getNextDay())!;
@@ -138,7 +138,13 @@ describe("end to end: back-off sets do not block progression", () => {
         const { id } = await s.workout.startOrResumeSession(next.day.id, gymId);
         const mine = exs.find((e) => e.exerciseId === benchId) ?? exs[0]!;
         const sets = mine.exerciseId === benchId ? plan : [{ load: 40, reps: 10 }];
-        for (const x of sets) await s.workout.logSet({ sessionId: id, exerciseId: mine.exerciseId, load: x.load, reps: x.reps }, { gym, equipment: mine.equipment, setup: mine.setup });
+        const scheme = mine.exerciseId === benchId && typeof mine.topSets === "number" && mine.topSets >= 1 && mine.topSets < mine.sets;
+        for (let i = 0; i < sets.length; i++) {
+          const x = sets[i]!;
+          let tags = x.tags;
+          if (!tags && scheme && !opts?.legacyUntagged) tags = [`slot:${i + 1}`, i + 1 <= mine.topSets! ? "role:top" : "role:backoff"];
+          await s.workout.logSet({ sessionId: id, exerciseId: mine.exerciseId, load: x.load, reps: x.reps, ...(tags ? { tags } : {}) }, { gym, equipment: mine.equipment, setup: mine.setup });
+        }
         s.deps.tick(1000);
         await s.workout.finishSession(id);
         written = (await s.finish.writeNextSessionTargets(id))!.sessionId;
@@ -168,7 +174,7 @@ describe("end to end: back-off sets do not block progression", () => {
     expect(d.payload.inputs.topSets).toBe(1);
     expect(d.payload.inputs.readiness.requiredSetsAtTop).toBe(1);
     const lines = describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, L, "en").find((x) => x.title === en["why.rule"])!.lines.join("\n");
-    expect(lines).toContain("Top set + back-offs: only your first 1 working set(s) decide whether weight goes up. Sets after them are back-offs and are ignored for progression, even if one of them is heavier. A lighter set among those first sets still counts as a top set.");
+    expect(lines).toContain("Top set + back-offs: only the 1 set(s) logged as the top set decide whether weight goes up. A heavier back-off does not raise the weight. Older workouts that do not mark the top set do not raise it.");
   });
   it("top set + back-offs still needs the top set itself to reach the top of the range", async () => {
     const s = await bench(1);
@@ -242,8 +248,29 @@ describe("end to end: back-off sets do not block progression", () => {
     expect(rejected.editedLoad).toBeNull();
     expect(rejected.effectiveLoad).toBeNull();
     expect(rejected.setTargets).toEqual(before);
-    const ghosts = loggerGhosts({ timed: false, topSets: 1, lastWorking: plan, stored: rejected, plannedSets: 4 });
+    await expect(s.finish.acceptTarget(t.id)).rejects.toThrow(/rejected/);
+    await expect(s.finish.editTargetLoad(t.id, 62.5, s.gym, meta.equipment, meta.setup)).rejects.toThrow(/rejected/);
+    await expect(s.finish.editSetTarget(t.id, 2, 42.5, s.gym, meta.equipment, meta.setup)).rejects.toThrow(/rejected/);
+    const still = (await s.finish.getTarget(t.id))!;
+    expect(still.status).toBe("rejected");
+    expect(still.setTargets).toEqual(before);
+    const day = await s.db.get<{ programme_day_id: string; gym_id: string }>("SELECT programme_day_id, gym_id FROM session WHERE id = ?", [t.sessionId]);
+    await s.finish.planDay(day!.programme_day_id, day!.gym_id);
+    const again = (await s.finish.getTarget(t.id))!;
+    expect(again.status).toBe("rejected");
+    expect(again.setTargets).toEqual(before);
+    const ghosts = loggerGhosts({
+      timed: false,
+      topSets: 1,
+      lastWorking: [
+        { load: 60, reps: 10, tags: ["slot:1", "role:top"] },
+        { load: 70, reps: 12, tags: ["slot:2", "role:backoff"] },
+      ],
+      stored: again,
+      plannedSets: 4,
+    });
     expect(ghosts.perSet).toBeNull();
+    expect(ghosts.backoff?.last[1]).toEqual({ load: 70, reps: 12 });
   });
   it("a back-off logged before the top set is not copied onto the wrong slot", async () => {
     const s = await bench(1);
@@ -269,21 +296,42 @@ describe("end to end: back-off sets do not block progression", () => {
     expect(t.setTargets?.[1]).toMatchObject({ position: 2, role: "backoff", load: 80, reps: 12 });
     expect(t.setTargets?.[0]?.load).not.toBe(80);
   });
+  it("an old top-set session logged light first and heavy last does not earn more weight or name a top set", async () => {
+    const s = await bench(1);
+    const legacy = [{ load: 50, reps: 12 }, { load: 80, reps: 10 }, { load: 50, reps: 12 }, { load: 50, reps: 12 }];
+    await s.trainRotation(legacy, { legacyUntagged: true });
+    const t = await s.trainRotation(legacy, { legacyUntagged: true });
+    expect(t.currency).toBe("none");
+    expect(t.load).toBeNull();
+    expect(t.reason.key).toBe("ambiguous_top");
+    expect(t.confidence).toBe("low");
+    expect(t.setTargets?.every((x) => x.load === null)).toBe(true);
+    expect((await s.finish.getDecision(t.id))!.payload.inputs.sessions).toEqual([]);
+  });
 });
 
 describe("the logger rows for back-offs", () => {
   const key = (() => { let n = 0; return () => `k${n++}`; })();
   it("top-set rows get the target, back-off rows get last time's set at that position (or nothing), never the top load", () => {
-    const rows = initialRows([], 4, { load: 100, reps: 8 }, key, backoffPrefill(1, [{ load: 100, reps: 8 }, { load: 80, reps: 12 }, { load: 80, reps: 11 }]));
+    const rows = initialRows([], 4, { load: 100, reps: 8 }, key, backoffPrefill(1, [
+      { load: 100, reps: 8, tags: ["slot:1", "role:top"] },
+      { load: 80, reps: 12, tags: ["slot:2", "role:backoff"] },
+      { load: 80, reps: 11, tags: ["slot:3", "role:backoff"] },
+    ]));
     expect(rows.map((r) => [r.ghostLoad, r.ghostReps])).toEqual([[100, 8], [80, 12], [80, 11], [null, null]]);
   });
   it("two top sets", () => {
-    const rows = initialRows([], 4, { load: 100, reps: 8 }, key, backoffPrefill(2, [{ load: 100, reps: 8 }, { load: 100, reps: 8 }, { load: 85, reps: 10 }]));
+    const rows = initialRows([], 4, { load: 100, reps: 8 }, key, backoffPrefill(2, [
+      { load: 100, reps: 8, tags: ["slot:1", "role:top"] },
+      { load: 100, reps: 8, tags: ["slot:2", "role:top"] },
+      { load: 85, reps: 10, tags: ["slot:3", "role:backoff"] },
+    ]));
     expect(rows.map((r) => r.ghostLoad)).toEqual([100, 100, 85, null]);
   });
   it("straight sets are unchanged", () => {
     expect(initialRows([], 3, { load: 60, reps: 10 }, key).map((r) => r.ghostLoad)).toEqual([60, 60, 60]);
     expect(backoffPrefill(null, [])).toBeNull();
+    expect(backoffPrefill(1, [{ load: 80, reps: 12 }, { load: 100, reps: 8 }])?.last).toEqual([]);
   });
   it("a stored per-set plan replaces the back-off prefill, and a rejected plan does not", () => {
     const stored = {
@@ -300,7 +348,16 @@ describe("the logger rows for back-offs", () => {
     const rows = initialRows([], 4, { load: 100, reps: 8 }, key, live.backoff, live.perSet, 1);
     expect(rows.map((r) => [r.ghostLoad, r.ghostReps])).toEqual([[100, 8], [80, 12], [null, null], [null, null]]);
     expect(rows.map((r) => r.tags)).toEqual([["slot:1", "role:top"], ["slot:2", "role:backoff"], ["slot:3", "role:backoff"], ["slot:4", "role:backoff"]]);
-    const rejected = loggerGhosts({ timed: false, topSets: 1, lastWorking: [{ load: 100, reps: 8 }, { load: 70, reps: 12 }], stored: { ...stored, status: "rejected" }, plannedSets: 4 });
+    const rejected = loggerGhosts({
+      timed: false,
+      topSets: 1,
+      lastWorking: [
+        { load: 100, reps: 8, tags: ["slot:1", "role:top"] },
+        { load: 70, reps: 12, tags: ["slot:2", "role:backoff"] },
+      ],
+      stored: { ...stored, status: "rejected" },
+      plannedSets: 4,
+    });
     expect(rejected.perSet).toBeNull();
     expect(rejected.backoff?.last[1]).toEqual({ load: 70, reps: 12 });
   });

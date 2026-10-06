@@ -8,6 +8,7 @@ import {
   REJECTION_THRESHOLD,
   findSpec,
   workingLoadsBySlot,
+  topIdentityKnown,
   type GymFingerprint,
   type LineIdentity,
   type LoggedSet,
@@ -264,7 +265,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         plannedSets: ex.sets,
         topSets: ex.measure === "reps" ? ex.topSets : null,
         top: { load: proposal.load, reps: proposal.reps },
-        lastWorking: workingLoadsBySlot(last?.sets ?? []),
+        lastWorking: topIdentityKnown(last?.sets ?? []) ? workingLoadsBySlot(last?.sets ?? []) : [],
       });
       decided.push({ ex, proposal, lineId, setTargets });
     }
@@ -371,9 +372,10 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return tr;
   }
 
-  /** Accept the target as written. Accepting a jump clears its rejection count (the lifter changed their mind). Top-set slots return to the proposed headline; a back-off the lifter already edited stays. */
+  /** Accept the target as written. Accepting a jump clears its rejection count (the lifter changed their mind). Top-set slots return to the proposed headline; a back-off the lifter already edited stays. A rejected per-set plan cannot be accepted: that would make the stored JSON live again. */
   async function acceptTarget(targetId: string): Promise<void> {
     const tr = await mustGet(targetId);
+    if (tr.status === "rejected" && tr.setTargets) throw new Error("This target was rejected");
     if (tr.currency === "none") throw new Error("Nothing was proposed, so there is nothing to accept");
     const t = now();
     const json = tr.setTargets ? JSON.stringify(acceptSetTargets(tr.setTargets, { load: tr.load, reps: tr.reps })) : null;
@@ -387,6 +389,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   /** Edit the load. It must be one of the standard steps for this equipment. Editing is neither a rejection nor an acceptance of the jump. Every top-set slot follows the headline; back-off slots do not. */
   async function editTargetLoad(targetId: string, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType, reps?: number): Promise<void> {
     const tr = await mustGet(targetId);
+    if (tr.status === "rejected" && tr.setTargets) throw new Error("This target was rejected");
     const spec = await gridFor(db, gym, tr.exerciseId, equipment);
     if (spec && !isGymLoad(spec, load, setup !== "free")) throw new Error("That load is not one of the standard steps");
     if (!(load >= 0)) throw new Error("Invalid load");
@@ -408,6 +411,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
    */
   async function editSetTarget(targetId: string, position: number, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType): Promise<void> {
     const tr = await mustGet(targetId);
+    if (tr.status === "rejected" && tr.setTargets) throw new Error("This target was rejected");
     if (!tr.setTargets) throw new Error("This target has no per-set plan");
     const slot = tr.setTargets.find((s) => s.position === position);
     if (!slot) throw new Error("Unknown set");

@@ -87,7 +87,8 @@ export function tagsWithSlot(tags: readonly string[], slot: number, topSets: num
 /**
  * Trusted working sets that are judged for a top-set / back-off scheme.
  * Straight sets (no real scheme): every trusted set, so the heaviest load of the session still wins.
- * Scheme with no slot and no role tag: the first `topSets` trusted working sets in log order.
+ * Scheme with no slot and no role tag: nothing is judged. Log order is not identity, so an old session cannot
+ * earn a load increase and a heavier set logged later is not presented as the top.
  * Scheme with any slot or role tag: slot wins (`slot` <= topSets), else `role:top`. A lighter set inside that group stays in it.
  * A heavier set outside it is not the top. If the tags name no top set, the result is empty: back-offs are not promoted.
  */
@@ -103,12 +104,18 @@ export function selectJudgedSets(trusted: LoggedSet[], topSets: number | null | 
       return roleOfTags(x.tags) === "top";
     });
   }
-  return trusted.slice(0, n);
+  return [];
+}
+
+/** True when a top-set session recorded which sets were the top sets (a slot or a role tag). Untagged history has no identity: callers must not line it up as top then back-off. */
+export function topIdentityKnown(sets: readonly { warmup?: boolean; tags?: readonly string[] }[]): boolean {
+  return sets.some((s) => !s.warmup && !s.tags?.includes("drop") && (slotOfTags(s.tags) != null || roleOfTags(s.tags) != null));
 }
 
 /**
  * Last session's working sets lined up by slot. A hole is null, never the neighbour's load.
- * No slot tags: log order of non-warmup, non-drop sets (straight sets, and top-set history logged before slots existed).
+ * No slot tags: log order of non-warmup, non-drop sets. That is correct for straight sets.
+ * A top-set scheme must not call this on a session that fails `topIdentityKnown`: log order is not a top set.
  */
 export function workingLoadsBySlot(sets: readonly { load: number; reps: number; warmup?: boolean; tags?: readonly string[] }[]): ({ load: number; reps: number } | null)[] {
   const working = sets.filter((s) => !s.warmup && !s.tags?.includes("drop"));

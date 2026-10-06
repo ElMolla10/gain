@@ -81,7 +81,7 @@ export interface DayExerciseSpec {
   programmeRepMin?: number;
   /** null = the program has no top for this exercise (added for today): the GAIN rep ceiling applies. */
   programmeRepMax?: number | null;
-  /** null / omitted = straight sets. n = top set + back-offs: the first n working sets are judged, not whichever sets were heaviest. */
+  /** null / omitted = straight sets. n = top set + back-offs: only sets stored with a top slot or role are judged. */
   topSets?: number | null;
   isGoalLift: boolean;
   trackEffort: boolean;

@@ -1,5 +1,5 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
+import { findSpec, nextLoadAbove, progressionAnchor, renderReason, slotOfTags, topIdentityKnown, workingLoadsBySlot, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, Vibration, View, type TextStyle } from "react-native";
@@ -27,7 +27,7 @@ import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type Jump
 import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
-import { acceptGhost, addRow, backoffPrefill, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { acceptGhost, addRow, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, loggerGhosts, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, stampSavedSlots, tagsForRow, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
@@ -182,7 +182,7 @@ export function WorkoutScreen() {
       );
       const last = await workout.lastPerformance(line, lineId);
       const stored = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
-      const lastTop = last?.sets.reduce<LoggedSet | null>((a, s) => (a === null || s.load > a.load ? s : a), null) ?? null;
+      const lastTop = last ? progressionAnchor(last.sets, isTimed(ex.measure) ? null : ex.topSets, ex.sets) : null;
       // Never invented: today's target, else last time's top set, else empty.
       const m = ex.measure;
       const storedQ = stored ? (m === "time" ? stored.durationS : m === "distance" ? stored.distanceM : stored.reps) : null;
@@ -195,6 +195,19 @@ export function WorkoutScreen() {
       return { proposal, line, last, stored, prefill: { load: d.load, reps: d.reps } };
     },
     [workout, finish],
+  );
+
+  /** Writes a slot only when a saved set already has a role and no slot. A set with neither stays unmarked. Loads are not touched. */
+  const stampSlots = useCallback(
+    async (ex: Disp, saved: { id: string; load: number; reps: number; rir: number | null; warmup: boolean; tags?: string[] }[]) => {
+      if (isTimed(ex.measure) || ex.topSets == null || !(ex.topSets >= 1) || ex.topSets >= ex.sets) return saved;
+      const writes = stampSavedSlots(saved, ex.topSets, ex.sets);
+      for (const w of writes) await workout.setSetTags(w.id, w.tags);
+      if (writes.length === 0) return saved;
+      const byId = new Map(writes.map((w) => [w.id, w.tags]));
+      return saved.map((s) => (byId.has(s.id) ? { ...s, tags: byId.get(s.id)! } : s));
+    },
+    [workout],
   );
 
   // Open (or resume) the session exactly once; leaving and coming back never creates a second one. A failed open is an error with a
@@ -229,7 +242,9 @@ export function WorkoutScreen() {
         if (st?.removed) continue;
         const ex = makeDisp(slotEx, st);
         info[ex.exerciseId] = await buildInfo(ex, id, gym);
-        initial[ex.exerciseId] = initialRows(all.filter((s) => s.exerciseId === ex.exerciseId).map(toSaved), ex.sets, info[ex.exerciseId]!.prefill, () => Crypto.randomUUID(), (isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info[ex.exerciseId]!.last?.sets)));
+        const ghosts = loggerGhosts({ timed: isTimed(ex.measure), topSets: ex.topSets, lastWorking: info[ex.exerciseId]!.last?.sets, stored: info[ex.exerciseId]!.stored, plannedSets: ex.sets });
+        const saved = await stampSlots(ex, all.filter((s) => s.exerciseId === ex.exerciseId).map(toSaved));
+        initial[ex.exerciseId] = initialRows(saved, ex.sets, info[ex.exerciseId]!.prefill, () => Crypto.randomUUID(), ghosts.backoff, ghosts.perSet, ex.topSets);
       }
       const session = await workout.getSession(id);
       setExState(states);
@@ -242,7 +257,7 @@ export function WorkoutScreen() {
       startedRef.current = false;
       setLoadError(true);
     });
-  }, [repos, workout, programmes, dayId, makeDisp, buildInfo, attempt]);
+  }, [repos, workout, programmes, dayId, makeDisp, buildInfo, stampSlots, attempt]);
 
   useEffect(() => {
     if (!resumeNote) return;
@@ -328,7 +343,7 @@ export function WorkoutScreen() {
     if (!row.saved && !row.warmup && !isDropRow(row) && !isTimed(ex.measure)) {
       const e0 = effectiveOf(row);
       const info0 = loaded.info[ex.exerciseId];
-      const lastTop = info0?.last?.sets.reduce<LoggedSet | null>((a, s0) => (a === null || s0.load > a.load ? s0 : a), null) ?? null;
+      const lastTop = info0?.last ? progressionAnchor(info0.last.sets, ex.topSets, ex.sets) : null;
       if (e0.load !== null && e0.reps !== null && lastTop && !okJumps.current.has(`${ex.exerciseId}:${e0.load}`)) {
         const spec0 = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
         const micro = spec0 ? nextLoadAbove(spec0, lastTop.load, false) : lastTop.load + 1.25;
@@ -344,9 +359,10 @@ export function WorkoutScreen() {
     const q = eff.reps as number; // reps, or seconds / metres for a timed exercise
     const qf = quantityFields(q, ex.measure);
     const ctx = { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup };
+    const tags = tagsForRow({ tags: row.tags, warmup: row.warmup, timed: isTimed(ex.measure), topSets: ex.topSets, plannedSets: ex.sets, rows: rows[ex.exerciseId] ?? [] });
     try {
       if (!row.saved) {
-        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
         // No rest timer after a warm-up or a drop set (the next set follows straight away).
         // In a superset the rest comes after the last exercise of the round only.
@@ -356,7 +372,7 @@ export function WorkoutScreen() {
           setTimer((tm) => startTimer(tm, Date.now()));
         }
       } else if (row.dirty) {
-        const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+        const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags }, ctx);
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
       }
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
@@ -463,9 +479,10 @@ export function WorkoutScreen() {
     if (!slotEx) return;
     const ex = makeDisp(slotEx, st);
     const info = await buildInfo(ex, lo.sessionId, lo.gym);
-    const saved = (await workout.listSessionSets(lo.sessionId, ex.exerciseId)).map(toSaved);
+    const saved = await stampSlots(ex, (await workout.listSessionSets(lo.sessionId, ex.exerciseId)).map(toSaved));
     setLoaded((cur) => (cur && cur !== "nogym" ? { ...cur, info: { ...cur.info, [ex.exerciseId]: info } } : cur));
-    setRows((r) => ({ ...r, [ex.exerciseId]: initialRows(saved, ex.sets, info.prefill, () => Crypto.randomUUID(), (isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info.last?.sets))) }));
+    const ghosts = loggerGhosts({ timed: isTimed(ex.measure), topSets: ex.topSets, lastWorking: info.last?.sets, stored: info.stored, plannedSets: ex.sets });
+    setRows((r) => ({ ...r, [ex.exerciseId]: initialRows(saved, ex.sets, info.prefill, () => Crypto.randomUUID(), ghosts.backoff, ghosts.perSet, ex.topSets) }));
   }
 
   async function replaceWith(slot: string, exerciseId: string) {
@@ -621,6 +638,8 @@ export function WorkoutScreen() {
     const exSets = setsByEx.get(ex.exerciseId) ?? [];
     const numbering = rowLabels(list);
     const widx = workingIndexes(list);
+    const useSlots = !isTimed(ex.measure) && list.some((r) => !r.warmup && !r.tags.includes("drop") && slotOfTags(r.tags) != null);
+    const slottedPrev = useSlots && topIdentityKnown(info.last?.sets ?? []) ? workingLoadsBySlot(info.last?.sets ?? []) : null;
     const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
     const timed = isTimed(ex.measure);
     const qUnits = { s: t("qty.s"), m: t("qty.m") };
@@ -716,7 +735,7 @@ export function WorkoutScreen() {
             const previous = (
               <View style={{ flex: 1.3 }}>
                 <AppText ltr style={{ color: p.muted, fontSize: 14, textAlign: "center" }}>
-                  {isolateLtr(timed ? previousQuantityText(info.last?.sets ?? null, widx[i] ?? null, ex.measure, (kg) => `${weightText(kg, unit)}${unitText}`, qUnits) : previousText(info.last?.sets ?? null, widx[i] ?? null, unit, unitText))}
+                  {isolateLtr(timed ? previousQuantityText(info.last?.sets ?? null, widx[i] ?? null, ex.measure, (kg) => `${weightText(kg, unit)}${unitText}`, qUnits) : previousText(useSlots ? slottedPrev : (info.last?.sets ?? null), useSlots ? (slotOfTags(row.tags) != null && !row.warmup && !isDropRow(row) ? slotOfTags(row.tags)! - 1 : null) : (widx[i] ?? null), unit, unitText))}
                 </AppText>
               </View>
             );
@@ -881,7 +900,7 @@ export function WorkoutScreen() {
             variant="secondary"
             icon="plus"
             label={t("workout.addSet")}
-            onPress={() => setRows((r) => ({ ...r, [ex.exerciseId]: addRow(r[ex.exerciseId] ?? [], info.prefill, () => Crypto.randomUUID()) }))}
+            onPress={() => setRows((r) => ({ ...r, [ex.exerciseId]: addRow(r[ex.exerciseId] ?? [], info.prefill, () => Crypto.randomUUID(), !timed && ex.topSets != null && ex.topSets >= 1 && ex.topSets < ex.sets ? ex.topSets : null) }))}
             accessibilityHint={labels.primary}
           />
         </View>

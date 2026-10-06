@@ -29,6 +29,8 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
       "Stay at {load} {unit} assistance and keep aiming for {reps}. That is the least assistance this machine has.",
     low_confidence_repeat:
       "Repeat {load} {unit} for {reps}. There is not enough comparable history to push yet, so this is a smaller step on purpose.",
+    ambiguous_top:
+      "This workout does not say which set was the top set, so the weight will not go up and no set is picked for you. Set the weight yourself.",
     no_history:
       "No comparable history for this lift in this gym, so nothing is proposed. Log a first set and the next session will have a target.",
     no_gym_loads:
@@ -56,6 +58,7 @@ const templates: Record<Locale, Record<ReasonKey, string>> = {
     hold_no_heavier_load: "ابقَ على {load} {unit} لـ{reps}. مفيش {equipment} أتقل في الجيم ده.",
     hold_assisted_floor: "ابقَ على مساعدة {load} {unit} وكمّل حاول تعمل {reps}. دي أقل مساعدة في الجهاز ده.",
     low_confidence_repeat: "كرّر {load} {unit} لـ{reps}. مفيش تاريخ كفاية للمقارنة عشان ندفعك، فده خطوة أصغر عن قصد.",
+    ambiguous_top: "التمرين ده مش موضح أنهي مجموعة كانت المجموعة التقيلة، فالوزن مش هيزيد ومش هنختار مجموعة عنك. حدّد الوزن بنفسك.",
     no_history: "مفيش تاريخ يتقارن للتمرين ده في الجيم ده، فمفيش اقتراح. سجّل أول مجموعة والجلسة الجاية هيبقى فيها هدف.",
     no_gym_loads: "الجيم ده مفيهوش أوزان محفوظة لـ{equipment}، فمفيش وزن مقترح. ضيف الأوزان الموجودة وجرّب تاني.",
     timed_longer: "ابقَ على {load} {unit}، وحاول توصل {target} {qunit}. آخر مرة أضعف مجموعة كانت {last} {qunit}؛ شوية أطول كل مرة.",

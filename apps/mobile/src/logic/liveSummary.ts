@@ -44,7 +44,7 @@ export const volumeText = (volumeKg: number, unit: Unit): string => String(Math.
  * The PREVIOUS cell for a set row: the same-numbered WORKING set of the last finished session of this exercise at this gym and setup
  * (the same line), as "90kg x 12". Warm-up rows and rows past the last session's sets show a dash. `lastWorking` has no warm-ups.
  */
-export function previousText(lastWorking: readonly { load: number; reps: number }[] | null, workingIndex: number | null, unit: Unit, unitText: string): string {
+export function previousText(lastWorking: readonly ({ load: number; reps: number } | null | undefined)[] | null, workingIndex: number | null, unit: Unit, unitText: string): string {
   if (!lastWorking || workingIndex === null) return "—";
   const s = lastWorking[workingIndex];
   if (!s) return "—";

@@ -15,3 +15,4 @@ export * from "./weekly";
 export * from "./trend";
 export * from "./modelGuard";
 export * from "./timed";
+export * from "./setTargets";

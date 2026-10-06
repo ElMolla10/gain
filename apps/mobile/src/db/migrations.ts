@@ -355,8 +355,8 @@ ${Object.entries(TIMED_LIBRARY)
     name: "top set + back-offs",
     sql: `
 -- Per program exercise: NULL = straight sets (every planned set must reach the top; what every row meant before this version). n >= 1 = a top set
--- + back-off prescription: only the n heaviest sets are judged for progression, the lighter sets after them are back-offs and never block it.
--- Existing rows keep NULL, so nothing already planned or done changes meaning.
+-- + back-off prescription. Judged sets are those stored with a top slot or role, not log order and not the n heaviest loads.
+-- A session with no slot and no role does not earn more load. Existing rows keep NULL, so nothing already planned changes meaning.
 ALTER TABLE programme_day_exercise ADD COLUMN top_sets INTEGER CHECK (top_sets IS NULL OR (top_sets >= 1 AND top_sets <= 11));
 `,
   },
@@ -367,6 +367,17 @@ ALTER TABLE programme_day_exercise ADD COLUMN top_sets INTEGER CHECK (top_sets I
 -- Per exercise: the weights the lifter says exist for it, as JSON in kilograms {"loads":[..]} or {"increment":..,"min":..,"max":..}.
 -- NULL (every existing row) = the gym's grid for the exercise's equipment, exactly as before, so no existing target or decision changes.
 ALTER TABLE exercise ADD COLUMN load_spec_json TEXT;
+`,
+  },
+  {
+    version: 12,
+    name: "per-set next targets",
+    sql: `
+-- One headline target is still the row. This JSON is the per-set plan for a top-set + back-off exercise only:
+-- [{"position":1,"role":"top"|"backoff","load":number|null,"reps":number|null}, ...]. NULL on every existing row, and on
+-- every straight-set target, means "one target for the exercise", exactly as before. Role is a stored slot or an explicit tag,
+-- never "this set was lighter, so it must be a back-off". An old session with no slot or role is not lined up as top then back-off.
+ALTER TABLE target ADD COLUMN set_targets_json TEXT;
 `,
   },
 ];

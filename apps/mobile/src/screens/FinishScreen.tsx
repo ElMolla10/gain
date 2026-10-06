@@ -3,7 +3,7 @@ import { shortReason, targetText } from "../logic/nextTarget";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type GymLoadSpec } from "@gain/engine";
+import { emptyBackoffStart, findSpec, nextLoadAbove, renderReason, type GymFingerprint, type GymLoadSpec } from "@gain/engine";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Share, View } from "react-native";
 import { useServices } from "../AppContext";
@@ -38,7 +38,7 @@ export function FinishScreen() {
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [next, setNext] = useState<Next | null | "none">(null);
-  const [editing, setEditing] = useState<{ targetId: string; load: number } | null>(null);
+  const [editing, setEditing] = useState<{ targetId: string; load: number; position?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notices, setNotices] = useState<Record<string, string>>({});
   const [sharing, setSharing] = useState(false);
@@ -239,18 +239,46 @@ export function FinishScreen() {
             return (
               <Card key={tg.id}>
                 <AppText style={{ fontWeight: "600" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
-                {tg.currency === "none" || (tg.effectiveLoad === null && tg.status !== "rejected") ? (
-                  <AppText style={{ color: p.muted }}>{t("finish.noTarget")}</AppText>
-                ) : tg.status === "rejected" ? (
+                {tg.status === "rejected" ? (
                   <AppText style={{ color: p.muted }}>{t("finish.rejectedNote")}</AppText>
+                ) : tg.reason.key === "ambiguous_top" ? (
+                  <AppText style={{ color: p.muted }}>{renderReason(localizeReason(tg.reason, unit, lang), lang)}</AppText>
+                ) : tg.currency === "none" || tg.effectiveLoad === null ? (
+                  <AppText style={{ color: p.muted }}>{t("finish.noTarget")}</AppText>
                 ) : (
                   <TargetStrip label={t("target.label")} value={isolateLtr(targetText(tg, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") }))} reason={shortReason(renderReason(localizeReason(tg.reason, unit, lang), lang))} />
                 )}
                 <InlineStatus kind={tg.status === "rejected" ? "warn" : tg.status === "proposed" ? "info" : "success"} text={t(`finish.status.${tg.status}` as never)} />
+                {tg.setTargets && tg.status !== "rejected" && !isEditing ? (
+                  <View style={{ gap: space.sm }}>
+                    {tg.setTargets.map((s) => {
+                      const text = s.load !== null && s.reps !== null ? `${formatLoad(s.load, lang, unit)} × ${s.reps}` : t("finish.set.empty");
+                      const spoken = s.load !== null && s.reps !== null ? `${weightText(s.load, unit)} ${unitText} × ${s.reps}` : t("finish.set.empty");
+                      return (
+                        <View key={s.position} style={{ gap: space.xs }}>
+                          <AppText>{t(s.role === "top" ? "finish.set.top" : "finish.set.backoff", { n: s.position, text })}</AppText>
+                          <BigButton
+                            variant="quiet"
+                            label={t("finish.set.edit", { n: s.position })}
+                            accessibilityHint={spoken}
+                            onPress={() => {
+                              const headline = tg.effectiveLoad ?? tg.load;
+                              const allowZero = (info?.setup ?? "free") !== "free";
+                              const floor = spec?.loads && spec.loads.length > 0 ? Math.min(...spec.loads) : (spec?.min ?? spec?.increment ?? 0);
+                              const start = s.load !== null ? s.load : headline != null && s.role === "backoff" ? emptyBackoffStart(headline, spec, allowZero) : headline != null ? headline : floor;
+                              setEditing({ targetId: tg.id, load: start, position: s.position });
+                            }}
+                          />
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
                 {notices[tg.id] ? <AppText style={{ fontWeight: "600" }}>{notices[tg.id]}</AppText> : null}
 
                 {isEditing && editing ? (
                   <View style={{ gap: space.md }}>
+                    {editing.position != null ? <AppText style={{ fontWeight: "600" }}>{t("finish.set.edit", { n: editing.position })}</AppText> : null}
                     <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
                       <IconButton icon="minus" label={`${t("finish.edit")} −`} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free", unit).load })} />
                       <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: ty.load, fontWeight: "600" }}>{weightText(editing.load, unit)} {unitText}</AppText>
@@ -261,7 +289,8 @@ export function FinishScreen() {
                       onPress={() =>
                         act(async () => {
                           if (!info) return;
-                          await finish.editTargetLoad(tg.id, editing.load, next.gym, info.equipment, info.setup as "free");
+                          if (editing.position != null) await finish.editSetTarget(tg.id, editing.position, editing.load, next.gym, info.equipment, info.setup as "free");
+                          else await finish.editTargetLoad(tg.id, editing.load, next.gym, info.equipment, info.setup as "free");
                           setEditing(null);
                         })
                       }
@@ -270,7 +299,7 @@ export function FinishScreen() {
                   </View>
                 ) : (
                   <View style={{ gap: space.sm }}>
-                    {tg.currency !== "none" && tg.load !== null ? (
+                    {tg.currency !== "none" && tg.load !== null && !(tg.status === "rejected" && tg.setTargets) ? (
                       <>
                         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
                           <View style={{ flexGrow: 1, flexBasis: 150 }}>

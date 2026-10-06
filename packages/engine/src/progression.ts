@@ -1,6 +1,7 @@
 import { RULE_VERSION } from "./version";
 import { effectiveLoad, epley, lineKey, sortNewestFirst, splitComparable } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
+import { selectJudgedSets, topIdentityKnown } from "./setTargets";
 import { specForExercise, nextLoadAbove, nextLoadBelow, norm, roundToGymLoad, allowsZero } from "./loads";
 import { classifyLift, mergeRepCeilings, resolveProgression, resolveRepTop } from "./policy";
 import { isJumpBlocked, recordsForLine, REJECTION_THRESHOLD, rejectionCount, emptyRejectionMemory } from "./rejection";
@@ -69,12 +70,14 @@ export const jumpKindLoad = (dir: "harder" | "easier", delta: number): string =>
 export const jumpKindEffort = (rir: number): string => `effort:rir${rir}`;
 export const jumpKindQuality = (q: QualityChange): string => `quality:${q}`;
 
-/** Per-session summary of the hardest trusted working load. Null when the session has no trusted working set. */
+/** Per-session summary. Straight sets: the hardest trusted working load of the session. A top-set scheme: the hardest load inside the judged group only (see selectJudgedSets). Null when the session has no trusted working set. `{ missingTop: true }` when tags exist but name no top set. `{ ambiguous: true }` when a scheme session stored no slot and no role: log order is not a top set. */
 function summarize(
   s: HistorySession,
   setup: LineIdentity["setup"],
   counts: { warmup: number; drop: number; outlier: number },
-): SessionSummary | null {
+  topSets: number | undefined,
+  plannedSets: number | undefined,
+): SessionSummary | { missingTop: true; performedAt: string } | { ambiguous: true; performedAt: string } | null {
   for (const x of s.sets) {
     if (x.warmup) counts.warmup++;
     else if (x.tags?.includes("drop")) counts.drop++;
@@ -82,10 +85,16 @@ function summarize(
   }
   const trusted = s.sets.filter((x) => isTrustedWorkingSet(x) && x.reps >= 1 && Number.isFinite(x.load));
   if (trusted.length === 0) return null;
+  const judged = selectJudgedSets(trusted, topSets, plannedSets);
+  if (judged.length === 0) {
+    const scheme = typeof topSets === "number" && topSets >= 1 && (plannedSets == null || topSets < plannedSets);
+    if (scheme && !topIdentityKnown(trusted)) return { ambiguous: true, performedAt: s.performedAt };
+    return { missingTop: true, performedAt: s.performedAt };
+  }
   const harder = (a: number, b: number) => (setup === "assisted" ? a < b : a > b);
-  let top = trusted[0]!.load;
-  for (const x of trusted) if (harder(x.load, top)) top = x.load;
-  const atTop = trusted.filter((x) => Math.abs(x.load - top) < 1e-6);
+  let top = judged[0]!.load;
+  for (const x of judged) if (harder(x.load, top)) top = x.load;
+  const atTop = judged.filter((x) => Math.abs(x.load - top) < 1e-6);
   const rirs = atTop.map((x) => x.rir).filter((r): r is number => typeof r === "number");
   const tags = [...new Set(atTop.flatMap((x) => x.tags ?? []))];
   return {
@@ -147,11 +156,40 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const { comparable, incomparable } = splitComparable(line, ctx.history);
   const counts = { warmup: 0, drop: 0, outlier: 0 };
   const sorted = sortNewestFirst(comparable);
-  const summaries: SessionSummary[] = [];
+  type MissingTop = { missingTop: true; performedAt: string };
+  type AmbiguousTop = { ambiguous: true; performedAt: string };
+  const raw: (SessionSummary | MissingTop | AmbiguousTop)[] = [];
   for (const s of sorted) {
-    const sm = summarize(s, setup, counts);
-    if (sm) summaries.push(sm);
+    const sm = summarize(s, setup, counts, exercise.topSets, exercise.plannedSets);
+    if (sm) raw.push(sm);
   }
+  const isReal = (sm: SessionSummary | MissingTop | AmbiguousTop): sm is SessionSummary => !("missingTop" in sm) && !("ambiguous" in sm);
+  // Newest first. A session whose tags name no top set does not adopt a back-off load. It repeats the nearest older
+  // real top (setsAtTop 0, so it cannot earn a jump) and skips unmarked sessions. If no older top exists, it is left out.
+  // An unmarked session is not given that older top: log order is not a top set, and it must not earn a jump.
+  const summaries: SessionSummary[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const sm = raw[i]!;
+    if (isReal(sm)) {
+      summaries.push(sm);
+      continue;
+    }
+    if ("ambiguous" in sm) continue;
+    const older = raw.slice(i + 1).find(isReal);
+    if (!older) continue;
+    summaries.push({
+      performedAt: sm.performedAt,
+      topLoad: older.topLoad,
+      repsAtTop: older.repsAtTop,
+      lastSetReps: older.repsAtTop,
+      setsAtTop: 0,
+      workingSets: 0,
+      rir: null,
+      tags: [],
+    });
+  }
+  const newestUnmarked = raw.length > 0 && "ambiguous" in raw[0]!;
+  const anyUnmarked = raw.some((sm) => "ambiguous" in sm);
   const newestSession = sorted[0];
   const pendingOutlier = !!newestSession?.sets.some((x) => !x.warmup && x.outlierStatus === "unconfirmed");
 
@@ -216,6 +254,28 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     inputs: baseInputs(),
     warnings: pendingOutlier ? [...warnings, "pending_outlier"] : warnings,
   });
+
+  // The newest session that has trusted sets does not say which set was the top set. Do not repeat an older tagged
+  // load through it, and do not list an inferred top. The same empty proposal is used when nothing identifiable remains.
+  if (newestUnmarked || (summaries.length === 0 && anyUnmarked)) {
+    summaries.length = 0;
+    return {
+      status: "proposed",
+      load: null,
+      reps: null,
+      targetRir: null,
+      quality: null,
+      sets: exercise.plannedSets ?? null,
+      currency: "none",
+      jumpKind: null,
+      reason: { key: "ambiguous_top", params: {} },
+      confidence: "low",
+      needsModel: { needed: false, reasons: ["low_confidence"] },
+      ruleVersion: RULE_VERSION,
+      inputs: baseInputs(),
+      warnings: pendingOutlier ? ["pending_outlier"] : [],
+    };
+  }
 
   if (summaries.length === 0) {
     return none("no_history", { key: "no_history", params: {} }, incomparable.length ? ["only_incomparable_history"] : []);

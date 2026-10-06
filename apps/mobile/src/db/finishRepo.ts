@@ -1,13 +1,21 @@
 import {
+  acceptSetTargets,
+  applyHeadlineLoad,
+  applySlotLoad,
+  buildSetTargets,
   isGymLoad,
+  parseSetTargets,
   REJECTION_THRESHOLD,
   findSpec,
+  workingLoadsBySlot,
+  topIdentityKnown,
   type GymFingerprint,
   type LineIdentity,
   type LoggedSet,
   type Measure,
   type Proposal,
   type ReasonText,
+  type SetTarget,
   type SetupType,
 } from "@gain/engine";
 import type { Db, Deps } from "./driver";
@@ -45,6 +53,11 @@ export interface TargetRow {
   editedLoad: number | null;
   /** What the lifter should load: the edited load if they edited, else the proposed load. Null when rejected or nothing proposed. */
   effectiveLoad: number | null;
+  /**
+   * Per working set, for a top-set + back-off exercise. Null for straight sets and for every target written before this column
+   * existed. Rejected targets still carry the JSON, but the logger must not prefill from a rejected target.
+   */
+  setTargets: SetTarget[] | null;
 }
 
 interface RawTarget {
@@ -71,6 +84,7 @@ interface RawTarget {
   reason_params_json: string;
   confidence: string;
   edited_load: number | null;
+  set_targets_json: string | null;
 }
 
 const toTarget = (r: RawTarget): TargetRow => ({
@@ -97,6 +111,7 @@ const toTarget = (r: RawTarget): TargetRow => ({
   confidence: r.confidence,
   editedLoad: r.edited_load,
   effectiveLoad: r.status === "rejected" ? null : r.status === "edited" ? r.edited_load : r.load,
+  setTargets: parseSetTargets(r.set_targets_json),
 });
 
 /** Only jumps are remembered (load / effort / quality). Plain "one more rep" or "repeat" is not a jump the lifter can refuse. */
@@ -151,7 +166,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   }
 
   const TARGET_SELECT = `SELECT t.id, t.session_id, t.exercise_id, t.line_id, e.name_en, e.name_ar, e.measure, t.load, t.reps, t.duration_s, t.distance_m, t.target_rir, t.quality,
-      t.planned_sets, t.currency, t.jump_kind, t.rule_version, t.path, t.status, t.reason_key, t.reason_params_json, t.confidence, t.edited_load
+      t.planned_sets, t.currency, t.jump_kind, t.rule_version, t.path, t.status, t.reason_key, t.reason_params_json, t.confidence, t.edited_load, t.set_targets_json
     FROM target t JOIN exercise e ON e.id = t.exercise_id WHERE t.deleted_at IS NULL`;
 
   async function getTargets(sessionId: string): Promise<TargetRow[]> {
@@ -239,27 +254,34 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   async function fillTargets(sessionId: string, dayId: string, gymId: string): Promise<number> {
     const gym: GymFingerprint = await repos.loadGymFingerprint(gymId);
     const exercises = await repos.listDayExercises(dayId);
-    const decided: { ex: (typeof exercises)[number]; proposal: Proposal; lineId: string }[] = [];
+    const decided: { ex: (typeof exercises)[number]; proposal: Proposal; lineId: string; setTargets: SetTarget[] | null }[] = [];
     for (const ex of exercises) {
-      const { proposal, lineId } = await workout.liveProposal(
+      const { proposal, lineId, line } = await workout.liveProposal(
         { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, repMin: ex.repMin, repMax: ex.repMax, programmeRepMin: ex.programmeRepMin, programmeRepMax: ex.programmeRepMax, repCeiling: ex.repCeiling, repCeilingIsCustom: ex.repCeilingIsCustom, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets, topSets: ex.topSets },
         gym,
       );
-      decided.push({ ex, proposal, lineId });
+      const last = ex.measure === "reps" && ex.topSets ? await workout.lastPerformance(line, lineId) : null;
+      const setTargets = buildSetTargets({
+        plannedSets: ex.sets,
+        topSets: ex.measure === "reps" ? ex.topSets : null,
+        top: { load: proposal.load, reps: proposal.reps },
+        lastWorking: topIdentityKnown(last?.sets ?? []) ? workingLoadsBySlot(last?.sets ?? []) : [],
+      });
+      decided.push({ ex, proposal, lineId, setTargets });
     }
     {
       const t = now();
       let created = 0;
-      for (const { ex, proposal, lineId } of decided) {
+      for (const { ex, proposal, lineId, setTargets } of decided) {
         const exists = await db.get("SELECT id FROM target WHERE session_id = ? AND exercise_id = ? AND deleted_at IS NULL", [sessionId, ex.exerciseId]);
         if (exists) continue;
         const targetId = newId();
         await db.run(
           `INSERT INTO target (id, session_id, exercise_id, line_id, load, reps, duration_s, distance_m, target_rir, quality, planned_sets, currency, jump_kind,
-             rule_version, path, status, reason_key, reason_params_json, confidence, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rule', 'proposed', ?, ?, ?, ?, ?)`,
+             rule_version, path, status, reason_key, reason_params_json, confidence, set_targets_json, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rule', 'proposed', ?, ?, ?, ?, ?, ?)`,
           [targetId, sessionId, ex.exerciseId, lineId, proposal.load, proposal.reps, proposal.durationS ?? null, proposal.distanceM ?? null, proposal.targetRir, proposal.quality, proposal.sets, proposal.currency, proposal.jumpKind,
-            proposal.ruleVersion, proposal.reason.key, JSON.stringify(proposal.reason.params), proposal.confidence, t, t],
+            proposal.ruleVersion, proposal.reason.key, JSON.stringify(proposal.reason.params), proposal.confidence, setTargets ? JSON.stringify(setTargets) : null, t, t],
         );
         const payload: DecisionPayload = {
           proposal: {
@@ -350,28 +372,56 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return tr;
   }
 
-  /** Accept the target as written. Accepting a jump clears its rejection count (the lifter changed their mind). */
+  /** Accept the target as written. Accepting a jump clears its rejection count (the lifter changed their mind). Top-set slots return to the proposed headline; a back-off the lifter already edited stays. A rejected per-set plan cannot be accepted: that would make the stored JSON live again. */
   async function acceptTarget(targetId: string): Promise<void> {
     const tr = await mustGet(targetId);
+    if (tr.status === "rejected" && tr.setTargets) throw new Error("This target was rejected");
     if (tr.currency === "none") throw new Error("Nothing was proposed, so there is nothing to accept");
     const t = now();
+    const json = tr.setTargets ? JSON.stringify(acceptSetTargets(tr.setTargets, { load: tr.load, reps: tr.reps })) : null;
     await db.transaction(async () => {
-      await db.run("UPDATE target SET status = 'accepted', edited_load = NULL, updated_at = ? WHERE id = ?", [t, targetId]);
+      if (tr.setTargets) await db.run("UPDATE target SET status = 'accepted', edited_load = NULL, set_targets_json = ?, updated_at = ? WHERE id = ?", [json, t, targetId]);
+      else await db.run("UPDATE target SET status = 'accepted', edited_load = NULL, updated_at = ? WHERE id = ?", [t, targetId]);
       if (tr.status !== "accepted" && isRememberedKind(tr.jumpKind)) await clearRejection(tr.lineId, tr.jumpKind);
     });
   }
 
-  /** Edit the load. It must be one of the standard steps for this equipment. Editing is neither a rejection nor an acceptance of the jump. */
+  /** Edit the load. It must be one of the standard steps for this equipment. Editing is neither a rejection nor an acceptance of the jump. Every top-set slot follows the headline; back-off slots do not. */
   async function editTargetLoad(targetId: string, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType, reps?: number): Promise<void> {
     const tr = await mustGet(targetId);
+    if (tr.status === "rejected" && tr.setTargets) throw new Error("This target was rejected");
     const spec = await gridFor(db, gym, tr.exerciseId, equipment);
     if (spec && !isGymLoad(spec, load, setup !== "free")) throw new Error("That load is not one of the standard steps");
     if (!(load >= 0)) throw new Error("Invalid load");
     if (reps !== undefined && !(Number.isInteger(reps) && reps >= 1 && reps <= 100)) throw new Error("Invalid reps");
     const t = now();
-    // `reps` is given when a big jump was swapped for a smaller step (same load + one more rep, a microload ...): the target's reps follow.
-    if (reps !== undefined && tr.measure === "reps") await db.run("UPDATE target SET status = 'edited', edited_load = ?, reps = ?, updated_at = ? WHERE id = ?", [load, reps, t, tr.id]);
+    const repsFollow = reps !== undefined && tr.measure === "reps";
+    const next = tr.setTargets ? applyHeadlineLoad(tr.setTargets, load, repsFollow ? reps : undefined) : null;
+    const json = next ? JSON.stringify(next) : null;
+    if (repsFollow) {
+      if (next) await db.run("UPDATE target SET status = 'edited', edited_load = ?, reps = ?, set_targets_json = ?, updated_at = ? WHERE id = ?", [load, reps, json, t, tr.id]);
+      else await db.run("UPDATE target SET status = 'edited', edited_load = ?, reps = ?, updated_at = ? WHERE id = ?", [load, reps, t, tr.id]);
+    } else if (next) await db.run("UPDATE target SET status = 'edited', edited_load = ?, set_targets_json = ?, updated_at = ? WHERE id = ?", [load, json, t, tr.id]);
     else await db.run("UPDATE target SET status = 'edited', edited_load = ?, updated_at = ? WHERE id = ?", [load, t, tr.id]);
+  }
+
+  /**
+   * Edit one working set of a top-set + back-off target. A top slot updates the headline and every top slot.
+   * A back-off slot updates only that slot. The headline load is kept (status becomes edited) so the target does not disappear.
+   */
+  async function editSetTarget(targetId: string, position: number, load: number, gym: GymFingerprint, equipment: Parameters<typeof findSpec>[1], setup: SetupType): Promise<void> {
+    const tr = await mustGet(targetId);
+    if (tr.status === "rejected" && tr.setTargets) throw new Error("This target was rejected");
+    if (!tr.setTargets) throw new Error("This target has no per-set plan");
+    const slot = tr.setTargets.find((s) => s.position === position);
+    if (!slot) throw new Error("Unknown set");
+    const spec = await gridFor(db, gym, tr.exerciseId, equipment);
+    if (spec && !isGymLoad(spec, load, setup !== "free")) throw new Error("That load is not one of the standard steps");
+    if (!(load >= 0)) throw new Error("Invalid load");
+    const next = applySlotLoad(tr.setTargets, position, load);
+    const t = now();
+    if (slot.role === "top") await db.run("UPDATE target SET status = 'edited', edited_load = ?, set_targets_json = ?, updated_at = ? WHERE id = ?", [load, JSON.stringify(next), t, tr.id]);
+    else await db.run("UPDATE target SET status = 'edited', edited_load = ?, set_targets_json = ?, updated_at = ? WHERE id = ?", [tr.effectiveLoad ?? tr.load, JSON.stringify(next), t, tr.id]);
   }
 
   /** Reject: the lifter will set their own number. Remembered per line + jump kind; 3 rejections stop that jump. */
@@ -400,6 +450,6 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return db.get<{ id: string }>("SELECT id FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL", [dayId]);
   }
 
-  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, planDay, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
+  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, planDay, refreshPlannedSessions, acceptTarget, editTargetLoad, editSetTarget, rejectTarget, getDecision, getPlannedSession };
 }
 export type FinishRepo = ReturnType<typeof createFinishRepo>;

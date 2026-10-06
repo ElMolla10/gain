@@ -186,6 +186,11 @@ export function TodayScreen() {
                     {e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}
                     {l.secondary ? ` · ${l.secondary}` : ""}
                   </AppText>
+                  {tg?.setTargets && tg.status !== "rejected" ? (
+                    <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>
+                      {isolateLtr(tg.setTargets.map((s) => (s.load !== null && s.reps !== null ? `${loadText(s.load)} × ${s.reps}` : t("finish.set.empty"))).join(" · "))}
+                    </AppText>
+                  ) : null}
                 </View>
                 {target ? (
                   <View style={{ alignItems: stack ? "flex-start" : "flex-end", flexShrink: 0 }}>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { proposeNext } from "./progression";
 import { renderReason } from "./reasons";
+import { ROLE_BACKOFF_TAG, ROLE_TOP_TAG, SLOT_TAG_PREFIX } from "./setTargets";
 import { ASOF, exBar, gymA, lineOf, S, session } from "./testkit";
 
 const line = lineOf("bench");
@@ -52,20 +53,28 @@ describe("P21 partial completion", () => {
 
 describe("P21 top set + back-off prescription", () => {
   const tb = { plannedSets: 4, topSets: 1 };
+  const tagged = (load: number, reps: number, slot: number, role: "top" | "backoff") =>
+    S(load, reps, { tags: [`${SLOT_TAG_PREFIX}${slot}`, role === "top" ? ROLE_TOP_TAG : ROLE_BACKOFF_TAG] });
   it("one heavy top set at the ceiling plus lighter back-off sets earns load; back-offs are ignored", () => {
-    const h = [
-      session(line, day(24), [S(100, 10), S(80, 12), S(80, 12), S(80, 12)]),
-      session(line, day(28), [S(100, 10), S(80, 12), S(80, 12), S(80, 12)]),
-    ];
+    const row = [tagged(100, 10, 1, "top"), tagged(80, 12, 2, "backoff"), tagged(80, 12, 3, "backoff"), tagged(80, 12, 4, "backoff")];
+    const h = [session(line, day(24), row), session(line, day(28), row)];
     const p = P(h, tb);
     expect(p.currency).toBe("load");
     expect(p.inputs.readiness.requiredSetsAtTop).toBe(1);
     expect(p.warnings).not.toContain("fewer_sets_than_planned");
   });
-  it("two top sets prescribed: one top set is not enough", () => {
-    const one = (d: number) => session(line, day(d), [S(100, 10), S(80, 12), S(80, 12), S(80, 12)]);
+  it("two top sets prescribed: one tagged top set is not enough", () => {
+    const one = (d: number) => session(line, day(d), [tagged(100, 10, 1, "top"), tagged(80, 12, 2, "top"), tagged(80, 12, 3, "backoff"), tagged(80, 12, 4, "backoff")]);
     const p = P([one(20), one(24), one(28)], { plannedSets: 4, topSets: 2 });
     expect(p.currency).not.toBe("load");
     expect(p.reason.key).toBe("partial_session");
+  });
+  it("an old session with no slot or role, logged light first, does not earn load", () => {
+    const one = (d: number) => session(line, day(d), [S(80, 12), S(100, 10), S(80, 12), S(80, 12)]);
+    const p = P([one(24), one(28)], tb);
+    expect(p.currency).not.toBe("load");
+    expect(p.load).toBeNull();
+    expect(p.reason.key).toBe("ambiguous_top");
+    expect(p.inputs.sessions).toEqual([]);
   });
 });

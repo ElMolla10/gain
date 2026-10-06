@@ -79,6 +79,7 @@ describe("migration 11: weights set per exercise (upgrade from schema 10 with re
     const cur = await populatedWithRealHistory();
     expect(LATEST_VERSION).toBeGreaterThanOrEqual(11);
     const before = await dumpAll(cur.db);
+    before.target = ((before.target ?? []) as Record<string, unknown>[]).map(({ set_targets_json: _s, ...rest }) => rest);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);
     const old = await copyAtVersion(cur.db, 10);
     expect((await old.all<{ name: string }>("PRAGMA table_info(exercise)")).map((c) => c.name)).not.toContain("load_spec_json");

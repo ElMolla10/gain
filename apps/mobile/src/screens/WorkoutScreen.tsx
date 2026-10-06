@@ -197,7 +197,7 @@ export function WorkoutScreen() {
     [workout, finish],
   );
 
-  /** Writes a slot tag onto saved working sets that do not have one, so a later delete cannot move a back-off into the top slot. Loads are not touched. */
+  /** Writes a slot only when a saved set already has a role and no slot. A set with neither stays unmarked. Loads are not touched. */
   const stampSlots = useCallback(
     async (ex: Disp, saved: { id: string; load: number; reps: number; rir: number | null; warmup: boolean; tags?: string[] }[]) => {
       if (isTimed(ex.measure) || ex.topSets == null || !(ex.topSets >= 1) || ex.topSets >= ex.sets) return saved;

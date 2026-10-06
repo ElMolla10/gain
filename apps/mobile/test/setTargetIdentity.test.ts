@@ -16,7 +16,7 @@ const saved = (id: string, load: number, reps: number, tags: string[] = [], extr
 const slotsOf = (rows: { warmup: boolean; tags: string[] }[]) => rows.filter((r) => !r.warmup && !r.tags.includes("drop")).map((r) => slotOfTags(r.tags));
 
 describe("set identity", () => {
-  it("warm-ups and drops do not take a slot, a failure set keeps its slot, and labels stay on that slot", () => {
+  it("warm-ups and drops do not take a slot, and an untagged working set is not labeled as the top", () => {
     const rows = initialRows(
       [saved("w", 40, 5, [], { warmup: true }), saved("a", 100, 8, ["failure"]), saved("d", 60, 6, ["drop"]), saved("b", 80, 12)],
       3,
@@ -24,10 +24,12 @@ describe("set identity", () => {
       key(),
       backoffPrefill(1, [{ load: 100, reps: 8 }, { load: 80, reps: 12 }]),
     );
-    expect(slotsOf(rows)).toEqual([1, 2, 3]);
-    expect(rowLabels(rows)).toEqual(["W", "F", "D", "2", "3"]);
-    expect(rows.find((r) => r.key === "b")!.tags).toEqual(expect.arrayContaining(["slot:2", "role:backoff"]));
+    expect(rows.find((r) => r.key === "a")!.tags).toEqual(["failure"]);
+    expect(rows.find((r) => r.key === "b")!.tags).toEqual([]);
     expect(rows.find((r) => r.key === "d")!.tags).toEqual(["drop"]);
+    expect(rows.some((r) => r.tags.some((t) => t.startsWith("slot:") || t.startsWith("role:")))).toBe(false);
+    expect(rowLabels(rows)).toEqual(["W", "F", "D", "2", "3"]);
+    expect(tagsForRow({ tags: ["failure"], warmup: false, timed: false, topSets: 1, plannedSets: 3, rows })).toEqual(["failure"]);
   });
 
   it("deleting the top set does not retag the back-off, including after a reload", () => {
@@ -76,13 +78,19 @@ describe("set identity", () => {
     expect(addRow(straight, { load: 60, reps: 8 }, key()).at(-1)!.ghostLoad).toBe(60);
   });
 
-  it("opening a session stamps untagged working sets in log order and does not move a back-off role onto a top slot", () => {
-    expect(stampSavedSlots([saved("a", 100, 8), saved("b", 80, 12, ["drop"]), saved("c", 70, 12)], 1, 4)).toEqual([
-      { id: "a", tags: ["slot:1", "role:top"] },
-      { id: "c", tags: ["slot:2", "role:backoff"] },
-    ]);
+  it("opening a session does not stamp an untagged light-then-heavy log, and a stored role stays on its own side", () => {
+    const legacy = [saved("light", 50, 12), saved("drop", 40, 12, ["drop"]), saved("heavy", 100, 8)];
+    expect(stampSavedSlots(legacy, 1, 4)).toEqual([]);
+    const rows = initialRows(legacy, 4, { load: 100, reps: 8 }, key(), backoffPrefill(1, []));
+    expect(rows.find((r) => r.key === "light")!.tags).toEqual([]);
+    expect(rows.find((r) => r.key === "heavy")!.tags).toEqual([]);
+    expect(rows.filter((r) => !r.saved).every((r) => r.tags.length === 0 && r.ghostLoad === null)).toBe(true);
     expect(stampSavedSlots([saved("b", 80, 12, ["role:backoff"])], 1, 4)).toEqual([{ id: "b", tags: ["slot:2", "role:backoff"] }]);
-    expect(stampSavedSlots([saved("a", 60, 8)], null, 3)).toEqual([]);
+    expect(stampSavedSlots([
+      saved("t", 100, 8, ["slot:1", "role:top"]),
+      saved("k", 70, 12, ["slot:2", "role:backoff"]),
+    ], 1, 4)).toEqual([]);
+    expect(stampSavedSlots([saved("a", 60, 8), saved("b", 80, 6)], null, 3)).toEqual([]);
   });
 });
 

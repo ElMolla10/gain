@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BackupInvalid } from "../src/logic/backup";
 import { LATEST_VERSION, MIGRATIONS, migrate } from "../src/db/migrations";
 import { addExercise, draftFingerprint, newExercise, normTopSets, updateExercise, validateDraft, type ProgrammeDraft } from "../src/logic/programmeDraft";
-import { backoffPrefill, initialRows, loggerGhosts, roleForWorkingIndex, withRoleTag, workingIndexOf } from "../src/logic/workoutRows";
+import { backoffPrefill, initialRows, loggerGhosts, roleForWorkingIndex, stampSavedSlots, withRoleTag, workingIndexOf } from "../src/logic/workoutRows";
 import { describeDecision } from "../src/logic/why";
 import { ar, en } from "../src/i18n/strings";
 import { freshDb } from "./helpers";
@@ -271,6 +271,19 @@ describe("end to end: back-off sets do not block progression", () => {
     });
     expect(ghosts.perSet).toBeNull();
     expect(ghosts.backoff?.last[1]).toEqual({ load: 70, reps: 12 });
+    const gymId = (await s.repos.getActiveGymId())!;
+    await s.finish.refreshPlannedSessions(gymId);
+    const refreshed = (await s.finish.getTarget(t.id))!;
+    expect(refreshed.status).toBe("rejected");
+    expect(refreshed.effectiveLoad).toBeNull();
+    expect(refreshed.editedLoad).toBeNull();
+    expect(refreshed.setTargets).toEqual(before);
+    await expect(s.finish.acceptTarget(t.id)).rejects.toThrow(/rejected/);
+    await expect(s.finish.editSetTarget(t.id, 2, 42.5, s.gym, meta.equipment, meta.setup)).rejects.toThrow(/rejected/);
+    const shown = initialRows([], 4, { load: 100, reps: 8 }, () => "k", ghosts.backoff, ghosts.perSet, 1);
+    expect(shown.map((r) => r.ghostLoad)).toEqual([100, 70, null, null]);
+    expect(shown.map((r) => r.ghostLoad)).not.toContain(40);
+    expect(shown.map((r) => r.ghostLoad)).not.toContain(45);
   });
   it("a back-off logged before the top set is not copied onto the wrong slot", async () => {
     const s = await bench(1);
@@ -295,6 +308,41 @@ describe("end to end: back-off sets do not block progression", () => {
     const t = (await s.finish.getTargets(written!)).find((x) => x.exerciseId === s.benchId)!;
     expect(t.setTargets?.[1]).toMatchObject({ position: 2, role: "backoff", load: 80, reps: 12 });
     expect(t.setTargets?.[0]?.load).not.toBe(80);
+  });
+  it("resuming does not stamp log order, so a light-then-heavy scheme session does not earn load", async () => {
+    const s = await bench(1);
+    const gymId = (await s.repos.getActiveGymId())!;
+    const a = (await s.programmes.getActive())!;
+    const draft = await s.programmes.loadDraft(a.versionId);
+    const legacy = [{ load: 50, reps: 12 }, { load: 80, reps: 10 }, { load: 50, reps: 12 }, { load: 50, reps: 12 }];
+    const writes: { id: string; tags: string[] }[] = [];
+    let written: string | null = null;
+    for (let d = 0; d < draft.days.length; d++) {
+      const next = (await s.repos.getNextDay())!;
+      const exs = await s.repos.listDayExercises(next.day.id);
+      const { id } = await s.workout.startOrResumeSession(next.day.id, gymId);
+      const mine = exs.find((e) => e.exerciseId === s.benchId) ?? exs[0]!;
+      const plan = mine.exerciseId === s.benchId ? legacy : [{ load: 40, reps: 10 }];
+      for (const x of plan) await s.workout.logSet({ sessionId: id, exerciseId: mine.exerciseId, load: x.load, reps: x.reps }, { gym: s.gym, equipment: mine.equipment, setup: mine.setup });
+      const sets = await s.workout.listSessionSets(id, mine.exerciseId);
+      const stamped = stampSavedSlots(sets.map((x) => ({ id: x.id, load: x.load, reps: x.reps, rir: x.rir, warmup: x.warmup, tags: x.tags })), mine.topSets, mine.sets);
+      for (const w of stamped) await s.workout.setSetTags(w.id, w.tags);
+      writes.push(...stamped);
+      s.deps.tick(1000);
+      await s.workout.finishSession(id);
+      written = (await s.finish.writeNextSessionTargets(id))!.sessionId;
+      s.deps.tick(DAY);
+    }
+    expect(writes).toEqual([]);
+    const stored = await s.db.all<{ tags_json: string | null }>("SELECT tags_json FROM workout_set WHERE exercise_id = ? AND deleted_at IS NULL", [s.benchId]);
+    expect(stored.every((r) => !r.tags_json || r.tags_json === "[]")).toBe(true);
+    const t = (await s.finish.getTargets(written!)).find((x) => x.exerciseId === s.benchId)!;
+    expect(t.currency).toBe("none");
+    expect(t.load).toBeNull();
+    expect(t.reason.key).toBe("ambiguous_top");
+    expect(t.confidence).toBe("low");
+    expect(t.setTargets?.every((x) => x.load === null)).toBe(true);
+    expect((await s.finish.getDecision(t.id))!.payload.inputs.sessions).toEqual([]);
   });
   it("an old top-set session logged light first and heavy last does not earn more weight or name a top set", async () => {
     const s = await bench(1);

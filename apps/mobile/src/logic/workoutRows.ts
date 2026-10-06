@@ -72,7 +72,11 @@ const blank = (key: string, p: Prefill): SetRowDraft => ({ key, load: null, reps
 const isWorkingRow = (r: { warmup: boolean; tags?: readonly string[] }): boolean => !r.warmup && !r.tags?.includes("drop");
 const SCHEME_END = 500;
 
-/** Freezes slot tags on working sets that do not have one yet. A role is never moved onto the other kind of slot. Straight sets are left alone. */
+/**
+ * Freezes a slot on a saved set only when stored data already names its role and it has no slot yet.
+ * A set with neither a slot nor a role is left unmarked. Log order is not a top set, so opening a workout cannot
+ * turn the first logged set into one. Straight sets are left alone.
+ */
 export function stampSavedSlots(saved: SavedSet[], topSets: number | null | undefined, plannedSets: number): { id: string; tags: string[] }[] {
   if (typeof topSets !== "number" || !(topSets >= 1) || topSets >= plannedSets) return [];
   const drafts = saved.map(fromSaved);
@@ -88,8 +92,9 @@ export function stampSavedSlots(saved: SavedSet[], topSets: number | null | unde
 }
 
 /**
- * Gives each working set a slot: a unique `slot:N` stays, a role stays on its own side, an untagged set takes the lowest free slot in log order.
- * Duplicate slot numbers are not trusted. Returns the slots that are now taken.
+ * Keeps a unique stored `slot:N`. A stored role with no slot takes the lowest free slot on that role's side.
+ * A set with neither is left unmarked: log order is not a top set. Duplicate slot numbers are not trusted.
+ * Returns the slots that are now taken.
  */
 function claimSlots(working: SetRowDraft[], topSets: number): Set<number> {
   const claims = new Map<number, SetRowDraft[]>();
@@ -115,9 +120,10 @@ function claimSlots(working: SetRowDraft[], topSets: number): Set<number> {
   for (const w of working) {
     if (kept.has(w.key)) continue;
     const role = roleOfTags(w.tags);
-    const slot = role === "top" ? firstFree(1, topSets) : role === "backoff" ? firstFree(topSets + 1, SCHEME_END) : firstFree(1, SCHEME_END);
+    if (role == null) continue;
+    const slot = role === "top" ? firstFree(1, topSets) : firstFree(topSets + 1, SCHEME_END);
     if (slot == null) continue;
-    if (role && (slot <= topSets ? "top" : "backoff") !== role) continue;
+    if ((slot <= topSets ? "top" : "backoff") !== role) continue;
     used.add(slot);
     w.tags = tagsWithSlot(w.tags, slot, topSets);
   }
@@ -191,7 +197,13 @@ export function initialRows(saved: SavedSet[], plannedSets: number, prefill: Pre
     return rows;
   }
   const rows = saved.map(fromSaved);
-  const used = claimSlots(rows.filter(isWorkingRow), n);
+  const working = rows.filter(isWorkingRow);
+  // Already-logged sets with no slot and no role are not lined up as top then back-off, and they do not gain a second grid of slotted rows.
+  if (working.length > 0 && !working.some((w) => slotOfTags(w.tags) != null || roleOfTags(w.tags) != null)) {
+    for (let i = working.length; i < plannedSets; i++) rows.push(blank(newKey(), { load: null, reps: null }));
+    return rows;
+  }
+  const used = claimSlots(working, n);
   for (let slot = 1; slot <= plannedSets; slot++) {
     if (used.has(slot)) continue;
     const row = blank(newKey(), ghostFor(slot, n, prefill, backoff, perSet));
@@ -270,7 +282,11 @@ export function withRoleTag(tags: readonly string[], role: SetRole | null): stri
   return [...rest, role === "top" ? ROLE_TOP_TAG : ROLE_BACKOFF_TAG];
 }
 
-/** Tags stored for this row. A slot or a role already on the row is kept. A new slot is chosen only when the row has neither, and only for a real top-set scheme. */
+/**
+ * Tags stored for this row. A slot or a role already on the row is kept.
+ * A row with neither is not given one: saving an old unmarked set must not invent a top set.
+ * New scheme rows already carry their slot from the blank that was shown.
+ */
 export function tagsForRow(args: {
   tags: readonly string[];
   warmup: boolean;
@@ -280,17 +296,7 @@ export function tagsForRow(args: {
   rows: { key: string; warmup: boolean; tags?: readonly string[] }[];
 }): string[] {
   const scheme = !args.timed && typeof args.topSets === "number" && args.topSets >= 1 && args.topSets < args.plannedSets;
-  let slot: number | null = null;
-  if (scheme && !args.warmup && !args.tags.includes("drop") && slotOfTags(args.tags) == null && roleOfTags(args.tags) == null) {
-    let max = 0;
-    for (const r of args.rows) {
-      if (r.warmup || r.tags?.includes("drop")) continue;
-      const s = slotOfTags(r.tags);
-      if (s != null && s > max) max = s;
-    }
-    slot = max + 1;
-  }
-  return tagsForLoggedSet({ tags: args.tags, warmup: args.warmup, topSets: scheme ? args.topSets : null, plannedSets: args.plannedSets, slot });
+  return tagsForLoggedSet({ tags: args.tags, warmup: args.warmup, topSets: scheme ? args.topSets : null, plannedSets: args.plannedSets });
 }
 
 /** After a reload from the database: logged sets in database order, then the rows not logged yet. Typed-over edits of a logged row survive. Slots, when any set has one, are shown in slot order. No blank is invented here. */

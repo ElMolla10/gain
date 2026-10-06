@@ -1,6 +1,6 @@
 import type { Measure } from "@gain/engine";
 import { isTimed, parseQuantityInput, setQuantity, targetPhrase } from "../logic/quantity";
-import { useFocusEffect, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { View } from "react-native";
 import { useServices } from "../AppContext";
@@ -27,6 +27,7 @@ export function SessionDetailScreen() {
   const { history } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
+  const nav = useNavigation<{ navigate: (name: string, params?: object) => void }>();
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
   const [detail, setDetail] = useState<SessionDetail | null | "none">(null);
   const [edit, setEdit] = useState<EditState | null>(null);
@@ -70,7 +71,10 @@ export function SessionDetailScreen() {
   };
 
   return (
-    <Screen title={detail.imported ? t("history.imported") : detail.dayName}>
+    <Screen
+      title={detail.imported ? t("history.imported") : detail.dayName}
+      footer={<BigButton label={t("history.saveAsDay")} onPress={() => nav.navigate("SaveWorkoutDay", { sessionId: detail.id })} />}
+    >
       <AppText ltr style={{ color: p.muted, fontWeight: "600" }}>{localDateText(detail.finishedAt)}</AppText>
       <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("history.editNote")}</AppText>
       {detail.exercises.map((ex) => (

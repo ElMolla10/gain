@@ -1,11 +1,13 @@
-import type { EquipmentType, GymLoadSpec, Measure, SetupType } from "@gain/engine";
+import type { EquipmentType, GymLoadSpec, Measure, OutlierStatus, SetupType } from "@gain/engine";
 import { validateGym } from "../logic/gymInput";
 import { DEFAULT_TIMED_RANGE } from "./library/measures";
 import { computeExposure, type ExposureRow } from "../logic/exposure";
-import { draftFingerprint, normTopSets, validateDraft, type DraftProblem, type ProgrammeDraft } from "../logic/programmeDraft";
+import { draftFingerprint, MAX_DAYS, normTopSets, validateDraft, type DraftDay, type DraftProblem, type ProgrammeDraft } from "../logic/programmeDraft";
+import { prescriptionFromSession, repeatedExerciseIds, type WorkoutSetSource, type WorkoutSlotSource } from "../logic/workoutDay";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { Repos } from "./repos";
+import { hasLoggedSets } from "./sessionSql";
 
 export class DraftInvalid extends Error {
   constructor(public readonly problems: DraftProblem[]) {
@@ -18,6 +20,83 @@ export class SessionInProgress extends Error {
   constructor() {
     super("Finish your open workout before changing the program");
   }
+}
+
+/** The active program already has 7 days. The new day is not dropped and no version is written. */
+export class ProgrammeDayLimit extends Error {
+  constructor() {
+    super("This program already has 7 days");
+  }
+}
+
+/** Saving a workout as a day needs the program the lifter is using. */
+export class NoActiveProgramme extends Error {
+  constructor() {
+    super("No active program");
+  }
+}
+
+/**
+ * The reviewed day lists one exercise twice. A program day cannot train both: the draft check rejects
+ * `duplicate_exercise`, a workout slot is unique on the exercise id, sets have no slot, and the next target
+ * is one per exercise. Nothing is written. Removing one row saves that row.
+ */
+export class RepeatedExercise extends Error {
+  constructor() {
+    super("This day lists the same exercise more than once");
+  }
+}
+
+/** The active program or its version is not the one this preview was opened against. Nothing is written. */
+export class ProgrammeChanged extends Error {
+  constructor() {
+    super("The program changed since this preview was opened");
+  }
+}
+
+/** The new version was written, planning the next session failed, and that write was then undone. */
+export class ProgrammeSaveUndone extends Error {
+  constructor(public readonly cause: unknown) {
+    super("Saving the program failed and the change was undone");
+  }
+}
+
+/** Planning the next session failed, and undoing the new version failed too. The program may be partly changed. */
+export class ProgrammeSaveNotUndone extends Error {
+  constructor(public readonly cause: unknown) {
+    super("Saving the program failed and could not be undone");
+  }
+}
+
+/** Program identity captured when the preview opened. Null when there was no active program. */
+export interface ReviewedProgramme {
+  programmeId: string | null;
+  versionId: string | null;
+}
+
+export interface WorkoutDayExercisePreview {
+  /** Programme slot this occurrence came from. Stable for this preview row. */
+  slot: string;
+  exerciseId: string;
+  nameEn: string;
+  nameAr: string;
+  measure: Measure;
+  sets: number;
+  repMin: number;
+  repMax: number;
+  /** This performed exercise is on more than one shown slot. The set count is the one stored list, shown on each row. */
+  repeated: boolean;
+  /** Review-only. Not written onto the program day. */
+  superset: string | null;
+}
+
+/** A finished workout read as a new program day. Opening this writes nothing. */
+export interface WorkoutDayPreview {
+  sessionId: string;
+  dayName: string;
+  /** True when the workout had a superset. The saved day does not keep that grouping. */
+  groupingNotSaved: boolean;
+  exercises: WorkoutDayExercisePreview[];
 }
 
 export interface LibraryExercise {
@@ -293,6 +372,34 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     if (gymId) await finish.planNextSession(gymId);
   }
 
+  /**
+   * Undoes a version whose plan step failed after commit. `planNextSession` opens its own transaction, so it cannot
+   * sit inside the save. The new version is already committed and planned sessions are already voided.
+   * Restores only the planned sessions, targets, and decision rows snapshotted at the start of that save.
+   */
+  async function undoFailedSave(programmeId: string, versionId: string, undo: { name: string; sessionIds: string[]; targetIds: string[]; decisionIds: string[] }): Promise<void> {
+    await db.transaction(async () => {
+      const t = now();
+      const current = await db.get<{ name: string }>("SELECT name FROM programme WHERE id = ?", [programmeId]);
+      if (current && current.name !== undo.name) await db.run("UPDATE programme SET name = ?, updated_at = ? WHERE id = ?", [undo.name, t, programmeId]);
+      await db.run(
+        `UPDATE programme_day_exercise SET deleted_at = ?, updated_at = ?
+          WHERE deleted_at IS NULL AND programme_day_id IN (SELECT id FROM programme_day WHERE programme_version_id = ?)`,
+        [t, t, versionId],
+      );
+      await db.run("UPDATE programme_day SET deleted_at = ?, updated_at = ? WHERE programme_version_id = ? AND deleted_at IS NULL", [t, t, versionId]);
+      await db.run("UPDATE programme_version SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [t, t, versionId]);
+      await db.run("UPDATE short_week SET deleted_at = ?, updated_at = ? WHERE short_version_id = ? AND deleted_at IS NULL", [t, t, versionId]);
+      const restore = async (table: "decision_log" | "target" | "session", ids: string[]) => {
+        if (ids.length === 0) return;
+        await db.run(`UPDATE ${table} SET deleted_at = NULL, updated_at = ? WHERE id IN (${ids.map(() => "?").join(",")})`, [t, ...ids]);
+      };
+      await restore("decision_log", undo.decisionIds);
+      await restore("target", undo.targetIds);
+      await restore("session", undo.sessionIds);
+    });
+  }
+
   /** A new program (e.g. from a template or built from scratch). It becomes the active one unless told otherwise. */
   async function createProgramme(draft: ProgrammeDraft, opts: { activate?: boolean } = {}): Promise<{ programmeId: string; versionId: string }> {
     const problems = validateDraft(draft);
@@ -329,15 +436,146 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     if (!opts.background) await assertNoOpenWorkout();
     const res = await db.transaction(async () => {
       const t = now();
+      const programme = await db.get<{ name: string }>("SELECT name FROM programme WHERE id = ?", [programmeId]);
+      const planned = opts.background ? [] : await db.all<{ id: string }>("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL");
+      const sessionIds = planned.map((s) => s.id);
+      const targets = sessionIds.length === 0
+        ? []
+        : await db.all<{ id: string }>(`SELECT id FROM target WHERE deleted_at IS NULL AND session_id IN (${sessionIds.map(() => "?").join(",")})`, sessionIds);
+      const targetIds = targets.map((row) => row.id);
+      const decisions = targetIds.length === 0
+        ? []
+        : await db.all<{ id: string }>(`SELECT id FROM decision_log WHERE deleted_at IS NULL AND target_id IN (${targetIds.map(() => "?").join(",")})`, targetIds);
       if (draft.name.trim() !== before.name.trim()) await db.run("UPDATE programme SET name = ?, updated_at = ? WHERE id = ?", [draft.name.trim(), t, programmeId]);
       const version = cur.version + 1;
       const versionId = await insertVersion(programmeId, version, draft);
       if (!opts.background) await voidStalePlanned(versionId);
       if (opts.alsoInTransaction) await opts.alsoInTransaction(versionId);
-      return { versionId, version, changed: true };
+      return { versionId, version, changed: true as const, undo: { name: programme?.name ?? before.name, sessionIds, targetIds, decisionIds: decisions.map((row) => row.id) } };
     });
-    if (!opts.background) await replan();
-    return res;
+    if (!opts.background) {
+      try {
+        await replan();
+      } catch (err) {
+        try {
+          await undoFailedSave(programmeId, res.versionId, res.undo);
+        } catch {
+          throw new ProgrammeSaveNotUndone(err);
+        }
+        throw new ProgrammeSaveUndone(err);
+      }
+    }
+    return { versionId: res.versionId, version: res.version, changed: res.changed };
+  }
+
+  function tagsOf(json: string): string[] {
+    try {
+      const v = JSON.parse(json) as unknown;
+      return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Read a finished workout as a new program day: display order, working-set counts, and the rep range to review.
+   * Does not write a version, a target weight, or a progression scheme.
+   */
+  async function previewWorkoutDay(sessionId: string): Promise<WorkoutDayPreview | null> {
+    const s = await db.get<{ id: string; programme_day_id: string; day_name: string }>(
+      `SELECT s.id, s.programme_day_id, d.name AS day_name
+         FROM session s JOIN programme_day d ON d.id = s.programme_day_id
+        WHERE s.id = ? AND s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")}`,
+      [sessionId],
+    );
+    if (!s) return null;
+    const programme = await db.all<{ exercise_id: string }>(
+      "SELECT exercise_id FROM programme_day_exercise WHERE programme_day_id = ? AND deleted_at IS NULL ORDER BY position",
+      [s.programme_day_id],
+    );
+    const slotRows = await db.all<{ slot: string; removed: number; replaced_by: string | null; added: number; position: number | null; superset: string | null }>(
+      "SELECT slot_exercise_id AS slot, removed, replaced_by, added, position, superset_group AS superset FROM session_exercise WHERE session_id = ? AND deleted_at IS NULL ORDER BY position, created_at",
+      [sessionId],
+    );
+    const setRows = await db.all<{ exercise_id: string; deleted_at: number | null; is_warmup: number; tags_json: string; outlier_status: OutlierStatus; reps: number; duration_s: number | null; distance_m: number | null }>(
+      "SELECT exercise_id, deleted_at, is_warmup, tags_json, outlier_status, reps, duration_s, distance_m FROM workout_set WHERE session_id = ?",
+      [sessionId],
+    );
+    const ids = new Set<string>();
+    for (const p of programme) ids.add(p.exercise_id);
+    for (const sl of slotRows) {
+      ids.add(sl.slot);
+      if (sl.replaced_by) ids.add(sl.replaced_by);
+    }
+    for (const set of setRows) ids.add(set.exercise_id);
+    const meta = ids.size === 0
+      ? []
+      : await db.all<{ id: string; name_en: string; name_ar: string; measure: Measure }>(
+          `SELECT id, name_en, name_ar, measure FROM exercise WHERE id IN (${[...ids].map(() => "?").join(",")})`,
+          [...ids],
+        );
+    const byId = new Map(meta.map((m) => [m.id, m]));
+    const measureOf = (id: string): Measure => byId.get(id)?.measure ?? "reps";
+    const slots: WorkoutSlotSource[] = slotRows.map((sl) => ({
+      slot: sl.slot,
+      removed: sl.removed === 1,
+      added: sl.added === 1,
+      position: sl.position,
+      superset: sl.superset,
+      replacedBy: sl.replaced_by,
+    }));
+    const sets: WorkoutSetSource[] = setRows.map((set) => ({
+      exerciseId: set.exercise_id,
+      deleted: set.deleted_at !== null,
+      warmup: set.is_warmup === 1,
+      tags: tagsOf(set.tags_json),
+      outlier: set.outlier_status,
+      reps: set.reps,
+      durationS: set.duration_s,
+      distanceM: set.distance_m,
+    }));
+    const prescribed = prescriptionFromSession({ programmeSlots: programme.map((p) => p.exercise_id), slots, sets, measureOf });
+    return {
+      sessionId: s.id,
+      dayName: s.day_name,
+      groupingNotSaved: prescribed.groupingNotSaved,
+      exercises: prescribed.rows.map((r) => {
+        const m = byId.get(r.exerciseId);
+        return { ...r, nameEn: m?.name_en ?? r.exerciseId, nameAr: m?.name_ar ?? "", measure: measureOf(r.exerciseId) };
+      }),
+    };
+  }
+
+  /**
+   * Append one reviewed day to the program the preview was opened against, and save it as the next version.
+   * Straight sets only: a target weight, rep ceiling, goal, effort flag, or top-set count on the input is not stored.
+   * Two rows with the same exercise id are refused before any write. The programme table can hold both, but the rest of
+   * the model cannot train them: `validateDraft` rejects `duplicate_exercise`, `session_exercise` is unique on the slot
+   * exercise id, `workout_set` has no slot, and the next target is one row per exercise. The sets of those occurrences
+   * are one stored list, so they are not split or merged here.
+   * Refuses when that program already has 7 days, still before any version is written.
+   */
+  async function saveWorkoutAsDay(day: DraftDay, reviewed: ReviewedProgramme): Promise<{ versionId: string; version: number; changed: boolean }> {
+    const active = await getActive();
+    if (!active) throw new NoActiveProgramme();
+    if (active.programmeId !== reviewed.programmeId || active.versionId !== reviewed.versionId) throw new ProgrammeChanged();
+    if (repeatedExerciseIds(day.exercises.map((e) => e.exerciseId)).size > 0) throw new RepeatedExercise();
+    const current = await loadDraft(active.versionId);
+    if (current.days.length >= MAX_DAYS) throw new ProgrammeDayLimit();
+    const straight: DraftDay = {
+      name: day.name,
+      exercises: day.exercises.map((e) => ({
+        exerciseId: e.exerciseId,
+        sets: e.sets,
+        repMin: e.repMin,
+        repMax: e.repMax,
+        repCeiling: null,
+        isGoalLift: false,
+        trackEffort: false,
+        topSets: null,
+      })),
+    };
+    return saveNewVersion(active.programmeId, { name: current.name, days: [...current.days, straight] });
   }
 
   async function setActiveProgramme(programmeId: string): Promise<void> {
@@ -350,6 +588,6 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     await replan();
   }
 
-  return { listExercises, createExercise, setExerciseMeasure, setExerciseLoads, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
+  return { listExercises, createExercise, setExerciseMeasure, setExerciseLoads, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, previewWorkoutDay, saveWorkoutAsDay, setActiveProgramme };
 }
 export type ProgrammeRepo = ReturnType<typeof createProgrammeRepo>;

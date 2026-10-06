@@ -20,4 +20,4 @@ process.stdout.write(sheetCsv(lifters));
 for (const r of retention(lifters.map((l) => l.metrics))) console.error(`week ${r.week}: retained ${r.retained} of ${r.reached} who reached it`);
 const a = agreementTotals(lifters.map((l) => l.metrics));
 console.error(`comparable: ${a.comparable} (loaded_same ${a.same}, loaded_more ${a.more}, loaded_less ${a.less})`);
-console.error(`both_comparable: ${a.both} (both_app_same ${a.bothAppSame}, both_repeat_same ${a.bothRepeatSame}; newest earlier like-for-like session with knowable effective load)`);
+console.error(`both_comparable: ${a.both} (both_app_same ${a.bothAppSame}, both_repeat_same ${a.bothRepeatSame}; newest earlier like-for-like session, same stored load)`);

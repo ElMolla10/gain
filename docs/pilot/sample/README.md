@@ -7,7 +7,7 @@ npm ci
 npm run pilot-metrics -w @gain/mobile -- --tz-minutes 180 $PWD/docs/pilot/sample/P00-synthetic.json
 ```
 
-Output of that command (the CSV on stdout, the summary on stderr), checked on 2026-10-05 (Cairo) after the strict line-metadata/effective-load exclusions were added:
+Output of that command (the CSV on stdout, the summary on stderr), checked on 2026-10-06 (Cairo). The file is free-weight bench and squat only, so the stored-load comparison does not change these counts:
 
 ```
 pilot_code,week,sessions_done,active,targets_accepted,targets_edited,targets_rejected,targets_never_acted_on,comparable,loaded_same,loaded_more,loaded_less,both_comparable,both_app_same,both_repeat_same,days_planned,app_version,on_pace_status,bugs_quotes
@@ -21,7 +21,7 @@ week 1: retained 1 of 1 who reached it
 week 2: retained 1 of 1 who reached it
 week 6: retained 0 of 0 who reached it
 comparable: 20 (loaded_same 16, loaded_more 4, loaded_less 0)
-both_comparable: 20 (both_app_same 16, both_repeat_same 10; newest earlier like-for-like session with knowable effective load)
+both_comparable: 20 (both_app_same 16, both_repeat_same 10; newest earlier like-for-like session, same stored load)
 ```
 
 The file is invented so that the lifter mostly loads the app's number; those counts say nothing about how the app will do. The unit tests (`apps/mobile/test/pilotMetrics.test.ts`) cover the definitions with hand-computed cases.

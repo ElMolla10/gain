@@ -103,7 +103,7 @@ describe("pilot metrics from a backup", () => {
     expect(agreementTotals([computeLifterMetrics(b, {}), computeLifterMetrics(b, {})])).toEqual({ comparable: 6, same: 4, more: 0, less: 2, both: 4, bothAppSame: 2, bothRepeatSame: 2 });
   });
 
-  describe("the repeat-last baseline only uses the same line (exercise + gym + setup) and effective load", () => {
+  describe("the repeat-last baseline only uses the same line (exercise + gym + equipment + setup) and the stored load", () => {
     type R = Record<string, string | number | null>;
     const exercise = (id: string, equipment: string, setup: string): R => ({ id, equipment, setup, deleted_at: null });
     const line = (id: string, ex: string, gym: string, setup: string): R => ({ id, exercise_id: ex, gym_id: gym, setup, deleted_at: null });
@@ -144,24 +144,7 @@ describe("pilot metrics from a backup", () => {
       expect(week0(b)).toMatchObject({ comparable: 1, less: 1, both: 1, bothAppSame: 0, bothRepeatSame: 1 });
     });
 
-    it("does not infer an earlier bodyweight from a later measurement", () => {
-      const b = backup(
-        {
-          session: [session("s1", T0), session("s2", T0 + 20 * DAY)],
-          bodyweight_entry: [{ id: "w1", weight_kg: 84, measured_at: T0 + 10 * DAY, deleted_at: null }],
-          exercise: [exercise("assistedpull", "assisted", "assisted")],
-          exercise_line: [line("LA", "assistedpull", "g", "assisted")],
-          workout_set: [set("a", "s1", "LA", "assistedpull", 20), set("b", "s2", "LA", "assistedpull", 20)],
-          target: [target("t", "s2", "LA", "assistedpull", 20)],
-        },
-        T0 + 25 * DAY,
-      );
-
-      // Current target vs logged load is knowable at s2. Repeat-last effective load is not: s1 has no bodyweight at or before it.
-      expect(computeLifterMetrics(b, {}).weeks[2]).toMatchObject({ comparable: 1, same: 1, both: 0, bothAppSame: 0, bothRepeatSame: 0 });
-    });
-
-    it("excludes assisted and bodyweight-plus-added targets when effective load is unknowable", () => {
+    it("compares assisted and added-load lines without a bodyweight entry", () => {
       for (const [ex, equipment, setup] of [
         ["assistedpull", "assisted", "assisted"],
         ["dip", "plate", "bodyweight_plus_added"],
@@ -169,6 +152,7 @@ describe("pilot metrics from a backup", () => {
         const b = backup(
           {
             session: [session("s1", T0), session("s2", T0 + DAY)],
+            bodyweight_entry: [{ id: "later", weight_kg: 90, measured_at: T0 + 10 * DAY, deleted_at: null }],
             exercise: [exercise(ex, equipment, setup)],
             exercise_line: [line("L", ex, "g", setup)],
             workout_set: [set("a", "s1", "L", ex, 20), set("b", "s2", "L", ex, 20)],
@@ -177,7 +161,26 @@ describe("pilot metrics from a backup", () => {
           T0 + 3 * DAY,
         );
 
-        expect(week0(b)).toMatchObject({ comparable: 0, same: 0, more: 0, less: 0, both: 0 });
+        // No bodyweight applies to either session. The stored 20 kg pin or plate was repeated, and a later weigh-in is not folded in.
+        expect(week0(b)).toMatchObject({ comparable: 1, same: 1, more: 0, less: 0, both: 1, bothAppSame: 1, bothRepeatSame: 1 });
+      }
+    });
+
+    it("does not read an assisted-equipment pin as ordinary lifted weight when the setup is not assisted", () => {
+      for (const setup of ["free", "bodyweight_plus_added"] as const) {
+        const b = backup(
+          {
+            session: [session("s1", T0), session("s2", T0 + DAY)],
+            exercise: [exercise("assistedpull", "assisted", setup)],
+            exercise_line: [line("L", "assistedpull", "g", setup)],
+            workout_set: [set("a", "s1", "L", "assistedpull", 10), set("b", "s2", "L", "assistedpull", 30)],
+            target: [target("t", "s2", "L", "assistedpull", 10)],
+          },
+          T0 + 3 * DAY,
+        );
+
+        // 30 > 10 would be "more" if the pin were a bar or an added plate. The fields disagree, so the target is left out.
+        expect(week0(b)).toMatchObject({ comparable: 0, same: 0, more: 0, less: 0, both: 0, bothAppSame: 0, bothRepeatSame: 0 });
       }
     });
 
@@ -237,7 +240,6 @@ describe("pilot metrics from a backup", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY)],
-          bodyweight_entry: [{ id: "w", weight_kg: 80, measured_at: T0 - DAY, deleted_at: null }],
           exercise: [exercise("pullup", "plate", "free")],
           exercise_line: [line("LF", "pullup", "g", "free"), line("LP", "pullup", "g", "bodyweight_plus_added")],
           workout_set: [set("a", "s1", "LF", "pullup", 0), set("b", "s2", "LP", "pullup", 10)],
@@ -252,7 +254,6 @@ describe("pilot metrics from a backup", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY)],
-          bodyweight_entry: [{ id: "w", weight_kg: 80, measured_at: T0 - DAY, deleted_at: null }],
           exercise: [exercise("assistedpull", "assisted", "assisted")],
           exercise_line: [line("LA", "assistedpull", "g", "assisted")],
           // s1: 30 kg assistance then a harder 20 kg set. s2: target 20, lifter did 15 kg assistance (harder than target).
@@ -261,7 +262,7 @@ describe("pilot metrics from a backup", () => {
         },
         T0 + 3 * DAY,
       );
-      // did (least assistance) = 15 < target 20 assistance = MORE effective load; baseline previous = 20 (not 30), so repeating 20 would have matched the target.
+      // did (least assistance) = 15, which is harder than the 20 kg target; baseline previous = 20 (not 30).
       expect(week0(b)).toMatchObject({ comparable: 1, more: 1, less: 0, same: 0, both: 1, bothAppSame: 0, bothRepeatSame: 0 });
     });
 
@@ -269,7 +270,6 @@ describe("pilot metrics from a backup", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY), session("s3", T0 + 2 * DAY)],
-          bodyweight_entry: [{ id: "w", weight_kg: 80, measured_at: T0 - DAY, deleted_at: null }],
           exercise: [exercise("assistedpull", "assisted", "assisted")],
           exercise_line: [line("LA", "assistedpull", "g", "assisted")],
           workout_set: [set("a", "s1", "LA", "assistedpull", 20), set("b", "s2", "LA", "assistedpull", 25), set("c", "s3", "LA", "assistedpull", 25)],
@@ -283,23 +283,25 @@ describe("pilot metrics from a backup", () => {
       expect(w).toMatchObject({ bothAppSame: 1, bothRepeatSame: 1 });
     });
 
-    it("assisted with bodyweight entries: the same assistance at a different bodyweight is a different effective load", () => {
+    it("the same assistance is a repeat when bodyweight changed, and a higher pin is not a heavier lift", () => {
       const b = backup(
         {
-          session: [session("s1", T0), session("s2", T0 + 20 * DAY)],
-          bodyweight_entry: [{ id: "w1", weight_kg: 90, measured_at: T0 - DAY, deleted_at: null }, { id: "w2", weight_kg: 84, measured_at: T0 + 10 * DAY, deleted_at: null }],
-          exercise: [exercise("assistedpull", "assisted", "assisted")],
+          session: [session("s1", T0), session("s2", T0 + DAY), session("s3", T0 + 2 * DAY)],
+          bodyweight_entry: [{ id: "w1", weight_kg: 90, measured_at: T0 - DAY, deleted_at: null }, { id: "w2", weight_kg: 84, measured_at: T0 + DAY / 2, deleted_at: null }],
+          exercise: [exercise("assistedpull", "cable", "assisted")],
           exercise_line: [line("LA", "assistedpull", "g", "assisted")],
-          workout_set: [set("a", "s1", "LA", "assistedpull", 20), set("b", "s2", "LA", "assistedpull", 20)],
-          target: [target("t", "s2", "LA", "assistedpull", 20)],
+          workout_set: [set("a", "s1", "LA", "assistedpull", 20), set("b", "s2", "LA", "assistedpull", 20), set("c", "s3", "LA", "assistedpull", 25)],
+          target: [target("t2", "s2", "LA", "assistedpull", 20), target("t3", "s3", "LA", "assistedpull", 20)],
         },
-        T0 + 25 * DAY,
+        T0 + 4 * DAY,
       );
-      // Same 20 kg assistance, but 90-20 = 70 kg effective before and 84-20 = 64 kg now: repeating the last EFFECTIVE load (70) did not happen.
-      expect(computeLifterMetrics(b, {}).weeks[2]).toMatchObject({ comparable: 1, same: 1, both: 1, bothAppSame: 1, bothRepeatSame: 0 });
+      const w = week0(b);
+      // s2 repeated the 20 kg pin and matched the app. s3 set 25 kg of assistance, which is less work than both the target and the previous pin.
+      // The 90 kg to 84 kg weigh-ins do not change either result. Cable equipment does not turn an explicit assisted setup into a free weight.
+      expect(w).toMatchObject({ comparable: 2, same: 1, less: 1, more: 0, both: 2, bothAppSame: 1, bothRepeatSame: 1 });
     });
 
-    it("weighted bodyweight adds the bodyweight measured at each session", () => {
+    it("added load is the weight that was repeated, not bodyweight plus the plate", () => {
       const b = backup(
         {
           session: [session("s1", T0), session("s2", T0 + DAY)],
@@ -314,8 +316,75 @@ describe("pilot metrics from a backup", () => {
         },
         T0 + 3 * DAY,
       );
-      // Prior effective load = 80 + 10 = 90; current actual = 75 + 15 = 90; current target = 75 + 10 = 85.
-      expect(week0(b)).toMatchObject({ comparable: 1, more: 1, both: 1, bothAppSame: 0, bothRepeatSame: 1 });
+      // 80 + 10 and 75 + 15 would be the same mechanical load. The lifter set 15 kg, not the previous 10 kg, and not the app's 10 kg.
+      expect(week0(b)).toMatchObject({ comparable: 1, more: 1, same: 0, less: 0, both: 1, bothAppSame: 0, bothRepeatSame: 0 });
+    });
+
+    it("a session gym that is stored and differs from the line is not a baseline, and a bad gym id is not invented into one", () => {
+      const agreed = backup(
+        {
+          session: [session("s1", T0, { gym_id: "gymA" }), session("s2", T0 + DAY, { gym_id: "gymA" })],
+          exercise: [exercise("bench", "barbell", "free")],
+          exercise_line: [line("LA", "bench", "gymA", "free")],
+          workout_set: [set("a", "s1", "LA", "bench", 60), set("b", "s2", "LA", "bench", 60)],
+          target: [target("t", "s2", "LA", "bench", 60)],
+        },
+        T0 + 3 * DAY,
+      );
+      const moved = backup(
+        {
+          session: [session("s1", T0, { gym_id: "gymA" }), session("s2", T0 + DAY, { gym_id: "gymB" })],
+          exercise: [exercise("bench", "barbell", "free")],
+          exercise_line: [line("LA", "bench", "gymA", "free")],
+          workout_set: [set("a", "s1", "LA", "bench", 100), set("b", "s2", "LA", "bench", 60)],
+          target: [target("t", "s2", "LA", "bench", 60)],
+        },
+        T0 + 3 * DAY,
+      );
+      const bad = backup(
+        {
+          session: [session("s1", T0, { gym_id: "gymA" }), session("s2", T0 + DAY, { gym_id: 5 })],
+          exercise: [exercise("bench", "barbell", "free")],
+          exercise_line: [line("LA", "bench", "gymA", "free")],
+          workout_set: [set("a", "s1", "LA", "bench", 60), set("b", "s2", "LA", "bench", 60)],
+          target: [target("t", "s2", "LA", "bench", 60)],
+        },
+        T0 + 3 * DAY,
+      );
+
+      const skipped = backup(
+        {
+          session: [session("s1", T0, { gym_id: "gymA" }), session("s2", T0 + DAY, { gym_id: "gymB" }), session("s3", T0 + 2 * DAY, { gym_id: "gymA" })],
+          exercise: [exercise("bench", "barbell", "free")],
+          exercise_line: [line("LA", "bench", "gymA", "free")],
+          workout_set: [set("a", "s1", "LA", "bench", 60), set("b", "s2", "LA", "bench", 100), set("c", "s3", "LA", "bench", 60)],
+          target: [target("t", "s3", "LA", "bench", 62.5)],
+        },
+        T0 + 4 * DAY,
+      );
+
+      expect(week0(agreed)).toMatchObject({ comparable: 1, same: 1, both: 1, bothAppSame: 1, bothRepeatSame: 1 });
+      // s2 names gym B while its line is gym A, so neither its own sets nor s1's gym A sets are used to score it.
+      expect(week0(moved)).toMatchObject({ comparable: 0, same: 0, more: 0, less: 0, both: 0 });
+      expect(week0(bad)).toMatchObject({ comparable: 0, both: 0 });
+      // s2's 100 kg is not a like-for-like set, so the baseline stays s1's 60 kg, which the lifter repeated.
+      expect(week0(skipped)).toMatchObject({ comparable: 1, less: 1, both: 1, bothAppSame: 0, bothRepeatSame: 1 });
+    });
+
+    it("a dumbbell session is not the baseline for the same movement done with a barbell", () => {
+      const b = backup(
+        {
+          session: [session("s1", T0), session("s2", T0 + DAY), session("s3", T0 + 2 * DAY)],
+          exercise: [exercise("barbell-bench", "barbell", "free"), exercise("dumbbell-bench", "dumbbell", "free")],
+          exercise_line: [line("LB", "barbell-bench", "g", "free"), line("LD", "dumbbell-bench", "g", "free")],
+          workout_set: [set("a", "s1", "LB", "barbell-bench", 60), set("b", "s2", "LD", "dumbbell-bench", 30), set("c", "s3", "LB", "barbell-bench", 60)],
+          target: [target("t", "s3", "LB", "barbell-bench", 62.5)],
+        },
+        T0 + 4 * DAY,
+      );
+
+      // The newer dumbbell 30 kg is a different exercise and equipment. The barbell baseline stays 60 kg, which the lifter repeated.
+      expect(week0(b)).toMatchObject({ comparable: 1, less: 1, both: 1, bothAppSame: 0, bothRepeatSame: 1 });
     });
 
     it("deleted lines and sets in other gyms never leak into the baseline", () => {

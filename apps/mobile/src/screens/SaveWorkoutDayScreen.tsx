@@ -3,12 +3,12 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useServices } from "../AppContext";
-import { DraftInvalid, NoActiveProgramme, ProgrammeDayLimit, SessionInProgress, type WorkoutDayExercisePreview } from "../db/programmeRepo";
+import { DraftInvalid, NoActiveProgramme, ProgrammeChanged, ProgrammeDayLimit, ProgrammeSaveNotUndone, ProgrammeSaveUndone, RepeatedExercise, SessionInProgress, type ReviewedProgramme, type WorkoutDayExercisePreview } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { MAX_DAYS, MAX_SETS } from "../logic/programmeDraft";
-import { draftExerciseFromPreview } from "../logic/workoutDay";
+import { draftExerciseFromPreview, repeatedExerciseIds } from "../logic/workoutDay";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, EmptyState, Field, LoadingState, Notice, Screen, Stepper } from "../ui";
 
@@ -31,6 +31,8 @@ export function SaveWorkoutDayScreen() {
   const [state, setState] = useState<"loading" | "none" | "ready">("loading");
   const [name, setName] = useState("");
   const [rows, setRows] = useState<WorkoutDayExercisePreview[]>([]);
+  const [groupingNotSaved, setGroupingNotSaved] = useState(false);
+  const [reviewed, setReviewed] = useState<ReviewedProgramme>({ programmeId: null, versionId: null });
   const [nextVersion, setNextVersion] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -47,6 +49,8 @@ export function SaveWorkoutDayScreen() {
       }
       setName(preview.dayName);
       setRows(preview.exercises);
+      setGroupingNotSaved(preview.groupingNotSaved);
+      setReviewed(active ? { programmeId: active.programmeId, versionId: active.versionId } : { programmeId: null, versionId: null });
       if (active) {
         setNextVersion(active.version + 1);
         const draft = await programmes.loadDraft(active.versionId);
@@ -89,16 +93,20 @@ export function SaveWorkoutDayScreen() {
     setProblems([]);
     setMessage(null);
     try {
-      const result = await programmes.saveWorkoutAsDay({ name, exercises: rows.map((r) => draftExerciseFromPreview(r)) });
+      const result = await programmes.saveWorkoutAsDay({ name, exercises: rows.map((r) => draftExerciseFromPreview(r)) }, reviewed);
       if (!result.changed) {
         setMessage(t("prog.noChange"));
         return;
       }
       nav.goBack();
     } catch (e) {
-      if (e instanceof ProgrammeDayLimit) setMessage(t("history.saveAsDay.dayLimit"));
+      if (e instanceof RepeatedExercise) setMessage(t("history.saveAsDay.repeated"));
+      else if (e instanceof ProgrammeChanged) setMessage(t("history.saveAsDay.programmeChanged"));
+      else if (e instanceof ProgrammeDayLimit) setMessage(t("history.saveAsDay.dayLimit"));
       else if (e instanceof SessionInProgress) setMessage(t("prog.openWorkout"));
       else if (e instanceof NoActiveProgramme) setMessage(t("history.saveAsDay.noProgram"));
+      else if (e instanceof ProgrammeSaveUndone) setMessage(t("history.saveAsDay.saveUndone"));
+      else if (e instanceof ProgrammeSaveNotUndone) setMessage(t("history.saveAsDay.saveNotUndone"));
       else if (e instanceof DraftInvalid) setProblems(e.problems);
       else throw e;
     } finally {
@@ -106,7 +114,7 @@ export function SaveWorkoutDayScreen() {
     }
   }
 
-  const anySuperset = rows.some((r) => liveSuperset(rows, r.superset));
+  const repeated = repeatedExerciseIds(rows.map((r) => r.exerciseId));
 
   return (
     <Screen
@@ -118,17 +126,18 @@ export function SaveWorkoutDayScreen() {
       }
     >
       <Notice kind="info">{t("history.saveAsDay.straight")}</Notice>
-      {anySuperset ? <AppText style={{ color: p.muted }}>{t("history.saveAsDay.supersetNote")}</AppText> : null}
+      {groupingNotSaved ? <Notice kind="info">{t("history.saveAsDay.supersetNote")}</Notice> : null}
+      {repeated.size > 0 ? <Notice kind="warn">{t("history.saveAsDay.repeated")}</Notice> : null}
       <Field label={t("prog.day.name")} value={name} onChangeText={setName} />
       {rows.length === 0 ? <Notice kind="warn">{t("history.saveAsDay.empty")}</Notice> : null}
       {rows.map((r, i) => {
         const spec = range(r.measure);
         const letter = liveSuperset(rows, r.superset);
         return (
-          <Card key={r.exerciseId}>
+          <Card key={r.slot}>
             <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{exerciseLabels(r, lang).primary}</AppText>
             {letter ? <AppText style={{ color: p.muted }}>{t("history.saveAsDay.superset", { letter })}</AppText> : null}
-            {r.combined ? <AppText style={{ color: p.muted }}>{t("history.saveAsDay.combined")}</AppText> : null}
+            {repeated.has(r.exerciseId) ? <AppText style={{ color: p.muted }}>{t("history.saveAsDay.repeatedRow")}</AppText> : null}
             {r.sets > MAX_SETS ? <Notice kind="warn">{t("history.saveAsDay.setsOver", { n: r.sets })}</Notice> : null}
             <Stepper label={t("prog.ex.sets")} value={r.sets} min={1} max={Math.max(MAX_SETS, r.sets)} onChange={(n) => patch(i, { sets: n })} />
             <Stepper label={t(spec.from)} value={r.repMin} min={1} max={spec.max} step={spec.step} onChange={(n) => patch(i, { repMin: n, repMax: Math.max(r.repMax, n) })} />

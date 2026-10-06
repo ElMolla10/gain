@@ -1,6 +1,6 @@
 import type { EquipmentType, Measure, SetupType } from "@gain/engine";
 import { describe, expect, it } from "vitest";
-import { DraftInvalid, ProgrammeDayLimit, SessionInProgress } from "../src/db/programmeRepo";
+import { DraftInvalid, ProgrammeChanged, ProgrammeDayLimit, ProgrammeSaveNotUndone, ProgrammeSaveUndone, RepeatedExercise, SessionInProgress } from "../src/db/programmeRepo";
 import { draftExerciseFromPreview } from "../src/logic/workoutDay";
 import { freshDb } from "./helpers";
 
@@ -112,25 +112,36 @@ describe("save a finished workout as a program day", () => {
     expect(await versions(db)).toBe(1);
     expect(await sessionSnap(db, id)).toEqual(snap);
     expect((await db.get<{ deleted_at: number | null }>("SELECT deleted_at FROM session WHERE id = ?", [plannedId]))!.deleted_at).toBeNull();
-    expect(preview).toMatchObject({ sessionId: id, dayName: "Upper A" });
-    expect(preview!.exercises.map((e) => ({ id: e.exerciseId, sets: e.sets, repMin: e.repMin, repMax: e.repMax, combined: e.combined, superset: e.superset, measure: e.measure }))).toEqual([
-      { id: bench.id, sets: 2, repMin: 6, repMax: 8, combined: true, superset: null, measure: "reps" },
-      { id: pulldown.id, sets: 3, repMin: 8, repMax: 12, combined: false, superset: "A", measure: "reps" },
-      { id: row.id, sets: 2, repMin: 8, repMax: 8, combined: false, superset: "A", measure: "reps" },
-      { id: plank.id, sets: 2, repMin: 30, repMax: 45, combined: false, superset: null, measure: "time" },
-      { id: carry.id, sets: 2, repMin: 20, repMax: 21, combined: false, superset: null, measure: "distance" },
+    expect(preview).toMatchObject({ sessionId: id, dayName: "Upper A", groupingNotSaved: true });
+    expect(preview!.exercises.map((e) => ({ slot: e.slot, id: e.exerciseId, sets: e.sets, repMin: e.repMin, repMax: e.repMax, repeated: e.repeated, superset: e.superset, measure: e.measure }))).toEqual([
+      { slot: bench.id, id: bench.id, sets: 2, repMin: 6, repMax: 8, repeated: true, superset: null, measure: "reps" },
+      { slot: pulldown.id, id: pulldown.id, sets: 3, repMin: 8, repMax: 12, repeated: false, superset: "A", measure: "reps" },
+      { slot: row.id, id: row.id, sets: 2, repMin: 8, repMax: 8, repeated: false, superset: "A", measure: "reps" },
+      { slot: incline.id, id: bench.id, sets: 2, repMin: 6, repMax: 8, repeated: true, superset: null, measure: "reps" },
+      { slot: plank.id, id: plank.id, sets: 2, repMin: 30, repMax: 45, repeated: false, superset: null, measure: "time" },
+      { slot: carry.id, id: carry.id, sets: 2, repMin: 20, repMax: 21, repeated: false, superset: null, measure: "distance" },
     ]);
     expect(preview!.exercises.map((e) => e.exerciseId)).not.toContain(incline.id);
     expect(preview!.exercises.map((e) => e.exerciseId)).not.toContain(lateral.id);
     expect(await programmes.previewWorkoutDay("missing")).toBeNull();
 
-    const saved = await programmes.saveWorkoutAsDay({
+    const reviewed = { programmeId: active.programmeId, versionId: active.versionId };
+    const shown = preview!.exercises;
+    const reviewedDay = (rows: typeof shown) => ({
       name: preview!.dayName,
-      exercises: preview!.exercises.map((e) => ({
-        ...draftExerciseFromPreview(e.exerciseId === pulldown.id ? { ...e, sets: 2 } : e),
+      exercises: rows.map((e) => ({
+        ...draftExerciseFromPreview(
+          e.slot === incline.id ? { ...e, sets: 9 } : e.slot === bench.id ? { ...e, sets: 4 } : e.slot === pulldown.id ? { ...e, sets: 2 } : e,
+        ),
         ...(e.exerciseId === bench.id ? { topSets: 1, isGoalLift: true, trackEffort: true, repCeiling: 5 } : {}),
       })),
     });
+    await expect(programmes.saveWorkoutAsDay(reviewedDay(preview!.exercises), reviewed)).rejects.toBeInstanceOf(RepeatedExercise);
+    expect(await versions(db)).toBe(1);
+    expect(await sessionSnap(db, id)).toEqual(snap);
+    expect((await db.get<{ deleted_at: number | null; status: string }>("SELECT deleted_at, status FROM session WHERE id = ?", [plannedId]))).toEqual({ deleted_at: null, status: "planned" });
+
+    const saved = await programmes.saveWorkoutAsDay(reviewedDay(preview!.exercises.filter((e) => e.slot !== incline.id)), reviewed);
     expect(saved).toMatchObject({ version: 2, changed: true });
     expect(await versions(db)).toBe(2);
     expect(await sessionSnap(db, id)).toEqual(snap);
@@ -146,7 +157,8 @@ describe("save a finished workout as a program day", () => {
     expect(after.days.map((d) => d.name)).toEqual([...beforeDraft.days.map((d) => d.name), "Upper A"]);
     const added = after.days[after.days.length - 1]!;
     expect(added.exercises.map((e) => e.exerciseId)).toEqual([bench.id, pulldown.id, row.id, plank.id, carry.id]);
-    expect(added.exercises[0]).toMatchObject({ sets: 2, repMin: 6, repMax: 8, topSets: null, isGoalLift: false, trackEffort: false, repCeiling: null });
+    expect(added.exercises.filter((e) => e.exerciseId === bench.id)).toHaveLength(1);
+    expect(added.exercises[0]).toMatchObject({ sets: 4, repMin: 6, repMax: 8, topSets: null, isGoalLift: false, trackEffort: false, repCeiling: null });
     expect(added.exercises.find((e) => e.exerciseId === pulldown.id)).toMatchObject({ sets: 2, repMin: 8, repMax: 12 });
     expect(beforeDraft.days[0]!.exercises.find((e) => e.exerciseId === bench.id)!.isGoalLift).toBe(true);
     expect(after.days[0]!.exercises.find((e) => e.exerciseId === bench.id)!.isGoalLift).toBe(true);
@@ -154,25 +166,29 @@ describe("save a finished workout as a program day", () => {
     expect(cols.map((c) => c.name)).not.toContain("superset_group");
   });
 
-  it("a failed save leaves the current version and the finished workout alone", async () => {
-    const { db, gym, gymId, workout, programmes, deps, onDay, upperId } = await setup();
+  it("a failed save leaves the current version, the planned session, and the finished workout alone", async () => {
+    const { db, gym, gymId, workout, programmes, finish, deps, onDay, upperId } = await setup();
     const bench = await onDay("bench_press");
     const active = (await programmes.getActive())!;
+    const reviewed = { programmeId: active.programmeId, versionId: active.versionId };
     const { id } = await workout.startOrResumeSession(upperId, gymId);
     await workout.logSet({ sessionId: id, exerciseId: bench.id, load: 60, reps: 8 }, { gym, equipment: bench.equipment, setup: bench.setup });
     deps.tick(1000);
     await workout.finishSession(id);
+    await finish.writeNextSessionTargets(id);
+    const plannedId = (await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL"))!.id;
     const snap = await sessionSnap(db, id);
     const exercise = { exerciseId: bench.id, sets: 3, repMin: 6, repMax: 8, repCeiling: null, isGoalLift: false, trackEffort: false, topSets: null };
 
-    await expect(programmes.saveWorkoutAsDay({ name: "   ", exercises: [exercise] })).rejects.toMatchObject({ problems: [expect.objectContaining({ code: "day_name_empty" })] });
-    await expect(programmes.saveWorkoutAsDay({ name: "Extra", exercises: [] })).rejects.toMatchObject({ problems: [expect.objectContaining({ code: "day_empty" })] });
-    await expect(programmes.saveWorkoutAsDay({ name: "Extra", exercises: [{ ...exercise, sets: 13 }] })).rejects.toBeInstanceOf(DraftInvalid);
+    await expect(programmes.saveWorkoutAsDay({ name: "   ", exercises: [exercise] }, reviewed)).rejects.toMatchObject({ problems: [expect.objectContaining({ code: "day_name_empty" })] });
+    await expect(programmes.saveWorkoutAsDay({ name: "Extra", exercises: [] }, reviewed)).rejects.toMatchObject({ problems: [expect.objectContaining({ code: "day_empty" })] });
+    await expect(programmes.saveWorkoutAsDay({ name: "Extra", exercises: [{ ...exercise, sets: 13 }] }, reviewed)).rejects.toBeInstanceOf(DraftInvalid);
     expect(await versions(db)).toBe(1);
     expect(await sessionSnap(db, id)).toEqual(snap);
+    expect((await db.get<{ deleted_at: number | null; status: string }>("SELECT deleted_at, status FROM session WHERE id = ?", [plannedId]))).toEqual({ deleted_at: null, status: "planned" });
 
     const open = await workout.startOrResumeSession((await db.get<{ id: string }>("SELECT id FROM programme_day WHERE name = 'Lower A' AND deleted_at IS NULL"))!.id, gymId);
-    await expect(programmes.saveWorkoutAsDay({ name: "Extra", exercises: [exercise] })).rejects.toBeInstanceOf(SessionInProgress);
+    await expect(programmes.saveWorkoutAsDay({ name: "Extra", exercises: [exercise] }, reviewed)).rejects.toBeInstanceOf(SessionInProgress);
     expect(await programmes.previewWorkoutDay(open.id)).toBeNull();
     expect(await versions(db)).toBe(1);
     expect(await sessionSnap(db, id)).toEqual(snap);
@@ -193,11 +209,116 @@ describe("save a finished workout as a program day", () => {
     const filled = await programmes.saveNewVersion(active.programmeId, draft);
     expect(filled.version).toBe(2);
     const exercise = { exerciseId: bench.id, sets: 3, repMin: 6, repMax: 8, repCeiling: null, isGoalLift: false, trackEffort: false, topSets: null };
-    await expect(programmes.saveWorkoutAsDay({ name: "One more", exercises: [exercise] })).rejects.toBeInstanceOf(ProgrammeDayLimit);
+    await expect(programmes.saveWorkoutAsDay({ name: "One more", exercises: [exercise] }, { programmeId: active.programmeId, versionId: filled.versionId })).rejects.toBeInstanceOf(ProgrammeDayLimit);
     expect(await versions(db)).toBe(2);
     expect(await sessionSnap(db, id)).toEqual(snap);
     const latest = await programmes.loadDraft(filled.versionId);
     expect(latest.days).toHaveLength(7);
     expect(latest.days.map((d) => d.name)).not.toContain("One more");
+  });
+
+  it("refuses to save when the reviewed program changed, and does not attach the day to the new one", async () => {
+    const { db, gym, gymId, workout, programmes, deps, onDay, upperId } = await setup();
+    const bench = await onDay("bench_press");
+    const active = (await programmes.getActive())!;
+    const reviewed = { programmeId: active.programmeId, versionId: active.versionId };
+    const { id } = await workout.startOrResumeSession(upperId, gymId);
+    await workout.logSet({ sessionId: id, exerciseId: bench.id, load: 60, reps: 8 }, { gym, equipment: bench.equipment, setup: bench.setup });
+    deps.tick(1000);
+    await workout.finishSession(id);
+    const snap = await sessionSnap(db, id);
+    const exercise = { exerciseId: bench.id, sets: 3, repMin: 6, repMax: 8, repCeiling: null, isGoalLift: false, trackEffort: false, topSets: null };
+    const day = { name: "From workout", exercises: [exercise] };
+
+    await expect(programmes.saveWorkoutAsDay(day, { programmeId: null, versionId: null })).rejects.toBeInstanceOf(ProgrammeChanged);
+    expect(await versions(db)).toBe(1);
+    expect(await sessionSnap(db, id)).toEqual(snap);
+
+    const draft = await programmes.loadDraft(active.versionId);
+    draft.days[0]!.name = "Upper A renamed";
+    const edited = await programmes.saveNewVersion(active.programmeId, draft);
+    expect(edited.version).toBe(2);
+    await expect(programmes.saveWorkoutAsDay(day, reviewed)).rejects.toBeInstanceOf(ProgrammeChanged);
+    expect(await versions(db)).toBe(2);
+    const kept = await programmes.loadDraft(edited.versionId);
+    expect(kept.days[0]!.name).toBe("Upper A renamed");
+    expect(kept.days.map((d) => d.name)).not.toContain("From workout");
+    expect(await sessionSnap(db, id)).toEqual(snap);
+
+    const other = await programmes.createProgramme({ name: "Other", days: [{ name: "Day", exercises: [exercise] }] });
+    const otherBefore = await programmes.loadDraft(other.versionId);
+    await expect(programmes.saveWorkoutAsDay(day, { programmeId: active.programmeId, versionId: edited.versionId })).rejects.toBeInstanceOf(ProgrammeChanged);
+    expect(await programmes.loadDraft(other.versionId)).toEqual(otherBefore);
+    expect((await programmes.getActive())!.programmeId).toBe(other.programmeId);
+    expect(await versions(db)).toBe(3);
+    expect(await sessionSnap(db, id)).toEqual(snap);
+  });
+
+  it("puts the program back when planning the next session fails after the version is written", async () => {
+    const { db, gym, gymId, workout, programmes, finish, deps, onDay, upperId } = await setup();
+    const bench = await onDay("bench_press");
+    const active = (await programmes.getActive())!;
+    const reviewed = { programmeId: active.programmeId, versionId: active.versionId };
+    const { id } = await workout.startOrResumeSession(upperId, gymId);
+    await workout.logSet({ sessionId: id, exerciseId: bench.id, load: 60, reps: 8 }, { gym, equipment: bench.equipment, setup: bench.setup });
+    deps.tick(1000);
+    await workout.finishSession(id);
+    await finish.writeNextSessionTargets(id);
+    const plannedId = (await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL"))!.id;
+    const targetsBefore = (await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM target WHERE session_id = ? AND deleted_at IS NULL", [plannedId]))!.n;
+    const decisionsBefore = (await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM decision_log WHERE deleted_at IS NULL AND target_id IN (SELECT id FROM target WHERE session_id = ?)", [plannedId]))!.n;
+    expect(targetsBefore).toBeGreaterThan(0);
+    expect(decisionsBefore).toBeGreaterThan(0);
+    const nameBefore = (await db.get<{ name: string }>("SELECT name FROM programme WHERE id = ?", [active.programmeId]))!.name;
+    const snap = await sessionSnap(db, id);
+    const exercise = { exerciseId: bench.id, sets: 3, repMin: 6, repMax: 8, repCeiling: null, isGoalLift: false, trackEffort: false, topSets: null };
+
+    finish.planNextSession = async () => {
+      throw new Error("replan failed");
+    };
+    await expect(programmes.saveWorkoutAsDay({ name: "From workout", exercises: [exercise] }, reviewed)).rejects.toBeInstanceOf(ProgrammeSaveUndone);
+    expect(await versions(db)).toBe(1);
+    expect((await programmes.getActive())!.versionId).toBe(active.versionId);
+    expect(await db.get("SELECT status, deleted_at FROM session WHERE id = ?", [plannedId])).toEqual({ status: "planned", deleted_at: null });
+    expect((await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM target WHERE session_id = ? AND deleted_at IS NULL", [plannedId]))!.n).toBe(targetsBefore);
+    expect((await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM decision_log WHERE deleted_at IS NULL AND target_id IN (SELECT id FROM target WHERE session_id = ?)", [plannedId]))!.n).toBe(decisionsBefore);
+    expect((await db.get<{ name: string }>("SELECT name FROM programme WHERE id = ?", [active.programmeId]))!.name).toBe(nameBefore);
+    expect((await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM programme_version WHERE deleted_at IS NOT NULL"))!.n).toBe(1);
+    expect((await programmes.loadDraft(active.versionId)).days.map((d) => d.name)).not.toContain("From workout");
+    expect(await sessionSnap(db, id)).toEqual(snap);
+  });
+
+  it("says the save could not be undone when putting the plan back fails", async () => {
+    const { db, gym, gymId, workout, programmes, finish, deps, onDay, upperId } = await setup();
+    const bench = await onDay("bench_press");
+    const active = (await programmes.getActive())!;
+    const reviewed = { programmeId: active.programmeId, versionId: active.versionId };
+    const { id } = await workout.startOrResumeSession(upperId, gymId);
+    await workout.logSet({ sessionId: id, exerciseId: bench.id, load: 60, reps: 8 }, { gym, equipment: bench.equipment, setup: bench.setup });
+    deps.tick(1000);
+    await workout.finishSession(id);
+    await finish.writeNextSessionTargets(id);
+    const plannedId = (await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'planned' AND deleted_at IS NULL"))!.id;
+    const snap = await sessionSnap(db, id);
+    const exercise = { exerciseId: bench.id, sets: 3, repMin: 6, repMax: 8, repCeiling: null, isGoalLift: false, trackEffort: false, topSets: null };
+    finish.planNextSession = async () => {
+      throw new Error("replan failed");
+    };
+    const original = db.transaction.bind(db);
+    let calls = 0;
+    db.transaction = ((fn) => {
+      calls += 1;
+      if (calls === 2) return Promise.reject(new Error("undo failed"));
+      return original(fn);
+    }) as typeof db.transaction;
+
+    await expect(programmes.saveWorkoutAsDay({ name: "From workout", exercises: [exercise] }, reviewed)).rejects.toBeInstanceOf(ProgrammeSaveNotUndone);
+    expect(calls).toBe(2);
+    expect(await versions(db)).toBe(2);
+    expect((await db.get<{ deleted_at: number | null }>("SELECT deleted_at FROM session WHERE id = ?", [plannedId]))!.deleted_at).not.toBeNull();
+    const latest = (await programmes.getActive())!;
+    expect(latest.version).toBe(2);
+    expect((await programmes.loadDraft(latest.versionId)).days.map((d) => d.name)).toContain("From workout");
+    expect(await sessionSnap(db, id)).toEqual(snap);
   });
 });

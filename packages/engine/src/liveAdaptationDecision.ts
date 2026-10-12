@@ -1,14 +1,99 @@
-export type Action='increase'|'maintain'|'decrease'|'stop';
-export interface DecisionInput { predictedReps:number; previousReps:number; targetMin:number; targetMax:number; currentWeightKg:number; nextAvailableWeightKg?:number; previousSetRpe?:number|null; severePain?:boolean; dizziness?:boolean; consecutiveVeryLowSets?:number }
-export interface Decision { action:Action; suggestedWeightKg:number; reason:string; predictedReps:number }
-/** Conservative product policy, not learned by the regression model. */
-export function decideNextSet(x:DecisionInput):Decision {
-  const {predictedReps:p,previousReps:prev,currentWeightKg:w,targetMin:min,targetMax:max}=x;
-  if(![p,prev,w,min,max].every(Number.isFinite)||w<0||min<1||max<min) throw new Error('Invalid set inputs');
-  if(x.severePain||x.dizziness||p<=2||(prev>=8&&p<=3)||(x.consecutiveVeryLowSets??0)>=2)
-    return {action:'stop',suggestedWeightKg:w,predictedReps:p,reason:'Performance or symptoms suggest ending this exercise. If you feel pain or unwell, stop and assess before continuing.'};
-  if(p<min) return {action:'decrease',suggestedWeightKg: Math.max(0,Math.round(w*0.95*2)/2),predictedReps:p,reason:`Predicted ${Math.round(p)} reps, below your ${min}–${max} target. Consider reducing the load or resting longer.`};
-  if(p>max+1 && (x.previousSetRpe??0)<9 && x.nextAvailableWeightKg!==undefined && x.nextAvailableWeightKg>w)
-    return {action:'increase',suggestedWeightKg:x.nextAvailableWeightKg,predictedReps:p,reason:`Predicted ${Math.round(p)} reps, above your target. A small increase may be appropriate.`};
-  return {action:'maintain',suggestedWeightKg:w,predictedReps:p,reason:`Predicted ${Math.round(p)} reps. Keep the weight and reassess after the next set.`};
+import { buildLiveAdaptationFeatures, type SetContext } from './liveAdaptationFeatures';
+import type { FeatureMap } from './liveAdaptationInference';
+import { isGymLoad, nextLoadAbove, nextLoadBelow } from './loads';
+import type { GymLoadSpec } from './types';
+
+export type Action = 'increase' | 'maintain' | 'decrease' | 'stop';
+/** Stable keys translated by the mobile app; the regressor does not assess injury risk. */
+export type LiveReason = 'within_range' | 'above_range' | 'below_range' | 'no_lighter_load' | 'performance_stop' | 'reported_symptoms' | 'no_suitable_increase';
+export interface Decision { action: Action; suggestedWeightKg: number; reason: LiveReason; predictedReps: number }
+export interface DecisionInput {
+  predictedReps: number; previousReps: number; targetMin: number; targetMax: number; currentWeightKg: number;
+  nextAvailableWeightKg?: number; lowerAvailableWeightKg?: number; previousSetRpe?: number | null;
+  firstWorkingSetReps?: number; workingSetsBefore?: number;
+  severePain?: boolean; dizziness?: boolean; consecutiveVeryLowSets?: number;
+}
+
+function validateInput(x: DecisionInput): void {
+  if (![x.predictedReps, x.previousReps, x.currentWeightKg, x.targetMin, x.targetMax].every(Number.isFinite)
+      || x.predictedReps < 0 || x.predictedReps > 50 || x.previousReps < 0 || x.currentWeightKg <= 0
+      || x.targetMin < 1 || x.targetMax < x.targetMin || x.targetMax > 50) throw new Error('Invalid set inputs');
+}
+function stopReason(x: DecisionInput): LiveReason | null {
+  if (x.severePain === true || x.dizziness === true) return 'reported_symptoms';
+  // Low rep targets are legitimate. Stop is based on observed deterioration, never inferred symptoms.
+  const severeObserved = (x.workingSetsBefore ?? 0) >= 2 && (x.firstWorkingSetReps ?? 0) >= 6
+    && x.previousReps <= 2 && x.previousReps <= (x.firstWorkingSetReps ?? 0) / 2;
+  if (x.targetMin >= 4 && x.predictedReps < x.targetMin
+      && (severeObserved || (x.consecutiveVeryLowSets ?? 0) >= 2)) return 'performance_stop';
+  return null;
+}
+
+/** Compatibility policy: callers must supply actual available loads; no percentage-based fabrication. */
+export function decideNextSet(x: DecisionInput): Decision {
+  validateInput(x);
+  const result = (action: Action, weight: number, reason: LiveReason): Decision => ({action, suggestedWeightKg: weight, reason, predictedReps: x.predictedReps});
+  const stop = stopReason(x);
+  if (stop) return result('stop', x.currentWeightKg, stop);
+  if (x.predictedReps < x.targetMin) {
+    const lower = x.lowerAvailableWeightKg;
+    return lower !== undefined && Number.isFinite(lower) && lower > 0 && lower < x.currentWeightKg
+      ? result('decrease', lower, 'below_range') : result('maintain', x.currentWeightKg, 'no_lighter_load');
+  }
+  const upper = x.nextAvailableWeightKg;
+  if (x.predictedReps > x.targetMax + 1 && (x.previousSetRpe == null || x.previousSetRpe < 9)
+      && upper !== undefined && Number.isFinite(upper) && upper > x.currentWeightKg && upper <= x.currentWeightKg * 1.05 + 1e-6) {
+    return result('increase', upper, 'above_range');
+  }
+  return result('maintain', x.currentWeightKg, x.predictedReps > x.targetMax ? 'no_suitable_increase' : 'within_range');
+}
+
+export interface LiveRecommendationInput {
+  context: SetContext; targetMin: number; targetMax: number; loadSpec: GymLoadSpec;
+  /** Returns clipped next-set reps from the real locally cached model. */
+  predict: (features: FeatureMap) => number;
+  severePain?: boolean; dizziness?: boolean; consecutiveVeryLowSets?: number;
+}
+/** At most five model evaluations, using selectable equipment rungs and the actual proposed next load. */
+export function recommendLiveSet(x: LiveRecommendationInput): Decision {
+  const current = x.context.proposedWeightKg;
+  if (!isGymLoad(x.loadSpec, current) || current <= 0) throw new Error('Next planned load is unavailable');
+  const predict = (weight: number): number => {
+    const reps = x.predict(buildLiveAdaptationFeatures({...x.context, proposedWeightKg: weight}));
+    if (!Number.isFinite(reps) || reps < 0 || reps > 50) throw new Error('Invalid model prediction');
+    return reps;
+  };
+  const p = predict(current);
+  const base: DecisionInput = {
+    predictedReps: p, previousReps: x.context.previousSetReps, currentWeightKg: current,
+    targetMin: x.targetMin, targetMax: x.targetMax, firstWorkingSetReps: x.context.firstWorkingSetReps,
+    workingSetsBefore: x.context.workingSetsBefore, previousSetRpe: x.context.previousSetRpe,
+    severePain: x.severePain, dizziness: x.dizziness, consecutiveVeryLowSets: x.consecutiveVeryLowSets,
+  };
+  validateInput(base);
+  const stop = stopReason(base);
+  if (stop) return {action:'stop', suggestedWeightKg:current, predictedReps:p, reason:stop};
+  if (p > x.targetMax + 1 && (x.context.previousSetRpe == null || x.context.previousSetRpe < 9)) {
+    const upper = nextLoadAbove(x.loadSpec, current);
+    if (upper !== null && upper <= current * 1.05 + 1e-6) {
+      const heavierPrediction = predict(upper);
+      if (heavierPrediction >= x.targetMin && heavierPrediction <= p)
+        return {action:'increase', suggestedWeightKg:upper, predictedReps:heavierPrediction, reason:'above_range'};
+    }
+  }
+  if (p < x.targetMin) {
+    let lower = nextLoadBelow(x.loadSpec, current);
+    let best: {weight:number; reps:number} | null = null;
+    // Search a bounded neighborhood; require predicted improvement even if no load recovers the target.
+    for (let i = 0; i < 3 && lower !== null && lower > 0; i++) {
+      if (i > 0 && lower < current * 0.8) break;
+      const reps = predict(lower);
+      if (reps > p && (best === null || reps > best.reps)) best = {weight:lower, reps};
+      if (reps > p && reps >= x.targetMin) { best = {weight:lower, reps}; break; }
+      lower = nextLoadBelow(x.loadSpec, lower);
+    }
+    if (best) return {action:'decrease', suggestedWeightKg:best.weight, predictedReps:best.reps, reason:'below_range'};
+    return {action:'maintain', suggestedWeightKg:current, predictedReps:p, reason:'no_lighter_load'};
+  }
+  return {action:'maintain', suggestedWeightKg:current, predictedReps:p, reason:p > x.targetMax ? 'no_suitable_increase' : 'within_range'};
 }

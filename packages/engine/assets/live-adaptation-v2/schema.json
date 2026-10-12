@@ -1,0 +1,52 @@
+{
+  "model_version": "2.0.0-experimental",
+  "model_type": "XGBoostRegressor",
+  "prediction_type": "rep_delta",
+  "features": [
+    "relative_load_change",
+    "previous_reps",
+    "rep_drop_from_first",
+    "relative_previous_workout_load",
+    "volume_per_prior_set",
+    "load_convention",
+    "set_index",
+    "working_sets_before",
+    "workout_sets_before",
+    "rest_before_set_seconds",
+    "target_reps",
+    "planned_rir",
+    "sleep_hours",
+    "readiness_self_report",
+    "previous_set_rpe",
+    "first_working_set_reps",
+    "prior_working_reps_this_exercise",
+    "prior_workouts_this_equipment",
+    "previous_workout_first_reps",
+    "days_since_previous_workout_this_equipment"
+  ],
+  "categorical_features": [
+    "load_convention"
+  ],
+  "category_mappings": {
+    "load_convention": {
+      "displayed_machine_load": 0,
+      "per_dumbbell": 1,
+      "total_barbell_load": 2
+    }
+  },
+  "missing_category_code": -1,
+  "missing_numeric_value": null,
+  "prediction_min_reps": 0,
+  "prediction_max_reps": 50,
+  "training_source": "synthetic",
+  "xgboost_version": "3.4.1",
+  "test_metrics": {
+    "mae": 1.0487,
+    "rmse": 1.3876,
+    "rounded_within_1": 0.751,
+    "weight_change_mae": 1.3437,
+    "test_examples": 8206,
+    "unseen_lifters": 50,
+    "unseen_exercises": 2
+  }
+}

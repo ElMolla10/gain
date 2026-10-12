@@ -13,7 +13,7 @@ describe('live adaptation features',()=>{
 describe('live adaptation decision',()=>{
  const input={predictedReps:8,previousReps:9,targetMin:6,targetMax:10,currentWeightKg:60};
  it('maintains inside range',()=>expect(decideNextSet(input).action).toBe('maintain'));
- it('reduces when below target',()=>expect(decideNextSet({...input,predictedReps:4}).action).toBe('decrease'));
+ it('reduces when below target',()=>expect(decideNextSet({...input,predictedReps:4,lowerAvailableWeightKg:57.5}).action).toBe('decrease'));
  it('increases only with available next weight',()=>expect(decideNextSet({...input,predictedReps:13,nextAvailableWeightKg:62.5}).action).toBe('increase'));
  it('stops on pain',()=>expect(decideNextSet({...input,severePain:true}).action).toBe('stop'));
 });

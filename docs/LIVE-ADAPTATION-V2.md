@@ -1,0 +1,14 @@
+# Live Adaptation v2 — integration status
+
+This branch adds the pure TypeScript inference and recommendation-policy foundation. **It is not yet connected to the workout logger and must not be merged as a finished feature.**
+
+The trained synthetic-data model and exact feature schema are in the GAIN Live Adaptation integration kit shared in ChatGPT. Copy `model.json`, `schema.json`, and `reference-predictions.json` from that kit into a suitable offline asset directory; do not fetch from the network.
+
+Next:
+1. Build the 20 input features from **pre-set** workout history; encode `load_convention` using the bundled schema. Never substitute 0 for missing history.
+2. Load model lazily, cache it, and benchmark Android startup/inference.
+3. Add 10 parity tests against the exported Python reference predictions (delta tolerance 0.0001).
+4. Wire the result into the active logger after confirmed working sets, with existing rules as fallback, and allow manual overrides.
+5. Snap recommended loads to actual available gym equipment. The policy's 5% decrease is only a placeholder and should not be used directly in UI.
+6. Test bodyweight/assisted exercises, first sets, missing history, drop sets, rest changes, and reported pain/dizziness.
+7. Evaluate real logged sessions; all current model accuracy claims are synthetic-only.

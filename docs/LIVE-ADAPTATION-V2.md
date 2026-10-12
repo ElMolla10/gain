@@ -1,6 +1,6 @@
 # Live Workout Adaptation v2
 
-Integrated into the normal offline workout logger on `feat/live-adaptation-v2-foundation`, PR #148. The real Universal Performance Model `2.0.0-experimental` is bundled. No account, opt-in, paid feature, network inference or native ML dependency is added. SQLite schema and next-workout deterministic progression are unchanged.
+Integrated into the normal offline workout logger; PR #148 merged into `main` on user instruction. The real Universal Performance Model `2.0.0-experimental` is bundled. No account, opt-in, paid feature, network inference or native ML dependency is added. SQLite schema and next-workout deterministic progression are unchanged.
 
 ## Logger behavior
 
@@ -68,6 +68,6 @@ Verified local gates: `npm ci`, all workspace typechecks, **1,440 tests** across
 
 Reproducible host measurements are saved in `LIVE-ADAPTATION-V2-BENCHMARK.json`: Node 22.23.2, macOS ARM64, 10,000 warmed predictions. Inference median **0.076 ms**, p95 **0.083 ms**; cold JSON load median **15.18 ms**, p95 **15.88 ms**; first validation **7.36 ms**; retained model heap about **5.63 MB**, RSS delta about **20.09 MB**. A recommendation performs at most five predictions. These numbers are host measurements, **not Android/Hermes latency or memory guarantees**. Lazy initialization avoids eager tree construction but increases the bundle size; first-use device responsiveness must still be measured.
 
-Android bundle export succeeds with the trained model included. No Android SDK/device/emulator is available in this workspace. This is bundle validation, not device-level validation. Native card layout, Arabic/large-font wrapping, touch interaction and cold first-use logger responsiveness need a release Android smoke test. Keep PR #148 draft while those checks remain outstanding.
+Android bundle export succeeds with the trained model included. No Android SDK/device/emulator is available in this workspace. This is bundle validation, not device-level validation. Native card layout, Arabic/large-font wrapping, touch interaction and cold first-use logger responsiveness need a release Android smoke test. PR #148 was merged on explicit user instruction after green CI; those device checks remain outstanding.
 
 All training/evaluation used one synthetic simulator. The supplied MAE 1.0487 / RMSE 1.3876 and held-out lifter/exercise results do not establish real-world accuracy and are not shown in the logger. The model remains experimental; missing readiness/rest inputs, historically unrecorded equipment context and unsupported setups limit applicability.

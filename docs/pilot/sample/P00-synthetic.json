@@ -4,6 +4,36 @@
  "schemaVersion": 9,
  "exportedAt": "2026-10-12T15:00:00Z",
  "tables": {
+  "exercise": [
+   {
+    "id": "bench",
+    "equipment": "barbell",
+    "setup": "free",
+    "deleted_at": null
+   },
+   {
+    "id": "squat",
+    "equipment": "barbell",
+    "setup": "free",
+    "deleted_at": null
+   }
+  ],
+  "exercise_line": [
+   {
+    "id": "L-bench",
+    "exercise_id": "bench",
+    "gym_id": "pilot-gym",
+    "setup": "free",
+    "deleted_at": null
+   },
+   {
+    "id": "L-squat",
+    "exercise_id": "squat",
+    "gym_id": "pilot-gym",
+    "setup": "free",
+    "deleted_at": null
+   }
+  ],
   "session": [
    {
     "id": "s0",

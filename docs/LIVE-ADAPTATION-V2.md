@@ -12,3 +12,19 @@ Next:
 5. Snap recommended loads to actual available gym equipment. The policy's 5% decrease is only a placeholder and should not be used directly in UI.
 6. Test bodyweight/assisted exercises, first sets, missing history, drop sets, rest changes, and reported pain/dizziness.
 7. Evaluate real logged sessions; all current model accuracy claims are synthetic-only.
+
+## Install exact Kaggle model
+
+Extract the provided `gain-live-adaptation-integration-kit.zip` alongside the repository, then from the repository root run:
+
+```bash
+node scripts/install-live-adaptation-model.mjs ../gain-live-adaptation-kit/model
+npm run test:engine
+npm run typecheck
+npm test
+npm run export:android -w @gain/mobile
+```
+
+Commit the three installed files under `packages/engine/assets/live-adaptation-v2/` to this branch. The reference parity test is skipped when the model is absent; do **not** consider a green CI run proof of trained-model parity until these assets are committed and the parity test executes.
+
+The repository currently has **no trained model asset**, so the active logger must not claim to display ML recommendations. Once bundled, add the lazy-loaded asset adapter, the logger integration, equipment-aware load snapping, and a fallback for incomplete history. The model does not infer injury risk.

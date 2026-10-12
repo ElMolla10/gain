@@ -1,5 +1,5 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
+import { findSpec, nextLoadAbove, renderReason, type Decision, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, Vibration, View, type TextStyle } from "react-native";
@@ -28,6 +28,7 @@ import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quan
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { acceptGhost, addRow, backoffPrefill, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
+import { applyLiveLoad, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
@@ -130,6 +131,9 @@ export function WorkoutScreen() {
   const [jumpAsk, setJumpAsk] = useState<{ ex: Disp; row: SetRowDraft; check: JumpCheck; load: number; reps: number; prev: number } | null>(null);
   const okJumps = useRef<Set<string>>(new Set());
   const [rows, setRows] = useState<Record<string, SetRowDraft[]>>({});
+  const [liveCards, setLiveCards] = useState<Record<string, { decision: Decision; key: string; performance: string; snapshot: string }>>({});
+  const [reportedSymptoms, setReportedSymptoms] = useState<Record<string, Decision>>({});
+  const [liveDismissed, setLiveDismissed] = useState<Record<string, string>>({});
   const [sets, setSets] = useState<SetRow[]>([]);
   const [exState, setExState] = useState<Record<string, ExerciseState>>({});
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
@@ -319,6 +323,37 @@ export function WorkoutScreen() {
     },
     [workout],
   );
+
+  // Run after persistence has refreshed `sets`. Cancelling the scheduled work prevents stale cards after edits or leaving.
+  useEffect(() => {
+    if (!loaded || loaded === "nogym") return;
+    const handle = setTimeout(() => {
+      const cards: typeof liveCards = {};
+      const supportedExerciseIds = loaded.slots
+        .map(slot => makeDisp(slot, exState[slot.exerciseId]))
+        .filter(ex => ex.measure === "reps" && ex.setup === "free" && ex.equipment !== "assisted")
+        .map(ex => ex.exerciseId);
+      for (const slot of loaded.slots) {
+        if (exState[slot.exerciseId]?.removed) continue;
+        const ex = makeDisp(slot, exState[slot.exerciseId]);
+        const list = rows[ex.exerciseId] ?? [];
+        const performance = livePerformanceKey(sets, ex.exerciseId);
+        if (liveDismissed[ex.exerciseId] === performance) continue;
+        const reported = reportedSymptoms[ex.exerciseId];
+        if (reported) {
+          cards[ex.exerciseId] = { decision: reported, key: nextAdaptiveRow(list)?.key ?? "", performance, snapshot: JSON.stringify(list) };
+          continue;
+        }
+        const spec = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
+        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: loaded.info[ex.exerciseId]?.last, targetReps: effectiveOf(nextAdaptiveRow(list) ?? { load:null, reps:null, ghostLoad:null, ghostReps:null }).reps ?? ex.repMin });
+        if (!context || !spec) continue;
+        const decision = tryLiveRecommendation(context, ex.repMin, ex.repMax, spec, undefined, e => diagnostics.record("warn", "live adaptation", e));
+        if (decision) cards[ex.exerciseId] = { decision, key: nextAdaptiveRow(list)!.key, performance, snapshot: JSON.stringify(list) };
+      }
+      setLiveCards(cards);
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [loaded, rows, sets, exState, liveDismissed, reportedSymptoms, makeDisp]);
 
   const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
 
@@ -627,6 +662,8 @@ export function WorkoutScreen() {
     const offer = timed ? ({ kind: "none", reason: "already_started" } as unknown as ReturnType<typeof warmupOffer>) : warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length });
     const pending = exSets.filter((s) => s.outlierStatus === "unconfirmed");
     const expanded = !!whyOpen[ex.exerciseId];
+    const candidate = liveCards[ex.exerciseId];
+    const card = candidate && candidate.snapshot === JSON.stringify(list) && candidate.performance === livePerformanceKey(sets, ex.exerciseId) && liveDismissed[ex.exerciseId] !== candidate.performance ? candidate : undefined;
 
     // GAIN's target for today and its reason, kept to one line until tapped.
     const storedQ = info.stored ? (ex.measure === "time" ? info.stored.durationS : ex.measure === "distance" ? info.stored.distanceM : info.stored.reps) : null;
@@ -675,6 +712,7 @@ export function WorkoutScreen() {
           {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
           {ex.topSets && !timed ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("workout.topset.note", { n: ex.topSets })}</AppText> : null}
         </View>
+
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, marginTop: space.xs }}>
           <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
@@ -797,6 +835,35 @@ export function WorkoutScreen() {
             );
           })}
         </View>
+
+        {card ? (
+          <View accessibilityLiveRegion="polite" style={{ marginHorizontal: space.md, marginVertical: space.sm, padding: space.md, gap: space.xs, borderRadius: radius.card, backgroundColor: p.card, borderWidth: 1, borderColor: p.line }}>
+            <AppText style={{ fontWeight: "600" }}>{t("live.title")}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{t(`live.${card.decision.action}` as never)}</AppText>
+            {card.decision.reason !== "reported_symptoms" ? <AppText>{t("live.predicted", { reps: Math.round(card.decision.predictedReps * 10) / 10, min: ex.repMin, max: ex.repMax })}</AppText> : null}
+            <AppText style={{ color: p.muted }}>{t(`live.reason.${card.decision.reason}` as never)}</AppText>
+            {card.decision.action !== "stop" ? <AppText ltr>{formatLoad(card.decision.suggestedWeightKg, lang, unit)}</AppText> : null}
+            <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+              {card.decision.action !== "stop" ? <BigButton variant="secondary" label={t("live.apply")} disabled={nextAdaptiveRow(list)?.load !== null || busy !== null} onPress={() => {
+                setRows(r => ({ ...r, [ex.exerciseId]: applyLiveLoad(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg) }));
+                setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }));
+              }} /> : null}
+              <BigButton variant="quiet" label={t("live.report")} onPress={() => Alert.alert(t("live.report"), undefined, [
+                { text: t("live.severePain"), onPress: () => {
+                  setReportedSymptoms(s => ({ ...s, [ex.exerciseId]: reportedSymptomDecision(card.decision, "severe_pain") }));
+                  setLiveDismissed(d => { const { [ex.exerciseId]: _dismissed, ...rest } = d; return rest; });
+                } },
+                { text: t("live.dizziness"), onPress: () => {
+                  setReportedSymptoms(s => ({ ...s, [ex.exerciseId]: reportedSymptomDecision(card.decision, "dizziness") }));
+                  setLiveDismissed(d => { const { [ex.exerciseId]: _dismissed, ...rest } = d; return rest; });
+                } },
+                { text: t("common.cancel"), style: "cancel" },
+              ])} />
+              <BigButton variant="quiet" label={t("live.keep")} onPress={() => setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }))} />
+            </View>
+            {card.decision.action !== "stop" && nextAdaptiveRow(list)?.load !== null ? <AppText style={{ color: p.muted }}>{t("live.manual")}</AppText> : null}
+          </View>
+        ) : null}
 
         {pending.map((s) => {
           const o = outliers[s.id];

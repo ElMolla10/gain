@@ -4,16 +4,18 @@
 #   scripts/ios-setup.sh                 check the Mac, install packages, generate the iOS project, print what to do next
 #   scripts/ios-setup.sh --check         only check the Mac (changes nothing)
 #   scripts/ios-setup.sh --run           ... and then build and install on the iPhone (npx expo run:ios --device)
+#   scripts/ios-setup.sh --run --release install a Release build that works without Metro
 #   scripts/ios-setup.sh --bundle-id com.yourname.gain --team-id ABCDE12345
 #
 # What it does: checks Xcode, Node, CocoaPods; npm ci (only when needed); npx expo prebuild --platform ios (makes apps/mobile/ios,
 # which git ignores; the folder is rebuilt from scratch every time, so it is always in step with the code).
-# It never touches your Apple ID, never signs anything and never uploads anything. Full guide: docs/IOS.md.
+# It never reads your Apple ID credentials or uploads anything. --run invokes Expo/Xcode development signing. Full guide: docs/IOS.md.
 # NOT tested on a Mac: this was written and syntax-checked on Linux (bash -n, shellcheck, and a run with stand-in tools).
 set -euo pipefail
 
 CHECK_ONLY=0
 RUN_AFTER=0
+CONFIGURATION=Debug
 BUNDLE_ID="${GAIN_IOS_BUNDLE_ID:-}"
 TEAM_ID="${GAIN_IOS_TEAM_ID:-}"
 MIN_XCODE="26.4" # Expo SDK 57 needs Xcode 26.4 or newer (docs.expo.dev/versions/v57.0.0)
@@ -30,6 +32,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --check) CHECK_ONLY=1 ;;
     --run) RUN_AFTER=1 ;;
+    --release) CONFIGURATION=Release ;;
     --bundle-id) BUNDLE_ID="${2:-}"; shift ;;
     --team-id) TEAM_ID="${2:-}"; shift ;;
     -h | --help) usage; exit 0 ;;
@@ -170,7 +173,7 @@ say "5. Next steps"
 cat <<EOF
   a) Plug your iPhone into the Mac with a cable, unlock it, tap Trust on the phone.
   b) iPhone: Settings > Privacy & Security > Developer Mode > On (the phone restarts). Needed once.
-  c) Build and install:   cd apps/mobile && npx expo run:ios --device
+  c) Build and install offline:   cd apps/mobile && npx expo run:ios --device --configuration Release
      Or open apps/mobile/ios/GAIN.xcworkspace in Xcode, pick Signing & Capabilities > Team = your Apple ID (Personal Team), press Run.
   d) First launch says "Untrusted Developer": iPhone Settings > General > VPN & Device Management > your Apple ID > Trust.
   e) The free-account build stops opening after 7 days. Plug in and run this script again, then step c.
@@ -180,5 +183,5 @@ EOF
 if [ "$RUN_AFTER" -eq 1 ]; then
   say ""
   say "Building and installing on your iPhone (--run)"
-  exec npx expo run:ios --device
+  exec npx expo run:ios --device --configuration "$CONFIGURATION"
 fi

@@ -47,6 +47,22 @@ scripts/ios-setup.sh
 ```
 It checks the Mac (and tells you in plain words what to fix), asks you for a bundle id, installs packages, generates the iOS project and prints the next steps. It is safe to run again. `scripts/ios-setup.sh --check` only checks. `scripts/ios-setup.sh --run` also builds and installs on the phone at the end.
 
+For personal offline testing, use `scripts/ios-setup.sh --run --release`. This builds the Release configuration with JavaScript and the imported XGBoost model embedded, so Metro and a nearby Mac are not needed after installation. Free Personal Team signing still applies. Choose your team in Xcode first if Expo cannot select it automatically.
+
+After setup, open `apps/mobile/ios/GAIN.xcworkspace`, select target GAIN > Signing & Capabilities > Automatically manage signing > your Personal Team. Keep the bundle id saved by the script. For a Release build from Xcode, choose Product > Scheme > Edit Scheme > Run > Build Configuration > Release, select your connected iPhone and press Run.
+
+### Offline acceptance check (v0.22.0)
+
+Installation is unconfirmed until you see GAIN launch on the physical iPhone. Then:
+
+1. Disconnect the cable, stop Metro if running, and enable Airplane Mode. Force-close GAIN and reopen it; complete onboarding if needed.
+2. Start a workout and log working sets with weight, repetitions and effort. Check Live Workout Adaptation appears when its eligibility conditions are met; report any fallback/error rather than assuming the model ran.
+3. Force-close mid-workout, reopen, and confirm the logged sets remain. Finish the workout and confirm it appears in history.
+4. Start the next workout for the same exercise and check its recommended working weight against the previous workout and configured progression rules.
+5. Reopen once more in Airplane Mode and confirm history persists. Export a full backup before changing bundle ids or deleting the app.
+
+Record the iPhone model, iOS/Xcode versions, bundle id, build commit and each result. Node tests and an iOS bundle export do not verify native SQLite or model performance on an iPhone.
+
 If you prefer to do it by hand:
 ```
 npm ci

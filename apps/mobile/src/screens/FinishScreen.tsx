@@ -1,40 +1,27 @@
-import { isTimed, quantityText, targetPhrase, targetQuantity } from "../logic/quantity";
 import { shortReason, targetText } from "../logic/nextTarget";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, nextLoadAbove, renderReason, type GymFingerprint, type GymLoadSpec } from "@gain/engine";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Share, View } from "react-native";
 import { useServices } from "../AppContext";
-import type { SessionSummary, TargetRow } from "../db/finishRepo";
+import type { SessionSummary } from "../db/finishRepo";
 import type { SessionDetail } from "../db/historyRepo";
-import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
+import { exerciseLabels, formatLoad } from "../i18n/format";
 import { useI18n } from "../i18n";
-import { stepLoad } from "../logic/draft";
 import { buildCardModel, cardHtml, cardPaceLine, toCoachPayload } from "../logic/coachCard";
-import { jumpKindText } from "../logic/jumpText";
 import { formatWorkoutShareText, personalBestLines, workoutRecapStats } from "../logic/workoutRecap";
 import { volumeText } from "../logic/liveSummary";
 import type { StringKey } from "../i18n/strings";
-import { localizeReason, weightText } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, ErrorState, IconButton, InlineStatus, LoadingState, Notice, Screen, TargetStrip } from "../ui";
+import { AppText, BigButton, Card, ErrorState, LoadingState, Notice, Screen } from "../ui";
+import { FinishedDayForecast, type SameDayForecast } from "../components/FinishedDayForecast";
 import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
-import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
-
-interface Next {
-  sessionId: string;
-  dayName: string;
-  gym: GymFingerprint;
-  targets: TargetRow[];
-  equipment: Record<string, { equipment: Parameters<typeof findSpec>[1]; loadSpec: GymLoadSpec | null; setup: "free" | "assisted" | "bodyweight" | string }>;
-}
 
 export function FinishScreen() {
-  const { repos, workout, finish, history, goals, programmes, coachLinks, autoSync } = useServices();
+  const { workout, finish, history, goals, programmes, coachLinks, autoSync } = useServices();
   const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (n: string, params?: object) => void; popToTop: () => void }>();
@@ -42,32 +29,18 @@ export function FinishScreen() {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [sharingText, setSharingText] = useState(false);
-  const [next, setNext] = useState<Next | null | "none">(null);
-  const [editing, setEditing] = useState<{ targetId: string; load: number } | null>(null);
+  const [next, setNext] = useState<SameDayForecast | null | "none">(null);
   const [error, setError] = useState<string | null>(null);
-  const [notices, setNotices] = useState<Record<string, string>>({});
   const [sharing, setSharing] = useState(false);
   const [askLink, setAskLink] = useState(false);
   const [linking, setLinking] = useState(false);
   const [link, setLink] = useState<{ id: string; url: string } | null>(null);
   const started = useRef(false);
   const [failed, setFailed] = useState(false);
-  /** A proposed jump of more than 10% waiting for the lifter's decision (P04). */
-  const [jumpFor, setJumpFor] = useState<{ targetId: string; check: JumpCheck; prev: number } | null>(null);
-  const [threshold, setThreshold] = useState(10);
   const [attempt, setAttempt] = useState(0);
   const [finishedAt, setFinishedAt] = useState(0);
 
-  const reload = useCallback(
-    async (n: Next) => setNext({ ...n, targets: await finish.getTargets(n.sessionId) }),
-    [finish],
-  );
-
-  // Write the next session's targets as soon as this screen opens (idempotent), then show them.
-  useEffect(() => {
-    void repos.getSetting(JUMP_SETTING_KEY).then((v) => setThreshold(parseJumpThreshold(v)));
-  }, [repos]);
-
+  // Continue planning the rotation; preview this finished day separately.
   useEffect(() => {
     if (started.current) return;
     started.current = true;
@@ -78,23 +51,16 @@ export function FinishScreen() {
       // Sharing is secondary: a history-read failure must never block finishing a workout.
       try { setDetail(await history.getSession(sessionId)); }
       catch (e) { diagnostics.record("warn", "finish recap detail", e); }
-      const written = await finish.writeNextSessionTargets(sessionId);
-      autoSync(true); // a finished workout is the moment to back up, if (and only if) the lifter turned that on
-      if (!written) return setNext("none");
-      const planned = await workout.getSession(written.sessionId);
-      if (!planned) return setNext("none");
-      const gym = await repos.loadGymFingerprint(planned.gym_id);
-      const exs = await repos.listDayExercises(planned.programme_day_id);
-      const equipment: Next["equipment"] = {};
-      for (const e of exs) equipment[e.exerciseId] = { equipment: e.equipment, setup: e.setup, loadSpec: e.loadSpec };
-      setNext({ sessionId: written.sessionId, dayName: written.dayName, gym, targets: await finish.getTargets(written.sessionId), equipment });
+      await finish.writeNextSessionTargets(sessionId);
+      autoSync(true);
+      setNext((await finish.previewFinishedDay(sessionId)) ?? "none");
     })().catch((e) => {
       // The workout itself is already finished and saved; only the summary could not be built. Retry instead of loading forever.
       diagnostics.record("error", "finish summary", e);
       started.current = false;
       setFailed(true);
     });
-  }, [finish, history, repos, workout, sessionId, autoSync, attempt]);
+  }, [finish, history, workout, sessionId, autoSync, attempt]);
 
   if (failed && (!summary || next === null)) {
     return (
@@ -113,16 +79,6 @@ export function FinishScreen() {
   }
   if (!summary || next === null) return <LoadingState />;
 
-  const act = async (fn: () => Promise<void>) => {
-    setError(null);
-    try {
-      await fn();
-      if (next !== "none") await reload(next);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
   // The coach card: session, next targets, pace line (no bodyweight). One model feeds the PDF and the private link.
   const makeModel = async () => {
     const session = await workout.getSession(sessionId);
@@ -136,7 +92,14 @@ export function FinishScreen() {
     } else if (pace.kind === "muscle") {
       paceLine = cardPaceLine(pace, { t, fmt: (kg) => formatLoad(kg, lang, unit), exerciseName: "", muscleName: (m) => t(`muscle.${m}` as StringKey) });
     }
-    return buildCardModel({ lang, unit, date, summary, next: next === "none" ? null : { dayName: next.dayName, targets: next.targets }, paceLine });
+    return buildCardModel({
+      lang, unit, date, summary, next: null,
+      forecast: next === "none" ? null : {
+        dayName: next.dayName,
+        exercises: next.exercises.map(ex => ({ nameEn: ex.nameEn, nameAr: ex.nameAr, measure: ex.measure, proposal: ex.proposal })),
+      },
+      paceLine,
+    });
   };
 
   // PDF through the system share sheet. Nothing is uploaded.
@@ -193,7 +156,7 @@ export function FinishScreen() {
     const r = await coachLinks.revoke(link.id);
     if (!r.ok) return setError(t(`sync.err.${r.error}` as StringKey));
     setLink(null);
-    setNotices((n) => ({ ...n, link: t("link.stopped") }));
+    setError(null);
   };
 
   const noSets = summary.totals.counted === 0 && summary.totals.warmups === 0 && summary.totals.unconfirmed === 0;
@@ -248,126 +211,8 @@ export function FinishScreen() {
         </View>
       </Card>
 
-      {/* 2. What happens next: the targets are already written; accept, edit or reject each. */}
-      {next === "none" ? (
-        <Card><AppText>{t("finish.noNext")}</AppText></Card>
-      ) : (
-        <View style={{ gap: space.md }}>
-          <View style={{ gap: space.xs }}>
-            <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{t("finish.next", { day: next.dayName })}</AppText>
-            <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("finish.nextHint")}</AppText>
-          </View>
-          {error ? <Notice kind="error">{error}</Notice> : null}
-          {next.targets.map((tg) => {
-            const info = next.equipment[tg.exerciseId];
-            const spec = info ? (info.loadSpec ?? findSpec(next.gym, info.equipment)) : null;
-            const isEditing = editing?.targetId === tg.id;
-            const hasTarget = !(tg.currency === "none" || (tg.effectiveLoad === null && tg.status !== "rejected")) && tg.status !== "rejected";
-            return (
-              <Card key={tg.id}>
-                <AppText style={{ fontWeight: "600" }}>{lang === "ar" ? tg.nameAr : tg.nameEn}</AppText>
-                {tg.currency === "none" || (tg.effectiveLoad === null && tg.status !== "rejected") ? (
-                  <AppText style={{ color: p.muted }}>{t("finish.noTarget")}</AppText>
-                ) : tg.status === "rejected" ? (
-                  <AppText style={{ color: p.muted }}>{t("finish.rejectedNote")}</AppText>
-                ) : (
-                  <TargetStrip label={t("target.label")} value={isolateLtr(targetText(tg, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") }))} reason={shortReason(renderReason(localizeReason(tg.reason, unit, lang), lang))} />
-                )}
-                <InlineStatus kind={tg.status === "rejected" ? "warn" : tg.status === "proposed" ? "info" : "success"} text={t(`finish.status.${tg.status}` as never)} />
-                {notices[tg.id] ? <AppText style={{ fontWeight: "600" }}>{notices[tg.id]}</AppText> : null}
-
-                {isEditing && editing ? (
-                  <View style={{ gap: space.md }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-                      <IconButton icon="minus" label={`${t("finish.edit")} −`} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, -1, (info?.setup as "free") ?? "free", unit).load })} />
-                      <AppText ltr style={{ flex: 1, textAlign: "center", fontSize: ty.load, fontWeight: "600" }}>{weightText(editing.load, unit)} {unitText}</AppText>
-                      <IconButton icon="plus" label={`${t("finish.edit")} +`} onPress={() => setEditing({ ...editing, load: stepLoad(spec, editing.load, 1, (info?.setup as "free") ?? "free", unit).load })} />
-                    </View>
-                    <BigButton
-                      label={t("finish.editSave")}
-                      onPress={() =>
-                        act(async () => {
-                          if (!info) return;
-                          await finish.editTargetLoad(tg.id, editing.load, next.gym, info.equipment, info.setup as "free");
-                          setEditing(null);
-                        })
-                      }
-                    />
-                    <BigButton variant="secondary" label={t("finish.cancel")} onPress={() => setEditing(null)} />
-                  </View>
-                ) : (
-                  <View style={{ gap: space.sm }}>
-                    {tg.currency !== "none" && tg.load !== null ? (
-                      <>
-                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-                          <View style={{ flexGrow: 1, flexBasis: 150 }}>
-                            <BigButton
-                              icon={tg.status === "accepted" ? "check" : undefined}
-                              label={t("finish.accept")}
-                              disabled={tg.status === "accepted"}
-                              onPress={() => {
-                                // A load jump of more than 10% over last time is confirmed first, with smaller steps on offer.
-                                const prev = Number(tg.reason.params.prevLoad);
-                                const lastReps = Number(tg.reason.params.lastReps);
-                                const micro = Number.isFinite(prev) ? (spec ? nextLoadAbove(spec, prev, false) : prev + 1.25) : null;
-                                const check = isTimed(tg.measure) ? null : checkJump({ prevLoad: Number.isFinite(prev) ? prev : null, prevReps: Number.isFinite(lastReps) ? lastReps : null, targetLoad: tg.effectiveLoad, targetReps: tg.reps, setup: info?.setup ?? "free", thresholdPct: threshold, microLoad: micro });
-                                if (check?.needsConfirm) return setJumpFor({ targetId: tg.id, check, prev });
-                                void act(() => finish.acceptTarget(tg.id));
-                              }}
-                            />
-                          </View>
-                          <View style={{ flexGrow: 1, flexBasis: 150 }}>
-                            <BigButton variant="secondary" icon="edit" label={t("finish.edit")} onPress={() => setEditing({ targetId: tg.id, load: tg.effectiveLoad ?? tg.load ?? 0 })} />
-                          </View>
-                        </View>
-                        {jumpFor?.targetId === tg.id && tg.effectiveLoad !== null ? (
-                          <View accessibilityLiveRegion="polite" style={{ gap: space.sm }}>
-                            <Notice kind="warn">{t("jump.title", { pct: jumpFor.check.pct, prev: formatLoad(jumpFor.prev, lang, unit), next: formatLoad(tg.effectiveLoad, lang, unit) })}</Notice>
-                            {jumpOptions(jumpFor.check, { load: tg.effectiveLoad, reps: tg.reps ?? 1 }, (k, params) => t(k, params), (kg) => formatLoad(kg, lang, unit)).map((o) => (
-                              <BigButton
-                                key={o.kind}
-                                label={o.label}
-                                variant={o.kind === "anyway" ? "primary" : "secondary"}
-                                onPress={() => {
-                                  setJumpFor(null);
-                                  void act(async () => {
-                                    if (o.kind === "anyway") return finish.acceptTarget(tg.id);
-                                    if (!info) return;
-                                    await finish.editTargetLoad(tg.id, o.load, next.gym, info.equipment, info.setup as "free", o.reps);
-                                  });
-                                }}
-                              />
-                            ))}
-                            <BigButton variant="quiet" label={t("finish.cancel")} onPress={() => setJumpFor(null)} />
-                          </View>
-                        ) : null}
-                      </>
-                    ) : null}
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-                      <BigButton variant="quiet" icon="why" label={t("finish.why")} onPress={() => navigation.navigate("Why", { targetId: tg.id })} />
-                      {tg.currency !== "none" && tg.load !== null ? (
-                        <BigButton
-                          variant="quiet"
-                          label={t("finish.reject")}
-                          disabled={tg.status === "rejected"}
-                          onPress={() =>
-                            act(async () => {
-                              const o = await finish.rejectTarget(tg.id);
-                              if (!o) return;
-                              const jump = jumpKindText(o.jumpKind, unit, t as never);
-                              setNotices((n) => ({ ...n, [tg.id]: o.blocked ? t("stop.notice.stopped", { jump, count: o.count }) : t("stop.notice.counting", { jump, count: o.count, max: o.max }) }));
-                            })
-                          }
-                        />
-                      ) : null}
-                    </View>
-                  </View>
-                )}
-              </Card>
-            );
-          })}
-        </View>
-      )}
+      {/* Forecast the next occurrence of this particular day, not the next day in the rotation. */}
+      <FinishedDayForecast value={next} />
 
       {/* 3. Sharing is optional and secondary. */}
       <View style={{ gap: space.sm }}>

@@ -14,7 +14,7 @@ import { formatWorkoutShareText, personalBestLines, workoutRecapStats } from "..
 import { volumeText } from "../logic/liveSummary";
 import type { StringKey } from "../i18n/strings";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, ErrorState, LoadingState, Notice, Screen } from "../ui";
+import { AppText, BigButton, Card, ErrorState, InlineStatus, LoadingState, Notice, Screen } from "../ui";
 import { FinishedDayForecast, type SameDayForecast } from "../components/FinishedDayForecast";
 import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
@@ -31,6 +31,7 @@ export function FinishScreen() {
   const [sharingText, setSharingText] = useState(false);
   const [next, setNext] = useState<SameDayForecast | null | "none">(null);
   const [error, setError] = useState<string | null>(null);
+  const [notices, setNotices] = useState<Record<string, string>>({});
   const [sharing, setSharing] = useState(false);
   const [askLink, setAskLink] = useState(false);
   const [linking, setLinking] = useState(false);
@@ -156,7 +157,7 @@ export function FinishScreen() {
     const r = await coachLinks.revoke(link.id);
     if (!r.ok) return setError(t(`sync.err.${r.error}` as StringKey));
     setLink(null);
-    setError(null);
+    setNotices((n) => ({ ...n, link: t("link.stopped") }));
   };
 
   const noSets = summary.totals.counted === 0 && summary.totals.warmups === 0 && summary.totals.unconfirmed === 0;

@@ -6,12 +6,13 @@ import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { computeExposure } from "../logic/exposure";
 import {
-  addDay, addExercise, moveDay, moveExercise, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, updateExercise, type ProgrammeDraft,
+  addDay, addExercise, moveDay, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, reorderExercises, updateExercise, type ProgrammeDraft,
 } from "../logic/programmeDraft";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Field, Stepper } from "../ui";
 import { EffectView, ExposureView } from "./ExposureView";
 import { ExercisePicker } from "./ExercisePicker";
+import { ExerciseReorderModal } from "./ExerciseReorderModal";
 
 /**
  * The program editor body, shared by the Program tab and onboarding. Pure UI over a ProgrammeDraft:
@@ -35,6 +36,7 @@ export function ProgrammeEditorView(props: {
   const { t, lang } = useI18n();
   const p = usePalette();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
+  const [reorderDay, setReorderDay] = useState<number | null>(null);
   const byId = useMemo(() => new Map(props.library.map((e) => [e.id, e])), [props.library]);
   const measureOf = (id: string): Measure => byId.get(id)?.measure ?? "reps";
   const patternOf = (id: string) => byId.get(id)?.pattern;
@@ -57,6 +59,7 @@ export function ProgrammeEditorView(props: {
             <Chip label={t("prog.down")} onPress={() => props.onChange(moveDay(d, di, di + 1))} />
             <Chip label={t("prog.day.remove")} tone="danger" onPress={() => props.onChange(removeDay(d, di))} />
           </View>
+          {day.exercises.length > 1 ? <BigButton variant="secondary" label={t("prog.reorder.button")} onPress={() => setReorderDay(di)} /> : null}
           {day.exercises.map((e, ei) => (
             <View key={e.exerciseId} style={{ gap: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderColor: p.border }}>
               <AppText style={{ fontWeight: "600", fontSize: ty.body }}>{nameOf(e.exerciseId)}</AppText>
@@ -111,8 +114,6 @@ export function ProgrammeEditorView(props: {
               )}
               <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
                 {props.onOpenLoads ? <Chip label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} /> : null}
-                <Chip label={t("prog.up")} onPress={() => props.onChange(moveExercise(d, di, ei, ei - 1))} />
-                <Chip label={t("prog.down")} onPress={() => props.onChange(moveExercise(d, di, ei, ei + 1))} />
                 <Chip label={t("prog.ex.remove")} tone="danger" onPress={() => props.onChange(removeExercise(d, di, ei))} />
               </View>
             </View>
@@ -122,6 +123,15 @@ export function ProgrammeEditorView(props: {
       ))}
       <BigButton variant="secondary" icon="plus" label={t("prog.day.add")} onPress={() => props.onChange(addDay(d, t("prog.day.default", { n: d.days.length + 1 }).replace(/[\u2066\u2069]/g, "")))} />
       {before && props.baseline ? <EffectView before={before} after={after} beforeDraft={props.baseline} afterDraft={d} nameOf={nameOf} /> : <ExposureView rows={after} />}
+      <ExerciseReorderModal
+        visible={reorderDay !== null}
+        items={reorderDay !== null ? (d.days[reorderDay]?.exercises ?? []).map((e) => ({ id: e.exerciseId, name: nameOf(e.exerciseId) })) : []}
+        onCancel={() => setReorderDay(null)}
+        onDone={(ids) => {
+          if (reorderDay !== null) props.onChange(reorderExercises(props.draft, reorderDay, ids));
+          setReorderDay(null);
+        }}
+      />
       <ExercisePicker
         visible={pickerDay !== null}
         exercises={props.library}

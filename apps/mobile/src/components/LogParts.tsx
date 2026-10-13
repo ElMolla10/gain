@@ -161,9 +161,9 @@ export function MenuSheet(props: { visible: boolean; title: string; /** Kept for
 
 /**
  * The target of one exercise as a single compact line: "Target  55 kg × 9  [Why]". It wraps onto a second line when the text is large and
- * is never cut off. "Why" is quiet (accent text, no frame) but keeps a 48 dp touch area. `reason` shows under the line while `expanded`.
+ * is never cut off. "Why" is quiet (accent text, no frame) but keeps a 48 dp touch area. The suggested weight follows it when available; `reason` shows under the line while `expanded`.
  */
-export function TargetLine(props: { label: string; value: string; whyLabel: string; whyA11y: string; onWhy: () => void; onWhyLong?: () => void; expanded?: boolean; reason?: string }) {
+export function TargetLine(props: { label: string; value: string; whyLabel: string; whyA11y: string; suggestedLabel?: string; suggestedValue?: string; onWhy: () => void; onWhyLong?: () => void; expanded?: boolean; reason?: string }) {
   const p = useLogPalette();
   return (
     <View style={{ gap: 2 }}>
@@ -171,6 +171,11 @@ export function TargetLine(props: { label: string; value: string; whyLabel: stri
         <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.label}</AppText>
         <AppText style={{ fontSize: ty.section, fontWeight: "600", flexShrink: 1 }}>{props.value}</AppText>
         <QuietAction label={props.whyLabel} icon="why" accessibilityLabel={props.whyA11y} expanded={props.expanded} onPress={props.onWhy} onLongPress={props.onWhyLong} />
+        {props.suggestedLabel ? (
+          <AppText style={{ fontSize: 13, color: p.muted, flexShrink: 1 }}>
+            {props.suggestedLabel}{props.suggestedValue ? <AppText ltr style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}> {props.suggestedValue}</AppText> : null}
+          </AppText>
+        ) : null}
       </View>
       {props.expanded && props.reason ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.reason}</AppText> : null}
     </View>

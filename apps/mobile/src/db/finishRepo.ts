@@ -116,6 +116,19 @@ export interface SessionSummary {
   totals: { exercises: number; counted: number; warmups: number; unconfirmed: number; records: number };
 }
 
+/** A lightweight, unsaved upcoming-workout preview using the same real progression engine as target planning. */
+export interface DayLoadPreview { exerciseId: string; proposal: Proposal }
+
+type DayExercise = Awaited<ReturnType<Repos["listDayExercises"]>>[number];
+function toProposalSpec(ex: DayExercise): Parameters<WorkoutRepo["liveProposal"]>[0] {
+  return {
+    exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, measure: ex.measure,
+    repMin: ex.repMin, repMax: ex.repMax, programmeRepMin: ex.programmeRepMin, programmeRepMax: ex.programmeRepMax,
+    repCeiling: ex.repCeiling, repCeilingIsCustom: ex.repCeilingIsCustom, isGoalLift: ex.isGoalLift,
+    trackEffort: ex.trackEffort, sets: ex.sets, topSets: ex.topSets,
+  };
+}
+
 export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: WorkoutRepo) {
   const { newId, now } = deps;
 
@@ -186,6 +199,23 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return planNextSession(finished.gym_id);
   }
 
+  /** Forecast every exercise of any active-program day without creating or modifying session/target rows.
+   * A missing/insufficient lift history yields an explicit no-load proposal, never a fabricated starting weight.
+   * Individual exercise lines may be initialized by liveProposal, as with normal planning. */
+  async function previewDayLoads(dayId: string, gymId: string): Promise<DayLoadPreview[]> {
+    const active = await repos.getLatestProgrammeVersion();
+    const day = await db.get<{ programme_version_id: string }>("SELECT programme_version_id FROM programme_day WHERE id = ? AND deleted_at IS NULL", [dayId]);
+    if (!active || day?.programme_version_id !== active.versionId) return [];
+    const gym = await repos.loadGymFingerprint(gymId);
+    const exercises = await repos.listDayExercises(dayId);
+    const previews: DayLoadPreview[] = [];
+    for (const ex of exercises) {
+      const { proposal } = await workout.liveProposal(toProposalSpec(ex), gym);
+      previews.push({ exerciseId: ex.exerciseId, proposal });
+    }
+    return previews;
+  }
+
   /** Plans the next (suggested) program day at this gym: a planned session plus a target per exercise. Same rules as writeNextSessionTargets. */
   async function planNextSession(gymId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
     const next = await repos.getNextDay();
@@ -242,7 +272,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     const decided: { ex: (typeof exercises)[number]; proposal: Proposal; lineId: string }[] = [];
     for (const ex of exercises) {
       const { proposal, lineId } = await workout.liveProposal(
-        { exerciseId: ex.exerciseId, name: ex.nameEn, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, repMin: ex.repMin, repMax: ex.repMax, programmeRepMin: ex.programmeRepMin, programmeRepMax: ex.programmeRepMax, repCeiling: ex.repCeiling, repCeilingIsCustom: ex.repCeilingIsCustom, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets, topSets: ex.topSets },
+        toProposalSpec(ex),
         gym,
       );
       decided.push({ ex, proposal, lineId });
@@ -400,6 +430,6 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return db.get<{ id: string }>("SELECT id FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL", [dayId]);
   }
 
-  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, planDay, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
+  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, previewDayLoads, planDay, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
 }
 export type FinishRepo = ReturnType<typeof createFinishRepo>;

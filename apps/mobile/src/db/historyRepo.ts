@@ -162,7 +162,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
    */
   async function updateSet(setId: string, v: { load: number; reps: number; rir: number | null; durationS?: number | null; distanceM?: number | null }): Promise<void> {
     const row = await db.get<{ id: string; measure: Measure }>(
-      "SELECT ws.id, e.measure FROM workout_set ws JOIN session s ON s.id = ws.session_id JOIN exercise e ON e.id = ws.exercise_id WHERE ws.id = ? AND ws.deleted_at IS NULL AND s.status = 'finished'",
+      "SELECT ws.id, e.measure FROM workout_set ws JOIN session s ON s.id = ws.session_id JOIN exercise e ON e.id = ws.exercise_id WHERE ws.id = ? AND ws.deleted_at IS NULL AND s.status = 'finished' AND s.deleted_at IS NULL",
       [setId],
     );
     if (!row) throw new HistoryInvalid("missing");
@@ -235,7 +235,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   async function removeSet(setId: string): Promise<void> {
     const t = now();
     const r = await db.run(
-      "UPDATE workout_set SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL AND session_id IN (SELECT id FROM session WHERE status = 'finished')",
+      "UPDATE workout_set SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL AND session_id IN (SELECT id FROM session WHERE status = 'finished' AND deleted_at IS NULL)",
       [t, t, setId],
     );
     if (r.changes === 0) throw new HistoryInvalid("missing");

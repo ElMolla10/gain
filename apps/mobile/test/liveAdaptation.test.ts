@@ -6,6 +6,22 @@ const saved = (extra: Partial<SetRow> = {}): SetRow => ({ id:"s1", sessionId:"se
 const rows = () => initialRows([],3,{load:60,reps:8}, (()=>{let n=0;return()=>`draft${++n}`;})());
 const context = (extra: Partial<Parameters<typeof liveContext>[0]> = {}) => liveContext({ exerciseId:"bench", measure:"reps", setup:"free", equipment:"barbell", sets:[saved()], rows:rows(), targetReps:8,...extra });
 describe("live logger adapter", () => {
+  it("recommends a load after the first saved set even without a next-set target", () => {
+    const unprefilled = initialRows([], 3, { load: null, reps: null }, (() => { let n = 0; return () => `blank${++n}`; })());
+    const exerciseRows = markSaved(editRow(unprefilled, "blank1", { load: 24, reps: 10 }), "blank1");
+    const result = context({ rows: exerciseRows, sets: [saved({ id: "blank1", load: 24, reps: 10 })], equipment: "dumbbell" });
+    expect(result).not.toBeNull();
+    expect(result!.previousSetWeightKg).toBe(24);
+    expect(result!.proposedWeightKg).toBe(24);
+    const decision = tryLiveRecommendation(result!, 8, 10, { equipment: "dumbbell", loads: [22, 24, 26] }, () => 9);
+    expect(decision).not.toBeNull();
+    expect(Number.isFinite(decision!.suggestedWeightKg)).toBe(true);
+    expect(exerciseRows[1]!.load).toBeNull();
+    expect(exerciseRows[1]!.ghostLoad).toBeNull();
+
+    const manuallyChanged = editRow(exerciseRows, "blank2", { load: 26 });
+    expect(context({ rows: manuallyChanged, sets: [saved({ id: "blank1", load: 24, reps: 10 })], equipment: "dumbbell" })!.proposedWeightKg).toBe(26);
+  });
   it("excludes known unsupported exercises from the workout-wide fatigue counter", () => {
     const result = context({ sets: [saved(), saved({ id: "assisted", exerciseId: "assisted-pullup" })], supportedExerciseIds: ["bench"] })!;
     expect(result.workoutSetsBefore).toBe(1);

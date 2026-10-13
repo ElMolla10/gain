@@ -10,6 +10,7 @@ import { diagnostics } from "../diagnostics";
 import { CellInput, MenuSheet, RestToggle, SwipeRow, TargetLine } from "../components/LogParts";
 import { Icon } from "../components/Icon";
 import { ExercisePicker } from "../components/ExercisePicker";
+import { ExerciseReorderModal } from "../components/ExerciseReorderModal";
 import { WorkoutHelp } from "../components/WorkoutHelp";
 import type { TargetRow } from "../db/finishRepo";
 import type { LibraryExercise } from "../db/programmeRepo";
@@ -19,7 +20,7 @@ import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
-import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels } from "../logic/superset";
+import { joinSuperset, leaveSuperset, orderSlots, reorderBlocks, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
@@ -154,6 +155,8 @@ export function WorkoutScreen() {
   const [helpOpen, setHelpOpen] = useState(false);
   /** The exercise for which "Superset with ..." is being chosen. */
   const [ssFor, setSsFor] = useState<string | null>(null);
+  const [reorderOpen, setReorderOpen] = useState(false);
+  const [reorderSaving, setReorderSaving] = useState(false);
   const [kindFor, setKindFor] = useState<{ exId: string; key: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
@@ -612,6 +615,30 @@ export function WorkoutScreen() {
     return s ? [makeDisp(s, exState[slot])] : [];
   });
   const removedSlots = loaded.slots.filter((s) => exState[s.exerciseId]?.removed);
+  const reorderGroups = reorderBlocks(order, exState);
+  const namesBySlot = new Map(shown.map(ex => [ex.slot, exerciseLabels(ex, lang).primary]));
+
+  async function commitReorder(ids: string[]) {
+    if (reorderSaving || !loaded || loaded === "nogym") return;
+    const byId = new Map(reorderGroups.map(block => [block.id, block.slots]));
+    if (ids.length !== reorderGroups.length || new Set(ids).size !== ids.length || ids.some(id => !byId.has(id))) return;
+    const reordered = ids.flatMap(id => byId.get(id)!);
+    setReorderSaving(true);
+    try {
+      await workout.reorderWorkoutExercises(loaded.sessionId, reordered);
+      setExState(current => {
+        const updated = { ...current };
+        reordered.forEach((slot, i) => { updated[slot] = { ...(updated[slot] ?? NO_STATE(slot)), position: i + 1 }; });
+        return updated;
+      });
+      setReorderOpen(false);
+    } catch (e) {
+      diagnostics.record("error", "reorder workout", e);
+      Alert.alert(t("workout.reorder.failed"));
+    } finally {
+      setReorderSaving(false);
+    }
+  }
 
   /** Finishing never throws out of the handler: on failure the workout stays open (sets are already saved) and a retry is offered. */
   async function doFinish(lo: Loaded) {
@@ -1036,6 +1063,12 @@ export function WorkoutScreen() {
           </View>
         ) : null}
 
+        {shown.length > 1 ? (
+          <View style={{ paddingHorizontal: space.md, paddingBottom: space.sm }}>
+            <BigButton variant="secondary" icon="drag" label={t("workout.reorder.button")} onPress={() => setReorderOpen(true)} />
+          </View>
+        ) : null}
+
         {shown.map((ex, i) => renderExercise(ex, i))}
 
         <View style={{ paddingHorizontal: space.md, paddingTop: space.xl }}>
@@ -1092,6 +1125,14 @@ export function WorkoutScreen() {
         </View>
       ) : null}
 
+      <ExerciseReorderModal
+        visible={reorderOpen}
+        title={t("workout.reorder.title")}
+        busy={reorderSaving}
+        items={reorderGroups.map(block => ({ id: block.id, name: block.slots.map(slot => namesBySlot.get(slot) ?? slot).join(" + ") }))}
+        onCancel={() => setReorderOpen(false)}
+        onDone={(ids) => void commitReorder(ids)}
+      />
       <WorkoutHelp visible={helpOpen} onClose={() => setHelpOpen(false)} />
       <MenuSheet
         visible={jumpAsk !== null}

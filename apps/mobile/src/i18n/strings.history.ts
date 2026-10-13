@@ -25,7 +25,7 @@ export const enHistory = {
   "recap.exercises": "Exercises",
   "recap.shareText": "Share workout as text",
   "recap.shareFailed": "Could not share this workout. Try again.",
-  "recap.noPbs": "No new personal bests this time."
+  "recap.noPbs": "No new personal bests this time.",
   "history.edit": "Edit",
   "history.delete": "Delete",
   "history.save": "Save",
@@ -88,7 +88,7 @@ export const arHistory: Record<keyof typeof enHistory, string> = {
   "recap.exercises": "تمارين",
   "recap.shareText": "شارك التمرينة كنص",
   "recap.shareFailed": "معرفناش نشارك التمرينة. حاول تاني.",
-  "recap.noPbs": "مفيش أرقام قياسية شخصية جديدة المرة دي."
+  "recap.noPbs": "مفيش أرقام قياسية شخصية جديدة المرة دي.",
   "history.edit": "عدّل",
   "history.delete": "احذف",
   "history.save": "احفظ",

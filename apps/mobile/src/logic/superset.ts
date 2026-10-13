@@ -25,6 +25,14 @@ export function orderSlots(programmeSlots: readonly string[], states: StateMap):
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     .map((s) => s.slot);
   const base = [...programmeSlots, ...added.filter((s) => !programmeSlots.includes(s))].filter((s) => !states[s]?.removed);
+  // Before the lifter reorders, preserve the programme order plus added exercises.
+  // After a manual reorder, positions are written for *every* visible slot.
+  // Merely adding an exercise has a position too, so it must NOT activate this
+  // override unless a programme slot was explicitly given a position.
+  const hasCustomOrder = programmeSlots.some((s) => !states[s]?.removed && !states[s]?.added && states[s]?.position != null);
+  if (hasCustomOrder) {
+    base.sort((a, b) => (states[a]?.position ?? Number.MAX_SAFE_INTEGER) - (states[b]?.position ?? Number.MAX_SAFE_INTEGER));
+  }
   const members = new Map<string, string[]>();
   for (const s of base) {
     const g = states[s]?.superset;
@@ -39,6 +47,38 @@ export function orderSlots(programmeSlots: readonly string[], states: StateMap):
     if (all.length >= 2) for (const m of all) if (!out.includes(m)) out.push(m);
   }
   return out;
+}
+
+/** Dragging a superset moves it as one indivisible block, including all the
+ * exercises in their existing relative order; no logged set is touched. */
+export function reorderBlocks(order: readonly string[], states: StateMap): { id: string; slots: string[] }[] {
+  const letters = supersetLabels(order, states);
+  const seen = new Set<string>();
+  const out: { id: string; slots: string[] }[] = [];
+  for (const slot of order) {
+    if (seen.has(slot)) continue;
+    const g = states[slot]?.superset;
+    const slots = g && letters[slot]
+      ? order.filter(s => states[s]?.superset === g && letters[s])
+      : [slot];
+    slots.forEach(s => seen.add(s));
+    out.push({ id: slots.length > 1 ? `group:${g}` : `slot:${slot}`, slots });
+  }
+  return out;
+}
+
+/** Reject any reordered list with missing/extra slots, or one that breaks a
+ * superset into nonadjacent slots. Input is untrusted even if it came from UI. */
+export function validReorder(order: readonly string[], proposed: readonly string[], states: StateMap): boolean {
+  if (order.length !== proposed.length || new Set(proposed).size !== order.length) return false;
+  if (order.some(s => !proposed.includes(s))) return false;
+  // A superset's members must stay together in exactly their original order.
+  for (const block of reorderBlocks(order, states)) {
+    if (block.slots.length < 2) continue;
+    const start = proposed.indexOf(block.slots[0]!);
+    if (block.slots.some((slot, i) => proposed[start + i] !== slot)) return false;
+  }
+  return true;
 }
 
 /** Superset letter (A, B, ...) for each shown slot that really is in a superset (2+ shown members), in display order. */

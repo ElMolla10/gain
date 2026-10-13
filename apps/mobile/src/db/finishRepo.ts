@@ -216,6 +216,51 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return previews;
   }
 
+  /**
+   * After finishing a day, forecast the NEXT OCCURRENCE OF THAT SAME DAY.
+   * This is intentionally a read-only preview, separate from the actual next
+   * rotation day's planned session. Do not replace/void the next scheduled
+   * day, or pretend these forecasts have already been accepted or written.
+   *
+   * If the programme changed versions, find the corresponding day at the
+   * same position within that programme; old/deleted exercises never become
+   * unexplained suggestions for an unrelated programme.
+   */
+  async function previewFinishedDay(finishedSessionId: string): Promise<{
+    dayName: string;
+    dayId: string;
+    gymId: string;
+    exercises: { exerciseId: string; nameEn: string; nameAr: string; measure: Measure; equipment: DayExercise["equipment"]; setup: SetupType; loadSpec: DayExercise["loadSpec"]; proposal: Proposal }[];
+  } | null> {
+    const finished = await workout.getSession(finishedSessionId);
+    if (!finished || finished.status !== "finished") return null;
+    const completed = await db.get<{ position: number; programme_id: string }>(
+      `SELECT d.position, pv.programme_id FROM programme_day d
+       JOIN programme_version pv ON pv.id = d.programme_version_id
+       WHERE d.id = ?`, [finished.programme_day_id],
+    );
+    if (!completed) return null;
+    const active = await repos.getLatestProgrammeVersion();
+    const sameProgramme = active?.programmeId === completed.programme_id;
+    const currentDays = sameProgramme ? await repos.listDays(active!.versionId) : [];
+    const matched = currentDays.find((d) => d.position === completed.position);
+    // This may be an older version, but the original day is still the correct
+    // session to forecast if the position no longer exists in the active plan.
+    const dayId = matched?.id ?? finished.programme_day_id;
+    const rawDay = await db.get<{ name: string; deleted_at: number | null }>(
+      "SELECT name, deleted_at FROM programme_day WHERE id = ?", [dayId],
+    );
+    if (!rawDay || rawDay.deleted_at !== null) return null;
+    const dayExercises = await repos.listDayExercises(dayId);
+    const gym = await repos.loadGymFingerprint(finished.gym_id);
+    const exercises: Awaited<ReturnType<typeof previewFinishedDay>> extends { exercises: infer E } ? E : never = [];
+    for (const ex of dayExercises) {
+      const { proposal } = await workout.liveProposal(toProposalSpec(ex), gym);
+      exercises.push({ exerciseId: ex.exerciseId, nameEn: ex.nameEn, nameAr: ex.nameAr, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, loadSpec: ex.loadSpec, proposal });
+    }
+    return { dayName: rawDay.name, dayId, gymId: finished.gym_id, exercises };
+  }
+
   /** Plans the next (suggested) program day at this gym: a planned session plus a target per exercise. Same rules as writeNextSessionTargets. */
   async function planNextSession(gymId: string): Promise<{ sessionId: string; dayName: string; created: number } | null> {
     const next = await repos.getNextDay();
@@ -430,6 +475,6 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return db.get<{ id: string }>("SELECT id FROM session WHERE programme_day_id = ? AND status IN ('planned','in_progress') AND deleted_at IS NULL", [dayId]);
   }
 
-  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, previewDayLoads, planDay, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
+  return { summarizeSession, getTargets, getTarget, getTargetForExercise, writeNextSessionTargets, planNextSession, previewDayLoads, previewFinishedDay, planDay, refreshPlannedSessions, acceptTarget, editTargetLoad, rejectTarget, getDecision, getPlannedSession };
 }
 export type FinishRepo = ReturnType<typeof createFinishRepo>;

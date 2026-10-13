@@ -96,4 +96,9 @@ CREATE TRIGGER ml_exercise_removed AFTER UPDATE ON session_exercise
     WHERE session_id = NEW.session_id AND exercise_id IN (NEW.slot_exercise_id, OLD.replaced_by)
       AND state = 'pending';
 END;
+CREATE TRIGGER ml_exercise_removed_insert AFTER INSERT ON session_exercise
+  WHEN NEW.removed != 0 OR NEW.replaced_by IS NOT NULL BEGIN
+  UPDATE ml_prediction SET state = 'invalid', invalid_reason = 'skipped'
+    WHERE session_id = NEW.session_id AND exercise_id = NEW.slot_exercise_id AND state = 'pending';
+END;
 `;

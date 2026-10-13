@@ -152,8 +152,11 @@ describe("local ML evaluation persistence and matching", () => {
     await Promise.all([c.evaluation.record(p), c.evaluation.skip("next")]);
     expect((await c.row())?.state).toBe("invalid");
     await c.evaluation.record(await c.prediction("removed"));
-    // The exercise state may be created only when it is first edited.
+    // The first removal creates the exercise state; both INSERT and UPDATE must invalidate.
+    await c.workout.patchExerciseState(c.sessionId, c.ex.exerciseId, { removed: true });
+    expect(await c.evaluation.pendingTarget(c.sessionId, c.ex.exerciseId, LIVE_MODEL_VERSION)).toBeNull();
     await c.workout.patchExerciseState(c.sessionId, c.ex.exerciseId, { removed: false });
+    await c.evaluation.record(await c.prediction("removed-again"));
     await c.workout.patchExerciseState(c.sessionId, c.ex.exerciseId, { removed: true });
     expect(await c.evaluation.pendingTarget(c.sessionId, c.ex.exerciseId, LIVE_MODEL_VERSION)).toBeNull();
   });

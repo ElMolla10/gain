@@ -1,6 +1,6 @@
 import type { Measure } from "@gain/engine";
 import React, { useMemo, useState } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
@@ -13,6 +13,7 @@ import { AppText, BigButton, Card, Chip, Field, Stepper } from "../ui";
 import { EffectView, ExposureView } from "./ExposureView";
 import { ExercisePicker } from "./ExercisePicker";
 import { ExerciseReorderModal } from "./ExerciseReorderModal";
+import { Icon } from "./Icon";
 
 /**
  * The program editor body, shared by the Program tab and onboarding. Pure UI over a ProgrammeDraft:
@@ -37,6 +38,8 @@ export function ProgrammeEditorView(props: {
   const p = usePalette();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
   const [reorderDay, setReorderDay] = useState<number | null>(null);
+  // Start collapsed. Only one exercise needs to reveal its advanced settings at a time.
+  const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
   const byId = useMemo(() => new Map(props.library.map((e) => [e.id, e])), [props.library]);
   const measureOf = (id: string): Measure => byId.get(id)?.measure ?? "reps";
   const patternOf = (id: string) => byId.get(id)?.pattern;
@@ -55,15 +58,37 @@ export function ProgrammeEditorView(props: {
         <Card key={di} style={{ gap: space.md }}>
           <Field label={t("prog.day.name")} value={day.name} onChangeText={(s) => props.onChange(renameDay(d, di, s))} />
           <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-            <Chip label={t("prog.up")} onPress={() => props.onChange(moveDay(d, di, di - 1))} />
-            <Chip label={t("prog.down")} onPress={() => props.onChange(moveDay(d, di, di + 1))} />
-            <Chip label={t("prog.day.remove")} tone="danger" onPress={() => props.onChange(removeDay(d, di))} />
+            <Chip label={t("prog.up")} onPress={() => { setExpandedExercise(null); props.onChange(moveDay(d, di, di - 1)); }} />
+            <Chip label={t("prog.down")} onPress={() => { setExpandedExercise(null); props.onChange(moveDay(d, di, di + 1)); }} />
+            <Chip label={t("prog.day.remove")} tone="danger" onPress={() => { setExpandedExercise(null); props.onChange(removeDay(d, di)); }} />
           </View>
           {day.exercises.length > 1 ? <BigButton variant="secondary" label={t("prog.reorder.button")} onPress={() => setReorderDay(di)} /> : null}
           {day.exercises.map((e, ei) => (
-            <View key={e.exerciseId} style={{ gap: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderColor: p.border }}>
-              <AppText style={{ fontWeight: "600", fontSize: ty.body }}>{nameOf(e.exerciseId)}</AppText>
-              <Stepper label={t("prog.ex.sets")} value={e.sets} min={1} max={12} onChange={(n) => props.onChange(updateExercise(d, di, ei, { sets: n }))} />
+            <View key={e.exerciseId} style={{ borderTopWidth: 1, borderColor: p.border }}>
+              {/* Keep the default view names-only; no sets or settings until tapped. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={nameOf(e.exerciseId)}
+                accessibilityHint={expandedExercise === `${di}:${e.exerciseId}` ? t("prog.ex.collapseHint") : t("prog.ex.expandHint")}
+                accessibilityState={{ expanded: expandedExercise === `${di}:${e.exerciseId}` }}
+                onPress={() => setExpandedExercise(current => current === `${di}:${e.exerciseId}` ? null : `${di}:${e.exerciseId}`)}
+                style={({ pressed }) => ({
+                  minHeight: 60,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: space.sm,
+                  paddingHorizontal: space.sm,
+                  backgroundColor: pressed ? p.raised : "transparent",
+                })}
+              >
+                <AppText style={{ flex: 1, fontWeight: "600", fontSize: ty.body }}>{nameOf(e.exerciseId)}</AppText>
+                <View style={{ transform: [{ rotate: expandedExercise === `${di}:${e.exerciseId}` ? "90deg" : "0deg" }] }}>
+                  <Icon name="chevron" color={p.muted} size={20} mirror />
+                </View>
+              </Pressable>
+              {expandedExercise === `${di}:${e.exerciseId}` ? (
+                <View style={{ gap: space.md, paddingHorizontal: space.sm, paddingTop: space.sm, paddingBottom: space.md }}>
+                  <Stepper label={t("prog.ex.sets")} value={e.sets} min={1} max={12} onChange={(n) => props.onChange(updateExercise(d, di, ei, { sets: n }))} />
               {measureOf(e.exerciseId) === "reps" ? (
                 <>
                   <Stepper label={t("prog.ex.repsFrom")} value={e.repMin} min={1} max={100} onChange={(n) => props.onChange(updateExercise(d, di, ei, { repMin: n, repMax: Math.max(e.repMax, n) }))} />
@@ -114,8 +139,13 @@ export function ProgrammeEditorView(props: {
               )}
               <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
                 {props.onOpenLoads ? <Chip label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} /> : null}
-                <Chip label={t("prog.ex.remove")} tone="danger" onPress={() => props.onChange(removeExercise(d, di, ei))} />
+                <Chip label={t("prog.ex.remove")} tone="danger" onPress={() => {
+                  setExpandedExercise(null);
+                  props.onChange(removeExercise(d, di, ei));
+                }} />
               </View>
+                </View>
+              ) : null}
             </View>
           ))}
           <BigButton variant="secondary" icon="plus" label={t("prog.ex.add")} onPress={() => setPickerDay(di)} />

@@ -14,11 +14,12 @@ const dbDir = join(__dirname, "..", "src", "db");
 const dbFiles = readdirSync(dbDir).filter((f) => f.endsWith(".ts") && f !== "migrations.ts");
 
 describe("sync covers the real schema", () => {
-  it("SYNC_TABLES is exactly the app's tables minus the sync_* bookkeeping, and every table has id/created_at/updated_at/deleted_at", async () => {
+  it("SYNC_TABLES excludes sync bookkeeping and local-only ML evaluation, and every synced table has version columns", async () => {
     const db = openNodeDb();
     await migrate(db);
     const all = (await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")).map((r) => r.name);
-    expect([...all.filter((t) => !t.startsWith("sync_"))].sort()).toEqual([...SYNC_TABLES].sort());
+    expect(all).toContain("ml_prediction");
+    expect([...all.filter((t) => !t.startsWith("sync_") && t !== "ml_prediction")].sort()).toEqual([...SYNC_TABLES].sort());
     const info = await loadTableInfo(db);
     for (const t of SYNC_TABLES) for (const c of ["id", "created_at", "updated_at", "deleted_at"]) expect(info.get(t)!.cols, `${t}.${c}`).toContain(c);
   });

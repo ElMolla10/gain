@@ -1,5 +1,6 @@
 import type { Db } from "./driver";
 import { TIMED_LIBRARY } from "./library/measures";
+import { ML_EVALUATION_SQL } from "./mlEvaluationSchema";
 
 /**
  * Schema. Conventions for every table (so sync can come later without a rewrite):
@@ -369,6 +370,7 @@ ALTER TABLE programme_day_exercise ADD COLUMN top_sets INTEGER CHECK (top_sets I
 ALTER TABLE exercise ADD COLUMN load_spec_json TEXT;
 `,
   },
+  { version: 12, name: "local experimental ML evaluation", sql: ML_EVALUATION_SQL },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

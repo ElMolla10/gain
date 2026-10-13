@@ -172,8 +172,8 @@ export function TargetLine(props: { label: string; value: string; whyLabel: stri
         <AppText style={{ fontSize: ty.section, fontWeight: "600", flexShrink: 1 }}>{props.value}</AppText>
         <QuietAction label={props.whyLabel} icon="why" accessibilityLabel={props.whyA11y} expanded={props.expanded} onPress={props.onWhy} onLongPress={props.onWhyLong} />
         {props.suggestedLabel ? (
-          <AppText style={{ fontSize: 12, color: p.muted, flexShrink: 1 }}>
-            {props.suggestedLabel}{props.suggestedValue ? <AppText ltr style={{ color: p.accent, fontSize: 12, fontWeight: "600" }}> {props.suggestedValue}</AppText> : null}
+          <AppText style={{ fontSize: 13, color: p.muted, flexShrink: 1 }}>
+            {props.suggestedLabel}{props.suggestedValue ? <AppText ltr style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}> {props.suggestedValue}</AppText> : null}
           </AppText>
         ) : null}
       </View>

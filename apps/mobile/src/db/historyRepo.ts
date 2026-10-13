@@ -38,6 +38,8 @@ export interface SessionDetail {
   dayName: string;
   gymName: string;
   finishedAt: number;
+  /** Null if an import has no reliable start time. */
+  startedAt: number | null;
   imported: boolean;
   exercises: { exerciseId: string; nameEn: string; nameAr: string; setup: SetupType; measure: Measure; sets: HistorySetRow[] }[];
 }
@@ -78,8 +80,8 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   }
 
   async function getSession(id: string): Promise<SessionDetail | null> {
-    const s = await db.get<{ id: string; day_name: string; gym_name: string; finished_at: number; imported: number }>(
-      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, (s.import_key IS NOT NULL) AS imported
+    const s = await db.get<{ id: string; day_name: string; gym_name: string; finished_at: number; started_at: number | null; imported: number }>(
+      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, s.started_at, (s.import_key IS NOT NULL) AS imported
          FROM session s JOIN programme_day d ON d.id = s.programme_day_id JOIN gym g ON g.id = s.gym_id
         WHERE s.id = ? AND s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")}`,
       [id],
@@ -103,7 +105,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       }
       ex.sets.push({ id: r.id, load: r.load, reps: r.reps, durationS: r.duration_s, distanceM: r.distance_m, rir: r.rir, warmup: r.is_warmup === 1, tags: JSON.parse(r.tags_json) as string[], outlierStatus: r.outlier_status });
     }
-    return { id: s.id, dayName: s.day_name, gymName: s.gym_name, finishedAt: s.finished_at, imported: s.imported === 1, exercises };
+    return { id: s.id, dayName: s.day_name, gymName: s.gym_name, finishedAt: s.finished_at, startedAt: s.started_at, imported: s.imported === 1, exercises };
   }
 
   /** Every exercise + gym + setup line that has at least one finished working set. Lines are never merged. */

@@ -81,6 +81,17 @@ export const addExercise = (d: ProgrammeDraft, dayIndex: number, ex: DraftExerci
 export const removeExercise = (d: ProgrammeDraft, dayIndex: number, exIndex: number): ProgrammeDraft =>
   mapDay(d, dayIndex, (day) => ({ ...day, exercises: day.exercises.filter((_, j) => j !== exIndex) }));
 export const moveExercise = (d: ProgrammeDraft, dayIndex: number, from: number, to: number): ProgrammeDraft => mapDay(d, dayIndex, (day) => ({ ...day, exercises: move(day.exercises, from, to) }));
+/** Apply a names-only drag order to a day's exercises, without touching the loads,
+ * ranges, supersets, goal-lift flags, or any other exercise settings. Invalid or stale
+ * orders (missing, duplicate or unknown IDs) are ignored to prevent silent data loss. */
+export const reorderExercises = (d: ProgrammeDraft, dayIndex: number, exerciseIds: readonly string[]): ProgrammeDraft => {
+  const day = d.days[dayIndex];
+  if (!day || exerciseIds.length !== day.exercises.length) return d;
+  const lookup = new Map(day.exercises.map(ex => [ex.exerciseId, ex]));
+  if (lookup.size !== exerciseIds.length || new Set(exerciseIds).size !== exerciseIds.length || exerciseIds.some(id => !lookup.has(id))) return d;
+  if (day.exercises.every((ex, i) => ex.exerciseId === exerciseIds[i])) return d;
+  return mapDay(d, dayIndex, original => ({ ...original, exercises: exerciseIds.map(id => lookup.get(id)!) }));
+};
 export const updateExercise = (d: ProgrammeDraft, dayIndex: number, exIndex: number, patch: Partial<DraftExercise>): ProgrammeDraft =>
   mapDay(d, dayIndex, (day) => ({
     ...day,

@@ -45,7 +45,7 @@ describe("offline workout recap and text sharing", () => {
     expect(msg).toContain("2. 60 kg × 8 Reps");
     expect(msg).toContain("4. 40 kg × 15 Reps (Drop set)");
     expect(msg).toContain("Not counted: waiting for a confirm");
-    expect(msg).toContain("45s");
+    expect(msg).toContain("45 s");
     expect(msg).not.toMatch(/https?:\/\//);
     expect(msg).not.toContain("\u2066");
   });

@@ -1,8 +1,8 @@
 import type { Measure } from "@gain/engine";
 import { isTimed, parseQuantityInput, setQuantity, targetPhrase } from "../logic/quantity";
-import { useFocusEffect, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { Share, View } from "react-native";
+import { Alert, Share, View } from "react-native";
 import { useServices } from "../AppContext";
 import { HistoryInvalid, type HistorySetRow, type SessionDetail } from "../db/historyRepo";
 import { useI18n } from "../i18n";
@@ -27,6 +27,7 @@ interface EditState {
 /** A finished workout, set by set. A set can be corrected or deleted; planned targets are re-worked from the fixed history. */
 export function SessionDetailScreen() {
   const { history, finish } = useServices();
+  const navigation = useNavigation<{ goBack: () => void }>();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
@@ -36,6 +37,8 @@ export function SessionDetailScreen() {
   const [err, setErr] = useState<StringKey | null>(null);
   const [sharingText, setSharingText] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
+  const [deletingWorkout, setDeletingWorkout] = useState(false);
+  const [deleteFailed, setDeleteFailed] = useState(false);
 
   const refresh = useCallback(async () => setDetail((await history.getSession(sessionId)) ?? "none"), [history, sessionId]);
   useFocusEffect(
@@ -89,6 +92,30 @@ export function SessionDetailScreen() {
     } finally {
       setSharingText(false);
     }
+  };
+
+  // A separate destructive action for the WHOLE workout, never confused with deleting one set.
+  const deleteWholeWorkout = async () => {
+    if (deletingWorkout || sharingText) return;
+    setDeletingWorkout(true);
+    setDeleteFailed(false);
+    try {
+      await history.deleteWorkout(sessionId);
+      navigation.goBack(); // Progress reloads its session list on focus.
+    } catch (e) {
+      diagnostics.record("error", "delete finished workout", e);
+      setDeleteFailed(true);
+    } finally {
+      setDeletingWorkout(false);
+    }
+  };
+
+  const confirmDeleteWorkout = () => {
+    if (deletingWorkout || sharingText) return;
+    Alert.alert(t("history.deleteWorkoutTitle"), t("history.deleteWorkoutBody"), [
+      { text: t("history.cancel"), style: "cancel" },
+      { text: t("history.deleteWorkoutConfirm"), style: "destructive", onPress: () => void deleteWholeWorkout() },
+    ]);
   };
 
   return (
@@ -148,6 +175,10 @@ export function SessionDetailScreen() {
           ))}
         </Card>
       ))}
+      <View style={{ marginTop: space.lg, gap: space.sm }}>
+        <BigButton variant="danger" label={t("history.deleteWorkout")} loading={deletingWorkout} disabled={deletingWorkout || sharingText} onPress={confirmDeleteWorkout} />
+        {deleteFailed ? <InlineStatus kind="error" text={t("history.deleteWorkoutFailed")} /> : null}
+      </View>
     </Screen>
   );
 }

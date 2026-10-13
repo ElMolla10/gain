@@ -1,6 +1,6 @@
 import type { Measure } from "@gain/engine";
 import React, { useMemo, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Alert, Pressable, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
@@ -9,7 +9,7 @@ import {
   addDay, addExercise, moveDay, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, reorderExercises, updateExercise, type ProgrammeDraft,
 } from "../logic/programmeDraft";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, Field, Stepper } from "../ui";
+import { AppText, BigButton, Card, Chip, Field, IconButton, Stepper } from "../ui";
 import { EffectView, ExposureView } from "./ExposureView";
 import { ExercisePicker } from "./ExercisePicker";
 import { ExerciseReorderModal } from "./ExerciseReorderModal";
@@ -51,6 +51,27 @@ export function ProgrammeEditorView(props: {
   const before = props.baseline ? computeExposure(props.baseline, patternOf, props.daysPerWeek) : null;
   const d = props.draft;
 
+  const confirmRemoveExercise = (dayIndex: number, exerciseIndex: number) => {
+    const exercise = d.days[dayIndex]?.exercises[exerciseIndex];
+    const day = d.days[dayIndex];
+    if (!exercise || !day) return;
+    Alert.alert(
+      t("prog.ex.removeTitle", { exercise: nameOf(exercise.exerciseId) }),
+      t("prog.ex.removeBody", { day: day.name }),
+      [
+        { text: t("finish.cancel"), style: "cancel" },
+        {
+          text: t("prog.ex.remove"),
+          style: "destructive",
+          onPress: () => {
+            setExpandedExercise(null);
+            props.onChange(removeExercise(d, dayIndex, exerciseIndex));
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={{ gap: space.md }}>
       <Field label={t("prog.name")} value={d.name} onChangeText={(s) => props.onChange(renameProgramme(d, s))} />
@@ -66,26 +87,35 @@ export function ProgrammeEditorView(props: {
           {day.exercises.map((e, ei) => (
             <View key={e.exerciseId} style={{ borderTopWidth: 1, borderColor: p.border }}>
               {/* Keep the default view names-only; no sets or settings until tapped. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={nameOf(e.exerciseId)}
-                accessibilityHint={expandedExercise === `${di}:${e.exerciseId}` ? t("prog.ex.collapseHint") : t("prog.ex.expandHint")}
-                accessibilityState={{ expanded: expandedExercise === `${di}:${e.exerciseId}` }}
-                onPress={() => setExpandedExercise(current => current === `${di}:${e.exerciseId}` ? null : `${di}:${e.exerciseId}`)}
-                style={({ pressed }) => ({
-                  minHeight: 60,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: space.sm,
-                  paddingHorizontal: space.sm,
-                  backgroundColor: pressed ? p.raised : "transparent",
-                })}
-              >
-                <AppText style={{ flex: 1, fontWeight: "600", fontSize: ty.body }}>{nameOf(e.exerciseId)}</AppText>
-                <View style={{ transform: [{ rotate: expandedExercise === `${di}:${e.exerciseId}` ? "90deg" : "0deg" }] }}>
-                  <Icon name="chevron" color={p.muted} size={20} mirror />
-                </View>
-              </Pressable>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={nameOf(e.exerciseId)}
+                  accessibilityHint={expandedExercise === `${di}:${e.exerciseId}` ? t("prog.ex.collapseHint") : t("prog.ex.expandHint")}
+                  accessibilityState={{ expanded: expandedExercise === `${di}:${e.exerciseId}` }}
+                  onPress={() => setExpandedExercise(current => current === `${di}:${e.exerciseId}` ? null : `${di}:${e.exerciseId}`)}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    minHeight: 60,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: space.sm,
+                    paddingStart: space.sm,
+                    backgroundColor: pressed ? p.raised : "transparent",
+                  })}
+                >
+                  <AppText style={{ flex: 1, fontWeight: "600", fontSize: ty.body }}>{nameOf(e.exerciseId)}</AppText>
+                  <View style={{ transform: [{ rotate: expandedExercise === `${di}:${e.exerciseId}` ? "90deg" : "0deg" }] }}>
+                    <Icon name="chevron" color={p.muted} size={20} mirror />
+                  </View>
+                </Pressable>
+                <IconButton
+                  icon="trash"
+                  color={p.danger}
+                  label={t("prog.ex.removeButton", { exercise: nameOf(e.exerciseId) })}
+                  onPress={() => confirmRemoveExercise(di, ei)}
+                />
+              </View>
               {expandedExercise === `${di}:${e.exerciseId}` ? (
                 <View style={{ gap: space.md, paddingHorizontal: space.sm, paddingTop: space.sm, paddingBottom: space.md }}>
                   <Stepper label={t("prog.ex.sets")} value={e.sets} min={1} max={12} onChange={(n) => props.onChange(updateExercise(d, di, ei, { sets: n }))} />
@@ -137,13 +167,11 @@ export function ProgrammeEditorView(props: {
                   <Chip label={t("prog.ex.effort")} selected={e.trackEffort} onPress={() => props.onChange(updateExercise(d, di, ei, { trackEffort: !e.trackEffort }))} />
                 </View>
               )}
-              <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-                {props.onOpenLoads ? <Chip label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} /> : null}
-                <Chip label={t("prog.ex.remove")} tone="danger" onPress={() => {
-                  setExpandedExercise(null);
-                  props.onChange(removeExercise(d, di, ei));
-                }} />
-              </View>
+              {props.onOpenLoads ? (
+                <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                  <Chip label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} />
+                </View>
+              ) : null}
                 </View>
               ) : null}
             </View>

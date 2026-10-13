@@ -366,3 +366,40 @@ describe("P04 swapping a big jump for a smaller step", () => {
     await expect(ctx.finish.editTargetLoad(tg.id, load, gym, ex.equipment, ex.setup, 0)).rejects.toThrow();
   });
 });
+
+describe("whole-workout starting-weight previews", () => {
+  it("previews all exercises and selectable days without creating a session or fake first-use weights", async () => {
+    const { finish, repos, gymId, db } = await setup();
+    const next = (await repos.getNextDay())!;
+    const days = await repos.listDays(next.versionId);
+    for (const day of days) {
+      const preview = await finish.previewDayLoads(day.id, gymId);
+      const exercises = await repos.listDayExercises(day.id);
+      expect(preview.map((p) => p.exerciseId)).toEqual(exercises.map((e) => e.exerciseId));
+      expect(preview.every((p) => p.proposal.currency === "none" && p.proposal.load === null)).toBe(true);
+    }
+    expect(await db.all("SELECT id FROM session")).toEqual([]);
+    expect(await db.all("SELECT id FROM target")).toEqual([]);
+    expect(await finish.previewDayLoads("unknown-day", gymId)).toEqual([]);
+  });
+
+  it("uses the same current progression proposal as the persisted plan after a workout", async () => {
+    const { finish, repos, gymId, trainNext, db } = await setup();
+    const originalDay = (await repos.getNextDay())!.day.id;
+    const firstExercise = (await repos.listDayExercises(originalDay))[0]!;
+    await trainNext();
+    const existing = (await db.all("SELECT id FROM session")).length;
+    const beforeTargets = (await db.all("SELECT id FROM target")).length;
+    const preview = await finish.previewDayLoads(originalDay, gymId);
+    expect(preview.length).toBeGreaterThan(1);
+    const first = preview.find(p => p.exerciseId === firstExercise.exerciseId)!;
+    expect(first.proposal.load).toBe(50);
+    expect(first.proposal.reps).not.toBeNull();
+    expect((await db.all("SELECT id FROM session")).length).toBe(existing);
+    expect((await db.all("SELECT id FROM target")).length).toBe(beforeTargets);
+    const planned = await finish.planDay(originalDay, gymId);
+    const saved = await finish.getTargetForExercise(planned!.sessionId, firstExercise.exerciseId);
+    expect(saved?.load).toBe(first.proposal.load);
+    expect(saved?.reps).toBe(first.proposal.reps);
+  });
+});

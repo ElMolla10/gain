@@ -191,6 +191,46 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     await resync();
   }
 
+  /**
+   * Delete an entire FINISHED workout in a single SQLite transaction.
+   * Tombstone the session, every logged set, any per-exercise state, and targets/decision logs
+   * bound to it. These updates propagate to opt-in sync; ML evaluation triggers invalidate
+   * predictions tied to removed sets/session. Never touch an in-progress or planned workout.
+   */
+  async function deleteWorkout(sessionId: string): Promise<void> {
+    await db.transaction(async () => {
+      const session = await db.get<{ status: string }>(
+        "SELECT status FROM session WHERE id = ? AND deleted_at IS NULL",
+        [sessionId],
+      );
+      if (!session || session.status !== "finished") throw new HistoryInvalid("missing");
+      const t = now();
+      await db.run(
+        "UPDATE decision_log SET deleted_at = ?, updated_at = ? WHERE deleted_at IS NULL AND target_id IN (SELECT id FROM target WHERE session_id = ?)",
+        [t, t, sessionId],
+      );
+      await db.run(
+        "UPDATE target SET deleted_at = ?, updated_at = ? WHERE session_id = ? AND deleted_at IS NULL",
+        [t, t, sessionId],
+      );
+      await db.run(
+        "UPDATE session_exercise SET deleted_at = ?, updated_at = ? WHERE session_id = ? AND deleted_at IS NULL",
+        [t, t, sessionId],
+      );
+      await db.run(
+        "UPDATE workout_set SET deleted_at = ?, updated_at = ? WHERE session_id = ? AND deleted_at IS NULL",
+        [t, t, sessionId],
+      );
+      // Last so a session-level ML prediction invalidation covers any still-pending forecasts.
+      await db.run(
+        "UPDATE session SET deleted_at = ?, updated_at = ? WHERE id = ? AND status = 'finished' AND deleted_at IS NULL",
+        [t, t, sessionId],
+      );
+    });
+    // Planned workout targets must no longer include data from the deleted workout.
+    await resync();
+  }
+
   /** Remove a logged set from a finished session (soft delete, kept for sync). */
   async function removeSet(setId: string): Promise<void> {
     const t = now();
@@ -202,6 +242,6 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     await resync();
   }
 
-  return { listSessions, countSessions, getSession, listLifts, getLiftTrend, updateSet, removeSet };
+  return { listSessions, countSessions, getSession, listLifts, getLiftTrend, updateSet, removeSet, deleteWorkout };
 }
 export type HistoryRepo = ReturnType<typeof createHistoryRepo>;

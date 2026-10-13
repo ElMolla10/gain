@@ -1,5 +1,5 @@
 import { isTimed, quantityText, targetPhrase, targetQuantity } from "./quantity";
-import { renderReason } from "@gain/engine";
+import { renderReason, type Proposal, type Measure } from "@gain/engine";
 import { COACH_LIMITS, type CoachCardPayload } from "@gain/sync";
 import type { PaceResult } from "../db/goalRepo";
 import type { SessionSummary, TargetRow } from "../db/finishRepo";
@@ -22,6 +22,8 @@ export interface CardInput {
   summary: SessionSummary;
   /** Next session's day name and targets; null when none is planned. */
   next: { dayName: string; targets: TargetRow[] } | null;
+  /** Read-only next occurrence of the finished day; distinct from the planned rotation day. */
+  forecast?: { dayName: string; exercises: { nameEn: string; nameAr: string; measure: Measure; proposal: Proposal }[] } | null;
   /** One pace sentence, or null when there is no goal OR the goal is a bodyweight goal (bodyweight is never put on the card). */
   paceLine: string | null;
 }
@@ -69,7 +71,21 @@ export function buildCardModel(i: CardInput): CardModel {
 
   const blocks: CardBlock[] = [{ heading: t("card.done"), lines: done }];
 
-  if (i.next === null) blocks.push({ heading: t("card.nextNone"), lines: [t("card.noNext")] });
+  if (i.forecast) {
+    const lines = i.forecast.exercises.map(ex => {
+      const name = lang === "ar" ? ex.nameAr : ex.nameEn;
+      const proposal = ex.proposal;
+      if (proposal.currency === "none" || proposal.load === null) return `${name}: ${t("finish.noTarget")}`;
+      const target = isTimed(ex.measure)
+        ? targetPhrase(proposal.load,
+            ex.measure === "time" ? proposal.durationS ?? 0 : proposal.distanceM ?? 0,
+            ex.measure, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") })
+        : `${formatLoad(proposal.load, lang, unit)} × ${isolateLtr(String(proposal.reps ?? ""))}`;
+      const reason = renderReason(localizeReason(proposal.reason, unit, lang), lang);
+      return `${name}: ${target}. ${reason}`;
+    });
+    blocks.push({ heading: t("card.next", { day: i.forecast.dayName }), lines });
+  } else if (i.next === null) blocks.push({ heading: t("card.nextNone"), lines: [t("card.noNext")] });
   else {
     const lines = i.next.targets.map((tg) => {
       const name = lang === "ar" ? tg.nameAr : tg.nameEn;

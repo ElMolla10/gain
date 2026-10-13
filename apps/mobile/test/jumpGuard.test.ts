@@ -59,9 +59,15 @@ describe("P04 confirm big load jumps", () => {
       expect((en[k].match(/\{\w+\}/g) ?? []).sort()).toEqual((ar[k].match(/\{\w+\}/g) ?? []).sort());
     }
   });
-  it("both the logger and the Finish screen run the guard before applying a proposed jump", () => {
-    const root = join(__dirname, "..", "src/screens");
-    expect(readFileSync(join(root, "WorkoutScreen.tsx"), "utf8")).toContain("checkJump(");
-    expect(readFileSync(join(root, "FinishScreen.tsx"), "utf8")).toContain("checkJump(");
+  it("the logger guards applying big jumps, while Finish's same-day forecast is read-only", () => {
+    const root = join(__dirname, "..", "src");
+    expect(readFileSync(join(root, "screens/WorkoutScreen.tsx"), "utf8")).toContain("checkJump(");
+    const finish = readFileSync(join(root, "screens/FinishScreen.tsx"), "utf8");
+    expect(finish).toContain("previewFinishedDay(sessionId)");
+    expect(finish).not.toContain("acceptTarget(");
+    expect(finish).not.toContain("editTargetLoad(");
+    const forecast = readFileSync(join(root, "components/FinishedDayForecast.tsx"), "utf8");
+    expect(forecast).not.toContain("onPress=");
+    expect(forecast).toContain("proposal.currency");
   });
 });

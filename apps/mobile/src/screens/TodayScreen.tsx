@@ -1,6 +1,6 @@
 import { quantityText } from "../logic/quantity";
 import { leadTarget, targetText } from "../logic/nextTarget";
-import type { TargetRow } from "../db/finishRepo";
+import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
@@ -32,6 +32,8 @@ interface TodayData {
   restSeconds: number;
   /** The targets already written for each day (after a finished workout, or once a day is started); none before that. */
   targets: Record<string, TargetRow[]>;
+  /** Computed for future selectable days, without creating a planned session. */
+  previews: Record<string, DayLoadPreview[]>;
 }
 
 export function TodayScreen() {
@@ -67,13 +69,21 @@ export function TodayScreen() {
           const planned = await finish.getPlannedSession(d.id);
           if (planned) targets[d.id] = await finish.getTargets(planned.id);
         }
+        const previews: Record<string, DayLoadPreview[]> = {};
+        const activeGym = await repos.getActiveGymId();
+        if (activeGym) {
+          // Preview the full program, not just the next exercise or day. Existing edited/accepted targets win.
+          for (const d of dayList) {
+            if (!targets[d.id]) previews[d.id] = await finish.previewDayLoads(d.id, activeGym);
+          }
+        }
         const active = await repos.getLatestProgrammeVersion();
         const pace = await goals.getPace(Date.now());
         const lib = pace.kind === "lift" ? await programmes.listExercises() : [];
         const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
         if (alive) setPaceLine(pace.kind === "none" ? "" : describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
         if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
-        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets };
+        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews };
       }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
       return () => {
         alive = false;
@@ -111,6 +121,9 @@ export function TodayScreen() {
   const goalIds = new Set(exercises.filter((e) => e.isGoalLift).map((e) => e.exerciseId));
   const dayTargets = data.targets[chosen.id] ?? [];
   const byExercise = new Map(dayTargets.map((tg) => [tg.exerciseId, tg]));
+  const byPreview = new Map((data.previews[chosen.id] ?? []).map((preview) => [preview.exerciseId, preview.proposal]));
+  const anyWeight = dayTargets.some((tg) => tg.status !== "rejected" && tg.currency !== "none" && tg.effectiveLoad !== null)
+    || (data.previews[chosen.id] ?? []).some((v) => v.proposal.currency !== "none" && v.proposal.load !== null);
   const lead = leadTarget(dayTargets, goalIds);
   const loadText = (kg: number) => fmt(kg);
   const letters = { s: t("qty.s"), m: t("qty.m") };
@@ -165,13 +178,20 @@ export function TodayScreen() {
 
       <View style={{ gap: space.sm }}>
         <SectionTitle>{t("today.targets")}</SectionTitle>
-        {!lead ? <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText> : null}
+        <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText>
+        {!anyWeight ? <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText> : null}
         <Card style={{ paddingVertical: space.xs }}>
           {exercises.map((e, i) => {
             const l = exerciseLabels(e, lang);
             const tg = byExercise.get(e.exerciseId);
             const planned = e.measure === "reps" ? `${e.sets} × ${e.repMin}-${e.repMax}` : `${e.sets} × ${e.repMin}-${quantityText(e.repMax, e.measure, letters)}`;
-            const target = tg && !(tg.status === "rejected") && tg.currency !== "none" && tg.effectiveLoad !== null ? targetText(tg, loadText, letters) : null;
+            const preview = byPreview.get(e.exerciseId);
+            const target = tg
+              ? (tg.status !== "rejected" && tg.currency !== "none" && tg.effectiveLoad !== null ? targetText(tg, loadText, letters) : null)
+              : (preview && preview.currency !== "none" && preview.load !== null
+                ? targetText({ exerciseId: e.exerciseId, status: "proposed", currency: preview.currency, measure: e.measure,
+                    reps: preview.reps, durationS: preview.durationS, distanceM: preview.distanceM, effectiveLoad: preview.load }, loadText, letters)
+                : null);
             const isLead = !!lead && lead.exerciseId === e.exerciseId && target !== null;
             return (
               <View
@@ -194,7 +214,9 @@ export function TodayScreen() {
                     </AppText>
                     {isLead && tg ? <QuietAction label={t("workout.whyShort")} icon="why" accessibilityLabel={`${t("workout.whyShort")}: ${l.primary}`} onPress={() => navigation.navigate("Why", { targetId: tg.id })} /> : null}
                   </View>
-                ) : null}
+                ) : (
+                  <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.noWeightYet")}</AppText>
+                )}
               </View>
             );
           })}

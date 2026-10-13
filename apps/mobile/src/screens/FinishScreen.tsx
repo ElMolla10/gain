@@ -8,11 +8,14 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Share, View } from "react-native";
 import { useServices } from "../AppContext";
 import type { SessionSummary, TargetRow } from "../db/finishRepo";
+import type { SessionDetail } from "../db/historyRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { stepLoad } from "../logic/draft";
 import { buildCardModel, cardHtml, cardPaceLine, toCoachPayload } from "../logic/coachCard";
 import { jumpKindText } from "../logic/jumpText";
+import { formatWorkoutShareText, personalBestLines, workoutRecapStats } from "../logic/workoutRecap";
+import { volumeText } from "../logic/liveSummary";
 import type { StringKey } from "../i18n/strings";
 import { localizeReason, weightText } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
@@ -31,12 +34,14 @@ interface Next {
 }
 
 export function FinishScreen() {
-  const { repos, workout, finish, goals, programmes, coachLinks, autoSync } = useServices();
+  const { repos, workout, finish, history, goals, programmes, coachLinks, autoSync } = useServices();
   const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (n: string, params?: object) => void; popToTop: () => void }>();
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
   const [summary, setSummary] = useState<SessionSummary | null>(null);
+  const [detail, setDetail] = useState<SessionDetail | null>(null);
+  const [sharingText, setSharingText] = useState(false);
   const [next, setNext] = useState<Next | null | "none">(null);
   const [editing, setEditing] = useState<{ targetId: string; load: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +56,6 @@ export function FinishScreen() {
   const [jumpFor, setJumpFor] = useState<{ targetId: string; check: JumpCheck; prev: number } | null>(null);
   const [threshold, setThreshold] = useState(10);
   const [attempt, setAttempt] = useState(0);
-  const [showRecords, setShowRecords] = useState(false);
   const [finishedAt, setFinishedAt] = useState(0);
 
   const reload = useCallback(
@@ -71,6 +75,9 @@ export function FinishScreen() {
       const sess = await workout.getSession(sessionId);
       setFinishedAt(Number(sess?.finished_at ?? Date.now()));
       setSummary(await finish.summarizeSession(sessionId));
+      // Sharing is secondary: a history-read failure must never block finishing a workout.
+      try { setDetail(await history.getSession(sessionId)); }
+      catch (e) { diagnostics.record("warn", "finish recap detail", e); }
       const written = await finish.writeNextSessionTargets(sessionId);
       autoSync(true); // a finished workout is the moment to back up, if (and only if) the lifter turned that on
       if (!written) return setNext("none");
@@ -87,7 +94,7 @@ export function FinishScreen() {
       started.current = false;
       setFailed(true);
     });
-  }, [finish, repos, workout, sessionId, autoSync, attempt]);
+  }, [finish, history, repos, workout, sessionId, autoSync, attempt]);
 
   if (failed && (!summary || next === null)) {
     return (
@@ -148,6 +155,23 @@ export function FinishScreen() {
     }
   };
 
+  // Native text share sheet: plain text from the saved workout. No file, image, cloud call, or account needed.
+  const shareWorkoutText = async () => {
+    if (!summary) return;
+    setError(null);
+    setSharingText(true);
+    try {
+      const latest = detail ?? await history.getSession(sessionId);
+      if (!latest) throw new Error("Finished workout not found");
+      await Share.share({ message: formatWorkoutShareText(latest, summary, lang, unit) });
+    } catch (e) {
+      diagnostics.record("warn", "share workout text", e);
+      setError(t("recap.shareFailed"));
+    } finally {
+      setSharingText(false);
+    }
+  };
+
   // Private link: uploads this ONE card after the lifter agreed on screen. Needs internet; the PDF does not.
   const shareLink = async () => {
     setError(null);
@@ -173,20 +197,8 @@ export function FinishScreen() {
   };
 
   const noSets = summary.totals.counted === 0 && summary.totals.warmups === 0 && summary.totals.unconfirmed === 0;
-  const recordLines = summary.exercises.flatMap((e) => {
-    const name = lang === "ar" ? e.nameAr : e.nameEn;
-    const lines: string[] = [];
-    if (e.firstTime) lines.push(`${name}: ${t("finish.firstTime")}`);
-    for (const r of e.records) {
-      if (r === "load" && e.top) lines.push(`${name}: ${t("finish.record.load", { load: formatLoad(e.top.load, lang, unit) })}`);
-      if (r === "quantity_at_load" && e.top && e.measure && e.top.quantity !== undefined) {
-        const q = isolateLtr(quantityText(e.top.quantity, e.measure, { s: t("qty.s"), m: t("qty.m") }));
-        lines.push(`${name}: ${e.top.load > 0 ? t("finish.record.quantity", { load: formatLoad(e.top.load, lang, unit), q }) : t("finish.record.quantityBare", { q })}`);
-      }
-      if (r === "reps_at_load" && e.top) lines.push(`${name}: ${t("finish.record.reps", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps })}`);
-    }
-    return lines;
-  });
+  const pbLines = personalBestLines(summary, lang, unit);
+  const stats = detail ? workoutRecapStats(detail, summary) : null;
 
   return (
     <Screen footer={<BigButton hero label={t("finish.done")} onPress={() => navigation.popToTop()} />}>
@@ -201,24 +213,39 @@ export function FinishScreen() {
           <AppText>{t("finish.noSets")}</AppText>
         ) : (
           <>
-            <View style={{ flexDirection: "row", alignItems: "baseline", gap: space.sm, flexWrap: "wrap" }}>
-              <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{summary.totals.counted}</AppText>
-              <AppText style={{ color: p.muted }}>{t("finish.countedLabel")}</AppText>
+            <View style={{ flexDirection: "row", gap: space.md, flexWrap: "wrap" }}>
+              <View style={{ minWidth: 100, flexGrow: 1 }}>
+                <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{summary.totals.counted}</AppText>
+                <AppText style={{ color: p.muted }}>{t("workout.stat.sets")}</AppText>
+              </View>
+              <View style={{ minWidth: 100, flexGrow: 1 }}>
+                <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{summary.totals.exercises}</AppText>
+                <AppText style={{ color: p.muted }}>{t("recap.exercises")}</AppText>
+              </View>
+              {stats ? (
+                <View style={{ minWidth: 100, flexGrow: 1 }}>
+                  <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{volumeText(stats.volumeKg, unit)} {unitText}</AppText>
+                  <AppText style={{ color: p.muted }}>{t("workout.stat.volume")}</AppText>
+                </View>
+              ) : null}
+              {stats?.durationMinutes != null ? (
+                <View style={{ minWidth: 100, flexGrow: 1 }}>
+                  <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{stats.durationMinutes} {t("workout.dur.m")}</AppText>
+                  <AppText style={{ color: p.muted }}>{t("workout.stat.duration")}</AppText>
+                </View>
+              ) : null}
             </View>
             {summary.totals.warmups + summary.totals.unconfirmed > 0 ? (
               <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("finish.excludedNote", { warmups: summary.totals.warmups, unconfirmed: summary.totals.unconfirmed })}</AppText>
             ) : null}
           </>
         )}
-        {/* Records are secondary: collapsed until asked for. */}
-        {recordLines.length > 0 || summary.totals.records === 0 ? (
-          <>
-            <BigButton variant="quiet" icon={showRecords ? undefined : "chevron"} label={`${t("finish.records")}${recordLines.length > 0 ? ` (${recordLines.length})` : ""}`} onPress={() => setShowRecords((v) => !v)} />
-            {showRecords ? (
-              recordLines.length > 0 ? recordLines.map((l) => <AppText key={l}>{l}</AppText>) : <AppText>{t("finish.noRecords")}</AppText>
-            ) : null}
-          </>
-        ) : null}
+        <View style={{ gap: space.xs }}>
+          <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", color: pbLines.length ? p.accent : p.text }}>
+            {pbLines.length > 0 ? "🏆 " : ""}{t("recap.personalBests")}{pbLines.length ? ` (${pbLines.length})` : ""}
+          </AppText>
+          {pbLines.length ? pbLines.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText style={{ color: p.muted }}>{t("recap.noPbs")}</AppText>}
+        </View>
       </Card>
 
       {/* 2. What happens next: the targets are already written; accept, edit or reject each. */}
@@ -344,6 +371,7 @@ export function FinishScreen() {
 
       {/* 3. Sharing is optional and secondary. */}
       <View style={{ gap: space.sm }}>
+        <BigButton variant="secondary" icon="export" label={t("recap.shareText")} loading={sharingText} disabled={sharingText || !summary} onPress={() => void shareWorkoutText()} />
         <BigButton variant="secondary" icon="export" label={sharing ? t("card.sharing") : t("card.share")} disabled={sharing} onPress={shareCard} />
         {askLink ? (
           <Card>

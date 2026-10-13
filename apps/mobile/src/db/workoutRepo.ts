@@ -24,6 +24,9 @@ import {
 import type { Db, Deps } from "./driver";
 import { exerciseOwnLoads, gridFor } from "./exerciseGrid";
 
+/** New workout exercises do not auto-start a rest countdown until the lifter opts in. */
+export const DEFAULT_EXERCISE_REST_OFF = true;
+
 export interface SetRow {
   id: string;
   sessionId: string;
@@ -489,7 +492,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     if (!cur) {
       await db.run(
         "INSERT INTO session_exercise (id, session_id, slot_exercise_id, removed, replaced_by, note, rest_off, added, position, superset_group, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [newId(), sessionId, slot, patch.removed ? 1 : 0, patch.replacedBy ?? null, patch.note ?? null, patch.restOff ? 1 : 0, patch.added ? 1 : 0, patch.position ?? null, patch.superset ?? null, t, t],
+        [newId(), sessionId, slot, patch.removed ? 1 : 0, patch.replacedBy ?? null, patch.note ?? null, (patch.restOff ?? DEFAULT_EXERCISE_REST_OFF) ? 1 : 0, patch.added ? 1 : 0, patch.position ?? null, patch.superset ?? null, t, t],
       );
       return;
     }

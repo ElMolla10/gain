@@ -4,7 +4,7 @@ import { SAMPLE_EXERCISES } from "../src/db/seedData";
 import { ALL_LIBRARY } from "../src/db/libraryDraft";
 import { computeExposure, diffExposure, goalLiftFrequency, groupOfPattern, PATTERNS } from "../src/logic/exposure";
 import {
-  addDay, addExercise, draftFingerprint, MAX_DAYS, moveDay, moveExercise, newExercise, removeDay, removeExercise, renameDay, updateExercise, validateDraft, type ProgrammeDraft,
+  addDay, addExercise, draftFingerprint, MAX_DAYS, moveDay, moveExercise, newExercise, removeDay, removeExercise, renameDay, reorderExercises, updateExercise, validateDraft, type ProgrammeDraft,
 } from "../src/logic/programmeDraft";
 import { estimateSessionMinutes, instantiateTemplate, TEMPLATES, templatesForDays } from "../src/logic/templates";
 import { freshDb } from "./helpers";
@@ -33,6 +33,28 @@ describe("program draft edits", () => {
     expect(moveExercise(a, 0, 2, 0).days[0]!.exercises.map((e) => e.exerciseId)).toEqual(["e9", "e1", "e2"]);
     expect(updateExercise(a, 0, 1, { sets: 5, isGoalLift: true }).days[0]!.exercises[1]).toMatchObject({ sets: 5, isGoalLift: true });
     expect(removeExercise(a, 0, 0).days[0]!.exercises.map((e) => e.exerciseId)).toEqual(["e2", "e9"]);
+  });
+  it("reorders by drag in one operation without changing any exercise settings", () => {
+    const initial: ProgrammeDraft = {
+      name: "P",
+      days: [{ name: "Push", exercises: [
+        newExercise("bench", { sets: 4, repMin: 5, repMax: 8, isGoalLift: true }),
+        newExercise("incline", { sets: 3, repMin: 8, repMax: 12, topSets: 1, trackEffort: true }),
+        newExercise("lateral", { sets: 5, repMin: 12, repMax: 15, repCeiling: 15 }),
+      ] }],
+    };
+    const changed = reorderExercises(initial, 0, ["lateral", "bench", "incline"]);
+    expect(changed.days[0]!.exercises.map(x => x.exerciseId)).toEqual(["lateral", "bench", "incline"]);
+    expect(changed.days[0]!.exercises[0]).toEqual(initial.days[0]!.exercises[2]);
+    expect(changed.days[0]!.exercises[1]).toEqual(initial.days[0]!.exercises[0]);
+    expect(changed.days[0]!.exercises[2]).toEqual(initial.days[0]!.exercises[1]);
+    expect(draftFingerprint(changed)).not.toBe(draftFingerprint(initial));
+    expect(initial.days[0]!.exercises[0]!.exerciseId).toBe("bench");
+    expect(reorderExercises(initial, 0, ["bench", "incline", "lateral"])).toBe(initial);
+    expect(reorderExercises(initial, 0, ["bench", "bench", "lateral"])).toBe(initial);
+    expect(reorderExercises(initial, 0, ["bench", "lateral"])).toBe(initial);
+    expect(reorderExercises(initial, 0, ["bench", "incline", "unknown"])).toBe(initial);
+    expect(reorderExercises(initial, 3, ["bench", "lateral", "incline"])).toBe(initial);
   });
   it("validates", () => {
     expect(validateDraft(d0)).toEqual([]);

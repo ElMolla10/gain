@@ -370,7 +370,7 @@ describe("P04 swapping a big jump for a smaller step", () => {
 describe("post-finish forecast of the same day (not the next rotation day)", () => {
   it("shows next Push after completing Push while preserving the planned Pull session and its targets", async () => {
     const ctx = await setup();
-    const completed = await ctx.train({ "Barbell Bench Press": [[60, 8]] });
+    const completed = await ctx.trainNext();
     const finished = await ctx.workout.getSession(completed.sessionId);
     const nextPlanned = await ctx.workout.getSession(completed.written!.sessionId);
     expect(nextPlanned?.programme_day_id).not.toBe(finished?.programme_day_id);

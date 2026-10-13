@@ -17,7 +17,10 @@ export function liveContext(input: { exerciseId: string; measure: Measure; setup
   const confirmed = input.sets.filter(s => trustedWorkingSet(s) && (!input.supportedExerciseIds || input.supportedExerciseIds.includes(s.exerciseId)));
   const exercise = confirmed.filter(s => s.exerciseId === input.exerciseId);
   const previous = exercise[exercise.length - 1];
-  const proposed = effectiveOf(next).load;
+  // First-time exercises may have no target/ghost weight for the next set.
+  // Use the most recent saved, trusted working weight as the baseline instead of
+  // suppressing a useful recommendation. An explicitly entered next load wins.
+  const proposed = effectiveOf(next).load ?? previous?.load ?? null;
   if (!previous || proposed === null || proposed <= 0) return null;
   const prior = input.last?.sets.find(s => !s.warmup && !s.tags?.includes("drop") && !s.tags?.includes("failure") && (s.outlierStatus === undefined || s.outlierStatus === "none" || s.outlierStatus === "confirmed") && !s.durationS && !s.distanceM);
   const convention = input.equipment === "dumbbell" ? "per_dumbbell" : input.equipment === "barbell" ? "total_barbell_load" : input.equipment === "machine" || input.equipment === "cable" ? "displayed_machine_load" : "unknown";

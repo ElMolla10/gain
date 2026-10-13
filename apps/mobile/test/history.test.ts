@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { HistoryInvalid } from "../src/db/historyRepo";
 import { freshDb } from "./helpers";
 
@@ -157,5 +157,75 @@ describe("history: lifts and trend", () => {
     expect(r.lift.hasImported).toBe(true);
     expect(r.trend.points.every((p) => p.imported)).toBe(true);
     expect(r.trend.direction).toBe("better");
+  });
+});
+
+describe("history: deleting a whole finished workout", () => {
+  it("tombstones the workout and its sets, updates history/trends, and blocks stale edits", async () => {
+    const { train, history, finish, workout, db, repos, gymId } = await setup();
+    const first = await train({ [BENCH]: [[60, 10]] });
+    const second = await train({ [BENCH]: [[40, 12, true], [65, 7], [65, 6]] });
+    const line = (await history.listLifts()).find((lift) => lift.nameEn === BENCH)!;
+    expect((await history.getLiftTrend(line.lineId))!.trend.points.map((p) => p.load)).toEqual([60, 65]);
+    expect((await finish.summarizeSession(second.sessionId)).totals.records).toBe(1);
+    expect(await history.countSessions()).toBe(2);
+
+    // A finished session can retain notes/rest choices. These are tombstoned too.
+    const day = (await repos.getNextDay())!;
+    void day;
+    await workout.patchExerciseState(second.sessionId, (await history.getSession(second.sessionId))!.exercises[0]!.exerciseId, { note: "test workout" });
+    await history.deleteWorkout(second.sessionId);
+
+    expect(await history.countSessions()).toBe(1);
+    expect((await history.listSessions()).map((x) => x.id)).toEqual([first.sessionId]);
+    expect(await history.getSession(second.sessionId)).toBeNull();
+    expect((await history.getLiftTrend(line.lineId))!.trend.points.map((p) => p.load)).toEqual([60]);
+    expect((await finish.summarizeSession(first.sessionId)).totals.records).toBe(0);
+
+    const tombstone = await db.get<{ deleted_at: number | null }>("SELECT deleted_at FROM session WHERE id = ?", [second.sessionId]);
+    expect(tombstone?.deleted_at).not.toBeNull();
+    const sets = await db.all<{ deleted_at: number | null }>("SELECT deleted_at FROM workout_set WHERE session_id = ?", [second.sessionId]);
+    expect(sets).toHaveLength(3);
+    expect(sets.every((s) => s.deleted_at !== null)).toBe(true);
+    const notes = await db.all<{ deleted_at: number | null }>("SELECT deleted_at FROM session_exercise WHERE session_id = ?", [second.sessionId]);
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes.every((x) => x.deleted_at !== null)).toBe(true);
+    await expect(history.updateSet(second.setIds[1]!, { load: 65, reps: 8, rir: null })).rejects.toMatchObject({ code: "missing" });
+    await expect(history.removeSet(second.setIds[1]!)).rejects.toMatchObject({ code: "missing" });
+    await expect(history.deleteWorkout(second.sessionId)).rejects.toMatchObject({ code: "missing" });
+    const future = await finish.previewDayLoads((await repos.getNextDay())!.day.id, gymId);
+    expect(future.length).toBeGreaterThan(0);
+  });
+
+  it("refuses to delete open or unknown sessions without changing them", async () => {
+    const { history, workout, repos, gymId, db } = await setup();
+    const next = (await repos.getNextDay())!;
+    const active = await workout.startOrResumeSession(next.day.id, gymId);
+    await expect(history.deleteWorkout(active.id)).rejects.toMatchObject({ code: "missing" });
+    await expect(history.deleteWorkout("missing")).rejects.toMatchObject({ code: "missing" });
+    const row = await db.get<{ status: string; deleted_at: number | null }>("SELECT status, deleted_at FROM session WHERE id = ?", [active.id]);
+    expect(row).toMatchObject({ status: "in_progress", deleted_at: null });
+  });
+
+  it("rolls back every tombstone if any write fails halfway through deletion", async () => {
+    const { history, train, db } = await setup();
+    const s = await train({ [BENCH]: [[60, 10], [60, 9]] });
+    const realRun = db.run.bind(db);
+    const spy = vi.spyOn(db, "run");
+    let writes = 0;
+    spy.mockImplementation(async (...args) => {
+      writes++;
+      if (writes === 4) throw new Error("simulated disk failure");
+      return realRun(...args);
+    });
+    try {
+      await expect(history.deleteWorkout(s.sessionId)).rejects.toThrow("simulated disk failure");
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await history.getSession(s.sessionId)).not.toBeNull();
+    expect(await history.countSessions()).toBe(1);
+    expect((await db.all<{ deleted_at: number | null }>("SELECT deleted_at FROM workout_set WHERE session_id = ?", [s.sessionId])).every((x) => x.deleted_at === null)).toBe(true);
+    expect((await db.get<{ deleted_at: number | null }>("SELECT deleted_at FROM session WHERE id = ?", [s.sessionId]))?.deleted_at).toBeNull();
   });
 });

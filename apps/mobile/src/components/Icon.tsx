@@ -10,7 +10,7 @@ import { useI18n } from "../i18n";
  */
 export type IconName =
   | "today" | "plan" | "progress" | "settings" | "dumbbell" | "timer" | "why" | "check" | "chevron" | "arrowUp" | "export" | "more"
-  | "close" | "plus" | "minus" | "alert" | "phone" | "cloud" | "play" | "edit" | "drag";
+  | "close" | "plus" | "minus" | "alert" | "phone" | "cloud" | "play" | "edit" | "drag" | "trash";
 
 type Shape = { t: "p"; d: string } | { t: "c"; cx: number; cy: number; r: number } | { t: "r"; x: number; y: number; w: number; h: number; rx: number };
 const p = (d: string): Shape => ({ t: "p", d });
@@ -30,6 +30,7 @@ export const ICONS: Record<IconName, Shape[]> = {
   export: [p("M12 15V3m-4 4 4-4 4 4M5 13v7h14v-7")],
   more: [c(12, 5, 1), c(12, 12, 1), c(12, 19, 1)],
   drag: [p("M4 7h16M4 12h16M4 17h16")],
+  trash: [p("M3 6h18m-2 0-1 14H6L5 6m3 0V4h8v2M10 10v7m4-7v7")],
   close: [p("M6 6l12 12M18 6 6 18")],
   plus: [p("M12 5v14M5 12h14")],
   minus: [p("M5 12h14")],

@@ -253,7 +253,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     if (!rawDay || rawDay.deleted_at !== null) return null;
     const dayExercises = await repos.listDayExercises(dayId);
     const gym = await repos.loadGymFingerprint(finished.gym_id);
-    const exercises: Awaited<ReturnType<typeof previewFinishedDay>> extends { exercises: infer E } ? E : never = [];
+    const exercises: { exerciseId: string; nameEn: string; nameAr: string; measure: Measure; equipment: DayExercise["equipment"]; setup: SetupType; loadSpec: DayExercise["loadSpec"]; proposal: Proposal }[] = [];
     for (const ex of dayExercises) {
       const { proposal } = await workout.liveProposal(toProposalSpec(ex), gym);
       exercises.push({ exerciseId: ex.exerciseId, nameEn: ex.nameEn, nameAr: ex.nameAr, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, loadSpec: ex.loadSpec, proposal });

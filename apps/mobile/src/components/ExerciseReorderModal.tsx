@@ -65,6 +65,7 @@ function DragHandle(props: {
 export function ExerciseReorderModal(props: {
   visible: boolean;
   title?: string;
+  busy?: boolean;
   items: readonly ReorderItem[];
   onCancel: () => void;
   onDone: (ids: string[]) => void;
@@ -119,11 +120,11 @@ export function ExerciseReorderModal(props: {
   };
   const dismiss = () => {
     clearDrag();
-    props.onCancel();
+    if (!props.busy) props.onCancel();
   };
   const done = () => {
     clearDrag();
-    props.onDone(order.map(item => item.id));
+    if (!props.busy) props.onDone(order.map(item => item.id));
   };
 
   return (
@@ -163,8 +164,8 @@ export function ExerciseReorderModal(props: {
         </ScrollView>
 
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.md, borderTopWidth: 1, borderColor: p.border, gap: space.sm }}>
-          <BigButton label={t("prog.reorder.done")} onPress={done} />
-          <BigButton variant="quiet" label={t("prog.reorder.cancel")} onPress={dismiss} />
+          <BigButton label={t("prog.reorder.done")} loading={props.busy} disabled={props.busy} onPress={done} />
+          <BigButton variant="quiet" label={t("prog.reorder.cancel")} disabled={props.busy} onPress={dismiss} />
         </View>
       </View>
     </Modal>

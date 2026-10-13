@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { joinSuperset, leaveSuperset, orderSlots, restAfterSet, supersetLabels, type StateMap } from "../src/logic/superset";
+import { joinSuperset, leaveSuperset, orderSlots, reorderBlocks, validReorder, restAfterSet, supersetLabels, type StateMap } from "../src/logic/superset";
 import { ExerciseAlreadyInWorkout } from "../src/db/workoutRepo";
 import { LATEST_VERSION } from "../src/db/migrations";
 import { freshDb } from "./helpers";
@@ -28,6 +28,23 @@ describe("order, superset labels and rest (pure)", () => {
     expect(supersetLabels(orderSlots(prog, s), s)).toEqual({ a: "A", b: "A", c: "B", d: "B" });
     const tri = st({ a: { slot: "a", superset: "g" }, b: { slot: "b", superset: "g" }, d: { slot: "d", superset: "g" } });
     expect(orderSlots(prog, tri)).toEqual(["a", "b", "d", "c"]);
+  });
+  it("custom session positions override programme order only after a programme exercise has moved", () => {
+    const addedOnly = st({ x: { slot: "x", added: true, position: 1 } });
+    expect(orderSlots(prog, addedOnly)).toEqual(["a", "b", "c", "d", "x"]);
+    const arranged = st({ a: { slot: "a", position: 3 }, b: { slot: "b", position: 2 }, c: { slot: "c", position: 4 }, d: { slot: "d", position: 1 }, x: { slot: "x", added: true, position: 5 } });
+    expect(orderSlots(prog, arranged)).toEqual(["d", "b", "a", "c", "x"]);
+  });
+  it("groups supersets as single drag items, preventing split/reversed members", () => {
+    const s = st({ b: { slot: "b", superset: "paired" }, d: { slot: "d", superset: "paired" } });
+    const order = orderSlots(prog, s);
+    expect(order).toEqual(["a", "b", "d", "c"]);
+    expect(reorderBlocks(order, s).map(b => b.slots)).toEqual([["a"], ["b", "d"], ["c"]]);
+    expect(validReorder(order, ["c", "b", "d", "a"], s)).toBe(true);
+    expect(validReorder(order, ["a", "b", "c", "d"], s)).toBe(false);
+    expect(validReorder(order, ["a", "d", "b", "c"], s)).toBe(false);
+    expect(validReorder(order, ["a", "b", "d", "d"], s)).toBe(false);
+    expect(validReorder(order, ["a", "b", "d"], s)).toBe(false);
   });
   it("joinSuperset creates a group or extends the first one; leaving takes one out", () => {
     expect(joinSuperset({}, "a", "c")).toEqual({ a: "ss-a", c: "ss-a" });
@@ -136,6 +153,48 @@ describe("supersets are saved per workout", () => {
     expect(s.map((x) => [x.slot, x.superset]).sort()).toEqual([[a, "ss-" + a], [b, "ss-" + a]].sort());
     await workout.setSuperset(id, leaveSuperset(b));
     expect((await workout.listExerciseState(id)).find((x) => x.slot === b)!.superset).toBeNull();
+  });
+});
+
+describe("reordering inside an active workout", () => {
+  it("moves an exercise multiple positions, persists on resume and preserves its already saved sets", async () => {
+    const { workout, id, exs, gym, db } = await open();
+    const initial = exs.map(e => e.exerciseId);
+    const ex = exs[0]!;
+    const set = await workout.logSet({ sessionId: id, exerciseId: ex.exerciseId, load: 60, reps: 8 },
+      { gym, equipment: ex.equipment, setup: ex.setup });
+    const arranged = [initial[1]!, initial[2]!, initial[3]!, initial[0]!, ...initial.slice(4)];
+    await workout.reorderWorkoutExercises(id, arranged);
+    const stored = await workout.listExerciseState(id);
+    const states = Object.fromEntries(stored.map(st => [st.slot, st]));
+    expect(orderSlots(initial, states)).toEqual(arranged);
+    expect(await workout.listSessionSets(id, ex.exerciseId)).toMatchObject([{ id: set.id, load: 60, reps: 8 }]);
+    // No program changes: the next session uses the program's original order.
+    expect((await db.all<{ exercise_id: string }>(
+      "SELECT exercise_id FROM programme_day_exercise WHERE programme_day_id = ? AND deleted_at IS NULL ORDER BY position", [(await workout.getSession(id))!.programme_day_id],
+    )).map(row => row.exercise_id)).toEqual(initial);
+    await expect(workout.reorderWorkoutExercises(id, ["unknown", ...initial.slice(1)])).rejects.toThrow();
+    expect(orderSlots(initial, Object.fromEntries((await workout.listExerciseState(id)).map(st => [st.slot, st])))).toEqual(arranged);
+    await workout.finishSession(id);
+    await expect(workout.reorderWorkoutExercises(id, initial)).rejects.toThrow();
+  });
+
+  it("moves a linked superset as one block, even after logging sets for a member", async () => {
+    const { workout, id, exs, gym } = await open();
+    const slots = exs.map(e => e.exerciseId);
+    await workout.setSuperset(id, joinSuperset({}, slots[0]!, slots[2]!));
+    const ex = exs[0]!;
+    await workout.logSet({ sessionId: id, exerciseId: ex.exerciseId, load: 55, reps: 8 },
+      { gym, equipment: ex.equipment, setup: ex.setup });
+    const before = orderSlots(slots, Object.fromEntries((await workout.listExerciseState(id)).map(x => [x.slot, x])));
+    expect(before.slice(0, 2)).toEqual([slots[0], slots[2]]);
+    await expect(workout.reorderWorkoutExercises(id, [slots[0]!, slots[1]!, slots[2]!, ...slots.slice(3)])).rejects.toThrow();
+    const wanted = [slots[1]!, slots[0]!, slots[2]!, ...slots.slice(3)];
+    await workout.reorderWorkoutExercises(id, wanted);
+    const after = Object.fromEntries((await workout.listExerciseState(id)).map(x => [x.slot, x]));
+    expect(orderSlots(slots, after)).toEqual(wanted);
+    expect(restAfterSet(wanted, after, slots[0]!)).toBe(false);
+    expect(restAfterSet(wanted, after, slots[2]!)).toBe(true);
   });
 });
 

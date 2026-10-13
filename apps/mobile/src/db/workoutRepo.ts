@@ -23,6 +23,7 @@ import {
 } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import { exerciseOwnLoads, gridFor } from "./exerciseGrid";
+import { orderSlots, validReorder } from "../logic/superset";
 
 /** New workout exercises do not auto-start a rest countdown until the lifter opts in. */
 export const DEFAULT_EXERCISE_REST_OFF = true;
@@ -563,6 +564,30 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     });
   }
 
+  /** Reorder the entire visible exercise list of an IN-PROGRESS workout.
+   * Grouped supersets remain intact. A single transaction saves positions on
+   * all programme and added slots, so resume restores precisely this order.
+   * Sets, notes, rep targets, history, and the programme version are untouched.
+   */
+  async function reorderWorkoutExercises(sessionId: string, requested: readonly string[]): Promise<void> {
+    await db.transaction(async () => {
+      const session = await getSession(sessionId);
+      if (!session || session.status !== "in_progress") throw new Error("Workout is not in progress");
+      const programme = await db.all<{ exercise_id: string }>(
+        `SELECT pde.exercise_id FROM programme_day_exercise pde
+         WHERE pde.programme_day_id = ? AND pde.deleted_at IS NULL ORDER BY pde.position`,
+        [session.programme_day_id],
+      );
+      const states = Object.fromEntries((await listExerciseState(sessionId)).map(st => [st.slot, st]));
+      const current = orderSlots(programme.map(row => row.exercise_id), states);
+      if (!validReorder(current, requested, states)) throw new Error("Invalid exercise reorder");
+      if (current.every((slot, i) => slot === requested[i])) return;
+      for (let i = 0; i < requested.length; i++) {
+        await patchExerciseState(sessionId, requested[i]!, { position: i + 1 });
+      }
+    });
+  }
+
   /** Put exercises of this workout into one superset (same group), or take them out (group null). Only changes today's display and rest timer. */
   async function setSuperset(sessionId: string, groups: Record<string, string | null>): Promise<void> {
     await db.transaction(async () => {
@@ -573,6 +598,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   return {
     addExercise,
     setSuperset,
+    reorderWorkoutExercises,
     listExerciseState,
     patchExerciseState,
     clearExerciseSets,

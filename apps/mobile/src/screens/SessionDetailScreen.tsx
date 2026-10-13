@@ -2,7 +2,7 @@ import type { Measure } from "@gain/engine";
 import { isTimed, parseQuantityInput, setQuantity, targetPhrase } from "../logic/quantity";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { View } from "react-native";
+import { Share, View } from "react-native";
 import { useServices } from "../AppContext";
 import { HistoryInvalid, type HistorySetRow, type SessionDetail } from "../db/historyRepo";
 import { useI18n } from "../i18n";
@@ -12,6 +12,8 @@ import { parseNumber } from "../logic/gymInput";
 import { localDateText } from "../logic/trendChart";
 import { editedKg, kgToUnit } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
+import { formatWorkoutShareText } from "../logic/workoutRecap";
+import { diagnostics } from "../diagnostics";
 import { AppText, BigButton, Card, EmptyState, Field, InlineStatus, LoadingState, Screen } from "../ui";
 
 interface EditState {
@@ -24,7 +26,7 @@ interface EditState {
 
 /** A finished workout, set by set. A set can be corrected or deleted; planned targets are re-worked from the fixed history. */
 export function SessionDetailScreen() {
-  const { history } = useServices();
+  const { history, finish } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
@@ -32,6 +34,8 @@ export function SessionDetailScreen() {
   const [edit, setEdit] = useState<EditState | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
   const [err, setErr] = useState<StringKey | null>(null);
+  const [sharingText, setSharingText] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
 
   const refresh = useCallback(async () => setDetail((await history.getSession(sessionId)) ?? "none"), [history, sessionId]);
   useFocusEffect(
@@ -69,8 +73,28 @@ export function SessionDetailScreen() {
     }
   };
 
+  const shareWorkout = async () => {
+    if (sharingText) return;
+    setSharingText(true);
+    setShareFailed(false);
+    try {
+      // Re-fetch after edits: never share stale or deleted sets.
+      const fresh = await history.getSession(sessionId);
+      if (!fresh) throw new Error("Workout no longer exists");
+      const summary = await finish.summarizeSession(sessionId);
+      await Share.share({ message: formatWorkoutShareText(fresh, summary, lang, unit) });
+    } catch (e) {
+      diagnostics.record("warn", "history text share", e);
+      setShareFailed(true);
+    } finally {
+      setSharingText(false);
+    }
+  };
+
   return (
     <Screen title={detail.imported ? t("history.imported") : detail.dayName}>
+      <BigButton variant="secondary" icon="export" label={t("recap.shareText")} loading={sharingText} disabled={sharingText} onPress={() => void shareWorkout()} />
+      {shareFailed ? <InlineStatus kind="error" text={t("recap.shareFailed")} /> : null}
       <AppText ltr style={{ color: p.muted, fontWeight: "600" }}>{localDateText(detail.finishedAt)}</AppText>
       <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("history.editNote")}</AppText>
       {detail.exercises.map((ex) => (

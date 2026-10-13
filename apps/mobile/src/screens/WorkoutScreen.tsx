@@ -28,7 +28,7 @@ import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quan
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { acceptGhost, addRow, backoffPrefill, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
-import { applyLiveLoad, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
+import { applyLiveLoad, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow, suggestedNextLoad } from "../logic/liveAdaptation";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
@@ -678,9 +678,10 @@ export function WorkoutScreen() {
     const candidate = liveCards[ex.exerciseId];
     const currentCandidate = candidate && candidate.snapshot === JSON.stringify(list) && candidate.performance === livePerformanceKey(sets, ex.exerciseId) ? candidate : undefined;
     const card = currentCandidate && liveDismissed[ex.exerciseId] !== currentCandidate.performance ? currentCandidate : undefined;
-    const suggestedWeight = exSets.length > 0 && currentCandidate && currentCandidate.decision.action !== "stop"
-      ? formatLoad(currentCandidate.decision.suggestedWeightKg, lang, unit)
-      : "";
+    // "Maintain" is an actual recommendation too: show its current load, not a blank.
+    // If inference is unavailable or tells the lifter to stop, do not fake a weight.
+    const suggestedKg = suggestedNextLoad(currentCandidate?.decision, exSets.some(s => !s.warmup && s.outlierStatus !== "unconfirmed" && s.outlierStatus !== "rejected"));
+    const suggestedWeight = suggestedKg === null ? "" : formatLoad(suggestedKg, lang, unit);
 
     // GAIN's target for today and its reason, kept to one line until tapped.
     const storedQ = info.stored ? (ex.measure === "time" ? info.stored.durationS : ex.measure === "distance" ? info.stored.distanceM : info.stored.reps) : null;

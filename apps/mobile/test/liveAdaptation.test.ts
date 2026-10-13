@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyLiveLoad, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow } from "../src/logic/liveAdaptation";
+import { applyLiveLoad, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow, suggestedNextLoad } from "../src/logic/liveAdaptation";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
 import type { SetRow } from "../src/db/workoutRepo";
 const saved = (extra: Partial<SetRow> = {}): SetRow => ({ id:"s1", sessionId:"session", exerciseId:"bench", lineId:"line", position:1, load:60, reps:10, durationS:null, distanceM:null, rir:2, warmup:false, tags:[], outlierStatus:"none", createdAt:100, ...extra });
@@ -118,6 +118,18 @@ describe("live adaptation with persisted sessions", () => {
     expect(result.previousWorkoutFirstReps).toBe(12);
     expect(result.daysSincePreviousWorkout).toBeNull();
     expect(result.priorWorkoutsOnEquipment).toBeNull();
+  });
+});
+
+describe("inline suggested load for each AI action", () => {
+  it("displays the maintained weight as a valid suggestion", () => {
+    const maintain = { action: "maintain" as const, suggestedWeightKg: 24, predictedReps: 9, reason: "within_range" as const };
+    expect(suggestedNextLoad(maintain, true)).toBe(24);
+    expect(suggestedNextLoad({ ...maintain, action: "increase", suggestedWeightKg: 26 }, true)).toBe(26);
+    expect(suggestedNextLoad({ ...maintain, action: "decrease", suggestedWeightKg: 22 }, true)).toBe(22);
+    expect(suggestedNextLoad({ ...maintain, action: "stop" }, true)).toBeNull();
+    expect(suggestedNextLoad(maintain, false)).toBeNull();
+    expect(suggestedNextLoad(undefined, true)).toBeNull();
   });
 });
 

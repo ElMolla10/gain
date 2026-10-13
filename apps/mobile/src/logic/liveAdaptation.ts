@@ -63,6 +63,13 @@ export function applyLiveLoad(rows: SetRowDraft[], key: string, load: number): S
   if (!next || next.key !== key || next.load !== null || !Number.isFinite(load) || load <= 0) return rows;
   return rows.map(r => r.key === key ? { ...r, ghostLoad: load } : r);
 }
+/** A maintain recommendation is still a real weight recommendation.
+ * Never invent one when inference is unavailable or the exercise should stop. */
+export function suggestedNextLoad(decision: Decision | undefined, hasLoggedWorkingSet: boolean): number | null {
+  if (!hasLoggedWorkingSet || !decision || decision.action === "stop") return null;
+  return Number.isFinite(decision.suggestedWeightKg) && decision.suggestedWeightKg > 0 ? decision.suggestedWeightKg : null;
+}
+
 /** Stable across row keystrokes; dismissal lasts until the saved confirmed performance changes. */
 export function livePerformanceKey(sets: SetRow[], exerciseId: string): string {
   return JSON.stringify(sets.filter(s => s.exerciseId === exerciseId && trustedWorkingSet(s)).map(s => [s.id,s.load,s.reps]));

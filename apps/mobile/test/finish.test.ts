@@ -367,6 +367,34 @@ describe("P04 swapping a big jump for a smaller step", () => {
   });
 });
 
+describe("post-finish forecast of the same day (not the next rotation day)", () => {
+  it("shows next Push after completing Push while preserving the planned Pull session and its targets", async () => {
+    const ctx = await setup();
+    const completed = await ctx.trainNext();
+    const finished = await ctx.workout.getSession(completed.sessionId);
+    const nextPlanned = await ctx.workout.getSession(completed.written!.sessionId);
+    expect(nextPlanned?.programme_day_id).not.toBe(finished?.programme_day_id);
+    const targetsBefore = await ctx.finish.getTargets(completed.written!.sessionId);
+    const forecast = await ctx.finish.previewFinishedDay(completed.sessionId);
+    expect(forecast?.dayId).toBe(finished!.programme_day_id);
+    expect(forecast?.dayName).toBe(completed.dayName);
+    expect(forecast!.exercises.map(ex => ex.nameEn)).toContain("Barbell Bench Press");
+    expect(forecast!.exercises.map(ex => ex.exerciseId)).toEqual(
+      (await ctx.repos.listDayExercises(finished!.programme_day_id)).map(ex => ex.exerciseId),
+    );
+    expect(await ctx.finish.getTargets(completed.written!.sessionId)).toEqual(targetsBefore);
+    const stillPlanned = await ctx.workout.getSession(completed.written!.sessionId);
+    expect(stillPlanned?.status).toBe("planned");
+  });
+  it("does not forecast a missing or unfinished session", async () => {
+    const ctx = await setup();
+    expect(await ctx.finish.previewFinishedDay("nonexistent")).toBeNull();
+    const next = (await ctx.repos.getNextDay())!;
+    const open = await ctx.workout.startOrResumeSession(next.day.id, ctx.gymId);
+    expect(await ctx.finish.previewFinishedDay(open.id)).toBeNull();
+  });
+});
+
 describe("whole-workout starting-weight previews", () => {
   it("previews all exercises and selectable days without creating a session or fake first-use weights", async () => {
     const { finish, repos, gymId, db } = await setup();

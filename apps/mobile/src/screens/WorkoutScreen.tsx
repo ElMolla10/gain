@@ -13,7 +13,7 @@ import { ExercisePicker } from "../components/ExercisePicker";
 import { WorkoutHelp } from "../components/WorkoutHelp";
 import type { TargetRow } from "../db/finishRepo";
 import type { LibraryExercise } from "../db/programmeRepo";
-import type { ExerciseState, SetRow } from "../db/workoutRepo";
+import { DEFAULT_EXERCISE_REST_OFF, type ExerciseState, type SetRow } from "../db/workoutRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { localizeReason, weightText } from "../logic/units";
 import { useI18n } from "../i18n";
@@ -62,7 +62,7 @@ const clock = (ms: number) => {
 
 // For a timed exercise the row's "reps" box holds seconds or metres (the database stores reps = 1 plus duration_s / distance_m).
 const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.durationS ?? s.distanceM ?? s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags });
-const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, replacedBy: null, note: "", restOff: false, added: false, position: null, superset: null });
+const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, replacedBy: null, note: "", restOff: DEFAULT_EXERCISE_REST_OFF, added: false, position: null, superset: null });
 
 /**
  * The rest-timer readout. It ticks every 250 ms on its own (P27), so the logger screen is not re-rendered four times a second while a
@@ -397,7 +397,7 @@ export function WorkoutScreen() {
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
         // No rest timer after a warm-up or a drop set (the next set follows straight away).
         // In a superset the rest comes after the last exercise of the round only.
-        if (!row.warmup && !isDropRow(row) && !exState[ex.slot]?.restOff && restAfterSet(order, exState, ex.slot)) {
+        if (!row.warmup && !isDropRow(row) && !(exState[ex.slot]?.restOff ?? DEFAULT_EXERCISE_REST_OFF) && restAfterSet(order, exState, ex.slot)) {
           setRestOver(false);
           setRestFor(exerciseLabels(ex, lang).primary);
           setTimer((tm) => startTimer(tm, Date.now()));
@@ -474,7 +474,7 @@ export function WorkoutScreen() {
 
   async function toggleRest(slot: string) {
     if (!loaded || loaded === "nogym") return;
-    const off = !(exState[slot]?.restOff ?? false);
+    const off = !(exState[slot]?.restOff ?? DEFAULT_EXERCISE_REST_OFF);
     setState(slot, { restOff: off });
     await workout.patchExerciseState(loaded.sessionId, slot, { restOff: off });
   }
@@ -676,7 +676,11 @@ export function WorkoutScreen() {
     const pending = exSets.filter((s) => s.outlierStatus === "unconfirmed");
     const expanded = !!whyOpen[ex.exerciseId];
     const candidate = liveCards[ex.exerciseId];
-    const card = candidate && candidate.snapshot === JSON.stringify(list) && candidate.performance === livePerformanceKey(sets, ex.exerciseId) && liveDismissed[ex.exerciseId] !== candidate.performance ? candidate : undefined;
+    const currentCandidate = candidate && candidate.snapshot === JSON.stringify(list) && candidate.performance === livePerformanceKey(sets, ex.exerciseId) ? candidate : undefined;
+    const card = currentCandidate && liveDismissed[ex.exerciseId] !== currentCandidate.performance ? currentCandidate : undefined;
+    const suggestedWeight = exSets.length > 0 && currentCandidate && currentCandidate.decision.action !== "stop"
+      ? formatLoad(currentCandidate.decision.suggestedWeightKg, lang, unit)
+      : "";
 
     // GAIN's target for today and its reason, kept to one line until tapped.
     const storedQ = info.stored ? (ex.measure === "time" ? info.stored.durationS : ex.measure === "distance" ? info.stored.distanceM : info.stored.reps) : null;
@@ -716,6 +720,8 @@ export function WorkoutScreen() {
             label={t("workout.nextTarget")}
             value={targetText}
             whyLabel={t("workout.whyShort")}
+            suggestedLabel={t("workout.suggestedWeight")}
+            suggestedValue={suggestedWeight}
             whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
             expanded={info.stored ? undefined : expanded}
             reason={reasonText}

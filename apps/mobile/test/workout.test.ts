@@ -242,6 +242,16 @@ describe("per-workout exercise changes (remove / replace / note / rest timer)", 
     await workout.patchExerciseState(id, slot, { restOff: true });
     expect(await workout.listExerciseState(id)).toEqual([{ slot, removed: false, replacedBy: null, note: "belt on", restOff: true, added: false, position: null, superset: null }]);
   });
+  it("rest defaults off for newly created state and honors explicit opt-in across reloads", async () => {
+    const { workout, id, exs } = await open();
+    const slot = exs[0]!.exerciseId;
+    await workout.patchExerciseState(id, slot, { note: "testing" });
+    expect((await workout.listExerciseState(id))[0]!.restOff).toBe(true);
+    await workout.patchExerciseState(id, slot, { restOff: false });
+    expect((await workout.listExerciseState(id))[0]!.restOff).toBe(false);
+    await workout.patchExerciseState(id, slot, { restOff: true });
+    expect((await workout.listExerciseState(id))[0]!.restOff).toBe(true);
+  });
   it("removing an exercise deletes its logged sets and restoring brings the slot back", async () => {
     const { workout, id, exs, dctx } = await open();
     const slot = exs[0]!.exerciseId;

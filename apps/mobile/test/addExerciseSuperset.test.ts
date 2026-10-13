@@ -71,7 +71,7 @@ describe("add an exercise that is not in today's day", () => {
     const { workout, repos, finish, id, outside, next, exs, gym, db } = await open();
     const x = outside[0]!;
     expect(await workout.addExercise(id, x.id)).toEqual({ restored: false });
-    expect(await workout.listExerciseState(id)).toEqual([{ slot: x.id, removed: false, replacedBy: null, note: "", restOff: false, added: true, position: 1, superset: null }]);
+    expect(await workout.listExerciseState(id)).toEqual([{ slot: x.id, removed: false, replacedBy: null, note: "", restOff: true, added: true, position: 1, superset: null }]);
     const ad = (await repos.adHocDayExercise(x.id))!;
     expect(ad).toMatchObject({ exerciseId: x.id, sets: 3, isGoalLift: false, trackEffort: false });
     expect(ad.repMin).toBeLessThanOrEqual(ad.repMax);

@@ -30,6 +30,7 @@ import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput
 import { acceptGhost, addRow, backoffPrefill, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
 import { applyLiveLoad, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
+import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
 import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
@@ -114,7 +115,7 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
  * today's target, so one tap on the tick accepts it. A set is saved on the phone the moment it is ticked (offline); nothing waits for the finish.
  */
 export function WorkoutScreen() {
-  const { repos, workout, finish, programmes, restAlerts } = useServices();
+  const { repos, workout, finish, programmes, restAlerts, mlEvaluation } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const insets = useSafeAreaInsets();
@@ -234,6 +235,9 @@ export function WorkoutScreen() {
         const ex = makeDisp(slotEx, st);
         info[ex.exerciseId] = await buildInfo(ex, id, gym);
         initial[ex.exerciseId] = initialRows(all.filter((s) => s.exerciseId === ex.exerciseId).map(toSaved), ex.sets, info[ex.exerciseId]!.prefill, () => Crypto.randomUUID(), (isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info[ex.exerciseId]!.last?.sets)));
+        const pendingId = await mlEvaluation.pendingTarget(id, ex.exerciseId, LIVE_MODEL_VERSION)
+          .catch(e => { diagnostics.record("warn", "ML evaluation resume", e); return null; });
+        initial[ex.exerciseId] = resumeEvaluationTarget(initial[ex.exerciseId]!, pendingId);
       }
       const session = await workout.getSession(id);
       setExState(states);
@@ -246,7 +250,7 @@ export function WorkoutScreen() {
       startedRef.current = false;
       setLoadError(true);
     });
-  }, [repos, workout, programmes, dayId, makeDisp, buildInfo, attempt]);
+  }, [repos, workout, programmes, mlEvaluation, dayId, makeDisp, buildInfo, attempt]);
 
   useEffect(() => {
     if (!resumeNote) return;
@@ -327,7 +331,8 @@ export function WorkoutScreen() {
   // Run after persistence has refreshed `sets`. Cancelling the scheduled work prevents stale cards after edits or leaving.
   useEffect(() => {
     if (!loaded || loaded === "nogym") return;
-    const handle = setTimeout(() => {
+    let cancelled = false;
+    const handle = setTimeout(async () => {
       const cards: typeof liveCards = {};
       const supportedExerciseIds = loaded.slots
         .map(slot => makeDisp(slot, exState[slot.exerciseId]))
@@ -348,12 +353,19 @@ export function WorkoutScreen() {
         const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: loaded.info[ex.exerciseId]?.last, targetReps: effectiveOf(nextAdaptiveRow(list) ?? { load:null, reps:null, ghostLoad:null, ghostReps:null }).reps ?? ex.repMin });
         if (!context || !spec) continue;
         const decision = tryLiveRecommendation(context, ex.repMin, ex.repMax, spec, undefined, e => diagnostics.record("warn", "live adaptation", e));
-        if (decision) cards[ex.exerciseId] = { decision, key: nextAdaptiveRow(list)!.key, performance, snapshot: JSON.stringify(list) };
+        if (decision) {
+          cards[ex.exerciseId] = { decision, key: nextAdaptiveRow(list)!.key, performance, snapshot: JSON.stringify(list) };
+          const prediction = evaluationPrediction(loaded.sessionId, ex.exerciseId, list, sets, context, decision);
+          if (prediction && !cancelled) {
+            try { await mlEvaluation.record(prediction); }
+            catch (e) { diagnostics.record("warn", "ML evaluation capture", e); }
+          }
+        }
       }
-      setLiveCards(cards);
+      if (!cancelled) setLiveCards(cards);
     }, 0);
-    return () => clearTimeout(handle);
-  }, [loaded, rows, sets, exState, liveDismissed, reportedSymptoms, makeDisp]);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [loaded, rows, sets, exState, liveDismissed, reportedSymptoms, makeDisp, mlEvaluation]);
 
   const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
 
@@ -434,6 +446,7 @@ export function WorkoutScreen() {
       setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
       await reload(loaded.sessionId);
     } else {
+      await mlEvaluation.skip(row.key);
       setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
     }
   }

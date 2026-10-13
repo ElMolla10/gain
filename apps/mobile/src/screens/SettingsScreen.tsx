@@ -1,4 +1,4 @@
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { HealthNote } from "../components/HealthNote";
 import { buildFlags } from "../buildConfig";
 import { UpdateCard } from "../components/UpdateCard";
@@ -17,6 +17,33 @@ import Constants from "expo-constants";
 import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
 import { loadReminderSettings, REMINDER_KEYS, reminderText, serializeDays, serializeTime, syncReminders, toggleDay, type ReminderSettings } from "../logic/reminders";
 import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
+import { formatMlNumber, LIVE_MODEL_VERSION } from "../logic/mlEvaluation";
+import type { MlAccuracy } from "../db/mlEvaluationRepo";
+
+function MlAccuracyCard() {
+  const { mlEvaluation } = useServices();
+  const { t, lang } = useI18n();
+  const [accuracy, setAccuracy] = useState<MlAccuracy | null>(null);
+  const [failed, setFailed] = useState(false);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setAccuracy(null);
+    setFailed(false);
+    void mlEvaluation.accuracy(LIVE_MODEL_VERSION).then(value => { if (active) setAccuracy(value); })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, [mlEvaluation]));
+  return <Block title={t("ml.title")} note={t("ml.note")}>
+    {failed ? <InlineStatus kind="error" text={t("ml.failed")} /> : accuracy ? <>
+      <AppText>{t("ml.count", { n: formatMlNumber(accuracy.count, lang) })}</AppText>
+      {accuracy.count === 0 ? <AppText>{t("ml.empty")}</AppText> : <>
+        <AppText>{t("ml.mae", { n: formatMlNumber(accuracy.meanAbsoluteError!, lang, 2) })}</AppText>
+        <AppText>{t("ml.one", { n: formatMlNumber(accuracy.withinOnePercent!, lang, 1) })}</AppText>
+        <AppText>{t("ml.two", { n: formatMlNumber(accuracy.withinTwoPercent!, lang, 1) })}</AppText>
+      </>}
+    </> : null}
+  </Block>;
+}
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
 
@@ -264,6 +291,7 @@ export function SettingsScreen() {
       </Group>
 
       <Group title={t("settings.group.data")}>
+        <MlAccuracyCard />
         <LinkRow label={t("data.entry")} onPress={() => nav.navigate("Data")} />
         <LinkRow label={t("sync.entry")} onPress={() => nav.navigate("Sync")} />
         <LinkRow label={t("import.entry")} note={t("import.entryNote")} onPress={() => nav.navigate("Import")} />

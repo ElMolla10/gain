@@ -2,6 +2,7 @@ import type { Reminders } from "./logic/reminders";
 import React, { createContext, useContext } from "react";
 import type { Repos } from "./db/repos";
 import type { Db } from "./db/driver";
+import type { MlEvaluationRepo } from "./db/mlEvaluationRepo";
 import type { RestAlerts } from "./logic/restAlert";
 import type { DataRepo } from "./db/dataRepo";
 import type { DecisionRepo } from "./db/decisionRepo";
@@ -21,6 +22,7 @@ import type { SyncEngine } from "./sync/engine";
 
 export interface AppServices {
   db: Db;
+  mlEvaluation: MlEvaluationRepo;
   repos: Repos;
   workout: WorkoutRepo;
   finish: FinishRepo;

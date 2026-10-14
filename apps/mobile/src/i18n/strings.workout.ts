@@ -1,6 +1,6 @@
 /** Active workout list (v0.8.0, redesigned v0.9.0). ARABIC IS A DRAFT TRANSLATION, still to be reviewed. */
 export const enWorkout = {
-  "live.title": "GAIN AI · Next set",
+  "live.title": "Next set · Experimental AI",
   "live.report": "Report pain or dizziness",
   "live.severePain": "Severe pain",
   "live.dizziness": "Dizziness",
@@ -123,7 +123,7 @@ export const enWorkout = {
 } as const;
 
 export const arWorkout: Record<keyof typeof enWorkout, string> = {
-  "live.title": "GAIN AI · المجموعة التالية",
+  "live.title": "المجموعة التالية · ذكاء اصطناعي تجريبي",
   "live.report": "الإبلاغ عن ألم أو دوخة",
   "live.severePain": "ألم شديد",
   "live.dizziness": "دوخة",

@@ -15,7 +15,7 @@ The core promise: **Leave knowing the next weight. Come back knowing if the goal
 
 It is built for muscle and strength, for people who already train. It does not promise a physique, a rate of progress, or a medical outcome. Results depend on training, food, sleep, and the person.
 
-There is no AI in the app today. A written rule calculates the next number from your logged sets, and the reason is shown next to it. Nothing changes the plan until you accept it. Any model-assisted feature is a later idea (see below) and is frozen until pilot evidence says it is worth building.
+Next-session targets use a written progression rule with a visible reason. The workout logger also runs an experimental offline XGBoost model for optional next-set suggestions. These suggestions are labeled experimental; real-world superiority over simple rules has not been established. Missing sleep, readiness, rest and effort inputs remain unknown. Model failure omits the card and preserves the existing target. Applying a suggestion changes only the next unlogged set; manual loads take precedence. Optional evaluation records stay on the device until the user explicitly exports them.
 
 ## Who it is for
 
@@ -164,9 +164,9 @@ Offline first. Saved locally, synced later, with a visible saved state and no du
 
 Search in Arabic aliases and English names. Numbers and exercise names stay readable in RTL layout. Equipment, setup, short cues, licensed demos. Short enough to read between sets. Aliases should match what people say in Egyptian gyms, not textbook translations.
 
-## Possible later: model assistance (not built, not in the app)
+## Experimental next-set assistance and possible later extensions
 
-This section is a design sketch only. No model runs in the app or on the server today. If one is ever added, it would be allowed to do five things:
+The offline next-set model is implemented in the logger, with selectable-load checks, inference-failure fallback, and a local opt-in evaluation path. It does not generate next-session targets or assess injuries. The following broader capabilities remain design ideas, pending pilot evidence:
 
 1. Estimate the next working set from comparable history and sets already done today.
 2. Choose the progression currency when the ideal load does not exist.

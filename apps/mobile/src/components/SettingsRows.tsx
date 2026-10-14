@@ -21,7 +21,7 @@ export function Block(props: { title?: string; note?: string; children?: React.R
   const p = usePalette();
   return (
     <View style={{ paddingVertical: space.md, gap: space.sm, borderBottomWidth: 1, borderColor: p.border }}>
-      {props.title ? <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{props.title}</AppText> : null}
+      {props.title ? <AppText accessibilityRole="header" style={{ fontSize: ty.body, fontWeight: "600" }}>{props.title}</AppText> : null}
       {props.note ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.note}</AppText> : null}
       {props.children}
     </View>

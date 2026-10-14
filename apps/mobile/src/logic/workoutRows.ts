@@ -21,6 +21,10 @@ export interface SetRowDraft {
    */
   ghostLoad: number | null;
   ghostReps: number | null;
+  /** Invalid typed text must never silently accept a ghost target. Draft-only, not persisted. */
+  invalidLoad?: boolean;
+  invalidReps?: boolean;
+  invalidRir?: boolean;
 }
 
 export interface SavedSet {
@@ -43,7 +47,8 @@ export const rowReady = (r: Pick<SetRowDraft, "load" | "reps">): r is Pick<SetRo
 export const effectiveOf = (r: Pick<SetRowDraft, "load" | "reps" | "ghostLoad" | "ghostReps">): { load: number | null; reps: number | null } => ({ load: r.load ?? r.ghostLoad, reps: r.reps ?? r.ghostReps });
 
 /** True when ticking the row can log a set (typed values and/or ghost values fill both boxes). */
-export const rowCanLog = (r: Pick<SetRowDraft, "load" | "reps" | "ghostLoad" | "ghostReps">): boolean => rowReady(effectiveOf(r));
+export const hasInvalidInput = (r: Partial<Pick<SetRowDraft, "invalidLoad" | "invalidReps" | "invalidRir">>): boolean => !!(r.invalidLoad || r.invalidReps || r.invalidRir);
+export const rowCanLog = (r: Pick<SetRowDraft, "load" | "reps" | "ghostLoad" | "ghostReps"> & Partial<Pick<SetRowDraft, "invalidLoad" | "invalidReps" | "invalidRir">>): boolean => !hasInvalidInput(r) && rowReady(effectiveOf(r));
 
 /** What a set is: a normal working set, a warm-up, a drop set (lighter, straight after the previous set) or a set taken to failure. */
 export type SetKind = "normal" | "warmup" | "drop" | "failure";
@@ -122,7 +127,7 @@ export function unlogRow(rows: SetRowDraft[], key: string, newKey: string): SetR
 export const removeRow = (rows: SetRowDraft[], key: string): SetRowDraft[] => rows.filter((r) => r.key !== key);
 
 /** Typing into a row. A logged row becomes "dirty" (it shows "update"). */
-export function editRow(rows: SetRowDraft[], key: string, patch: Partial<Pick<SetRowDraft, "load" | "reps" | "rir" | "warmup" | "tags">>): SetRowDraft[] {
+export function editRow(rows: SetRowDraft[], key: string, patch: Partial<Pick<SetRowDraft, "load" | "reps" | "rir" | "warmup" | "tags" | "invalidLoad" | "invalidReps" | "invalidRir">>): SetRowDraft[] {
   return rows.map((r) => (r.key === key ? { ...r, ...patch, dirty: r.saved ? true : r.dirty } : r));
 }
 
@@ -143,14 +148,14 @@ export function rowLabels(rows: SetRowDraft[]): string[] {
   });
 }
 
-/** Rows that are filled in but not logged: what finishing would leave out (shown as a note, never saved silently). */
-export const unloggedFilled = (rows: SetRowDraft[]): number => rows.filter((r) => !r.saved && (r.load !== null || r.reps !== null) && rowCanLog(r)).length;
+/** Draft rows or saved-row edits that finishing would leave out; never saved silently. */
+export const unloggedFilled = (rows: SetRowDraft[]): number => rows.filter((r) => (r.saved && r.dirty) || (!r.saved && (hasInvalidInput(r) || ((r.load !== null || r.reps !== null) && rowCanLog(r))))).length;
 
 /**
  * Rows whose numbers are not in the database yet: anything typed into a row that is not ticked (even if it cannot be ticked yet, e.g. a
  * weight with no reps), and a ticked row edited since (it needs "update"). Counted so the save status never hides them.
  */
-export const pendingCount = (rows: SetRowDraft[]): number => rows.filter((r) => (!r.saved && (r.load !== null || r.reps !== null)) || (r.saved && r.dirty)).length;
+export const pendingCount = (rows: SetRowDraft[]): number => rows.filter((r) => (!r.saved && (hasInvalidInput(r) || r.load !== null || r.reps !== null)) || (r.saved && r.dirty)).length;
 
 /** The set the lifter is on: the first row that is not ticked. Null when every row is ticked. Only a visual emphasis; nothing depends on it. */
 export const currentRowKey = (rows: SetRowDraft[]): string | null => rows.find((r) => !r.saved)?.key ?? null;

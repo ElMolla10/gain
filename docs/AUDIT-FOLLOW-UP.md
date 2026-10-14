@@ -27,6 +27,15 @@ Source: external repository review supplied on 14 October 2026. Its visual score
 - Documentation now accurately says capture is automatic and local. Earlier wording incorrectly called this path opt-in.
 - No model, training data, increase policy, inference or SQLite schema changes. Real-data superiority, calibration, safety and iPhone delivery are not established by code checks.
 
+## Batch 4: core Arabic, accessibility and read/input failures
+
+- History distinguishes an empty result from a failed database read, offers retry, preserves the last complete page when pagination fails, and ignores cancelled/stale reads. Refreshes publish sessions/count/lifts together.
+- Swipe-delete controls are hidden from accessibility while covered. Set-number controls expose a named delete action that uses the existing confirmation; revealed swipe deletion names the exercise/set.
+- Numeric fields use a minimum height rather than a fixed height so larger system text can expand them. Settings block titles have a screen-reader heading role. Native rendering remains unverified.
+- Invalid numeric text is distinguished from a deliberately empty target field. It blocks new-set saves and saved-set updates, remains counted as unsaved work, and is announced on blur. Finishing also warns before discarding saved-row edits. Draft validity is not stored in SQLite.
+- Core live-card/workout Arabic wording is more consistently Egyptian, including the pain/dizziness explanation. Number-input and History error/retry messages exist in both languages. Other Arabic strings remain draft; this is not an independent native-speaker review.
+- No engine/model/increase-policy, migration or server changes. iPhone VoiceOver, gesture delivery, large-text layout and keyboard behavior still require native verification.
+
 ## Six-batch working plan
 
 | Batch | Scope | Status |
@@ -34,7 +43,7 @@ Source: external repository review supplied on 14 October 2026. Its visual score
 | 1 | Atomic saves, recovery tests, experimental labels and accurate docs | Implemented; draft PR #162 |
 | 2 | Logger exercise/set boundaries and behavior checks | Implemented; phone verification pending |
 | 3 | Paired baseline comparisons, report export and model explanations | Implemented; real-user observations still needed |
-| 4 | Core Arabic copy, accessibility and empty/error flows | Planned; native-speaker/device checks required |
+| 4 | Core Arabic copy, accessibility and empty/error flows | Code implemented; native-speaker/device checks still required |
 | 5 | Import edge cases, sync security and backup/restore hardening | Planned; confirm defects before changes |
 | 6 | Device/release validation, onboarding polish and store readiness | Planned; native builds and real devices required |
 

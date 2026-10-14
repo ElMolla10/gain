@@ -43,7 +43,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
 
   const done = row.saved && !row.dirty;
   const canTick = rowCanLog(row);
-  const tickDisabled = busy || (!row.saved && !canTick);
+  const tickDisabled = busy || (!done && !canTick);
   // Ticked rows get only a quiet wash (the muted green check says "done"; lime stays for the current set and primary actions); the set being worked on is the one with the strong wash, bar and outlined boxes.
   const bg = done ? p.doneBg : current ? p.activeBg : p.bg;
   // Every small control says which exercise and which set it belongs to (a screen reader hears a list of identical boxes otherwise).
@@ -56,6 +56,8 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         accessibilityState={{ selected: kindOf(row) !== "normal" }}
         onPress={() => onKind(row)}
         onLongPress={() => onAskDelete(row)}
+        accessibilityActions={[{ name: "delete", label: t("workout.deleteSet") }]}
+        onAccessibilityAction={event => { if (event.nativeEvent.actionName === "delete") onAskDelete(row); }}
         style={{ width: 48, height: 48, borderRadius: radius.button, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}
       >
         <AppText ltr style={{ fontWeight: "600", fontSize: 14, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.accent }}>{label}</AppText>
@@ -76,7 +78,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       value={row.load}
       format={(v) => weightText(v, unit)}
       parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
-      onValue={(v) => onPatch(row.key, { load: v })}
+      onValue={(v, invalid = false) => onPatch(row.key, { load: v, invalidLoad: invalid })}
       placeholder={row.ghostLoad !== null ? weightText(row.ghostLoad, unit) : undefined}
       unitLabel={stacked ? unitText : undefined}
       decimal
@@ -91,7 +93,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       format={(v) => String(v)}
       parse={(txt) => (timed ? parseQuantityInput(txt, ex.measure) : parseRepsInput(txt))}
       decimal={ex.measure === "distance"}
-      onValue={(v) => onPatch(row.key, { reps: v })}
+      onValue={(v, invalid = false) => onPatch(row.key, { reps: v, invalidReps: invalid })}
       placeholder={row.ghostReps !== null ? String(row.ghostReps) : undefined}
       unitLabel={stacked ? (timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")) : undefined}
       done={done}
@@ -99,7 +101,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
     />
   );
   const rirCell = ex.trackEffort ? (
-    <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: stacked ? 96 : 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v) => onPatch(row.key, { rir: v })} unitLabel={stacked ? t("workout.col.rir") : undefined} done={done} current={current} />
+    <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: stacked ? 96 : 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v, invalid = false) => onPatch(row.key, { rir: v, invalidRir: invalid })} unitLabel={stacked ? t("workout.col.rir") : undefined} done={done} current={current} />
   ) : null;
   const bar = current ? <View pointerEvents="none" style={{ position: "absolute", start: 0, top: 6, bottom: 6, width: 4, borderRadius: 2, backgroundColor: p.accent }} /> : null;
   const tick = (
@@ -117,7 +119,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
     </View>
   );
   return (
-    <SwipeRow key={row.key} background={bg} deleteLabel={t("workout.deleteSet")} onDelete={() => onDelete(row)}>
+    <SwipeRow key={row.key} background={bg} deleteLabel={t("workout.deleteSet")} deleteA11y={`${t("workout.deleteSet")}. ${ctx}`} onDelete={() => onDelete(row)}>
       {stacked ? (
         <View style={{ gap: space.xs, paddingHorizontal: space.md, paddingVertical: space.xs }}>
           {bar}

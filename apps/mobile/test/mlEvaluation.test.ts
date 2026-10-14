@@ -288,6 +288,50 @@ describe("local ML evaluation persistence and matching", () => {
   });
 });
 
+describe("real-set evaluation report", () => {
+  it("matches headline accuracy, derives paired baselines from frozen inputs and exposes excluded coverage", async () => {
+    const c = await setup();
+    await c.evaluation.record(await c.prediction());
+    await c.result("next", 8);
+    await c.evaluation.record(await c.prediction("skipped"));
+    await c.evaluation.skip("skipped");
+    await c.evaluation.record(await c.prediction("pending"));
+    const report = await c.evaluation.report(LIVE_MODEL_VERSION);
+    expect(report.coverage).toEqual({ captured: 3, pending: 1, invalidated: 1, excludedCurrentState: 0, evaluated: 1 });
+    expect(report.model).toMatchObject(await c.accuracy());
+    expect(report.comparisons.repeatPrevious.model.meanAbsoluteError).toBe(0);
+    expect(report.comparisons.repeatPrevious.baseline.meanAbsoluteError).toBe(2);
+    expect(report.samples).toHaveLength(1);
+    expect(report.samples[0]?.sessionGroup).toBe("session-1");
+    expect(JSON.stringify(report.samples)).not.toContain(c.sessionId);
+    expect(report.samples[0]?.features.previous_reps).toBe(10);
+    expect((await c.evaluation.report("other-model")).coverage.captured).toBe(0);
+  });
+  it("removes edited outcomes from both model and baseline denominators", async () => {
+    const c = await setup();
+    await c.evaluation.record(await c.prediction());
+    await c.result();
+    await c.db.run("UPDATE workout_set SET reps = 9 WHERE id = 'next'");
+    const r = await c.evaluation.report(LIVE_MODEL_VERSION);
+    expect(r.model.count).toBe(0);
+    expect(r.comparisons.repeatPrevious.baseline.count).toBe(0);
+    expect(r.coverage.invalidated).toBe(1);
+    expect(r.samples).toEqual([]);
+  });
+  it("does not score changed loads as repeat-last baselines or imply comparable history", async () => {
+    const c = await setup();
+    const p = await c.prediction("next", 8, 62.5);
+    p.features.relative_load_change = 2.5 / 60;
+    await c.evaluation.record(p);
+    await c.result("next", 8, 62.5);
+    const r = await c.evaluation.report(LIVE_MODEL_VERSION);
+    expect(r.model.count).toBe(1);
+    expect(r.comparisons.repeatPrevious.model.count).toBe(0);
+    expect(r.comparisons.loadAdjusted.model.count).toBe(1);
+    expect(r.byHistory.priorFirstSetUnavailable.count).toBe(1);
+  });
+});
+
 describe("production forecast capture", () => {
   it("formats counts, rep errors and percentages without kg/lb conversion", () => {
     expect(formatMlNumber(25, "en")).toBe("25");

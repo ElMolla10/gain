@@ -15,7 +15,7 @@ The core promise: **Leave knowing the next weight. Come back knowing if the goal
 
 It is built for muscle and strength, for people who already train. It does not promise a physique, a rate of progress, or a medical outcome. Results depend on training, food, sleep, and the person.
 
-Next-session targets use a written progression rule with a visible reason. The workout logger also runs an experimental offline XGBoost model for optional next-set suggestions. These suggestions are labeled experimental; real-world superiority over simple rules has not been established. Missing sleep, readiness, rest and effort inputs remain unknown. Model failure omits the card and preserves the existing target. Applying a suggestion changes only the next unlogged set; manual loads take precedence. Optional evaluation records stay on the device until the user explicitly exports them.
+Next-session targets use a written progression rule with a visible reason. The workout logger also runs an experimental offline XGBoost model for optional next-set suggestions. These suggestions are labeled experimental; real-world superiority over simple rules has not been established. Missing sleep, readiness, rest and effort inputs remain unknown. Model failure omits the card and preserves the existing target. Applying a suggestion changes only the next unlogged set; manual loads take precedence. Eligible forecasts are recorded automatically on the device for local evaluation. Nothing is uploaded automatically; the user can explicitly export an evaluation JSON or a full backup.
 
 ## Who it is for
 
@@ -166,7 +166,7 @@ Search in Arabic aliases and English names. Numbers and exercise names stay read
 
 ## Experimental next-set assistance and possible later extensions
 
-The offline next-set model is implemented in the logger, with selectable-load checks, inference-failure fallback, and a local opt-in evaluation path. It does not generate next-session targets or assess injuries. The following broader capabilities remain design ideas, pending pilot evidence:
+The offline next-set model is implemented in the logger, with selectable-load checks, inference-failure fallback, and automatic local evaluation with manual export. It does not generate next-session targets or assess injuries. The following broader capabilities remain design ideas, pending pilot evidence:
 
 1. Estimate the next working set from comparable history and sets already done today.
 2. Choose the progression currency when the ideal load does not exist.

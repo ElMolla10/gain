@@ -10,7 +10,7 @@ import { warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
 import { isTimed, quantityText, setQuantity } from "../logic/quantity";
 import { workingIndexes } from "../logic/liveSummary";
 import { rowLabels, currentRowKey, type SetRowDraft } from "../logic/workoutRows";
-import { nextAdaptiveRow, suggestedNextLoad, type ReportedSymptom } from "../logic/liveAdaptation";
+import { nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
 import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, IconButton, InlineStatus, Notice } from "../ui";
@@ -52,6 +52,7 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
   // "Maintain" is an actual recommendation too: show its current load, not a blank.
   // If inference is unavailable or tells the lifter to stop, do not fake a weight.
   const suggestedKg = suggestedNextLoad(candidate?.decision, exSets.some(s => !s.warmup && s.outlierStatus !== "unconfirmed" && s.outlierStatus !== "rejected"));
+  const basis = exSets.filter(trustedWorkingSet).at(-1);
   const suggestedWeight = suggestedKg === null ? "" : formatLoad(suggestedKg, lang, unit);
 
   // GAIN's target for today and its reason, kept to one line until tapped.
@@ -130,7 +131,7 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
 
       {card ? (
         <LiveSuggestion
-          decision={card.decision} repMin={ex.repMin} repMax={ex.repMax}
+          decision={card.decision} basis={basis} repMin={ex.repMin} repMax={ex.repMax}
           manualLoad={nextAdaptiveRow(list)?.load !== null} busy={busy}
           onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep}
         />

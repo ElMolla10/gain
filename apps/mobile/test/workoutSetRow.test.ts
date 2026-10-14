@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { translate } from "../src/i18n/format";
 import type { Disp } from "../src/logic/workoutTypes";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
+import { LiveSuggestion } from "../src/components/LiveSuggestion";
 import { WorkoutExerciseSection } from "../src/components/WorkoutExerciseSection";
 import { WorkoutSetRow, type WorkoutSetRowProps } from "../src/components/WorkoutSetRow";
 
@@ -158,5 +159,30 @@ describe("extracted exercise section wiring", () => {
     expect(rows).toHaveLength(p.list.length);
     expect(rows.every(n => n.props.stacked === true)).toBe(true);
     expect(rows.every(n => n.props.onLog === p.onLog && n.props.onDelete === p.onDelete)).toBe(true);
+  });
+});
+
+describe("live suggestion explanations", () => {
+  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, predictedReps: 8.25, reason: "within_range" as const }, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, onApply: vi.fn(), onKeep: vi.fn(), onReport: vi.fn() });
+  it("explains the observed set in the user's unit without changing the decision", () => {
+    settings.unit = "lb";
+    const p = presentation();
+    const before = { ...p.decision };
+    const tree = nodes(LiveSuggestion(p));
+    const text = tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(text).toContain("132.3");
+    expect(text).toContain("10");
+    expect(text).toContain("Sleep, readiness and rest time are unknown");
+    tree.find(n => (n.type as unknown) === "BigButton" && n.props.variant === "secondary")!.props.onPress();
+    expect(p.onApply).toHaveBeenCalledOnce();
+    expect(p.decision).toEqual(before);
+  });
+  it("does not present a model estimate as the basis for a reported-symptom stop", () => {
+    const p = presentation();
+    const tree = nodes(LiveSuggestion({ ...p, decision: { ...p.decision, action: "stop", reason: "reported_symptoms" } }));
+    const text = tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(text).not.toContain("Last saved set");
+    expect(text).not.toContain("Estimate from logged sets");
+    expect(tree.some(n => n.props.variant === "secondary")).toBe(false);
   });
 });

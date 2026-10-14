@@ -1,3 +1,4 @@
+import { buildEvaluationReport, type EvaluationSample } from "../logic/mlEvaluationReport";
 import type { FeatureMap } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import type { SetRow } from "./workoutRepo";
@@ -13,6 +14,13 @@ export interface MlAccuracy {
   count: number; meanAbsoluteError: number | null; withinOnePercent: number | null; withinTwoPercent: number | null;
 }
 const sourceSnapshot = (sets: SetRow[]) => JSON.stringify(sets.map(s => [s.id, s.exerciseId, s.load, s.reps, s.durationS, s.distanceM, s.warmup, s.tags, s.outlierStatus]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+
+// Shared denominator for headline accuracy, paired comparisons and exported evidence.
+const EVALUATED_FILTER = `WHERE p.model_version = ? AND p.state = 'evaluated' AND s.deleted_at IS NULL AND s.status IN ('in_progress','finished') AND w.deleted_at IS NULL
+        AND w.session_id = p.session_id AND w.exercise_id = p.exercise_id AND w.load = p.proposed_weight
+        AND w.reps = p.actual_reps AND w.is_warmup = 0 AND w.duration_s IS NULL AND w.distance_m IS NULL
+        AND w.outlier_status IN ('none','confirmed')
+        AND NOT EXISTS (SELECT 1 FROM json_each(w.tags_json) WHERE value IN ('drop','failure'))`;
 
 export function createMlEvaluationRepo(db: Db, deps: Deps) {
   /** Refuses stale/late inference. First prediction wins: typing achieved reps or repeated
@@ -66,13 +74,27 @@ export function createMlEvaluationRepo(db: Db, deps: Deps) {
     const row = (await db.get<{ n: number; mae: number | null; one: number | null; two: number | null }>(`SELECT COUNT(*) AS n,
       AVG(p.absolute_error) AS mae, AVG(p.within_one) * 100 AS one, AVG(p.within_two) * 100 AS two
       FROM ml_prediction p JOIN workout_set w ON w.id = p.target_set_id JOIN session s ON s.id = p.session_id
-      WHERE p.model_version = ? AND p.state = 'evaluated' AND s.deleted_at IS NULL AND s.status IN ('in_progress','finished') AND w.deleted_at IS NULL
-        AND w.session_id = p.session_id AND w.exercise_id = p.exercise_id AND w.load = p.proposed_weight
-        AND w.reps = p.actual_reps AND w.is_warmup = 0 AND w.duration_s IS NULL AND w.distance_m IS NULL
-        AND w.outlier_status IN ('none','confirmed')
-        AND NOT EXISTS (SELECT 1 FROM json_each(w.tags_json) WHERE value IN ('drop','failure'))`, [modelVersion]))!;
+      ${EVALUATED_FILTER}`, [modelVersion]))!;
     return { count: row.n, meanAbsoluteError: row.mae, withinOnePercent: row.one, withinTwoPercent: row.two };
   }
-  return { record, skip, pendingTarget, accuracy };
+  /** One consistent snapshot of current eligible outcomes and capture coverage. */
+  async function report(modelVersion: string) {
+    return db.transaction(async () => {
+      const rows = await db.all<{ session_id: string; exercise_id: string; predicted_reps: number; actual_reps: number; features_json: string }>(`
+        SELECT p.session_id, p.exercise_id, p.predicted_reps, p.actual_reps, p.features_json
+        FROM ml_prediction p JOIN workout_set w ON w.id = p.target_set_id JOIN session s ON s.id = p.session_id
+        ${EVALUATED_FILTER} ORDER BY p.generated_at, p.id`, [modelVersion]);
+      const states = await db.all<{ state: string; n: number }>("SELECT state, COUNT(*) AS n FROM ml_prediction WHERE model_version = ? GROUP BY state", [modelVersion]);
+      const count = (state: string) => states.find(s => s.state === state)?.n ?? 0;
+      const groups = new Map<string, string>();
+      for (const row of rows) if (!groups.has(row.session_id)) groups.set(row.session_id, `session-${groups.size + 1}`);
+      const samples: EvaluationSample[] = rows.map(r => ({ sessionGroup: groups.get(r.session_id), exerciseId: r.exercise_id, predictedReps: r.predicted_reps, actualReps: r.actual_reps, features: JSON.parse(r.features_json) as FeatureMap }));
+      return buildEvaluationReport(modelVersion, samples, {
+        captured: states.reduce((n, s) => n + s.n, 0), pending: count("pending"), invalidated: count("invalid"),
+        excludedCurrentState: count("evaluated") - samples.length,
+      });
+    });
+  }
+  return { record, skip, pendingTarget, accuracy, report };
 }
 export type MlEvaluationRepo = ReturnType<typeof createMlEvaluationRepo>;

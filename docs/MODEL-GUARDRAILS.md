@@ -1,6 +1,6 @@
 # Model-layer guardrails (Step 23 seam, code only)
 
-Status: **pure functions plus tests; no model, server, API key or network code exists, and the app does not call any of it.** Whether to build Step 23 at all is Mohamed's decision (the plan says: only after pilot data shows how often the rule flags a case).
+Status: **the legacy next-session advisor seam below remains pure functions plus tests and is not connected to the app.** Separately, the workout logger now runs an experimental offline XGBoost next-set model (`liveAdaptation*.ts`). Its actual safeguards and evaluation are documented in [ML-EVALUATION.md](ML-EVALUATION.md). The table below describes the legacy seam, not the live adapter.
 
 Code: `packages/engine/src/modelGuard.ts` (+ `modelGuard.test.ts`, 17 tests), seam types in `model.ts`.
 

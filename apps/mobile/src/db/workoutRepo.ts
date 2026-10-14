@@ -532,12 +532,46 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     });
   }
 
-  /** Swap a slot for another exercise for today only. Refused once sets are logged for the current one (remove those first). */
-  async function replaceExercise(sessionId: string, slot: string, currentExerciseId: string, withExerciseId: string | null): Promise<void> {
+  /**
+   * Swap a slot for another exercise. Default is today only (`replacedBy`). `permanent` writes the swap onto the active program day
+   * without changing programme_version_id, so finish planning targets the replacement. Refused once sets are logged for the current one
+   * (remove those first).
+   */
+  async function replaceExercise(sessionId: string, slot: string, currentExerciseId: string, withExerciseId: string | null, permanent = false): Promise<void> {
     const logged = await listSessionSets(sessionId, currentExerciseId);
     if (logged.length > 0) throw new ExerciseHasSets();
     if (withExerciseId && (await listExerciseState(sessionId)).some((s) => s.added && s.slot === withExerciseId)) throw new ExerciseAlreadyInWorkout();
-    await patchExerciseState(sessionId, slot, { replacedBy: withExerciseId, removed: false });
+    if (!permanent || withExerciseId === null) {
+      await patchExerciseState(sessionId, slot, { replacedBy: withExerciseId, removed: false });
+      return;
+    }
+    await db.transaction(async () => {
+      const session = await db.get<{ programme_day_id: string }>("SELECT programme_day_id FROM session WHERE id = ?", [sessionId]);
+      if (!session) throw new Error("Unknown session");
+      const exists = await db.get<{ id: string }>(
+        "SELECT id FROM programme_day_exercise WHERE programme_day_id = ? AND exercise_id = ? AND deleted_at IS NULL",
+        [session.programme_day_id, withExerciseId],
+      );
+      if (exists) throw new ExerciseAlreadyInWorkout();
+      const t = now();
+      await db.run("UPDATE programme_day_exercise SET exercise_id = ?, updated_at = ? WHERE programme_day_id = ? AND exercise_id = ?", [
+        withExerciseId,
+        t,
+        session.programme_day_id,
+        slot,
+      ]);
+      const row = await db.get<{ id: string }>(
+        "SELECT id FROM session_exercise WHERE session_id = ? AND slot_exercise_id = ? AND deleted_at IS NULL",
+        [sessionId, slot],
+      );
+      if (row) {
+        await db.run("UPDATE session_exercise SET slot_exercise_id = ?, replaced_by = NULL, removed = 0, updated_at = ? WHERE id = ?", [
+          withExerciseId,
+          t,
+          row.id,
+        ]);
+      }
+    });
   }
 
   /**

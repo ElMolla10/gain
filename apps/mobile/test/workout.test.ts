@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ExerciseAlreadyInWorkout } from "../src/db/workoutRepo";
 import { freshDb } from "./helpers";
 
 async function setup() {
@@ -271,5 +272,35 @@ describe("per-workout exercise changes (remove / replace / note / rest timer)", 
     await workout.logSet({ sessionId: id, exerciseId: other, load: 40, reps: 10 }, dctx);
     await expect(workout.replaceExercise(id, slot, other, slot)).rejects.toThrow();
     expect((await repos.listDayExercises((await repos.getNextDay())!.day.id))[0]!.exerciseId).toBe(slot);
+  });
+  it("permanent mid-workout replacement updates the program day and writes a next-session target on finish", async () => {
+    const { workout, repos, finish, programmes, id, exs, gym, db } = await open();
+    const session = (await workout.getSession(id))!;
+    const lib = await programmes.listExercises();
+    const inDay = new Set(exs.map((e) => e.exerciseId));
+    const other = lib.find((l) => !inDay.has(l.id))!;
+    const slot = exs[0]!.exerciseId;
+    const versionBefore = (await db.get<{ programme_version_id: string }>("SELECT programme_version_id FROM programme_day WHERE id = ?", [session.programme_day_id]))!.programme_version_id;
+
+    await expect(workout.replaceExercise(id, slot, slot, exs[1]!.exerciseId, true)).rejects.toBeInstanceOf(ExerciseAlreadyInWorkout);
+
+    await workout.patchExerciseState(id, slot, { note: "keep" });
+    await workout.replaceExercise(id, slot, slot, other.id, true);
+
+    const dayExs = await repos.listDayExercises(session.programme_day_id);
+    expect(dayExs.map((e) => e.exerciseId)).toContain(other.id);
+    expect(dayExs.map((e) => e.exerciseId)).not.toContain(slot);
+    const versionAfter = (await db.get<{ programme_version_id: string }>("SELECT programme_version_id FROM programme_day WHERE id = ?", [session.programme_day_id]))!.programme_version_id;
+    expect(versionAfter).toBe(versionBefore);
+    expect((await workout.listExerciseState(id))[0]).toMatchObject({ slot: other.id, replacedBy: null, removed: false, note: "keep" });
+
+    const replacement = dayExs.find((e) => e.exerciseId === other.id)!;
+    await workout.logSet({ sessionId: id, exerciseId: other.id, load: 40, reps: 10 }, { gym, equipment: replacement.equipment, setup: replacement.setup });
+    await workout.finishSession(id);
+    const planned = await finish.planDay(session.programme_day_id, session.gym_id);
+    expect(planned).not.toBeNull();
+    const targets = await finish.getTargets(planned!.sessionId);
+    expect(targets.map((t) => t.exerciseId)).toContain(other.id);
+    expect(targets.map((t) => t.exerciseId)).not.toContain(slot);
   });
 });

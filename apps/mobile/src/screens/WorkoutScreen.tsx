@@ -465,24 +465,54 @@ export function WorkoutScreen() {
     setRows((r) => ({ ...r, [ex.exerciseId]: initialRows(saved, ex.sets, info.prefill, () => Crypto.randomUUID(), (isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info.last?.sets))) }));
   }
 
-  async function replaceWith(slot: string, exerciseId: string) {
-    if (!loaded || loaded === "nogym") return;
-    const slotEx = loaded.slots.find((s) => s.exerciseId === slot);
-    if (!slotEx) return;
-    const cur = makeDisp(slotEx, exState[slot]);
-    setPickFor(null);
+  async function applyReplace(lo: Loaded, slot: string, cur: Disp, withId: string | null, permanent: boolean) {
     try {
-      await workout.replaceExercise(loaded.sessionId, slot, cur.exerciseId, exerciseId === slot ? null : exerciseId);
+      await workout.replaceExercise(lo.sessionId, slot, cur.exerciseId, withId, permanent);
     } catch {
       return void Alert.alert(t("workout.replace.blocked"));
     }
-    const st: ExerciseState = { ...(exState[slot] ?? NO_STATE(slot)), replacedBy: exerciseId === slot ? null : exerciseId, removed: false };
-    setState(slot, st);
     setRows((r) => {
       const { [cur.exerciseId]: _gone, ...others } = r;
       return others;
     });
-    await showSlot(loaded, slot, st);
+    if (permanent && withId) {
+      const programmeSlots = await repos.listDayExercises(dayId);
+      const stateList = await workout.listExerciseState(lo.sessionId);
+      const states: Record<string, ExerciseState> = {};
+      for (const st of stateList) states[st.slot] = st;
+      const addedSlots: DayEx[] = [];
+      for (const st of stateList.filter((x) => x.added)) {
+        const ad = await repos.adHocDayExercise(st.slot);
+        if (ad) addedSlots.push(ad);
+      }
+      const next: Loaded = { ...lo, slots: [...programmeSlots, ...addedSlots] };
+      const st = states[withId] ?? NO_STATE(withId);
+      setExState(states);
+      setLoaded(next);
+      await showSlot(next, withId, st);
+      return;
+    }
+    const st: ExerciseState = { ...(exState[slot] ?? NO_STATE(slot)), replacedBy: withId, removed: false };
+    setState(slot, st);
+    await showSlot(lo, slot, st);
+  }
+
+  async function replaceWith(slot: string, exerciseId: string) {
+    if (!loaded || loaded === "nogym") return;
+    const lo = loaded;
+    const slotEx = lo.slots.find((s) => s.exerciseId === slot);
+    if (!slotEx) return;
+    const cur = makeDisp(slotEx, exState[slot]);
+    setPickFor(null);
+    if (exerciseId === slot) {
+      await applyReplace(lo, slot, cur, null, false);
+      return;
+    }
+    Alert.alert(t("workout.replace.scope.title"), t("workout.replace.scope.body"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("workout.replace.scope.today"), onPress: () => void applyReplace(lo, slot, cur, exerciseId, false) },
+      { text: t("workout.replace.scope.program"), onPress: () => void applyReplace(lo, slot, cur, exerciseId, true) },
+    ]);
   }
 
   async function restore(slot: string) {

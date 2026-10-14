@@ -75,6 +75,14 @@ export const addDay = (d: ProgrammeDraft, name: string): ProgrammeDraft => (d.da
 export const removeDay = (d: ProgrammeDraft, i: number): ProgrammeDraft => ({ ...d, days: d.days.filter((_, j) => j !== i) });
 export const renameDay = (d: ProgrammeDraft, i: number, name: string): ProgrammeDraft => mapDay(d, i, (day) => ({ ...day, name }));
 export const moveDay = (d: ProgrammeDraft, from: number, to: number): ProgrammeDraft => ({ ...d, days: move(d.days, from, to) });
+/** Reorder whole workouts by their original indexes, so duplicate names remain distinct.
+ * Reject incomplete, duplicate or unknown positions instead of dropping workouts. */
+export const reorderDays = (d: ProgrammeDraft, indexes: readonly number[]): ProgrammeDraft => {
+  if (indexes.length !== d.days.length || new Set(indexes).size !== indexes.length ||
+      indexes.some(i => !Number.isInteger(i) || i < 0 || i >= d.days.length)) return d;
+  if (indexes.every((value, i) => value === i)) return d;
+  return { ...d, days: indexes.map(i => d.days[i]!) };
+};
 /** Adding an exercise already in that day is a no-op (the same lift twice in a day would double its line). */
 export const addExercise = (d: ProgrammeDraft, dayIndex: number, ex: DraftExercise): ProgrammeDraft =>
   mapDay(d, dayIndex, (day) => (day.exercises.some((e) => e.exerciseId === ex.exerciseId) ? day : { ...day, exercises: [...day.exercises, ex] }));

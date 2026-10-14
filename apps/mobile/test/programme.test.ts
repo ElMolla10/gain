@@ -4,7 +4,7 @@ import { SAMPLE_EXERCISES } from "../src/db/seedData";
 import { ALL_LIBRARY } from "../src/db/libraryDraft";
 import { computeExposure, diffExposure, goalLiftFrequency, groupOfPattern, PATTERNS } from "../src/logic/exposure";
 import {
-  addDay, addExercise, draftFingerprint, MAX_DAYS, moveDay, moveExercise, newExercise, removeDay, removeExercise, renameDay, reorderExercises, updateExercise, validateDraft, type ProgrammeDraft,
+  addDay, addExercise, draftFingerprint, MAX_DAYS, moveDay, moveExercise, newExercise, removeDay, removeExercise, renameDay, reorderDays, reorderExercises, updateExercise, validateDraft, type ProgrammeDraft,
 } from "../src/logic/programmeDraft";
 import { estimateSessionMinutes, instantiateTemplate, TEMPLATES, templatesForDays } from "../src/logic/templates";
 import { freshDb } from "./helpers";
@@ -20,6 +20,21 @@ describe("program draft edits", () => {
     expect(moveDay(d1, 0, 9)).toEqual(d1); // out of range: unchanged
     expect(renameDay(d1, 1, "Pull").days[1]!.name).toBe("Pull");
     expect(removeDay(d1, 0).days.map((d) => d.name)).toEqual(["B", "C"]);
+  });
+  it("reorders whole workouts even with duplicate names and rejects lossy orders", () => {
+    const original: ProgrammeDraft = { name: "P", days: [
+      { name: "Upper", exercises: [newExercise("bench", { sets: 4, topSets: 2 })] },
+      { name: "Upper", exercises: [newExercise("row", { sets: 2, trackEffort: true })] },
+      { name: "Lower", exercises: [newExercise("squat")] },
+    ] };
+    const changed = reorderDays(original, [2, 0, 1]);
+    expect(changed.days).toEqual([original.days[2], original.days[0], original.days[1]]);
+    expect(changed.days[1]).toBe(original.days[0]);
+    expect(original.days[0]!.exercises[0]!.exerciseId).toBe("bench");
+    for (const indexes of [[0, 0, 2], [0, 1], [0, 1, 3], [0, 1, -1], [0, 1, 1.5]]) {
+      expect(reorderDays(original, indexes)).toBe(original);
+    }
+    expect(reorderDays(original, [0, 1, 2])).toBe(original);
   });
   it("caps the number of days", () => {
     let d = d0;
@@ -223,6 +238,18 @@ describe("program repo: versions", () => {
     expect((await programmes.getActive())!.versionId).toBe(r.versionId);
     const versions = await programmes.listVersions(active.programmeId);
     expect(versions.map((v) => [v.version, v.isCurrent])).toEqual([[2, true], [1, false]]);
+  });
+  it("persists workout order and per-exercise set settings as one new version", async () => {
+    const { programmes, active, v1, repos } = await seeded();
+    const indexes = v1.days.map((_, i) => i).reverse();
+    const reordered = reorderDays(v1, indexes);
+    const edited = updateExercise(reordered, 0, 0, { sets: 2 });
+    const saved = await programmes.saveNewVersion(active.programmeId, edited);
+    const loaded = await programmes.loadDraft(saved.versionId);
+    expect(loaded.days.map(day => day.name)).toEqual(indexes.map(i => v1.days[i]!.name));
+    expect(loaded.days[0]!.exercises[0]!.sets).toBe(2);
+    expect(await programmes.loadDraft(active.versionId)).toEqual(v1);
+    expect((await repos.getNextDay())!.day.name).toBe(edited.days[0]!.name);
   });
   it("an edit that changes nothing does not create a version", async () => {
     const { programmes, active, v1 } = await seeded();

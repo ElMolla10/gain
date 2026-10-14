@@ -6,13 +6,14 @@ import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { computeExposure } from "../logic/exposure";
 import {
-  addDay, addExercise, moveDay, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, reorderExercises, updateExercise, type ProgrammeDraft,
+  addDay, addExercise, reorderDays, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, reorderExercises, updateExercise, type ProgrammeDraft,
 } from "../logic/programmeDraft";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Field, IconButton, Stepper } from "../ui";
 import { EffectView, ExposureView } from "./ExposureView";
 import { ExercisePicker } from "./ExercisePicker";
 import { ExerciseReorderModal } from "./ExerciseReorderModal";
+import { WorkoutSettingsModal } from "./WorkoutSettingsModal";
 import { Icon } from "./Icon";
 
 /**
@@ -22,6 +23,8 @@ import { Icon } from "./Icon";
  */
 export function ProgrammeEditorView(props: {
   draft: ProgrammeDraft;
+  initialSettingsDay?: number;
+  initialReorderWorkouts?: boolean;
   onChange: (d: ProgrammeDraft) => void;
   baseline: ProgrammeDraft | null;
   library: LibraryExercise[];
@@ -37,6 +40,8 @@ export function ProgrammeEditorView(props: {
   const { t, lang } = useI18n();
   const p = usePalette();
   const [pickerDay, setPickerDay] = useState<number | null>(null);
+  const [reorderWorkouts, setReorderWorkouts] = useState(props.initialReorderWorkouts ?? false);
+  const [settingsDay, setSettingsDay] = useState<number | null>(props.initialSettingsDay ?? null);
   const [reorderDay, setReorderDay] = useState<number | null>(null);
   // Start collapsed. Only one exercise needs to reveal its advanced settings at a time.
   const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
@@ -75,12 +80,14 @@ export function ProgrammeEditorView(props: {
   return (
     <View style={{ gap: space.md }}>
       <Field label={t("prog.name")} value={d.name} onChangeText={(s) => props.onChange(renameProgramme(d, s))} />
+      {d.days.length > 1 ? <BigButton variant="secondary" label={t("prog.workouts.reorder")} onPress={() => setReorderWorkouts(true)} /> : null}
       {d.days.map((day, di) => (
         <Card key={di} style={{ gap: space.md }}>
-          <Field label={t("prog.day.name")} value={day.name} onChangeText={(s) => props.onChange(renameDay(d, di, s))} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+            <View style={{ flex: 1 }}><Field label={t("prog.day.name")} value={day.name} onChangeText={(s) => props.onChange(renameDay(d, di, s))} /></View>
+            <IconButton icon="settings" label={t("prog.workout.settings", { workout: day.name })} onPress={() => setSettingsDay(di)} />
+          </View>
           <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-            <Chip label={t("prog.up")} onPress={() => { setExpandedExercise(null); props.onChange(moveDay(d, di, di - 1)); }} />
-            <Chip label={t("prog.down")} onPress={() => { setExpandedExercise(null); props.onChange(moveDay(d, di, di + 1)); }} />
             <Chip label={t("prog.day.remove")} tone="danger" onPress={() => { setExpandedExercise(null); props.onChange(removeDay(d, di)); }} />
           </View>
           {day.exercises.length > 1 ? <BigButton variant="secondary" label={t("prog.reorder.button")} onPress={() => setReorderDay(di)} /> : null}
@@ -181,6 +188,27 @@ export function ProgrammeEditorView(props: {
       ))}
       <BigButton variant="secondary" icon="plus" label={t("prog.day.add")} onPress={() => props.onChange(addDay(d, t("prog.day.default", { n: d.days.length + 1 }).replace(/[\u2066\u2069]/g, "")))} />
       {before && props.baseline ? <EffectView before={before} after={after} beforeDraft={props.baseline} afterDraft={d} nameOf={nameOf} /> : <ExposureView rows={after} />}
+      {settingsDay !== null && d.days[settingsDay] ? <WorkoutSettingsModal
+        day={d.days[settingsDay]!}
+        nameOf={nameOf}
+        onCancel={() => setSettingsDay(null)}
+        onDone={(day) => {
+          props.onChange({ ...d, days: d.days.map((original, i) => i === settingsDay ? day : original) });
+          setSettingsDay(null);
+        }}
+      /> : null}
+      <ExerciseReorderModal
+        visible={reorderWorkouts}
+        title={t("prog.workouts.reorder")}
+        hint={t("prog.workouts.reorderHint")}
+        items={d.days.map((day, i) => ({ id: String(i), name: day.name }))}
+        onCancel={() => setReorderWorkouts(false)}
+        onDone={(ids) => {
+          setExpandedExercise(null);
+          props.onChange(reorderDays(d, ids.map(Number)));
+          setReorderWorkouts(false);
+        }}
+      />
       <ExerciseReorderModal
         visible={reorderDay !== null}
         items={reorderDay !== null ? (d.days[reorderDay]?.exercises ?? []).map((e) => ({ id: e.exerciseId, name: nameOf(e.exerciseId) })) : []}

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { sha256Hex } from "../src/util";
 import { makeWorld } from "./harness";
 
 describe("anonymous accounts and recovery", () => {
@@ -149,4 +150,62 @@ describe("misc", () => {
     expect((await w.call("GET", "/nope")).status).toBe(404);
     expect((await w.call("PUT", "/v1/sync/push", { token: (await w.newAccount()).deviceToken })).status).toBe(404);
   });
+});
+
+describe("auth races and rollback", () => {
+  it("only one concurrent request can consume a valid email code", async () => {
+    const w = makeWorld({ DEV_EMAIL_CODES: "1" });
+    const start = await w.call("POST", "/v1/auth/email/start", { body: { email: "race@example.com" } });
+    const requests = await Promise.all([1, 2, 3].map(() => w.call("POST", "/v1/auth/email/verify", { body: { email: "race@example.com", code: start.body.devCode } })));
+    expect(requests.map(r => r.status).sort()).toEqual([200, 401, 401]);
+    expect(w.db.raw.prepare("SELECT COUNT(*) AS n FROM device").get()).toMatchObject({ n: 1 });
+  });
+  it("rejects at the exact expiry boundary", async () => {
+    const w = makeWorld({ DEV_EMAIL_CODES: "1" });
+    const start = await w.call("POST", "/v1/auth/email/start", { body: { email: "expires@example.com" } });
+    w.tick(10 * 60 * 1000);
+    expect((await w.call("POST", "/v1/auth/email/verify", { body: { email: "expires@example.com", code: start.body.devCode } })).status).toBe(401);
+  });
+  it("invalid bearer authentication does not burn a valid code", async () => {
+    const w = makeWorld({ DEV_EMAIL_CODES: "1" });
+    const start = await w.call("POST", "/v1/auth/email/start", { body: { email: "link@example.com" } });
+    const body = { email: "link@example.com", code: start.body.devCode };
+    expect((await w.call("POST", "/v1/auth/email/verify", { token: "not-a-valid-token", body })).status).toBe(401);
+    expect((await w.call("POST", "/v1/auth/email/verify", { body })).status).toBe(200);
+  });
+  it("device insertion failure rolls back anonymous account creation", async () => {
+    const w = makeWorld();
+    w.db.raw.exec("CREATE TRIGGER reject_device BEFORE INSERT ON device BEGIN SELECT RAISE(ABORT, 'device write failed'); END");
+    expect((await w.call("POST", "/v1/account", { body: {} })).status).toBe(500);
+    expect(w.db.raw.prepare("SELECT COUNT(*) AS n FROM account").get()).toMatchObject({ n: 0 });
+    expect(w.db.raw.prepare("SELECT COUNT(*) AS n FROM device").get()).toMatchObject({ n: 0 });
+  });
+});
+
+it.each([true, false])("a stale verify does not consume or lock a replacement code (correct old code: %s)", async correct => {
+  const w = makeWorld({ DEV_EMAIL_CODES: "1" });
+  const email = "replaced@example.com";
+  const start = await w.call("POST", "/v1/auth/email/start", { body: { email } });
+  let release!: () => void, observed!: () => void;
+  const gate = new Promise<void>(r => { release = r; });
+  const read = new Promise<void>(r => { observed = r; });
+  const prepare = w.db.prepare.bind(w.db);
+  const spy = vi.spyOn(w.db, "prepare").mockImplementation(sql => {
+    const statement = prepare(sql);
+    if (!sql.startsWith("SELECT code_hash, expires_at, attempts")) return statement;
+    return { ...statement, bind: (...args: unknown[]) => {
+      const bound = statement.bind(...args);
+      return { ...bound, first: async () => { const row = await bound.first(); observed(); await gate; return row; } } as D1PreparedStatement;
+    } } as D1PreparedStatement;
+  });
+  const bad = start.body.devCode === "00000000" ? "11111111" : "00000000";
+  const pending = w.call("POST", "/v1/auth/email/verify", { body: { email, code: correct ? start.body.devCode : bad } });
+  await read;
+  const replacement = start.body.devCode === "12345678" ? "87654321" : "12345678";
+  w.db.raw.prepare("UPDATE email_code SET code_hash = ?, attempts = 0 WHERE email = ?").run(await sha256Hex(`${email}|${replacement}`), email);
+  release();
+  expect((await pending).status).toBe(401);
+  spy.mockRestore();
+  expect(w.db.raw.prepare("SELECT attempts FROM email_code WHERE email = ?").get(email)).toMatchObject({ attempts: 0 });
+  expect((await w.call("POST", "/v1/auth/email/verify", { body: { email, code: replacement } })).status).toBe(200);
 });

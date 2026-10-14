@@ -36,6 +36,15 @@ Source: external repository review supplied on 14 October 2026. Its visual score
 - Core live-card/workout Arabic wording is more consistently Egyptian, including the pain/dizziness explanation. Number-input and History error/retry messages exist in both languages. Other Arabic strings remain draft; this is not an independent native-speaker review.
 - No engine/model/increase-policy, migration or server changes. iPhone VoiceOver, gesture delivery, large-text layout and keyboard behavior still require native verification.
 
+## Batch 5: import, auth and backup/restore hardening
+
+- Hevy and Strong reject impossible dates/times before JavaScript can normalize them. Valid rows retain their local wall-clock values; invalid Hevy rows produce warnings instead of a silently shifted workout.
+- Email verification consumes a code with one conditional delete. Concurrent verifies cannot both succeed; stale correct/wrong requests neither delete nor increment attempts on a replacement code. Invalid bearer authentication is checked before consuming the code, and expiry includes the exact deadline.
+- Anonymous account/device creation uses an atomic D1 batch, avoiding orphan accounts when device insertion fails. Existing token/recovery hashing and rate-limit caps remain intact.
+- JSON exports read all tables and completeness counts inside a maintenance transaction. Restore holds that transaction from the verified safety copy through replacement, preventing writes in the copy/replace gap. Foreign-key and row-count checks remain in place.
+- Restore rejects missing schema-1 core tables and sync bookkeeping before replacement. A valid empty backup still contains empty core table arrays; an older complete backup remains supported.
+- No migrations or AI/progression-policy changes. Server auth changes are source-only until the existing Worker deployment procedure is run after merge. Native iPhone backup/share/restore, lock contention and real Strong-export verification remain pending.
+
 ## Six-batch working plan
 
 | Batch | Scope | Status |
@@ -44,7 +53,7 @@ Source: external repository review supplied on 14 October 2026. Its visual score
 | 2 | Logger exercise/set boundaries and behavior checks | Implemented; phone verification pending |
 | 3 | Paired baseline comparisons, report export and model explanations | Implemented; real-user observations still needed |
 | 4 | Core Arabic copy, accessibility and empty/error flows | Code implemented; native-speaker/device checks still required |
-| 5 | Import edge cases, sync security and backup/restore hardening | Planned; confirm defects before changes |
+| 5 | Import edge cases, auth races and backup/restore hardening | Code implemented; Worker deployment and native checks pending |
 | 6 | Device/release validation, onboarding polish and store readiness | Planned; native builds and real devices required |
 
 The six batches are a working division of the audit, not an estimate that all findings can be resolved without user/device evidence. Keep the original AI increase policy unless a later change is explicitly requested.

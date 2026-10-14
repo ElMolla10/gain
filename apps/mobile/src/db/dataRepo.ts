@@ -27,8 +27,8 @@ export interface DataCounts {
  * big transaction cannot mix with the app's other statements). It defaults to `db` (tests, and anything without a second connection).
  */
 export function createDataRepo(db: Db, deps: Deps, maint: Db = db) {
-  async function userTables(): Promise<string[]> {
-    const rows = await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+  async function userTables(connection: Db = db): Promise<string[]> {
+    const rows = await connection.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
     return rows.map((r) => r.name);
   }
 
@@ -43,20 +43,24 @@ export function createDataRepo(db: Db, deps: Deps, maint: Db = db) {
   }
 
   /** Full-fidelity backup: every row of every table (soft-deleted rows too, so a restore is exact). */
-  async function exportJson(nowMs: number = deps.now()): Promise<string> {
-    const v = await db.get<{ user_version: number }>("PRAGMA user_version");
+  async function snapshotJson(nowMs: number): Promise<string> {
+    const v = await maint.get<{ user_version: number }>("PRAGMA user_version");
     const tables: BackupFile["tables"] = {};
     // sync_* is bookkeeping and holds the account token: it never goes into a file the lifter may share.
-    for (const name of await userTables()) if (!name.startsWith("sync_")) tables[name] = await db.all(`SELECT * FROM ${name}`);
+    for (const name of await userTables(maint)) if (!name.startsWith("sync_")) tables[name] = await maint.all(`SELECT * FROM ${name}`);
     const file: BackupFile = { app: BACKUP_APP, format: BACKUP_FORMAT, schemaVersion: Number(v?.user_version ?? LATEST_VERSION), exportedAt: new Date(nowMs).toISOString(), tables };
     // A backup only counts as made when it is complete: every table has as many rows in the file as in the database, and the file reads back.
     for (const [name, rows] of Object.entries(tables)) {
-      const n = (await db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM ${name}`))!.n;
+      const n = (await maint.get<{ n: number }>(`SELECT COUNT(*) AS n FROM ${name}`))!.n;
       if (n !== rows.length) throw new BackupIncomplete(`table ${name} has ${n} rows but ${rows.length} were written`);
     }
     const text = JSON.stringify(file);
     parseBackup(text, Math.max(file.schemaVersion, LATEST_VERSION));
     return text;
+  }
+
+  async function exportJson(nowMs: number = deps.now()): Promise<string> {
+    return maint.transaction(() => snapshotJson(nowMs));
   }
 
   /** Finished sessions' sets in Hevy's column layout (kg): opens in Excel, and GAIN's own import reads it back. */
@@ -99,7 +103,13 @@ export function createDataRepo(db: Db, deps: Deps, maint: Db = db) {
   async function inspectBackup(text: string): Promise<{ file: BackupFile; counts: { sessions: number; sets: number } }> {
     const file = parseBackup(text, LATEST_VERSION);
     const known = new Set(await userTables());
+    // Full backups have included these core tables since schema 1. Missing tables are
+    // truncation, not an intentional empty database; never turn them into a destructive restore.
+    for (const name of ["gym", "exercise", "exercise_line", "session", "workout_set"]) {
+      if (!Object.hasOwn(file.tables, name)) throw new BackupInvalid("bad_tables", `missing core table ${name}`);
+    }
     for (const [name, rows] of Object.entries(file.tables)) {
+      if (name.startsWith("sync_")) throw new BackupInvalid("bad_tables", "sync bookkeeping cannot be restored from a shared backup");
       if (!known.has(name)) throw new BackupInvalid("bad_tables", `unknown table ${name}`);
       if (rows.length === 0) continue;
       const cols = new Set((await db.all<{ name: string }>(`PRAGMA table_info(${name})`)).map((c) => c.name));
@@ -122,17 +132,17 @@ export function createDataRepo(db: Db, deps: Deps, maint: Db = db) {
   async function restoreJson(text: string, opts: { keepCurrent?: (json: string) => void | Promise<void> } = {}): Promise<{ sessions: number; sets: number }> {
     const { file, counts: c } = await inspectBackup(text);
     const tables = await userTables();
-    // First an automatic local copy of what is on the phone now. If it cannot be made (or verified by the caller), nothing is replaced.
-    if (opts.keepCurrent) {
-      try {
-        await opts.keepCurrent(await exportJson());
-      } catch (e) {
-        throw new RestoreFailed(`could not keep a copy of the current data first (${e instanceof Error ? e.message : String(e)})`);
-      }
-    }
     await maint.exec("PRAGMA foreign_keys = OFF");
     try {
       await maint.transaction(async () => {
+        // First an automatic local copy of what is on the phone now. If it cannot be made (or verified by the caller), nothing is replaced.
+        if (opts.keepCurrent) {
+          try {
+            await opts.keepCurrent(await snapshotJson(deps.now()));
+          } catch (e) {
+            throw new RestoreFailed(`could not keep a copy of the current data first (${e instanceof Error ? e.message : String(e)})`);
+          }
+        }
         for (const t of tables) await maint.run(`DELETE FROM ${t}`);
         for (const [name, rows] of Object.entries(file.tables)) {
           for (const r of rows) {

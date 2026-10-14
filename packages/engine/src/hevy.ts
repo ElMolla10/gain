@@ -63,6 +63,14 @@ export function parseCsv(text: string, delimiter = ","): string[][] {
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
+/** Reject impossible fields before JavaScript can normalize them into another day. */
+export function validCalendarFields(year: number, month: number, day: number, hour: number, minute: number, second = 0): boolean {
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  return [year, month, day, hour, minute, second].every(Number.isInteger) && year >= 1 && year <= 9999
+    && days !== undefined && day >= 1 && day <= days && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 && second >= 0 && second <= 59;
+}
+
 /** "Sep 29, 2026, 3:15 PM" -> "2026-09-29T15:15:00" (local wall clock, no zone). */
 export function parseHevyDate(s: string): string {
   const m = /^\s*([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM)?\s*$/i.exec(s);
@@ -76,6 +84,7 @@ export function parseHevyDate(s: string): string {
     if (ap === "AM" && h === 12) h = 0;
     else if (ap === "PM" && h !== 12) h += 12;
   }
+  if (!validCalendarFields(Number(m[3]), mon + 1, Number(m[2]), h, Number(m[5]))) throw new HevyParseError(`Invalid calendar date: "${s}"`);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${m[3]}-${p(mon + 1)}-${p(Number(m[2]))}T${p(h)}:${m[5]}:00`;
 }

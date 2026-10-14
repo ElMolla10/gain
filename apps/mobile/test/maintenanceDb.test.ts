@@ -64,3 +64,33 @@ describe("maintenance connection (sync, restore, delete-all)", () => {
     expect((await main.get<{ n: number }>("SELECT COUNT(*) AS n FROM exercise"))!.n).toBe(0);
   });
 });
+
+it("exports all tables through the maintenance snapshot, not the everyday connection", async () => {
+  const { main, maint } = await twoConnections();
+  const deps = testDeps(); await createRepos(main, deps).seedIfNeeded();
+  const data = createDataRepo(main, deps, maint);
+  const read = main.all;
+  main.all = async () => { throw new Error("snapshot must not read everyday connection"); };
+  try {
+    const backup = JSON.parse(await data.exportJson());
+    expect(backup.tables.exercise.length).toBeGreaterThan(0);
+    expect(backup.tables.gym.length).toBe(1);
+    expect(Object.keys(backup.tables).some(name => name.startsWith("sync_"))).toBe(false);
+  } finally { main.all = read; }
+});
+
+it("holds the write lock from the safety copy through restore, then releases it", async () => {
+  const { main, maint } = await twoConnections();
+  const deps = testDeps();
+  const repos = createRepos(main, deps);
+  await repos.seedIfNeeded();
+  await repos.setSetting("language", "en");
+  const data = createDataRepo(main, deps, maint);
+  const json = await data.exportJson();
+  await data.restoreJson(json, { keepCurrent: async copy => {
+    expect(JSON.parse(copy).tables.setting.length).toBeGreaterThan(0);
+    await expect(main.run("UPDATE setting SET value = 'ar' WHERE id = 'language'")).rejects.toThrow(/locked|busy/i);
+  } });
+  await main.run("UPDATE setting SET value = 'ar' WHERE id = 'language'");
+  expect(await createRepos(main, deps).getSetting("language")).toBe("ar");
+});

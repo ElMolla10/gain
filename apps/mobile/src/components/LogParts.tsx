@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, PanResponder, Pressable, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { AccessibilityInfo, Animated, PanResponder, Pressable, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 import { useI18n } from "../i18n";
 import { numberPadAccessory } from "../numberPad";
 import { Icon } from "./Icon";
@@ -19,7 +19,7 @@ export function CellInput<T extends number>(props: {
   value: T | null;
   format: (v: T) => string;
   parse: (s: string, current: T | null) => T | null;
-  onValue: (v: T | null) => void;
+  onValue: (v: T | null, invalid: boolean) => void;
   placeholder?: string;
   decimal?: boolean;
   /** The row is ticked: the box loses its well so the row reads as finished, not as a form still to fill. */
@@ -32,6 +32,7 @@ export function CellInput<T extends number>(props: {
 }) {
   const p = useLogPalette();
   const font = useInputFont("600");
+  const { t } = useI18n();
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState(props.value === null ? "" : props.format(props.value));
   const seen = useRef<T | null>(props.value);
@@ -48,12 +49,13 @@ export function CellInput<T extends number>(props: {
       {props.unitLabel ? <AppText style={{ color: p.muted, fontSize: 13, textAlign: "center" }}>{props.unitLabel}</AppText> : null}
       <TextInput
         accessibilityLabel={props.a11y}
+        accessibilityHint={bad ? t("workout.input.invalid") : props.placeholder ? t("workout.input.target", { value: props.placeholder }) : undefined}
         value={text}
         onChangeText={(s) => {
           setText(s);
           const v = props.parse(s, props.value);
           seen.current = v;
-          props.onValue(v);
+          props.onValue(v, s.trim() !== "" && v === null);
         }}
         keyboardType={props.decimal ? "decimal-pad" : "number-pad"}
         {...numberPadAccessory}
@@ -61,10 +63,10 @@ export function CellInput<T extends number>(props: {
         placeholder={props.placeholder ?? "—"}
         placeholderTextColor={p.muted}
         onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onBlur={() => { setFocused(false); if (bad) AccessibilityInfo.announceForAccessibility(t("workout.input.invalid")); }}
         style={{
           ...font,
-          height: INPUT_HEIGHT,
+          minHeight: INPUT_HEIGHT,
           borderRadius: radius.input,
           borderWidth: bad || focused ? 2 : props.current ? 1.5 : 0,
           borderColor: bad ? p.warn : focused ? p.accent : p.edge,
@@ -85,15 +87,17 @@ export function CellInput<T extends number>(props: {
  * Swipe a row toward the end side to reveal "Delete". Opening is deliberate (drag past a third of the button), and deleting is a second
  * tap, so a stray vertical scroll or a half swipe never removes a set. Works in both directions of reading.
  */
-export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string; onDelete: () => void; background: string }) {
+export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string; deleteA11y?: string; onDelete: () => void; background: string }) {
   const { direction } = useI18n();
   const p = useLogPalette();
   const W = 84;
   const sign = direction === "rtl" ? 1 : -1; // dragging toward the "end" edge
   const x = useRef(new Animated.Value(0)).current;
   const open = useRef(false);
+  const [revealed, setRevealed] = useState(false);
   const snap = (to: number) => {
     open.current = to !== 0;
+    setRevealed(open.current);
     Animated.spring(x, { toValue: to, useNativeDriver: true, bounciness: 0, speed: 20 }).start();
   };
   const pan = useMemo(
@@ -117,8 +121,8 @@ export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string
   );
   return (
     <View style={{ overflow: "hidden" }}>
-      <View style={{ position: "absolute", top: 0, bottom: 0, end: 0, width: W, backgroundColor: p.danger, alignItems: "center", justifyContent: "center" }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={props.deleteLabel} onPress={props.onDelete} style={{ flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center" }}>
+      <View accessibilityElementsHidden={!revealed} importantForAccessibility={revealed ? "auto" : "no-hide-descendants"} style={{ position: "absolute", top: 0, bottom: 0, end: 0, width: W, backgroundColor: p.danger, alignItems: "center", justifyContent: "center" }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={props.deleteA11y ?? props.deleteLabel} onPress={props.onDelete} style={{ flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center" }}>
           <AppText style={{ color: p.onDanger, fontWeight: "600", fontSize: 14 }}>{props.deleteLabel}</AppText>
         </Pressable>
       </View>

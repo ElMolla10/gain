@@ -110,7 +110,7 @@ describe("logger and Today: layout rules (source)", () => {
   });
   it("logger: touch targets are not shrunk (tick, set button, inputs, rest, why)", () => {
     expect(row.match(/width: 48, height: 48/g)?.length).toBeGreaterThanOrEqual(2); // set button + tick
-    expect(parts).toContain("height: INPUT_HEIGHT");
+    expect(parts).toContain("minHeight: INPUT_HEIGHT");
   });
   it("new strings exist in English and Egyptian Arabic", () => {
     for (const k of ["today.suggestedToday", "today.yourChoice", "today.change", "today.changeLabel", "today.resumeDay", "workout.status.saving", "workout.status.unsaved", "workout.status.failed", "workout.restOffShort"] as const) {

@@ -5,6 +5,9 @@
 export const enHistory = {
   "tab.history": "Progress",
   "history.title": "Progress",
+  "history.error.title": "Could not load history",
+  "history.error.body": "We could not read your saved workouts. Try loading them again.",
+  "history.error.retry": "Try again",
   "history.sessions": "Sessions",
   "history.lifts": "Lifts",
   "history.empty": "No finished workouts yet. They show up here when you finish one.",
@@ -72,6 +75,9 @@ export const enHistory = {
 
 export const arHistory: Record<keyof typeof enHistory, string> = {
   "tab.history": "التقدّم",
+  "history.error.title": "معرفناش نعرض السجل",
+  "history.error.body": "معرفناش نقرأ تمريناتك المتسجلة. جرّب تحمل السجل تاني.",
+  "history.error.retry": "جرّب تاني",
   "history.title": "التقدّم",
   "history.sessions": "التمارين",
   "history.lifts": "الحركات",

@@ -78,7 +78,7 @@ describe("extracted workout row wiring", () => {
     const kg = cells[0]!.props.parse("132.3", null);
     expect(kg).toBeCloseTo(60, 1);
     cells[0]!.props.onValue(kg); cells[1]!.props.onValue(9); cells[2]!.props.onValue(2);
-    expect(vi.mocked(p.onPatch).mock.calls).toEqual([[p.row.key, { load: kg }], [p.row.key, { reps: 9 }], [p.row.key, { rir: 2 }]]);
+    expect(vi.mocked(p.onPatch).mock.calls).toEqual([[p.row.key, { load: kg, invalidLoad: false }], [p.row.key, { reps: 9, invalidReps: false }], [p.row.key, { rir: 2, invalidRir: false }]]);
     for (const cell of cells) { expect(cell.props.a11y).toContain("Bench Press"); expect(cell.props.a11y).toContain("2"); }
   });
   it("keeps a two-line large-text layout with one copy of every control", () => {
@@ -97,7 +97,7 @@ describe("extracted workout row wiring", () => {
     expect(cells[1]!.props.decimal).toBe(true);
     expect(cells[1]!.props.parse("12.5")).toBe(12.5);
     cells[1]!.props.onValue(12.5);
-    expect(p.onPatch).toHaveBeenCalledWith(p.row.key, { reps: 12.5 });
+    expect(p.onPatch).toHaveBeenCalledWith(p.row.key, { reps: 12.5, invalidReps: false });
   });
   it("keeps Arabic exercise and set context on the action label", () => {
     settings.lang = "ar";
@@ -184,5 +184,30 @@ describe("live suggestion explanations", () => {
     expect(text).not.toContain("Last saved set");
     expect(text).not.toContain("Estimate from logged sets");
     expect(tree.some(n => n.props.variant === "secondary")).toBe(false);
+  });
+});
+
+describe("accessible row deletion and invalid-input protection", () => {
+  it("routes the screen-reader delete action through confirmation, not immediate deletion", () => {
+    const p = props();
+    const button = nodes(WorkoutSetRow(p)).find(n => n.props.accessibilityRole === "button")!;
+    expect(button.props.accessibilityActions).toEqual([{ name: "delete", label: "Delete" }]);
+    button.props.onAccessibilityAction({ nativeEvent: { actionName: "delete" } });
+    expect(p.onAskDelete).toHaveBeenCalledWith(p.row);
+    expect(p.onDelete).not.toHaveBeenCalled();
+  });
+  it("keeps a contextual label on swipe deletion and blocks invalid edits to already saved sets", () => {
+    const p = props();
+    expect(nodes(WorkoutSetRow(p))[0]!.props.deleteA11y).toContain("Bench Press");
+    p.row = editRow(markSaved([p.row], p.row.key), p.row.key, { load: null, invalidLoad: true })[0]!;
+    expect(tick(p).props.disabled).toBe(true);
+    expect(tick(p).props.accessibilityState.disabled).toBe(true);
+  });
+  it("forwards invalid text separately from an intentionally empty target input", () => {
+    const p = props(); const cell = inputs(p)[0]!;
+    cell.props.onValue(null, true);
+    expect(p.onPatch).toHaveBeenCalledWith(p.row.key, { load: null, invalidLoad: true });
+    cell.props.onValue(null, false);
+    expect(p.onPatch).toHaveBeenLastCalledWith(p.row.key, { load: null, invalidLoad: false });
   });
 });

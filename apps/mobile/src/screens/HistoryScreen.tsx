@@ -1,14 +1,15 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
 import { useServices } from "../AppContext";
-import type { LiftItem, SessionListItem } from "../db/historyRepo";
+import { createHistoryLoader, EMPTY_HISTORY_LOAD } from "../logic/historyLoad";
+import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { localDateText } from "../logic/trendChart";
 import { sessionMinutes } from "../logic/historyRows";
 import { space } from "../theme";
-import { BigButton, Card, Chip, EmptyState, ListRow, LoadingState, Screen } from "../ui";
+import { BigButton, Card, Chip, EmptyState, ErrorState, InlineStatus, ListRow, LoadingState, Screen } from "../ui";
 
 const PAGE = 30;
 
@@ -18,32 +19,25 @@ export function HistoryScreen() {
   const { t, lang } = useI18n();
   const nav = useNavigation<{ navigate: (n: string, params: object) => void }>();
   const [mode, setMode] = useState<"sessions" | "lifts">("sessions");
-  const [sessions, setSessions] = useState<SessionListItem[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [lifts, setLifts] = useState<LiftItem[]>([]);
-
-  const load = useCallback(
-    async (keep: number) => {
-      setSessions(await history.listSessions(Math.max(PAGE, keep), 0));
-      setTotal(await history.countSessions());
-      setLifts(await history.listLifts());
-    },
-    [history],
-  );
-  useFocusEffect(
-    useCallback(() => {
-      void load(sessions?.length ?? PAGE);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [load]),
-  );
-
-  if (!sessions) return <LoadingState />;
+  const [state, setState] = useState(EMPTY_HISTORY_LOAD);
+  const loader = useMemo(() => createHistoryLoader(history, setState, e => diagnostics.record("warn", "load history", e)), [history]);
+  useFocusEffect(useCallback(() => {
+    void loader.load();
+    return loader.cancel;
+  }, [loader]));
+  if (!state.data) return state.failed ? <ErrorState title={t("history.error.title")} body={t("history.error.body")} retryLabel={t("history.error.retry")} onRetry={() => void loader.load()} /> : <LoadingState />;
+  const { sessions, total, lifts } = state.data;
   return (
     <Screen tab title={t("history.title")}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         <Chip label={t("history.sessions")} selected={mode === "sessions"} onPress={() => setMode("sessions")} />
         <Chip label={t("history.lifts")} selected={mode === "lifts"} onPress={() => setMode("lifts")} />
       </View>
+
+      {state.failed ? <View accessibilityLiveRegion="polite">
+        <InlineStatus kind="error" text={t("history.error.body")} />
+        <BigButton variant="secondary" label={t("history.error.retry")} disabled={state.loading} onPress={() => void loader.load()} />
+      </View> : null}
 
       {mode === "sessions" ? (
         sessions.length === 0 ? (
@@ -58,7 +52,7 @@ export function HistoryScreen() {
                 return <ListRow key={s.id} title={title} note={`${localDateText(s.finishedAt)} · ${line}`} last={i === sessions.length - 1} onPress={() => nav.navigate("SessionDetail", { sessionId: s.id })} />;
               })}
             </Card>
-            {sessions.length < total ? <BigButton variant="secondary" label={t("history.more")} onPress={() => load(sessions.length + PAGE)} /> : null}
+            {sessions.length < total ? <BigButton variant="secondary" label={t("history.more")} disabled={state.loading} onPress={() => void loader.load(sessions.length + PAGE)} /> : null}
           </View>
         )
       ) : lifts.length === 0 ? (

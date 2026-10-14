@@ -16,6 +16,7 @@ function DragHandle(props: {
   item: ReorderItem;
   index: number;
   count: number;
+  hint?: string;
   begin: (id: string, index: number) => void;
   move: (dy: number) => void;
   end: () => void;
@@ -43,7 +44,7 @@ function DragHandle(props: {
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel={t("prog.reorder.accessibility", { exercise: props.item.name })}
-      accessibilityHint={t("prog.reorder.hint")}
+      accessibilityHint={props.hint ?? t("prog.reorder.hint")}
       accessibilityActions={[{ name: "increment", label: t("prog.down") }, { name: "decrement", label: t("prog.up") }]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === "increment") latest.current.step(latest.current.index, latest.current.index + 1);
@@ -65,6 +66,7 @@ function DragHandle(props: {
 export function ExerciseReorderModal(props: {
   visible: boolean;
   title?: string;
+  hint?: string;
   busy?: boolean;
   items: readonly ReorderItem[];
   onCancel: () => void;
@@ -132,7 +134,7 @@ export function ExerciseReorderModal(props: {
       <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
         <View style={{ paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs, borderBottomWidth: 1, borderColor: p.border }}>
           <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", textAlign: "center" }}>{props.title ?? t("prog.reorder.title")}</AppText>
-          <AppText style={{ color: p.muted, fontSize: ty.label, textAlign: "center" }}>{t("prog.reorder.hint")}</AppText>
+          <AppText style={{ color: p.muted, fontSize: ty.label, textAlign: "center" }}>{props.hint ?? t("prog.reorder.hint")}</AppText>
         </View>
 
         <ScrollView scrollEnabled={!drag} contentContainerStyle={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: space.xl }} keyboardShouldPersistTaps="handled">
@@ -157,7 +159,7 @@ export function ExerciseReorderModal(props: {
                 }}
               >
                 <AppText numberOfLines={1} style={{ flex: 1, fontSize: ty.body, fontWeight: isDrag ? "600" : "400", paddingStart: space.sm }}>{item.name}</AppText>
-                <DragHandle item={item} index={i} count={order.length} begin={begin} move={move} end={end} cancel={clearDrag} step={step} />
+                <DragHandle hint={props.hint} item={item} index={i} count={order.length} begin={begin} move={move} end={end} cancel={clearDrag} step={step} />
               </Animated.View>
             );
           })}

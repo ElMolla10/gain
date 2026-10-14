@@ -226,3 +226,12 @@ describe("classification from the title only", () => {
     }
   });
 });
+
+describe("Strong calendar validation", () => {
+  it.each(["2025-02-29 15:15:00", "1900-02-29 15:15:00", "2026-04-31 15:15:00", "2026-13-01 15:15:00", "2026-01-01 24:00:00", "2026-01-01 12:60:00", "2026-01-01 12:00:60"])("rejects %s before normalization", date => {
+    expect(() => parseStrongDate(date)).toThrow(ImportParseError);
+  });
+  it("accepts a real leap day and optional seconds", () => {
+    expect(parseStrongDate("2000-02-29 23:59")).toBe("2000-02-29T23:59:00");
+  });
+});

@@ -24,13 +24,17 @@ export async function authenticate(req: Request, env: Env, now: number): Promise
   return { accountId: row.account_id, deviceId: row.id };
 }
 
-async function newDevice(env: Env, accountId: string, label: unknown, now: number): Promise<string> {
+async function deviceRecord(env: Env, accountId: string, label: unknown, now: number) {
   const token = randomToken();
   const clean = typeof label === "string" ? label.slice(0, 40) : null;
-  await env.DB.prepare("INSERT INTO device (id, account_id, token_hash, label, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(uuid(), accountId, await sha256Hex(token), clean, now, now)
-    .run();
-  return token;
+  const statement = env.DB.prepare("INSERT INTO device (id, account_id, token_hash, label, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(uuid(), accountId, await sha256Hex(token), clean, now, now);
+  return { token, statement };
+}
+async function newDevice(env: Env, accountId: string, label: unknown, now: number): Promise<string> {
+  const device = await deviceRecord(env, accountId, label, now);
+  await device.statement.run();
+  return device.token;
 }
 
 /** POST /v1/account: a new anonymous account. The recovery code is shown ONCE; only its hash is kept. */
@@ -39,8 +43,12 @@ export async function createAccount(req: Request, env: Env, now: number): Promis
   const body = (await readJson(req).catch(() => ({}))) as { label?: unknown };
   const id = uuid();
   const recovery = randomRecoveryCode();
-  await env.DB.prepare("INSERT INTO account (id, created_at, recovery_hash) VALUES (?, ?, ?)").bind(id, now, await sha256Hex(recovery)).run();
-  const token = await newDevice(env, id, body?.label, now);
+  const device = await deviceRecord(env, id, body?.label, now);
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO account (id, created_at, recovery_hash) VALUES (?, ?, ?)").bind(id, now, await sha256Hex(recovery)),
+    device.statement,
+  ]);
+  const token = device.token;
   return json({ accountId: id, deviceToken: token, recoveryCode: recovery }, 201);
 }
 
@@ -83,16 +91,20 @@ export async function emailVerify(req: Request, env: Env, now: number): Promise<
   const email = normaliseEmail(body.email);
   if (!email || typeof body.code !== "string" || !/^\d{8}$/.test(body.code)) throw new HttpError(400, "bad_request");
   await rateLimit(env.DB, `verifyip:${clientIp(req)}`, 30, HOUR, now);
+  const me = req.headers.get("authorization") ? await authenticate(req, env, now) : null;
   const row = await env.DB.prepare("SELECT code_hash, expires_at, attempts FROM email_code WHERE email = ?").bind(email).first<{ code_hash: string; expires_at: number; attempts: number }>();
-  if (!row || row.expires_at < now || row.attempts >= MAX_CODE_ATTEMPTS) throw new HttpError(401, "bad_code");
+  if (!row || row.expires_at <= now || row.attempts >= MAX_CODE_ATTEMPTS) throw new HttpError(401, "bad_code");
   if ((await sha256Hex(`${email}|${body.code}`)) !== row.code_hash) {
-    await env.DB.prepare("UPDATE email_code SET attempts = attempts + 1 WHERE email = ?").bind(email).run();
+    await env.DB.prepare("UPDATE email_code SET attempts = attempts + 1 WHERE email = ? AND code_hash = ?").bind(email, row.code_hash).run();
     throw new HttpError(401, "bad_code");
   }
-  await env.DB.prepare("DELETE FROM email_code WHERE email = ?").bind(email).run(); // one use only
+  // Compare-and-delete atomically: concurrent verifies can read the same row, but only
+  // one may consume it. A newly issued replacement code must never be deleted by a stale request.
+  const consumed = await env.DB.prepare("DELETE FROM email_code WHERE email = ? AND code_hash = ? AND expires_at > ? AND attempts < ? RETURNING email")
+    .bind(email, row.code_hash, now, MAX_CODE_ATTEMPTS).first<{ email: string }>();
+  if (!consumed) throw new HttpError(401, "bad_code");
   const owner = await env.DB.prepare("SELECT id FROM account WHERE email = ?").bind(email).first<{ id: string }>();
-  if (req.headers.get("authorization")) {
-    const me = await authenticate(req, env, now);
+  if (me) {
     if (owner && owner.id !== me.accountId) throw new HttpError(409, "email_in_use");
     await env.DB.prepare("UPDATE account SET email = ?, email_verified_at = ? WHERE id = ?").bind(email, now, me.accountId).run();
     return json({ accountId: me.accountId, linked: true });

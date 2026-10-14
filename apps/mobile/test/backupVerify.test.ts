@@ -61,3 +61,16 @@ describe("backup and restore are verified before they count as done", () => {
     await expect(a.data.exportJson()).rejects.toBeInstanceOf(BackupIncomplete);
   });
 });
+
+it("rejects missing core tables and sync bookkeeping before any restore mutation", async () => {
+  const c = await freshDb(); await c.repos.seedIfNeeded();
+  const original = await c.data.exportJson();
+  for (const name of ["gym", "exercise", "exercise_line", "session", "workout_set"]) {
+    const file = JSON.parse(original); delete file.tables[name];
+    await expect(c.data.restoreJson(JSON.stringify(file))).rejects.toThrow("missing core table");
+    expect(await c.data.exportJson()).toBe(original);
+  }
+  const file = JSON.parse(original); file.tables.sync_state = [];
+  await expect(c.data.restoreJson(JSON.stringify(file))).rejects.toThrow("sync bookkeeping");
+  expect(await c.data.exportJson()).toBe(original);
+});

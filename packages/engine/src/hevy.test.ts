@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { equipmentFromTitle, HevyParseError, parseCsv, parseHevyCsv, parseHevyDate, toLoggedSets } from "./hevy";
+import { equipmentFromTitle, HEVY_COLUMNS, HevyParseError, parseCsv, parseHevyCsv, parseHevyDate, toLoggedSets } from "./hevy";
 
 const synthetic = readFileSync(new URL("../../../fixtures/hevy-synthetic.csv", import.meta.url), "utf8");
 
@@ -95,5 +95,23 @@ describe("equipmentFromTitle", () => {
     ["Pull Up", null],
   ])("%s -> %s", (title, eq) => {
     expect(equipmentFromTitle(title)).toBe(eq);
+  });
+});
+
+describe("import calendar boundaries", () => {
+  it.each(["Feb 29, 2025, 3:15 PM", "Feb 29, 1900, 3:15 PM", "Apr 31, 2026, 3:15 PM", "Jan 0, 2026, 3:15 PM", "Jan 1, 2026, 24:00", "Jan 1, 2026, 3:60 PM"])("rejects impossible Hevy date %s", date => {
+    expect(() => parseHevyDate(date)).toThrow(HevyParseError);
+  });
+  it("accepts leap years and midnight without changing local wall clock", () => {
+    expect(parseHevyDate("Feb 29, 2000, 12:00 AM")).toBe("2000-02-29T00:00:00");
+    expect(parseHevyDate("Feb 29, 2024, 11:59 PM")).toBe("2024-02-29T23:59:00");
+  });
+  it("keeps valid rows and warns instead of silently moving an impossible date", () => {
+    const row = (date: string) => ["Workout", date, date, "", "Bench Press (Barbell)", "", "", "0", "normal", "60", "8", "", "", ""].map(value => `"${value}"`).join(",");
+    const parsed = parseHevyCsv([HEVY_COLUMNS.join(","), row("Sep 29, 2026, 3:15 PM"), row("Feb 30, 2026, 3:15 PM")].join("\n"));
+    expect(parsed.workouts).toHaveLength(1);
+    expect(parsed.rowCount).toBe(1);
+    expect(parsed.warnings).toHaveLength(1);
+    expect(parsed.workouts[0]!.startTime).toBe("2026-09-29T15:15:00");
   });
 });

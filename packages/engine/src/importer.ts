@@ -1,4 +1,4 @@
-import { HevyParseError, parseCsv, parseHevyCsv } from "./hevy";
+import { HevyParseError, parseCsv, parseHevyCsv, validCalendarFields } from "./hevy";
 export { HevyParseError as ImportParseError } from "./hevy";
 import type { EquipmentType, LoggedSet, SetupType } from "./types";
 
@@ -140,6 +140,7 @@ function parseHevy(text: string): ImportParse {
 export function parseStrongDate(s: string): string {
   const m = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*$/.exec(s);
   if (!m) throw new HevyParseError(`Unrecognised date: "${s}"`);
+  if (!validCalendarFields(+m[1]!, +m[2]!, +m[3]!, +m[4]!, +m[5]!, +(m[6] ?? "00"))) throw new HevyParseError(`Invalid calendar date: "${s}"`);
   const p = (n: string) => n.padStart(2, "0");
   return `${m[1]}-${m[2]}-${m[3]}T${p(m[4]!)}:${m[5]}:${m[6] ?? "00"}`;
 }

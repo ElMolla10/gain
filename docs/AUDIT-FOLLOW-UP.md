@@ -9,6 +9,28 @@ Source: external repository review supplied on 14 October 2026. Its visual score
 - English and Arabic live cards explicitly label the model experimental. PRODUCT.md now distinguishes deterministic next-session progression from experimental offline next-set inference.
 - RestClock, LiveDuration and Stat moved into WorkoutStats; LiveSuggestion is a presentation component. Persistence, stale-card checks and explicit acceptance remain in the screen. The screen is still large: this is the first extraction, not a completed logger redesign.
 
+## Batch 2: logger component boundaries
+
+- Exercise headers, target/reason presentation, set tables, warm-up offers, outlier notices and live cards now live in `WorkoutExerciseSection`.
+- `WorkoutSetRow` owns input and action presentation. The screen retains saved-set mutations, draft state, timers, supersets, reordering, navigation and live-card validity checks. No AI increase policy or model changes are included.
+- Each exercise computes the current row, row labels and previous working-set indexes once before mapping its rows. No phone performance improvement is claimed.
+- Row checkbox accessibility now reports the same disabled state as the actual button during saving and incomplete input.
+- Eleven presentation-tree/callback tests cover save/untick/update routing, ghost inputs, disabled controls, set deletion, pounds conversion, timed quantities, Arabic labels, previous-set alignment, header actions and large-text layouts. Native keyboard, gestures and screen-reader delivery remain unverified.
+- The screen shrank from 1,177 to 915 lines. There is no artificial line-count gate; state/lifecycle extraction should follow measured problems and phone checks.
+
+## Six-batch working plan
+
+| Batch | Scope | Status |
+| --- | --- | --- |
+| 1 | Atomic saves, recovery tests, experimental labels and accurate docs | Implemented; draft PR #162 |
+| 2 | Logger exercise/set boundaries and behavior checks | Implemented; phone verification pending |
+| 3 | Real-data evaluation, strong baselines and model explanations | Planned; uses the existing opt-in evaluation path |
+| 4 | Core Arabic copy, accessibility and empty/error flows | Planned; native-speaker/device checks required |
+| 5 | Import edge cases, sync security and backup/restore hardening | Planned; confirm defects before changes |
+| 6 | Device/release validation, onboarding polish and store readiness | Planned; native builds and real devices required |
+
+The six batches are a working division of the audit, not an estimate that all findings can be resolved without user/device evidence. Keep the original AI increase policy unless a later change is explicitly requested.
+
 ## Audit findings that need qualification
 
 The code already has model-failure fallback, manual-load protection, an opt-in local evaluation repository and tests, symptom overrides, and isolated timer ticks. Those should be validated rather than implemented a second time. Missing optional model inputs remain missing; requiring every input would suppress suggestions for essentially all current sessions. The original model increase policy is retained.

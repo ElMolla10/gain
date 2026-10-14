@@ -7,7 +7,8 @@ import { SAMPLE_PROGRAMME } from "../src/db/seedData";
 import { freshDb } from "./helpers";
 
 const src = (f: string) => readFileSync(join(__dirname, "..", "src", f), "utf8");
-const screen = src("screens/WorkoutScreen.tsx");
+const section = src("components/WorkoutExerciseSection.tsx");
+const row = src("components/WorkoutSetRow.tsx");
 const lum = (hex: string) => {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
   return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!;
@@ -41,7 +42,7 @@ describe("done tick: muted green, not lime (shared palette tokens)", () => {
     });
   }
   it("the tick button uses the done tokens, keeps the check icon, checkbox state and a 48 dp box", () => {
-    const tick = screen.slice(screen.indexOf('accessibilityRole="checkbox"'), screen.indexOf("<SwipeRow key"));
+    const tick = row.slice(row.indexOf('accessibilityRole="checkbox"'), row.indexOf("<SwipeRow key"));
     expect(tick).toContain("p.doneFill");
     expect(tick).toContain("p.doneEdge");
     expect(tick).toContain("p.onDone");
@@ -54,9 +55,9 @@ describe("done tick: muted green, not lime (shared palette tokens)", () => {
 
 describe("logger spacing uses the shared tokens", () => {
   it("exercise block, target line and set table sit tighter, with only token values", () => {
-    expect(screen).toContain("paddingTop: space.md, borderStartWidth");
-    expect(screen).toContain("marginTop: space.xs }}>\n          <View style={colSet}>");
-    expect(screen).not.toContain("gap: space.xs, paddingTop: space.lg, borderStartWidth");
+    expect(section).toContain("paddingTop: space.md, borderStartWidth");
+    expect(section).toMatch(/marginTop: space\.xs }}>\s*<View style=\{colSet\}>/);
+    expect(section).not.toContain("gap: space.xs, paddingTop: space.lg, borderStartWidth");
   });
 });
 

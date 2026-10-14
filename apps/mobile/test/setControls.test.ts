@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ar, en } from "../src/i18n/strings";
 import { translate } from "../src/i18n/format";
 
-const src = readFileSync(join(__dirname, "..", "src", "screens", "WorkoutScreen.tsx"), "utf8");
+const src = readFileSync(join(__dirname, "..", "src", "components", "WorkoutSetRow.tsx"), "utf8");
 const parts = readFileSync(join(__dirname, "..", "src", "components", "LogParts.tsx"), "utf8");
 
 describe("set row controls (P19/P20)", () => {

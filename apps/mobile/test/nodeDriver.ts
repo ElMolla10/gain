@@ -5,11 +5,12 @@ import { createMutex, type Db, type Param } from "../src/db/driver";
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 
 /** Test-only Db backed by Node's built-in SQLite. Same SQL dialect as expo-sqlite (both are SQLite). */
-export function openNodeDb(path = ":memory:"): Db {
+export function openNodeDb(path = ":memory:"): Db & { close(): void } {
   const raw = new DatabaseSync(path);
   raw.exec("PRAGMA foreign_keys = ON;");
   const serial = createMutex();
-  const db: Db = {
+  const db: Db & { close(): void } = {
+    close: () => raw.close(),
     exec: async (sql) => {
       raw.exec(sql);
     },

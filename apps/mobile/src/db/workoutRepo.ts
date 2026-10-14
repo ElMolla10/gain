@@ -375,41 +375,44 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
    * Save a set locally and check it against the recent line. A set far from the line is stored as `unconfirmed`
    * and does not move the next target until the lifter confirms it. Warm-ups are never checked.
    * Idempotent on `id`: a double tap with the same draft id inserts once.
+   * Line creation, validation and position allocation commit with the set, or roll back together.
    */
   async function logSet(
     input: LogSetInput,
     ctx: { gym: GymFingerprint; equipment: ExerciseSpec["equipment"]; setup: SetupType },
   ): Promise<{ id: string; created: boolean; outlier: OutlierResult | null }> {
-    const id = input.id ?? newId();
-    const existing = await db.get<{ id: string }>("SELECT id FROM workout_set WHERE id = ?", [id]);
-    if (existing) return { id, created: false, outlier: null };
-    const session = await getSession(input.sessionId);
-    if (!session) throw new Error("Unknown session");
-    if (session.status !== "in_progress") throw new Error("Session is not in progress");
-    const measure = await measureOf(input.exerciseId);
-    const q = checkQuantity(measure, input.durationS, input.distanceM);
-    if ((measure === "reps" && !(input.reps >= 1)) || !Number.isFinite(input.load) || input.load < 0) throw new Error("Invalid set");
-    const lineId = await ensureLine(input.exerciseId, session.gym_id, ctx.setup);
-    const line: LineIdentity = { exerciseId: input.exerciseId, gymId: session.gym_id, setup: ctx.setup };
+    return db.transaction(async () => {
+      const id = input.id ?? newId();
+      const existing = await db.get<{ id: string }>("SELECT id FROM workout_set WHERE id = ?", [id]);
+      if (existing) return { id, created: false, outlier: null };
+      const session = await getSession(input.sessionId);
+      if (!session) throw new Error("Unknown session");
+      if (session.status !== "in_progress") throw new Error("Session is not in progress");
+      const measure = await measureOf(input.exerciseId);
+      const q = checkQuantity(measure, input.durationS, input.distanceM);
+      if ((measure === "reps" && !(input.reps >= 1)) || !Number.isFinite(input.load) || input.load < 0) throw new Error("Invalid set");
+      const lineId = await ensureLine(input.exerciseId, session.gym_id, ctx.setup);
+      const line: LineIdentity = { exerciseId: input.exerciseId, gymId: session.gym_id, setup: ctx.setup };
 
-    // Warm-ups and drop sets are lighter on purpose, so they are never compared with the line.
-    let outlier: OutlierResult | null = null;
-    if (!input.warmup && !input.tags?.includes("drop")) {
-      const history = await getHistory(line, lineId);
-      const todaySets = (await listSessionSets(input.sessionId, input.exerciseId)).map(toLogged);
-      if (todaySets.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: todaySets });
-      outlier = isTimedMeasure(measure)
-        ? checkTimedOutlier({ load: input.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history })
-        : checkOutlier({ load: input.load, reps: input.reps, rir: input.rir ?? null }, { line, history, gymSpec: await gridFor(db, ctx.gym, input.exerciseId, ctx.equipment) });
-    }
-    const t = now();
-    const pos = await db.get<{ p: number | null }>("SELECT MAX(position) AS p FROM workout_set WHERE session_id = ? AND exercise_id = ?", [input.sessionId, input.exerciseId]);
-    await db.run(
-      `INSERT INTO workout_set (id, session_id, exercise_id, line_id, position, load, reps, duration_s, distance_m, rir, is_warmup, tags_json, outlier_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, input.sessionId, input.exerciseId, lineId, (pos?.p ?? 0) + 1, input.load, measure === "reps" ? input.reps : 1, q.durationS, q.distanceM, measure === "reps" ? input.rir ?? null : null, input.warmup ? 1 : 0, JSON.stringify(input.tags ?? []), outlier?.outlierStatus ?? "none", t, t],
-    );
-    return { id, created: true, outlier };
+      // Warm-ups and drop sets are lighter on purpose, so they are never compared with the line.
+      let outlier: OutlierResult | null = null;
+      if (!input.warmup && !input.tags?.includes("drop")) {
+        const history = await getHistory(line, lineId);
+        const todaySets = (await listSessionSets(input.sessionId, input.exerciseId)).map(toLogged);
+        if (todaySets.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: todaySets });
+        outlier = isTimedMeasure(measure)
+          ? checkTimedOutlier({ load: input.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history })
+          : checkOutlier({ load: input.load, reps: input.reps, rir: input.rir ?? null }, { line, history, gymSpec: await gridFor(db, ctx.gym, input.exerciseId, ctx.equipment) });
+      }
+      const t = now();
+      const pos = await db.get<{ p: number | null }>("SELECT MAX(position) AS p FROM workout_set WHERE session_id = ? AND exercise_id = ?", [input.sessionId, input.exerciseId]);
+      await db.run(
+        `INSERT INTO workout_set (id, session_id, exercise_id, line_id, position, load, reps, duration_s, distance_m, rir, is_warmup, tags_json, outlier_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, input.sessionId, input.exerciseId, lineId, (pos?.p ?? 0) + 1, input.load, measure === "reps" ? input.reps : 1, q.durationS, q.distanceM, measure === "reps" ? input.rir ?? null : null, input.warmup ? 1 : 0, JSON.stringify(input.tags ?? []), outlier?.outlierStatus ?? "none", t, t],
+      );
+      return { id, created: true, outlier };
+    });
   }
 
   /**

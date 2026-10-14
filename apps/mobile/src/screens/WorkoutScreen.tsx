@@ -1,8 +1,8 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
 import { findSpec, nextLoadAbove, renderReason, type Decision, type GymFingerprint, type LineIdentity, type LoggedSet, type Measure, type OutlierResult, type Proposal } from "@gain/engine";
 import * as Crypto from "expo-crypto";
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, Vibration, View, type TextStyle } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Pressable, ScrollView, TextInput, useWindowDimensions, Vibration, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { adjustKeyboardInsets } from "../numberPad";
 import { useServices } from "../AppContext";
@@ -11,6 +11,8 @@ import { CellInput, MenuSheet, RestToggle, SwipeRow, TargetLine } from "../compo
 import { Icon } from "../components/Icon";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { ExerciseReorderModal } from "../components/ExerciseReorderModal";
+import { LiveSuggestion } from "../components/LiveSuggestion";
+import { RestClock, LiveDuration, Stat } from "../components/WorkoutStats";
 import { WorkoutHelp } from "../components/WorkoutHelp";
 import type { TargetRow } from "../db/finishRepo";
 import type { LibraryExercise } from "../db/programmeRepo";
@@ -26,13 +28,13 @@ import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
 import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
 import { isTimed, parseQuantityInput, previousQuantityText, quantityFields, quantityText, setQuantity } from "../logic/quantity";
-import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
+import { liveSummary, previousText, volumeText, workingIndexes } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { acceptGhost, addRow, backoffPrefill, currentRowKey, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type Prefill, type SetRowDraft } from "../logic/workoutRows";
 import { applyLiveLoad, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow, suggestedNextLoad } from "../logic/liveAdaptation";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
-import { adjustTimer, formatClock, isDone, newTimer, remainingMs, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
+import { adjustTimer, formatClock, isDone, newTimer, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 
@@ -64,50 +66,6 @@ const clock = (ms: number) => {
 // For a timed exercise the row's "reps" box holds seconds or metres (the database stores reps = 1 plus duration_s / distance_m).
 const toSaved = (s: SetRow) => ({ id: s.id, load: s.load, reps: s.durationS ?? s.distanceM ?? s.reps, rir: s.rir, warmup: s.warmup, tags: s.tags });
 const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, replacedBy: null, note: "", restOff: DEFAULT_EXERCISE_REST_OFF, added: false, position: null, superset: null });
-
-/**
- * The rest-timer readout. It ticks every 250 ms on its own (P27), so the logger screen is not re-rendered four times a second while a
- * rest counts down. The timer value (an end time) is owned by the screen; this only reads it.
- */
-const RestClock = memo(function RestClock({ timer, style }: { timer: RestTimer; style: TextStyle }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (timer.endsAt === null) return;
-    setNow(Date.now());
-    const h = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(h);
-  }, [timer.endsAt]);
-  return (
-    <AppText ltr accessibilityRole="timer" style={style}>
-      {formatClock(remainingMs(timer, now))}
-    </AppText>
-  );
-});
-
-/** Ticks once a second on its own, so the rest of the screen does not re-render every second. */
-function LiveDuration({ startedAt, color }: { startedAt: number; color: string }) {
-  const { t } = useI18n();
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const h = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(h);
-  }, []);
-  return (
-    <AppText ltr style={{ fontSize: 20, fontWeight: "600", color }}>
-      {formatDuration(now - startedAt, { h: t("workout.dur.h"), m: t("workout.dur.m"), s: t("workout.dur.s") })}
-    </AppText>
-  );
-}
-
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
-  const p = useLogPalette();
-  return (
-    <View style={{ gap: 2, minWidth: 74 }}>
-      <AppText style={{ color: p.muted, fontSize: 13 }}>{label}</AppText>
-      {children}
-    </View>
-  );
-}
 
 /**
  * The active workout (v0.9.0 layout, after Hevy's "Log Workout"): a top bar with collapse, rest timer and Finish; a live Duration / Volume /
@@ -884,32 +842,19 @@ export function WorkoutScreen() {
         </View>
 
         {card ? (
-          <View accessibilityLiveRegion="polite" style={{ marginHorizontal: space.md, marginVertical: space.sm, padding: space.md, gap: space.xs, borderRadius: radius.card, backgroundColor: p.card, borderWidth: 1, borderColor: p.line }}>
-            <AppText style={{ fontWeight: "600" }}>{t("live.title")}</AppText>
-            <AppText style={{ fontWeight: "600" }}>{t(`live.${card.decision.action}` as never)}</AppText>
-            {card.decision.reason !== "reported_symptoms" ? <AppText>{t("live.predicted", { reps: Math.round(card.decision.predictedReps * 10) / 10, min: ex.repMin, max: ex.repMax })}</AppText> : null}
-            <AppText style={{ color: p.muted }}>{t(`live.reason.${card.decision.reason}` as never)}</AppText>
-            {card.decision.action !== "stop" ? <AppText ltr>{formatLoad(card.decision.suggestedWeightKg, lang, unit)}</AppText> : null}
-            <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-              {card.decision.action !== "stop" ? <BigButton variant="secondary" label={t("live.apply")} disabled={nextAdaptiveRow(list)?.load !== null || busy !== null} onPress={() => {
-                setRows(r => ({ ...r, [ex.exerciseId]: applyLiveLoad(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg) }));
-                setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }));
-              }} /> : null}
-              <BigButton variant="quiet" label={t("live.report")} onPress={() => Alert.alert(t("live.report"), undefined, [
-                { text: t("live.severePain"), onPress: () => {
-                  setReportedSymptoms(s => ({ ...s, [ex.exerciseId]: reportedSymptomDecision(card.decision, "severe_pain") }));
-                  setLiveDismissed(d => { const { [ex.exerciseId]: _dismissed, ...rest } = d; return rest; });
-                } },
-                { text: t("live.dizziness"), onPress: () => {
-                  setReportedSymptoms(s => ({ ...s, [ex.exerciseId]: reportedSymptomDecision(card.decision, "dizziness") }));
-                  setLiveDismissed(d => { const { [ex.exerciseId]: _dismissed, ...rest } = d; return rest; });
-                } },
-                { text: t("common.cancel"), style: "cancel" },
-              ])} />
-              <BigButton variant="quiet" label={t("live.keep")} onPress={() => setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }))} />
-            </View>
-            {card.decision.action !== "stop" && nextAdaptiveRow(list)?.load !== null ? <AppText style={{ color: p.muted }}>{t("live.manual")}</AppText> : null}
-          </View>
+          <LiveSuggestion
+            decision={card.decision} repMin={ex.repMin} repMax={ex.repMax}
+            manualLoad={nextAdaptiveRow(list)?.load !== null} busy={busy !== null}
+            onApply={() => {
+              setRows(r => ({ ...r, [ex.exerciseId]: applyLiveLoad(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg) }));
+              setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }));
+            }}
+            onReport={symptom => {
+              setReportedSymptoms(s => ({ ...s, [ex.exerciseId]: reportedSymptomDecision(card.decision, symptom) }));
+              setLiveDismissed(d => { const { [ex.exerciseId]: _dismissed, ...rest } = d; return rest; });
+            }}
+            onKeep={() => setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }))}
+          />
         ) : null}
 
         {pending.map((s) => {

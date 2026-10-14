@@ -3,17 +3,19 @@
 #
 #   scripts/ios-setup.sh                 check the Mac, install packages, generate the iOS project, print what to do next
 #   scripts/ios-setup.sh --check         only check the Mac (changes nothing)
-#   scripts/ios-setup.sh --run           ... and then build and install on the iPhone (npx expo run:ios --device)
+#   scripts/ios-setup.sh --run           ... and then build and install on the iPhone (standalone Release build)
+#   scripts/ios-setup.sh --run --debug   explicit debug build (requires Metro)
 #   scripts/ios-setup.sh --bundle-id com.yourname.gain --team-id ABCDE12345
 #
 # What it does: checks Xcode, Node, CocoaPods; npm ci (only when needed); npx expo prebuild --platform ios (makes apps/mobile/ios,
 # which git ignores; the folder is rebuilt from scratch every time, so it is always in step with the code).
-# It never touches your Apple ID, never signs anything and never uploads anything. Full guide: docs/IOS.md.
+# --run invokes Expo/Xcode to build, sign and install locally. It never uploads to TestFlight/App Store. Full guide: docs/IOS.md.
 # NOT tested on a Mac: this was written and syntax-checked on Linux (bash -n, shellcheck, and a run with stand-in tools).
 set -euo pipefail
 
 CHECK_ONLY=0
 RUN_AFTER=0
+CONFIGURATION=Release
 BUNDLE_ID="${GAIN_IOS_BUNDLE_ID:-}"
 TEAM_ID="${GAIN_IOS_TEAM_ID:-}"
 MIN_XCODE="26.4" # Expo SDK 57 needs Xcode 26.4 or newer (docs.expo.dev/versions/v57.0.0)
@@ -30,6 +32,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --check) CHECK_ONLY=1 ;;
     --run) RUN_AFTER=1 ;;
+    --debug) CONFIGURATION=Debug ;;
     --bundle-id) BUNDLE_ID="${2:-}"; shift ;;
     --team-id) TEAM_ID="${2:-}"; shift ;;
     -h | --help) usage; exit 0 ;;
@@ -64,6 +67,7 @@ SAVED="$MOBILE/.env.ios" # git ignores .env.*; remembers your choices so the nex
 [ -f "$MOBILE/app.json" ] || { say "Cannot find apps/mobile/app.json. Run this from inside the gain folder."; exit 1; }
 
 say "GAIN iOS setup ($REPO)"
+say "Source commit: $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo unknown); build configuration: $CONFIGURATION"
 say ""
 say "1. Checking this Mac"
 
@@ -125,6 +129,23 @@ say ""
 say "2. Your bundle id and team"
 # shellcheck disable=SC1090
 if [ -f "$SAVED" ]; then . "$SAVED"; [ -n "$BUNDLE_ID" ] || BUNDLE_ID="${GAIN_IOS_BUNDLE_ID:-}"; [ -n "$TEAM_ID" ] || TEAM_ID="${GAIN_IOS_TEAM_ID:-}"; fi
+# A manually installed app may have an identity in Xcode but no .env.ios yet.
+# Preserve it rather than choosing a second app with an empty local database.
+PROJECT="$MOBILE/ios/GAIN.xcodeproj/project.pbxproj"
+if [ -f "$PROJECT" ]; then
+  if [ -z "$BUNDLE_ID" ]; then
+    existing=$(sed -nE 's/^[[:space:]]*PRODUCT_BUNDLE_IDENTIFIER = "?([A-Za-z0-9.-]+)"?;.*/\1/p' "$PROJECT" | sort -u)
+    if [ "$(printf '%s\n' "$existing" | sed '/^$/d' | wc -l | tr -d ' ')" -gt 1 ]; then
+      say "The Xcode project has multiple bundle ids. Pass --bundle-id with the id of your installed GAIN app."
+      exit 1
+    fi
+    BUNDLE_ID="$existing"
+  fi
+  if [ -z "$TEAM_ID" ]; then
+    existing_team=$(sed -nE 's/^[[:space:]]*DEVELOPMENT_TEAM = "?([A-Z0-9]{10})"?;.*/\1/p' "$PROJECT" | sort -u)
+    if [ "$(printf '%s\n' "$existing_team" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1 ]; then TEAM_ID="$existing_team"; fi
+  fi
+fi
 if [ -z "$BUNDLE_ID" ]; then
   who="$(id -un | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9')"
   suggestion="com.${who:-me}.gain"
@@ -170,7 +191,7 @@ say "5. Next steps"
 cat <<EOF
   a) Plug your iPhone into the Mac with a cable, unlock it, tap Trust on the phone.
   b) iPhone: Settings > Privacy & Security > Developer Mode > On (the phone restarts). Needed once.
-  c) Build and install:   cd apps/mobile && npx expo run:ios --device
+  c) Build and install:   cd apps/mobile && npx expo run:ios --device --configuration $CONFIGURATION
      Or open apps/mobile/ios/GAIN.xcworkspace in Xcode, pick Signing & Capabilities > Team = your Apple ID (Personal Team), press Run.
   d) First launch says "Untrusted Developer": iPhone Settings > General > VPN & Device Management > your Apple ID > Trust.
   e) The free-account build stops opening after 7 days. Plug in and run this script again, then step c.
@@ -180,5 +201,5 @@ EOF
 if [ "$RUN_AFTER" -eq 1 ]; then
   say ""
   say "Building and installing on your iPhone (--run)"
-  exec npx expo run:ios --device
+  exec npx expo run:ios --device --configuration "$CONFIGURATION"
 fi

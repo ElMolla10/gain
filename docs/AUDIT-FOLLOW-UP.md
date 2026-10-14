@@ -45,6 +45,14 @@ Source: external repository review supplied on 14 October 2026. Its visual score
 - Restore rejects missing schema-1 core tables and sync bookkeeping before replacement. A valid empty backup still contains empty core table arrays; an older complete backup remains supported.
 - No migrations or AI/progression-policy changes. Server auth changes are source-only until the existing Worker deployment procedure is run after merge. Native iPhone backup/share/restore, lock contention and real Strong-export verification remain pending.
 
+## Batch 6: iOS install path and first-run readiness
+
+- The Mac helper defaults to a standalone Release install, with `--debug` as an explicit alternative. It preserves saved signing choices or an unambiguous existing Xcode identity, and records the source commit/configuration in its output.
+- All onboarding write paths (full setup, quick logging, import-first) share one in-flight guard and a recoverable error path. Unexpected disk/database failures no longer escape the event handler. Choices stay on screen; navigation happens only after success.
+- Setup resources load together, failed reads offer retry, and stale/unmounted loads are ignored. Advancing setup waits for its options to be ready.
+- [IOS-AUDIT-CHECKLIST.md](IOS-AUDIT-CHECKLIST.md) records the remaining native install/upgrade, offline, recovery, accessibility, import/restore and export checks. None is marked passed without an actual device result.
+- Linux can validate TypeScript, tests, the iOS JS bundle, generated settings and stand-in script behavior. It cannot establish CocoaPods installation, a signed native build, an iPhone launch, TestFlight publication or store acceptance. Batch 6 remains partial until those applicable native checks are completed.
+
 ## Six-batch working plan
 
 | Batch | Scope | Status |
@@ -54,7 +62,7 @@ Source: external repository review supplied on 14 October 2026. Its visual score
 | 3 | Paired baseline comparisons, report export and model explanations | Implemented; real-user observations still needed |
 | 4 | Core Arabic copy, accessibility and empty/error flows | Code implemented; native-speaker/device checks still required |
 | 5 | Import edge cases, auth races and backup/restore hardening | Code implemented; Worker deployment and native checks pending |
-| 6 | Device/release validation, onboarding polish and store readiness | Planned; native builds and real devices required |
+| 6 | iOS install helper, onboarding resilience and release validation | Code prepared; native install/device validation and store delivery remain open |
 
 The six batches are a working division of the audit, not an estimate that all findings can be resolved without user/device evidence. Keep the original AI increase policy unless a later change is explicitly requested.
 

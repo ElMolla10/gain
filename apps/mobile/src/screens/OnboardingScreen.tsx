@@ -1,5 +1,5 @@
 import type { EquipmentType } from "@gain/engine";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 import { BrandLogo } from "../BrandLogo";
 import { useServices } from "../AppContext";
@@ -7,6 +7,8 @@ import { ExercisePicker } from "../components/ExercisePicker";
 import { DateSelect } from "../components/DateSelect";
 import { ExposureView } from "../components/ExposureView";
 import { ProgrammeEditorView } from "../components/ProgrammeEditorView";
+import { createOnboardingSaver } from "../logic/onboardingSave";
+import { diagnostics } from "../diagnostics";
 import { ProfileInvalid } from "../db/onboardingRepo";
 import { DraftInvalid, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
@@ -50,16 +52,38 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const saveError = useRef<(error: unknown) => void>(() => undefined);
+  saveError.current = e => {
+    diagnostics.record("warn", "save onboarding", e);
+    if (e instanceof SessionInProgress) setError(t("ob.openWorkout"));
+    else if (e instanceof ProfileInvalid || e instanceof DraftInvalid) setError(t("ob.error"));
+    else setError(t("ob.saveFailed"));
+  };
+  const saver = useMemo(() => createOnboardingSaver({ onSaving: setSaving, onError: e => saveError.current(e) }), []);
+  const [resources, setResources] = useState<"loading" | "ready" | "error">("loading");
+  const resourceRequest = useRef(0);
   const now = Date.now();
 
-  const refreshLibrary = useCallback(() => {
-    programmes.listExercises().then(setLibrary);
-  }, [programmes]);
+  const refreshLibrary = useCallback(async () => {
+    const request = ++resourceRequest.current;
+    setResources("loading");
+    try {
+      const [exercises, keys, limits] = await Promise.all([programmes.listExercises(), programmes.seedKeyMap(), repos.getRepCeilingDefaults()]);
+      if (request !== resourceRequest.current) return;
+      setLibrary(exercises);
+      setSeedKeys(keys);
+      setCeilings(limits);
+      setResources("ready");
+    } catch (e) {
+      if (request !== resourceRequest.current) return;
+      diagnostics.record("warn", "load onboarding", e);
+      setResources("error");
+    }
+  }, [programmes, repos]);
   useEffect(() => {
-    refreshLibrary();
-    programmes.seedKeyMap().then(setSeedKeys);
-    repos.getRepCeilingDefaults().then(setCeilings);
-  }, [programmes, repos, refreshLibrary]);
+    void refreshLibrary();
+    return () => { resourceRequest.current++; };
+  }, [refreshLibrary]);
 
   // A chosen template shows only its day titles and weekly exposure; the full split is edited later in the Program tab.
   useEffect(() => {
@@ -115,17 +139,13 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
     setTouched(true);
     const built = buildProfile(form, Date.now());
     if (!built.profile || !draft) return setError(t("ob.error"));
-    setSaving(true);
-    try {
-      // No gym is asked for: a default one (standard loads in the chosen unit) is created silently.
-      await onboarding.complete({ profile: built.profile, programme: draft });
-      props.onDone();
-    } catch (e) {
-      setSaving(false);
-      if (e instanceof SessionInProgress) setError(t("ob.openWorkout"));
-      else if (e instanceof ProfileInvalid || e instanceof DraftInvalid) setError(t("ob.error"));
-      else throw e;
-    }
+    setError(null);
+    await saver.save(() => onboarding.complete({ profile: built.profile!, programme: draft }), () => props.onDone());
+  }
+
+  async function quickStart(openImport = false) {
+    setError(null);
+    await saver.save(() => onboarding.skip(), () => props.onDone(openImport));
   }
 
   const problemLines = (codes: string[]) => (touched ? codes.map((c, i) => <InlineStatus key={i} kind="error" text={t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })} />) : null);
@@ -309,13 +329,13 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   const first = step === "language" && !props.rerun;
   const footer = first ? (
     <>
-      <BigButton hero label={t("ob.setup")} onPress={next} />
-      <BigButton variant="secondary" label={t("ob.skip")} onPress={() => void onboarding.skip().then(() => props.onDone())} />
-      <BigButton variant="quiet" label={t("ob.importFirst")} onPress={() => void onboarding.skip().then(() => props.onDone(true))} />
+      <BigButton hero label={t("ob.setup")} disabled={saving || resources !== "ready"} onPress={next} />
+      <BigButton variant="secondary" label={t("ob.skip")} disabled={saving} onPress={() => void quickStart()} />
+      <BigButton variant="quiet" label={t("ob.importFirst")} disabled={saving} onPress={() => void quickStart(true)} />
     </>
   ) : (
     <>
-      {step !== "review" ? <BigButton hero label={t("common.next")} onPress={next} /> : null}
+      {step !== "review" ? <BigButton hero label={t("common.next")} disabled={resources !== "ready"} onPress={next} /> : null}
       {idx > 0 ? <BigButton variant={step === "review" ? "secondary" : "quiet"} label={t("common.back")} onPress={() => goTo(STEPS[idx - 1]!)} /> : null}
     </>
   );
@@ -330,7 +350,9 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
         </View>
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("ob.progress", { i: idx + 1, n: STEPS.length })}</AppText>
       </View>
+      {resources === "error" ? <Notice kind="error" title={t("ob.loadFailed")} actionLabel={t("history.error.retry")} onAction={() => void refreshLibrary()} /> : null}
       {body}
+      {first && error ? <InlineStatus kind="error" text={error} /> : null}
       {first ? <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("ob.skipNote")}</AppText> : null}
       <ArDraftNote />
     </Screen>

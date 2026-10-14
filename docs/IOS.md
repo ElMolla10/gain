@@ -2,7 +2,7 @@
 
 Status: **PREPARED ON LINUX, NEVER BUILT, NEVER RUN ON AN iPHONE.** The box that prepared this has no Mac and no Xcode. What was checked: the app config generates a valid iOS project (`npx expo prebuild --platform ios --no-install` succeeds), the TypeScript compiles, and all tests pass. What nobody has seen: the app compiling in Xcode, launching, looking right, or doing anything on an iPhone. Treat the first build as an experiment, and write down what you see (section 7 lists what is most likely to be wrong).
 
-iOS stays **frozen for the pilot** ([MASTER-PLAN.md](MASTER-PLAN.md)). This guide is only so you can try GAIN on your own phone. Android is unchanged.
+iOS is the current deployment priority for the six-batch audit. This guide covers local installation and the later TestFlight route. Native validation is tracked in [IOS-AUDIT-CHECKLIST.md](IOS-AUDIT-CHECKLIST.md).
 
 ## 0. What you need and what the free route can and cannot do
 
@@ -45,7 +45,7 @@ If the App Store offers **Xcode 27** (the iOS 27 SDK), see section 6, "Xcode 27"
 ```
 scripts/ios-setup.sh
 ```
-It checks the Mac (and tells you in plain words what to fix), asks you for a bundle id, installs packages, generates the iOS project and prints the next steps. It is safe to run again. `scripts/ios-setup.sh --check` only checks. `scripts/ios-setup.sh --run` also builds and installs on the phone at the end.
+It checks the Mac (and tells you in plain words what to fix), asks you for a bundle id, installs packages, generates the iOS project and prints the next steps. It is safe to run again. `scripts/ios-setup.sh --check` only checks. `scripts/ios-setup.sh --run` also builds and installs a standalone **Release** build on the phone at the end. `--run --debug` explicitly chooses a debug build that needs Metro. The helper first reuses `.env.ios`; if it is absent, it preserves a single bundle ID and signing team found in the existing Xcode project before suggesting a new ID.
 
 If you prefer to do it by hand:
 ```
@@ -64,12 +64,12 @@ GAIN_IOS_BUNDLE_ID=com.yourname.gain npx expo prebuild --platform ios
 3. Build and install:
    ```
    cd apps/mobile
-   npx expo run:ios --device
+   npx expo run:ios --device --configuration Release
    ```
    Pick your iPhone when it asks. The first build takes a long time (10 to 30 minutes is normal). Leave the phone unlocked.
    - **Or with Xcode:** open `apps/mobile/ios/GAIN.xcworkspace` (the **.xcworkspace**, not .xcodeproj). Click the blue GAIN project > target GAIN > Signing & Capabilities > tick "Automatically manage signing" > Team = your name (Personal Team). Check that Bundle Identifier is your own id. Choose your iPhone at the top and press the play button.
 4. First launch says **"Untrusted Developer"**. On the iPhone: Settings > General > **VPN & Device Management** > under Developer App tap your Apple ID > **Trust** > Trust. Open GAIN again.
-5. In a debug build GAIN may show a developer screen or ask for a Metro server. If you want a build that runs without the Mac nearby, install the release build instead: `npx expo run:ios --device --configuration Release`.
+5. The Release build runs without Metro or the Mac nearby. Use `scripts/ios-setup.sh --run --debug` only when you want development debugging with Metro.
 
 ## 4. Every 7 days
 

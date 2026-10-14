@@ -8,6 +8,8 @@ import { logDarkPalette, logLightPalette } from "../src/palettes";
 
 const src = (f: string) => readFileSync(join(__dirname, "..", "src", f), "utf8");
 const screen = src("screens/WorkoutScreen.tsx");
+const section = src("components/WorkoutExerciseSection.tsx");
+const row = src("components/WorkoutSetRow.tsx");
 const today = src("screens/TodayScreen.tsx");
 const ui = src("ui.tsx");
 const parts = src("components/LogParts.tsx");
@@ -97,17 +99,17 @@ describe("logger and Today: layout rules (source)", () => {
     expect(c).toContain("<Sheet"); // close button, Android back, safe area come from the shared Sheet
   });
   it("logger: rest control stays in each exercise header (48 dp), soft done rows, strong current row, outlined current boxes", () => {
-    expect(screen).toContain("<RestToggle");
+    expect(section).toContain("<RestToggle");
     const r = parts.slice(parts.indexOf("export function RestToggle"));
     expect(r).toContain("minHeight: 48");
     expect(r).toContain("minWidth: 48");
-    expect(screen).toContain("currentRowKey(list)");
-    expect(screen).toContain("p.activeBg");
-    expect(screen).toContain("done={done}");
-    expect(screen).toContain("current={current}");
+    expect(section).toContain("currentRowKey(list)");
+    expect(row).toContain("p.activeBg");
+    expect(row).toContain("done={done}");
+    expect(row).toContain("current={current}");
   });
   it("logger: touch targets are not shrunk (tick, set button, inputs, rest, why)", () => {
-    expect(screen.match(/width: 48, height: 48/g)?.length).toBeGreaterThanOrEqual(2); // set button + tick
+    expect(row.match(/width: 48, height: 48/g)?.length).toBeGreaterThanOrEqual(2); // set button + tick
     expect(parts).toContain("height: INPUT_HEIGHT");
   });
   it("new strings exist in English and Egyptian Arabic", () => {

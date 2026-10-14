@@ -17,33 +17,7 @@ import Constants from "expo-constants";
 import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
 import { loadReminderSettings, REMINDER_KEYS, reminderText, serializeDays, serializeTime, syncReminders, toggleDay, type ReminderSettings } from "../logic/reminders";
 import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
-import { formatMlNumber, LIVE_MODEL_VERSION } from "../logic/mlEvaluation";
-import type { MlAccuracy } from "../db/mlEvaluationRepo";
-
-function MlAccuracyCard() {
-  const { mlEvaluation } = useServices();
-  const { t, lang } = useI18n();
-  const [accuracy, setAccuracy] = useState<MlAccuracy | null>(null);
-  const [failed, setFailed] = useState(false);
-  useFocusEffect(useCallback(() => {
-    let active = true;
-    setAccuracy(null);
-    setFailed(false);
-    void mlEvaluation.accuracy(LIVE_MODEL_VERSION).then(value => { if (active) setAccuracy(value); })
-      .catch(() => { if (active) setFailed(true); });
-    return () => { active = false; };
-  }, [mlEvaluation]));
-  return <Block title={t("ml.title")} note={t("ml.note")}>
-    {failed ? <InlineStatus kind="error" text={t("ml.failed")} /> : accuracy ? <>
-      <AppText>{t("ml.count", { n: formatMlNumber(accuracy.count, lang) })}</AppText>
-      {accuracy.count === 0 ? <AppText>{t("ml.empty")}</AppText> : <>
-        <AppText>{t("ml.mae", { n: formatMlNumber(accuracy.meanAbsoluteError!, lang, 2) })}</AppText>
-        <AppText>{t("ml.one", { n: formatMlNumber(accuracy.withinOnePercent!, lang, 1) })}</AppText>
-        <AppText>{t("ml.two", { n: formatMlNumber(accuracy.withinTwoPercent!, lang, 1) })}</AppText>
-      </>}
-    </> : null}
-  </Block>;
-}
+import { MlAccuracyCard } from "../components/MlAccuracyCard";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
 

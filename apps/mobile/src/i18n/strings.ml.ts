@@ -7,6 +7,13 @@ export const enMl = {
   "ml.two": "Within ±2 reps: {n}%",
   "ml.empty": "No evaluated predictions yet. Accuracy appears after eligible predicted sets are logged and confirmed.",
   "ml.failed": "Could not load accuracy. Reopen Settings to retry.",
+  "ml.baseline.repeatPrevious": "Same-load repeat baseline · {n} sets: AI error {ai} vs repeat error {baseline} reps",
+  "ml.baseline.loadAdjusted": "Load-adjusted benchmark · {n} sets: AI error {ai} vs benchmark error {baseline} reps",
+  "ml.comparisonNote": "Lower error is better. Each comparison uses the same sets. Small samples and chosen rep targets can bias results; this does not prove safety or strength gains.",
+  "ml.coverage": "Captured: {captured} · Awaiting results: {pending} · Excluded: {excluded}",
+  "ml.export": "Export evaluation JSON",
+  "ml.exportNote": "Export includes exercise IDs, predicted and logged reps, and forecast inputs. Nothing is uploaded automatically; you choose where to share it.",
+  "ml.exportFailed": "Could not export evaluation. Try again.",
 };
 // Draft Arabic, like the existing experimental adaptation strings.
 export const arMl: Record<keyof typeof enMl, string> = {
@@ -18,4 +25,11 @@ export const arMl: Record<keyof typeof enMl, string> = {
   "ml.two": "في حدود ±2 تكرار: {n}%",
   "ml.empty": "لسه مفيش توقعات اتقيّمت. الدقة هتظهر بعد تسجيل وتأكيد مجموعات مؤهلة لها توقع.",
   "ml.failed": "مش قادرين نعرض الدقة. افتح الإعدادات تاني للمحاولة.",
+  "ml.baseline.repeatPrevious": "مقارنة بتكرارات آخر مجموعة بنفس الوزن · {n} مجموعة: خطأ الذكاء الاصطناعي {ai} مقابل {baseline} تكرار",
+  "ml.baseline.loadAdjusted": "مقارنة بتقدير محسوب حسب الوزن · {n} مجموعة: خطأ الذكاء الاصطناعي {ai} مقابل {baseline} تكرار",
+  "ml.comparisonNote": "الخطأ الأقل أفضل. كل مقارنة بتستخدم نفس المجموعات. عدد قليل من المجموعات والتكرارات اللي اخترتها ممكن يأثروا على النتيجة؛ دي مش إثبات للأمان أو زيادة القوة.",
+  "ml.coverage": "توقعات مسجلة: {captured} · مستنية النتيجة: {pending} · مستبعدة: {excluded}",
+  "ml.export": "صدّر تقييم النموذج بصيغة JSON",
+  "ml.exportNote": "الملف فيه معرّفات التمارين، والتكرارات المتوقعة والمسجلة، والمدخلات المستخدمة في التوقع. مفيش رفع تلقائي؛ إنت بتختار تشاركه فين.",
+  "ml.exportFailed": "مش قادرين نصدّر التقييم. جرّب تاني.",
 };

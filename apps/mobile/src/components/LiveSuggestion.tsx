@@ -9,6 +9,7 @@ import { AppText, BigButton } from "../ui";
 
 interface Props {
   decision: Decision;
+  basis?: { load: number; reps: number };
   repMin: number;
   repMax: number;
   manualLoad: boolean;
@@ -19,7 +20,7 @@ interface Props {
 }
 
 /** Presentation only: the logger owns persistence, staleness checks and acceptance. */
-export function LiveSuggestion({ decision, repMin, repMax, manualLoad, busy, onApply, onKeep, onReport }: Props) {
+export function LiveSuggestion({ decision, basis, repMin, repMax, manualLoad, busy, onApply, onKeep, onReport }: Props) {
   const { t, lang, unit } = useI18n();
   const p = useLogPalette();
   return (
@@ -28,6 +29,8 @@ export function LiveSuggestion({ decision, repMin, repMax, manualLoad, busy, onA
       <AppText style={{ fontWeight: "600" }}>{t(`live.${decision.action}` as never)}</AppText>
       {decision.reason !== "reported_symptoms" ? <AppText>{t("live.predicted", { reps: Math.round(decision.predictedReps * 10) / 10, min: repMin, max: repMax })}</AppText> : null}
       <AppText style={{ color: p.muted }}>{t(`live.reason.${decision.reason}` as never)}</AppText>
+      {basis && decision.reason !== "reported_symptoms" ? <AppText style={{ color: p.muted }}>{t("live.basis", { load: formatLoad(basis.load, lang, unit), reps: basis.reps })}</AppText> : null}
+      {decision.reason !== "reported_symptoms" ? <AppText style={{ color: p.muted }}>{t("live.estimateNote")}</AppText> : null}
       {decision.action !== "stop" ? <AppText ltr>{formatLoad(decision.suggestedWeightKg, lang, unit)}</AppText> : null}
       <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
         {decision.action !== "stop" ? <BigButton variant="secondary" label={t("live.apply")} disabled={manualLoad || busy} onPress={onApply} /> : null}

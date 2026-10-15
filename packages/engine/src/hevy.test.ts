@@ -28,6 +28,18 @@ describe("parseHevyDate", () => {
     expect(parseHevyDate("Sep 6, 2026, 12:05 AM")).toBe("2026-09-06T00:05:00");
     expect(parseHevyDate("Sep 6, 2026, 12:05 PM")).toBe("2026-09-06T12:05:00");
   });
+  it("parses unambiguous day-first and local ISO exports", () => {
+    expect(parseHevyDate("29 Sep 2026, 15:15")).toBe("2026-09-29T15:15:00");
+    expect(parseHevyDate("29 Sep 2026, 3:15 PM")).toBe("2026-09-29T15:15:00");
+    expect(parseHevyDate("29 Sep 2026, 15:15:42")).toBe("2026-09-29T15:15:42");
+    expect(parseHevyDate("2026-09-29 15:15:42")).toBe("2026-09-29T15:15:42");
+    expect(parseHevyDate("2026-09-29T15:15")).toBe("2026-09-29T15:15:00");
+  });
+  it("rejects ambiguous dates and time zones instead of guessing", () => {
+    for (const date of ["09/29/2026 15:15", "29/09/2026 15:15", "2026-09-29T15:15:00Z", "2026-09-29T15:15:00+02:00"]) {
+      expect(() => parseHevyDate(date)).toThrow(HevyParseError);
+    }
+  });
   it("rejects garbage", () => {
     expect(() => parseHevyDate("yesterday")).toThrow(HevyParseError);
     expect(() => parseHevyDate("Foo 1, 2026, 3:00 PM")).toThrow(HevyParseError);
@@ -99,7 +111,7 @@ describe("equipmentFromTitle", () => {
 });
 
 describe("import calendar boundaries", () => {
-  it.each(["Feb 29, 2025, 3:15 PM", "Feb 29, 1900, 3:15 PM", "Apr 31, 2026, 3:15 PM", "Jan 0, 2026, 3:15 PM", "Jan 1, 2026, 24:00", "Jan 1, 2026, 3:60 PM"])("rejects impossible Hevy date %s", date => {
+  it.each(["Feb 29, 2025, 3:15 PM", "Feb 29, 1900, 3:15 PM", "Apr 31, 2026, 3:15 PM", "Jan 0, 2026, 3:15 PM", "Jan 1, 2026, 24:00", "Jan 1, 2026, 3:60 PM", "29 Feb 2025, 15:15", "2026-02-30 15:15:00", "2026-09-29 15:15:60"])("rejects impossible Hevy date %s", date => {
     expect(() => parseHevyDate(date)).toThrow(HevyParseError);
   });
   it("accepts leap years and midnight without changing local wall clock", () => {

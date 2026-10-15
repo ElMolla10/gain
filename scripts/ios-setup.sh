@@ -37,7 +37,9 @@ while [ $# -gt 0 ]; do
     --run) RUN_AFTER=1 ;;
     --debug) CONFIGURATION=Debug ;;
     --archive|--build-number|--bundle-id|--team-id)
-      [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != --* ]] || { say "Missing value for $1"; exit 2; }
+      if [ $# -lt 2 ] || [ -z "${2:-}" ] || [[ "${2:-}" = --* ]]; then
+        say "Missing value for $1"; exit 2
+      fi
       case "$1" in
         --archive) ARCHIVE_PATH="$2" ;;
         --build-number) BUILD_NUMBER="$2" ;;

@@ -48,7 +48,7 @@ describe("gym weight setup", () => {
     await s.repos.seedIfNeeded();
     await s.repos.topUpLibrary();
     const gymId = await s.gyms.createGym({ name: "My gym", loads: defaultGymLoads("kg"), activate: true });
-    const gym = (await s.gyms.getGym(gymId))!;
+    const gym = { ...(await s.gyms.getGym(gymId))!, gymId };
     const generic = (await s.db.get<{ id: string }>("SELECT id FROM exercise WHERE name_en = 'Machine Chest Press'"))!;
     const namedPlate = (await s.db.get<{ id: string }>("SELECT id FROM exercise WHERE name_en = 'Shoulder Press (Machine Plates)'"))!;
     await s.programmes.setMachineLoadKind(generic.id, "plate");
@@ -56,6 +56,10 @@ describe("gym weight setup", () => {
     expect(nextLoadAbove((await gridFor(s.db, gym, generic.id, "machine"))!, 50)).toBe(60);
     await s.programmes.setMachineLoadKind(generic.id, "pin");
     expect(nextLoadAbove((await gridFor(s.db, gym, generic.id, "machine"))!, 50)).toBe(55);
+    expect((await s.repos.getExerciseLoads(generic.id))?.spec?.increment).toBe(5);
+    await s.db.run("UPDATE gym_load SET increment = 7.5 WHERE gym_id = ? AND equipment = 'machine'", [gymId]);
+    const customGym = { ...(await s.gyms.getGym(gymId))!, gymId };
+    expect(nextLoadAbove((await gridFor(s.db, customGym, generic.id, "machine"))!, 50)).toBe(55);
     await s.programmes.setMachineLoadKind(namedPlate.id, "pin");
     await s.gyms.applyLoadStepPreset();
     expect((await s.programmes.listExercises()).find(e => e.id === namedPlate.id)?.machineLoadKind).toBe("pin");

@@ -4,8 +4,7 @@ import { describe, expect, it } from "vitest";
 import { en } from "../src/i18n/strings";
 
 /**
- * Step 17 "compare actual data flows (code) against the text": the draft privacy page says the app has no account, server, analytics or ad
- * service and contacts only GitHub when the lifter checks for updates. These tests fail if the code stops matching that text, so the text
+ * Privacy flow checks: local storage plus optional sync/coach links, manual GitHub updates and no analytics/ad SDK. These tests fail if the code stops matching that text, so the text
  * (and the legal review) has to be updated first.
  */
 const root = join(__dirname, "..");
@@ -14,12 +13,12 @@ const src = files(join(root, "src")).filter((f) => /\.(ts|tsx)$/.test(f) && !f.i
 const text = (f: string) => readFileSync(f, "utf8");
 
 describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
-  it("the only network calls are the update check (GitHub API) and the APK download", () => {
+  it("direct platform fetch/download use stays in the updater; sync uses its injected transport", () => {
     const users = src.filter((f) => /\bfetch\s*(\(|as\b)|XMLHttpRequest|WebSocket|downloadFileAsync|expo-network|axios/.test(text(f))).map((f) => f.slice(root.length + 1)).sort();
     // UpdateCard hands the platform fetch to updateCheck.ts (which only builds the GitHub URL and is otherwise pure) and downloads the APK.
     expect(users).toEqual(["src/components/UpdateCard.tsx"]);
   });
-  it("the only hosts in the source are github.com / api.github.com", () => {
+  it("source hosts stay limited to GitHub and the opt-in Cloudflare transport", () => {
     const hosts = new Set<string>();
     for (const f of src) for (const m of text(f).matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) if (!f.endsWith("src/sync/transport.ts")) hosts.add(m[1]!.toLowerCase());
     expect(hosts.has("api.github.com")).toBe(true);
@@ -55,6 +54,8 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
   it("the page says the things the code makes true, and is marked DRAFT", () => {
     expect(en["privacy.draft"]).toMatch(/DRAFT/);
     expect(en["privacy.local.body"]).toMatch(/By default there is no account and no server/);
+    expect(en["privacy.ai.body"]).toMatch(/not sent to an AI provider/);
+    expect(en["privacy.ai.body"]).toMatch(/outside cloud sync/);
     expect(en["privacy.leaves.sync"]).toMatch(/OFF until you turn it on/);
     expect(en["privacy.leaves.sync"]).toMatch(/not end-to-end encrypted/);
     expect(en["privacy.leaves.link"]).toMatch(/anyone with the link/i);

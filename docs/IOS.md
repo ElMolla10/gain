@@ -105,7 +105,7 @@ Apps built with the iOS 27 SDK must use the newer "scene" start-up. Expo SDK 57 
 
 ## 7. What is known-untested on iOS
 
-Everything. The table says what to look at first and what the code does, so a failure is easy to report.
+Mo is testing on his iPhone. This workspace has not run native checks; the table below records workspace evidence, not the outcome of Mo's testing. Record new results against the exact build in [IOS-AUDIT-CHECKLIST.md](IOS-AUDIT-CHECKLIST.md).
 
 | Area | What the code does | Status |
 |---|---|---|
@@ -144,56 +144,13 @@ The rows to add to your phone checklist are in [NATIVE-CHECKLIST.md](NATIVE-CHEC
 - CI job `ios-config`: the iOS JS bundle compiles (`expo export --platform ios`), prebuild succeeds, and the generated project has no push entitlement, no Face ID string and iPhone-only devices. This catches config rot; it does not build the app.
 - Generated `ios/` is **not committed** (it is in `.gitignore`, like `android/`).
 
-## 9. Later: the paid Apple Developer Program, TestFlight and the App Store
+## 9. TestFlight and App Store preparation
 
-Decision still open (see [MASTER-PLAN.md](MASTER-PLAN.md)): **when to pay and whether to go to TestFlight before or after the Android pilot.** Nothing here has been done.
+**iOS is the current release priority.** Use [IOS-RELEASE.md](IOS-RELEASE.md) for the local Release archive, Xcode validation and submission sequence. [IOS-APP-PRIVACY.md](IOS-APP-PRIVACY.md) maps actual optional sync/share flows to draft store answers; [IOS-STORE-METADATA.md](IOS-STORE-METADATA.md) contains draft listing and review notes.
 
-### 9.1 Enrol
-1. Apple ID with two-factor sign-in. Go to developer.apple.com/programs/enroll (or use the Apple Developer app on the iPhone). Enrol as an **individual** (an organisation needs a D-U-N-S number and a company).
-2. Pay the yearly fee (99 USD; check the price shown for Egypt and which cards work). Approval can take from minutes to several days, and Apple may ask for ID verification.
-3. After approval you get a real Team ID (10 characters) and access to App Store Connect.
+`GAIN_IOS_BUILD_NUMBER` (or `--build-number`) overrides the source default for a particular build. Use a new positive integer for each upload. The helper's `--archive /absolute/path/GAIN-N.xcarchive` requires an explicit build number, preserves bundle identity and signing team, and refuses existing archives. It creates a local generic-device Release archive and never uploads it. A Personal Team can install locally, but TestFlight distribution needs the appropriate Apple Developer Program team and provisioning.
 
-### 9.2 Pick the final bundle id
-Register the id you want to keep (for example `app.gain.mobile` if it is free for your team, or `com.yourname.gain`). Builds with a different id are different apps on the phone, so move data with Export / Restore. Put the id in `GAIN_IOS_BUNDLE_ID` for every build.
-
-### 9.3 Build in the cloud with EAS Build (no Mac needed for the build itself)
-```
-npm install -g eas-cli
-eas login                      # an Expo account (free to create)
-cd apps/mobile
-eas build:configure            # creates eas.json and an EAS project id
-```
-Edit `apps/mobile/eas.json` so the production profile carries your id (add `"GAIN_IOS_SCENES": "1"` to `env` only if the EAS image uses Xcode 27):
-```
-{ "build": { "production": { "ios": { "image": "latest" }, "env": { "GAIN_IOS_BUNDLE_ID": "com.yourname.gain" }, "autoIncrement": true } },
-  "submit": { "production": {} } }
-```
-Then:
-```
-eas build --platform ios --profile production    # logs in to Apple, makes certificates and a provisioning profile for you
-eas submit --platform ios --latest               # uploads the build to App Store Connect
-```
-EAS has a free plan with a limited number of builds and a queue; the numbers change, so check expo.dev/pricing. Choose an EAS image that matches SDK 57 (Xcode 26.4+); a newer Xcode on the build image than the SDK supports can fail the build (expo/fyi: expo-sdk-xcode-compatibility). **Note:** Android CI and releases keep working the same; do not run EAS for Android.
-
-You can instead build on your own Mac: with the paid team selected in Xcode, Product > Archive > Distribute App > App Store Connect.
-
-### 9.4 TestFlight
-1. App Store Connect > Apps > + New App: platform iOS, name GAIN, bundle id from 9.2, SKU anything, primary language.
-2. After `eas submit`, the build shows under TestFlight after processing (about 10 to 60 minutes). Answer the **export compliance** question once if asked (GAIN declares no non-exempt encryption: only HTTPS and SHA-256).
-3. **Internal testing**: add people who are in your App Store Connect team (up to 100) and they get the build with no review. **External testing**: a public link or email invites, up to 10,000 testers, needs a short **Beta App Review** the first time, and a "What to test" text and a contact email.
-4. TestFlight builds expire after 90 days; upload a new one before that.
-
-### 9.5 App Store review notes (for later; all drafts, none checked by Apple)
-- **Privacy policy URL** is required. The hosted draft is not lawyer-reviewed ([PRIVACY-POLICY-DRAFT.md](PRIVACY-POLICY-DRAFT.md)); the controller name and contact are still open.
-- **App Privacy ("nutrition label")** in App Store Connect. The parallel of the Play Data safety form is [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md). Facts it rests on: nothing leaves the phone unless the lifter turns on Back up and sync or shares a coach link; no analytics, ads, tracking or third-party SDKs; "Data Used to Track You": none. If sync counts as collection, the likely categories are Health & Fitness (Fitness), possibly Body (bodyweight) and Other User Content, linked to an anonymous identifier, used for App Functionality only. Apple's category names differ from Google's: re-check on the day.
-- **Account deletion (Guideline 5.1.1(v))**: an app that supports account creation must let people start deleting the account **inside the app**, and deleting must remove the account and its data (deactivating is not enough). Apple's FAQ says this includes automatically created "guest" accounts, so assume GAIN's anonymous sync account counts. What exists: Settings > Back up and sync > "Turn off and delete my backup" (deletes the account and all rows on the server) and Settings > Your data > "Delete all my data" ([ACCOUNT-DELETION-SPEC.md](ACCOUNT-DELETION-SPEC.md)). Apple, unlike Google, does not ask for a web page; if a web step were needed, Apple wants a direct link. Put the path in the **App Review notes**: "No login is needed. Sync is optional: Settings > Back up and sync. Deletion: Settings > Back up and sync > Turn off and delete my backup."
-- **Review notes** should also say: the app is free, has no purchases and no ads, works offline, and is a training log with a "not medical advice" note (Guideline 1.4.1/5.1.3 health claims: GAIN makes none). Give the reviewer the coach-link idea only if they ask.
-- **No Sign in with Apple needed**: there is no third-party login.
-- **Age rating** questionnaire: no objectionable content; the privacy text says GAIN is not designed for children.
-- **Screenshots** need real iPhone screenshots at Apple's required sizes (check App Store Connect for the current list); take them from your phone or the simulator. Not prepared.
-- **Encryption**: `usesNonExemptEncryption: false` is already in the config.
-- **Minimum functionality (4.2)**: GAIN is a full app, not a web wrapper.
-- Re-read Apple's guidelines when you submit; they change.
+No Apple membership, store record, certificate, signed archive, screenshot set or submission is claimed complete here. Keep your installed bundle ID for retention testing; changing it creates a separate app. Do not upload until the privacy/operator/contact fields, actual SDK privacy report, Worker deployment and device checks are resolved.
 
 ## 10. Sources read on 2026-10-04
 - Expo SDK reference (Xcode 26.4+ and iOS 16.4+ for SDK 57): docs.expo.dev/versions/v57.0.0

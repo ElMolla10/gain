@@ -1,10 +1,10 @@
-# Six-batch iPhone validation
+# iPhone release validation
 
-Status: **NOT RUN on a Mac or iPhone by this workspace.** This is a focused execution sheet, not a passed release gate. Complete it against one source commit after the stacked audit PRs are merged. The broader checklist remains [NATIVE-CHECKLIST.md](NATIVE-CHECKLIST.md).
+Status: **NOT RUN on a Mac or iPhone by this workspace.** This is a focused execution sheet, not a passed release gate. Complete it against one source commit after the relevant changes are merged. The broader checklist remains [NATIVE-CHECKLIST.md](NATIVE-CHECKLIST.md).
 
 ## Install the local Release build
 
-In the existing Mac checkout, after merging the audit branches:
+In the existing Mac checkout, against current main:
 
 ```bash
 git switch main
@@ -54,9 +54,9 @@ The helper prints the commit/configuration. Release is the default and should ru
 
 ## Delivery still open
 
-Batches 3–6 are separate stacked PRs; `main` includes them only after merge. Batch 5's auth fix needs a separate Worker deployment and smoke check using the existing [script](../apps/server/scripts/deploy.sh). It has not been deployed here.
+The six audit batches and phases 1–4 are merged. The auth fix still needs a verified Worker deployment and smoke check using the existing [script](../apps/server/scripts/deploy.sh). It has not been deployed here.
 
-TestFlight/App Store delivery is separate from local installation. Apple account/team setup, signing, a native archive, submission metadata, privacy information and real iPhone screenshots have not been completed here. A JS export or Linux tests do not establish store readiness.
+Phase-5 release preparation is in [IOS-RELEASE.md](IOS-RELEASE.md), with draft metadata and privacy answers. TestFlight/App Store delivery is separate from local installation. Apple account/team setup, signing, a native archive, submission metadata, privacy information and real iPhone screenshots have not been completed here. A JS export or Linux tests do not establish store readiness.
 
 ## Phase 4 — real-workout evaluation (NOT RUN for this build)
 

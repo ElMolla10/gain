@@ -51,7 +51,9 @@ describe("docs/site drafts", () => {
     expect(h).toMatch(/not end-to-end encrypted/);
     expect(h).toMatch(/7 days by default, 30 at most/);
     expect(h).toMatch(/no analytics events, no crash upload, no advertising, no data selling/);
-    expect(h).toMatch(/up to 7 days \(free plan\)/);
+    expect(h).toMatch(/verify and document that period before submission/);
+    expect(h).toMatch(/no remote AI provider/);
+    expect(h).toMatch(/Frozen forecasts and matched outcomes stay local, outside sync/);
     expect(h).toMatch(/Android's own backup/);
     // Same limits as the in-app text.
     expect(en["privacy.leaves.link"]).toMatch(/7 days/);

@@ -10,7 +10,12 @@
     "scheme": "gain",
     "plugins": [
       "expo-sqlite",
-      ["expo-localization", { "supportsRTL": true }],
+      [
+        "expo-localization",
+        {
+          "supportsRTL": true
+        }
+      ],
       "expo-status-bar",
       [
         "expo-splash-screen",
@@ -30,7 +35,12 @@
           "color": "#B7F51B"
         }
       ],
-      ["expo-secure-store", { "faceIDPermission": false }],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       [
         "expo-font",
         {
@@ -77,6 +87,58 @@
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
             "NSPrivacyAccessedAPITypeReasons": [
               "E174.1"
+            ]
+          }
+        ],
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeFitness",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeHealth",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherDataTypes",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
             ]
           }
         ]

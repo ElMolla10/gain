@@ -23,6 +23,25 @@ import { DeveloperTools } from "../components/DeveloperTools";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
 
+function GymStepsCard() {
+  const { t } = useI18n();
+  const { gyms } = useServices();
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<"saved" | "failed" | null>(null);
+  return (
+    <Block title={t("loads.preset.title")} note={t("loads.preset.note")}>
+      <LinkRow label={t("loads.preset.apply")} onPress={() => {
+        if (busy) return;
+        setBusy(true);
+        setStatus(null);
+        void gyms.applyLoadStepPreset().then(() => setStatus("saved")).catch(() => setStatus("failed")).finally(() => setBusy(false));
+      }} />
+      {busy ? <InlineStatus kind="info" text={t("loads.preset.saving")} /> : null}
+      {status ? <InlineStatus kind={status === "saved" ? "success" : "error"} text={t(status === "saved" ? "loads.preset.saved" : "loads.preset.failed")} /> : null}
+    </Block>
+  );
+}
+
 /** The default rep ceilings (reps at which load goes up) per kind of lift. Per-lift overrides live on the program row. */
 function CeilingsCard() {
   const { t } = useI18n();
@@ -220,6 +239,7 @@ export function SettingsScreen() {
     <Screen tab title={t("tab.settings")}>
       <Group title={t("settings.group.training")}>
         <CeilingsCard />
+        <GymStepsCard />
         <RestCard />
         <WeekStartCard />
         <ReminderCard />

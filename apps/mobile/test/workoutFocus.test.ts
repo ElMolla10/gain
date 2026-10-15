@@ -16,11 +16,11 @@ describe("current workout focus", () => {
     expect(focusedExercise(["row","bench"], {bench:unfinished(),row:unfinished()}, null)).toBe("row");
     expect(focusedExercise([], rows, null)).toBeNull();
   });
-  it("keeps stop warnings visible while hiding unfocused normal prompts", () => {
+  it("shows each exercise's next-set answer even when focus moves elsewhere", () => {
     for (const active of [true,false]) expect(livePromptVisible("stop",active)).toBe(true);
     for (const action of ["increase","maintain","decrease"]) {
       expect(livePromptVisible(action,true)).toBe(true);
-      expect(livePromptVisible(action,false)).toBe(false);
+      expect(livePromptVisible(action,false)).toBe(true);
     }
   });
   it("keeps unsaved edits and invalid saved-row corrections eligible for focus", () => {

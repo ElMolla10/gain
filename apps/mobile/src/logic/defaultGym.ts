@@ -5,7 +5,7 @@ import { unitToKg, type Unit } from "./units";
  * The gym onboarding creates silently, and the "standard loads" the gym editor can fill in. Standard defaults for a typical
  * commercial gym, NOT a measurement of the lifter's gym: the lifter refines them in the Gym tab.
  * Always returned in kilograms (the engine's unit), already snapped to the unit's friendly numbers:
- *  - kg: 2.5 kg barbell steps from a 20 kg bar, dumbbells 5-50 kg in 2.5 kg steps (up to 35, then 5), 5 kg cable / machine / assist jumps.
+ *  - kg: 2.5 kg barbell steps from a 20 kg bar, dumbbells in 2 kg steps except 26 kg, 5 kg cable / machine / assist jumps.
  *  - lb: 5 lb barbell steps from a 45 lb bar (2.5 lb plates each side), dumbbells 5-100 lb in 5 lb steps, 5 lb cable jumps,
  *        10 lb machine / assist jumps, 2.5 lb added-load plates.
  */
@@ -27,13 +27,22 @@ export function defaultGymLoads(unit: Unit): GymLoadSpec[] {
     ];
   }
   return [
-    { equipment: "dumbbell", loads: [5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25, 27.5, 30, 32.5, 35, 40, 45, 50] },
+    { equipment: "dumbbell", loads: Array.from({ length: 25 }, (_, i) => (i + 1) * 2).filter(kg => kg !== 26) },
     { equipment: "barbell", increment: 2.5, min: 20, max: 200 },
     { equipment: "plate", increment: 2.5, min: 2.5, max: 60 },
     { equipment: "cable", increment: 5, min: 5, max: 100 },
     { equipment: "machine", increment: 5, min: 5, max: 160 },
     { equipment: "assisted", increment: 5, min: 0, max: 70 },
   ];
+}
+
+/** Upgrade only the untouched old kg dumbbell list; preserve all other gym choices. */
+export function upgradeLegacyKgDumbbells(loads: GymLoadSpec[]): GymLoadSpec[] | null {
+  const old = [5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25, 27.5, 30, 32.5, 35, 40, 45, 50];
+  const rack = loads.find(s => s.equipment === "dumbbell");
+  if (!rack?.loads || rack.increment !== undefined || rack.loads.length !== old.length || rack.loads.some((kg, i) => kg !== old[i])) return null;
+  const current = defaultGymLoads("kg").find(s => s.equipment === "dumbbell")!;
+  return loads.map(s => s === rack ? current : s);
 }
 
 /** Name of the gym onboarding creates. Arabic is a draft. */

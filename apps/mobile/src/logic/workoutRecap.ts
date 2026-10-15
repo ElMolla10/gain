@@ -74,3 +74,19 @@ export function formatWorkoutShareText(detail: SessionDetail, summary: SessionSu
   }
   return lines.join("\n").trim();
 }
+
+/** Concrete changes, with the relevant earlier performance rather than an implied population rank. */
+export function improvementLines(summary: SessionSummary, lang: Lang, unit: Unit): string[] {
+  const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params);
+  const performance = (load: number, q: number, measure: "reps" | "time" | "distance") => `${weightText(load, unit)} ${unitLabel(unit, lang)} × ${measure === "reps" ? q : quantityText(q, measure, { s: t("qty.s"), m: t("qty.m") })}`;
+  return summary.exercises.flatMap(ex => {
+    if (!ex.top || !ex.counted) return [];
+    const exercise = lang === "ar" ? ex.nameAr : ex.nameEn;
+    if (ex.firstTime) return [t("progress.baseline", { exercise })];
+    if (!ex.records.length) return [];
+    const before = ex.records.includes("load") ? ex.previousTop : ex.previousAtLoad != null ? { load: ex.top.load, quantity: ex.previousAtLoad } : null;
+    if (!before) return [];
+    const measure = ex.measure ?? "reps";
+    return [t("progress.beforeAfter", { exercise, before: performance(before.load, before.quantity, measure), after: performance(ex.top.load, ex.top.quantity ?? ex.top.reps, measure) })];
+  });
+}

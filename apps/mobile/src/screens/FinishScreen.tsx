@@ -1,3 +1,5 @@
+import { AchievementCard } from "../components/AchievementCard";
+import { PersonalProgressCard } from "../components/PersonalProgressCard";
 import { shortReason, targetText } from "../logic/nextTarget";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -10,7 +12,7 @@ import type { SessionDetail } from "../db/historyRepo";
 import { exerciseLabels, formatLoad } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { buildCardModel, cardHtml, cardPaceLine, toCoachPayload } from "../logic/coachCard";
-import { formatWorkoutShareText, personalBestLines, workoutRecapStats } from "../logic/workoutRecap";
+import { formatWorkoutShareText, improvementLines, personalBestLines, workoutRecapStats } from "../logic/workoutRecap";
 import { volumeText } from "../logic/liveSummary";
 import type { StringKey } from "../i18n/strings";
 import { space, type as ty, usePalette } from "../theme";
@@ -161,6 +163,7 @@ export function FinishScreen() {
   };
 
   const noSets = summary.totals.counted === 0 && summary.totals.warmups === 0 && summary.totals.unconfirmed === 0;
+  const improvements = improvementLines(summary, lang, unit);
   const pbLines = personalBestLines(summary, lang, unit);
   const stats = detail ? workoutRecapStats(detail, summary) : null;
 
@@ -211,6 +214,14 @@ export function FinishScreen() {
           {pbLines.length ? pbLines.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText style={{ color: p.muted }}>{t("recap.noPbs")}</AppText>}
         </View>
       </Card>
+
+      <Card>
+        <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("progress.improved")}</AppText>
+        {improvements.length ? improvements.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText>{t("progress.steady")}</AppText>}
+        <AppText style={{ color: p.muted }}>{t("progress.note")}</AppText>
+      </Card>
+      <PersonalProgressCard />
+      {detail ? <AchievementCard detail={detail} summary={summary} /> : null}
 
       {/* Forecast the next occurrence of this particular day, not the next day in the rotation. */}
       <FinishedDayForecast value={next} />

@@ -1,3 +1,4 @@
+import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
 import React from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import { findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
@@ -110,6 +111,7 @@ export function WorkoutExerciseSection({ active = true, onFocus, liveDetailsOpen
           onWhyLong={() => onWhyLong()}
         />
         {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
+        <PersonalMilestoneLine history={info.personalHistory ?? []} today={exSets} load={targetNone ? null : tLoad} measure={ex.measure} />
         {ex.topSets && !timed ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("workout.topset.note", { n: ex.topSets })}</AppText> : null}
       </View>
 

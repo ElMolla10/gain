@@ -43,6 +43,7 @@ export function MlAccuracyCard() {
   return <Block title={t("ml.title")} note={t("ml.note")}>
     {failed ? <InlineStatus kind="error" text={t("ml.failed")} /> : report ? <>
       <AppText>{t("ml.count", { n: number(report.model.count) })}</AppText>
+      <AppText>{t("ml.sessions", { n: number(new Set(report.samples.flatMap(s => s.sessionGroup ? [s.sessionGroup] : [])).size) })}</AppText>
       {report.model.count === 0 ? <AppText>{t("ml.empty")}</AppText> : <>
         <AppText>{t("ml.mae", { n: number(report.model.meanAbsoluteError!, 2) })}</AppText>
         <AppText>{t("ml.one", { n: number(report.model.withinOnePercent!, 1) })}</AppText>

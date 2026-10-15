@@ -59,3 +59,18 @@ The file contains fitness observations and exercise IDs even though raw session/
 5. Assess usefulness separately: chosen rep targets can censor actual performance. These metrics score logged reps only; they do not establish measured capacity, calibration, recommendation acceptance, safety or strength gains.
 
 No real-user accuracy numbers are claimed by the tests. Empty or missing cohorts yield null errors, not perfect accuracy. There is no confidence badge without a calibrated method.
+
+## Session-based analysis — phase 4
+
+The offline command above now validates the shared JSON, checks that capture totals reconcile, and recomputes scores instead of trusting stored summaries. It accepts **one latest export** at a time. Legacy exports without session groups retain descriptive metrics but receive no interval. It does not pool files or run inference. The mobile Developer Mode card also shows the number of represented workouts.
+
+The command adds `analysis`:
+
+- Paired MAE improvement intervals for both baselines, using 2,000 fixed-seed percentile bootstrap draws. Each draw samples whole sessions with replacement and retains every paired set in those sessions. The statistic remains **set-weighted** baseline MAE minus model MAE. Positive values favor the model on logged reps.
+- At least five paired sessions and complete grouping are required to display an interval. This is a reporting floor, **not a power calculation or an evidence threshold**. One workout with hundreds of sets cannot satisfy it. Mixed grouped/ungrouped paired samples suppress the interval rather than silently changing its denominator.
+- Separate load-increase/decrease/unchanged/unknown cohorts, available/unavailable prior-history cohorts, and observed/missing RPE, rest, sleep and readiness cohorts. Each baseline still has its own paired denominator. Breakdowns are exploratory, not independent hypothesis tests.
+- The number and percentage of forecasts exceeding logged reps by **at least three reps**. This is an arbitrary descriptive error-tail threshold, not a measured unsafe recommendation, safety rate, or calibrated probability.
+
+Intervals describe variation across sessions **within this single device export**. Sessions from one person can remain correlated across time; these intervals do not establish performance across lifters. An interval excluding zero is not an automatic model-promotion decision. Captured/eligible-set selection, chosen rep targets, small samples, time trends and changed behavior remain limitations. Five similar sessions may produce a narrow or degenerate interval without strong evidence.
+
+See [the phase-4 protocol](REAL-WORKOUT-EVALUATION-PHASE-4.md) before collecting or using results to change the model.

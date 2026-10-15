@@ -57,3 +57,11 @@ The helper prints the commit/configuration. Release is the default and should ru
 Batches 3–6 are separate stacked PRs; `main` includes them only after merge. Batch 5's auth fix needs a separate Worker deployment and smoke check using the existing [script](../apps/server/scripts/deploy.sh). It has not been deployed here.
 
 TestFlight/App Store delivery is separate from local installation. Apple account/team setup, signing, a native archive, submission metadata, privacy information and real iPhone screenshots have not been completed here. A JS export or Linux tests do not establish store readiness.
+
+## Phase 4 — real-workout evaluation (NOT RUN for this build)
+
+- [ ] Developer Mode accuracy card counts represented workouts rather than suggesting each set is an independent session; English/Arabic and large text remain readable.
+- [ ] Capture a forecast before saving an eligible set; export after confirming it. Recompute the JSON with the offline CLI and verify model/baseline counts match the card.
+- [ ] Confirm edits/skips/outlier confirmation and offline force-close/resume retain correct frozen forecasts and current-state exclusions in the export.
+- [ ] Share the JSON locally and inspect the exercise/input fields. No upload occurs without the user's chosen share action.
+- [ ] With fewer than five grouped paired sessions, offline uncertainty bounds are null. Record real device, OS, build and collection period; synthetic tests do not satisfy this check.

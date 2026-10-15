@@ -29,6 +29,16 @@ function stopReason(x: DecisionInput): LiveReason | null {
   return null;
 }
 
+/** A forecast alone cannot justify adding load. Unknown effort needs clear observed
+ * headroom; reported high effort, invalid RPE, or a rep decline veto an increase. */
+function supportsIncrease(x: DecisionInput): boolean {
+  if (x.firstWorkingSetReps !== undefined && (!Number.isFinite(x.firstWorkingSetReps)
+      || x.previousReps < x.firstWorkingSetReps)) return false;
+  if (x.previousSetRpe == null) return x.previousReps >= x.targetMax + 2;
+  return Number.isFinite(x.previousSetRpe) && x.previousSetRpe >= 1 && x.previousSetRpe < 9
+    && x.previousReps >= x.targetMax;
+}
+
 /** Compatibility policy: callers must supply actual available loads; no percentage-based fabrication. */
 export function decideNextSet(x: DecisionInput): Decision {
   validateInput(x);
@@ -41,7 +51,7 @@ export function decideNextSet(x: DecisionInput): Decision {
       ? result('decrease', lower, 'below_range') : result('maintain', x.currentWeightKg, 'no_lighter_load');
   }
   const upper = x.nextAvailableWeightKg;
-  if (x.predictedReps > x.targetMax + 1 && (x.previousSetRpe == null || x.previousSetRpe < 9)
+  if (x.predictedReps > x.targetMax + 1 && supportsIncrease(x)
       && upper !== undefined && Number.isFinite(upper) && upper > x.currentWeightKg && upper <= x.currentWeightKg * 1.05 + 1e-6) {
     return result('increase', upper, 'above_range');
   }
@@ -73,7 +83,7 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
   validateInput(base);
   const stop = stopReason(base);
   if (stop) return {action:'stop', suggestedWeightKg:current, predictedReps:p, reason:stop};
-  if (p > x.targetMax + 1 && (x.context.previousSetRpe == null || x.context.previousSetRpe < 9)) {
+  if (p > x.targetMax + 1 && supportsIncrease(base)) {
     const upper = nextLoadAbove(x.loadSpec, current);
     if (upper !== null && upper <= current * 1.05 + 1e-6) {
       const heavierPrediction = predict(upper);

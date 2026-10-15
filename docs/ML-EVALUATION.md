@@ -1,6 +1,17 @@
 # Experimental next-set evaluation
 
-The current offline model predicts repetitions for a proposed next-set load. It does not prove that the lifter could have done more reps, assess injury risk or replace deterministic next-session progression. This batch preserves the model and increase policy.
+The current offline model predicts repetitions for a proposed next-set load. It does not prove that the lifter could have done more reps, assess injury risk or replace deterministic next-session progression. The model remains unchanged; live increase eligibility was tightened in the phase-1 follow-up below.
+
+## Live increase eligibility — phase 1 follow-up
+
+A high next-set forecast alone is insufficient to recommend an increase. Both decision entry points now apply the same observed-performance checks:
+
+- Reported RPE must be finite, between 1 and below 9, with observed reps at least at the target maximum.
+- Missing RPE is not a blanket veto, but requires observed reps at least two above the target maximum.
+- Any decline from the first working set vetoes an increase, even if the model predicts a rebound. This is deliberately conservative when set loads differ.
+- The existing high-forecast threshold, available-equipment step, maximum 5% increase, and heavier-candidate inference checks still apply. Explicit symptom stops take precedence.
+
+For a 6–10 range, 8 or 10 observed reps with missing RPE cannot trigger an increase solely because the model predicts 13. Twelve observed reps without a decline can remain eligible. These thresholds are conservative product rules, not calibrated probabilities or proof of safety. An unreported failure cannot be reliably inferred from rep count; real-session review remains required.
 
 ## Collection and matching
 

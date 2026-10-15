@@ -197,6 +197,18 @@ describe("tombstones", () => {
 });
 
 describe("validation", () => {
+  it("a future-clock write cannot replace a row or block a later honest write", async () => {
+    const { w, token } = await setup();
+    expect((await w.push(token, [ev("gym", "shared", { name: "original" }, w.now)])).results[0]!.status).toBe("applied");
+    const rejected = await w.push(token, [ev("gym", "shared", { name: "future overwrite" }, w.now + 365 * 24 * 3600 * 1000)]);
+    expect(rejected.results[0]).toMatchObject({status:"rejected",reason:"clock_ahead"});
+    w.tick(5000);
+    expect((await w.push(token, [ev("gym", "shared", { name: "honest edit" }, w.now)])).results[0]!.status).toBe("applied");
+    const rows = (await w.pull(token)).rows;
+    expect(rows).toHaveLength(1);
+    expect(JSON.parse(rows[0]!.data).name).toBe("honest edit");
+  });
+
   it("rejects bad events one by one and applies the good ones", async () => {
     const { w, token } = await setup();
     const good = ev("gym", "g1", { name: "ok" }, T0);

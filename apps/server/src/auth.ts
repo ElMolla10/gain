@@ -72,14 +72,14 @@ export async function emailStart(req: Request, env: Env, now: number, fetchFn: t
   await rateLimit(env.DB, `email:${email}`, 5, HOUR, now);
   const code = randomDigits(8);
   // Send first: a failed send must not leave a usable code behind.
-  const mode = await sendSignInCode(env, email, code, fetchFn);
+  await sendSignInCode(env, email, code, fetchFn);
   await env.DB.prepare(
     `INSERT INTO email_code (email, code_hash, expires_at, attempts, created_at) VALUES (?1, ?2, ?3, 0, ?4)
      ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, created_at = excluded.created_at`,
   )
     .bind(email, await sha256Hex(`${email}|${code}`), now + CODE_TTL, now)
     .run();
-  return json(mode === "dev" ? { sent: false, devCode: code } : { sent: true }, 202);
+  return json({ sent: true }, 202);
 }
 
 /**

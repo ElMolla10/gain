@@ -29,6 +29,12 @@ function applyBuildFlags(config, env) {
     if (!/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(bundleId)) throw new Error(`GAIN_IOS_BUNDLE_ID must look like com.yourname.gain (letters, digits, hyphens, dots), got "${bundleId}"`);
     ios.bundleIdentifier = bundleId;
   }
+  // Deliberate per-upload number; never silently reuse the source default for an archive.
+  const buildNumber = env.GAIN_IOS_BUILD_NUMBER;
+  if (buildNumber !== undefined && buildNumber !== "") {
+    if (!/^[1-9][0-9]{0,3}$/.test(buildNumber)) throw new Error("GAIN_IOS_BUILD_NUMBER must be an integer from 1 through 9999");
+    ios.buildNumber = buildNumber;
+  }
   const teamId = env.GAIN_IOS_TEAM_ID;
   if (teamId !== undefined && teamId !== "") {
     if (!/^[A-Z0-9]{10}$/.test(teamId)) throw new Error(`GAIN_IOS_TEAM_ID must be the 10-character Team ID (capital letters and digits), got "${teamId}"`);

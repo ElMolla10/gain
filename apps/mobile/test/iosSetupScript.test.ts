@@ -11,19 +11,45 @@ function fixture() {
   writeFileSync(join(root, "apps/mobile/app.json"), "{}");
   const tool = (name: string, body: string) => writeFileSync(join(root, "bin", name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
   tool("uname", "echo Darwin"); tool("sw_vers", "echo 15.0");
-  tool("xcodebuild", 'if [ "$1" = "-version" ]; then echo "Xcode 26.4"; fi');
+  tool("xcodebuild", 'if [ "$1" = "-version" ]; then echo "Xcode 26.4"; elif [ "$1" != "-license" ]; then printf "%s\\n" "$*" >> "$GAIN_TEST_LOG"; fi');
   tool("xcode-select", "echo /Applications/Xcode.app/Contents/Developer");
   tool("pod", "echo 1.16"); tool("npm", "exit 0");
-  tool("npx", 'printf "%s|%s|%s\\n" "$*" "$GAIN_IOS_BUNDLE_ID" "$GAIN_IOS_TEAM_ID" >> "$GAIN_TEST_LOG"');
+  tool("npx", 'printf "%s|%s|%s|%s\\n" "$*" "$GAIN_IOS_BUNDLE_ID" "$GAIN_IOS_TEAM_ID" "$GAIN_IOS_BUILD_NUMBER" >> "$GAIN_TEST_LOG"');
   const project = join(root, "apps/mobile/ios/GAIN.xcodeproj/project.pbxproj");
   const saved = join(root, "apps/mobile/.env.ios");
   const run = (...args: string[]) => {
-    execFileSync("bash", [join(root, "scripts/ios-setup.sh"), ...args], { env: { ...process.env, PATH: `${join(root, "bin")}:${process.env.PATH}`, GAIN_IOS_BUNDLE_ID: "", GAIN_IOS_TEAM_ID: "", GAIN_TEST_LOG: join(root, "log") }, stdio: "pipe" });
+    execFileSync("bash", [join(root, "scripts/ios-setup.sh"), ...args], { env: { ...process.env, PATH: `${join(root, "bin")}:${process.env.PATH}`, GAIN_IOS_BUNDLE_ID: "", GAIN_IOS_TEAM_ID: "", GAIN_IOS_BUILD_NUMBER: "", GAIN_TEST_LOG: join(root, "log") }, stdio: "pipe" });
     return readFileSync(join(root, "log"), "utf8");
   };
   return { root, project, saved, run };
 }
 describe("iOS local install helper", () => {
+  it("archives Release for a generic iPhone destination with explicit identity and build number", () => {
+    const f = fixture();
+    try {
+      const path = join(f.root, "GAIN 42.xcarchive");
+      const log = f.run("--archive", path, "--build-number", "42", "--bundle-id", "com.mo.gain", "--team-id", "ABCDE12345");
+      expect(log).toContain("-configuration Release -destination generic/platform=iOS");
+      expect(log).toContain(`-archivePath ${path} archive`);
+      expect(log).toContain("com.mo.gain|ABCDE12345|42");
+      expect(log).not.toContain("run:ios");
+      expect(log).not.toMatch(/exportArchive|upload|submit/);
+      expect(readFileSync(f.saved, "utf8")).not.toContain("BUILD_NUMBER");
+    } finally { rmSync(f.root, { recursive: true, force: true }); }
+  });
+  it("refuses missing values, ambiguous archive modes, absent build numbers and overwrites", () => {
+    const f = fixture();
+    try {
+      const path = join(f.root, "GAIN.xcarchive");
+      for (const args of [["--bundle-id"], ["--team-id", "--run"], ["--build-number", "01"],
+        ["--archive", path], ["--archive", path, "--build-number", "2", "--debug"],
+        ["--archive", path, "--build-number", "2", "--run"], ["--archive", path, "--build-number", "2", "--check"]]) {
+        expect(() => f.run(...args)).toThrow();
+      }
+      mkdirSync(path);
+      expect(() => f.run("--archive", path, "--build-number", "2")).toThrow();
+    } finally { rmSync(f.root, { recursive: true, force: true }); }
+  });
   it("preserves an existing Xcode identity and installs Release by default", () => {
     const f = fixture();
     try {

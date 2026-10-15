@@ -32,6 +32,16 @@ describe("iOS build switches", () => {
     expect(out.android).toEqual(base.android);
     expect(() => applyBuildFlags(base, { GAIN_IOS_SCENES: "yes" })).toThrow(/GAIN_IOS_SCENES/);
   });
+  it("overrides only the iOS build number and rejects ambiguous upload numbers", () => {
+    const out = applyBuildFlags(base, { GAIN_IOS_BUILD_NUMBER: "42" });
+    expect(out.ios).toEqual({ ...base.ios, buildNumber: "42" });
+    expect(out.android).toEqual(base.android);
+    expect(base.ios.buildNumber).toBe("1");
+    expect(applyBuildFlags(base, { GAIN_IOS_BUILD_NUMBER: "" }).ios).toEqual(base.ios);
+    for (const bad of ["0", "01", "-1", "1.2", "1e3", " 2", "10000", "1000000000", "oops"]) {
+      expect(() => applyBuildFlags(base, { GAIN_IOS_BUILD_NUMBER: bad })).toThrow(/GAIN_IOS_BUILD_NUMBER/);
+    }
+  });
   it("combines with the Android switches without changing them", () => {
     const out = applyBuildFlags(base, { GAIN_DISTRIBUTION: "play", GAIN_IOS_BUNDLE_ID: "com.mohamed.gain" });
     expect(out.android.permissions).toEqual([]);

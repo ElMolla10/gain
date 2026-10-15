@@ -13,7 +13,7 @@
 
 <h1>GAIN privacy policy</h1>
 <p class="draft" role="note">DRAFT: this text has not been reviewed by a lawyer and is not final. Who runs GAIN and how to contact them are still to be filled in. Do not rely on it as a legal document.</p>
-<p class="muted">Describes the Android test builds of GAIN (v0.19 to v0.20). Draft written 2026-10-04 from the app's code; the in-app version is Settings &gt; Privacy and safety. <a href="#ar">العربية ↓</a></p>
+<p class="muted">Describes current iOS and Android source (v0.22.0). Factual draft updated 2026-10-15; signed builds and hosting are unverified; the in-app version is Settings &gt; Privacy and safety. <a href="#ar">العربية ↓</a></p>
 <h2>1. Who is responsible</h2>
 <p><span class="ph" data-ph="operator">[operator name and address not set yet]</span>. Contact: <span class="ph" data-ph="support-email">[support email not set yet]</span>.</p>
 <h2>2. What GAIN stores, and where</h2>
@@ -31,14 +31,14 @@
 <p>Only through something you start:</p>
 <ol>
 <li><strong>Check for updates</strong> (test builds only; Settings): the app asks GitHub (<code>api.github.com</code>) for the list of releases and, if you tap download, downloads the APK from <code>github.com</code>. GitHub can see your internet address, the request and the app's user-agent, under GitHub's own policy. No training data is sent. <em>A Google Play version of GAIN, if one is ever published, will not contain this feature.</em></li>
-<li><strong>Exports and shares</strong> (JSON backup, CSV, coach-card PDF, diagnostics report): created on the phone and handed to Android's share sheet. You choose the destination. GAIN does not send them and cannot see where they went.</li>
-<li><strong>Android's own backup:</strong> the app allows Android's backup. If it is switched on in your phone settings, Android/Google may keep a copy of the app's data in your Google account. That is Android's feature; GAIN cannot see or control it.</li>
-<li><strong>Back up and sync</strong> (Settings; <strong>OFF until you turn it on</strong>): uploads your training data (workouts, sets, notes, programs, goals, settings, and bodyweight, height and birthday if you entered them; not the crash log) to a GAIN server on Cloudflare (<code>gain-sync.elmolla10.workers.dev</code>; data location is chosen by Cloudflare, currently its North America East region) and keeps it until you delete it. It is <strong>not end-to-end encrypted</strong>. The account is anonymous: a random id and a hashed recovery code, no name or email. Without the recovery code a backup cannot be reached, and a lost code means an unreachable backup. Turning it off keeps your data on the phone; "Turn off and delete my backup" and "Delete all my data" delete the online copy. After a deletion, Cloudflare's database keeps point-in-time history for up to 7 days (free plan) before it is gone. Cloudflare can see your internet address and request metadata under its own policy.</li>
+<li><strong>Exports and shares</strong> (JSON backup, CSV, coach-card PDF, diagnostics report, evaluation JSON): created on the phone and handed to the operating system share sheet. You choose the destination. GAIN does not send them and cannot see where they went.</li>
+<li><strong>Operating-system backup:</strong> iOS may include app data in iCloud or computer backups if enabled; Apple controls this service. <strong>Android's own backup:</strong> the app allows Android's backup. If it is switched on in your phone settings, Android/Google may keep a copy of the app's data in your Google account. That is Android's feature; GAIN cannot see or control it.</li>
+<li><strong>Back up and sync</strong> (Settings; <strong>OFF until you turn it on</strong>): uploads your training data (workouts, sets, notes, programs, goals, settings, and bodyweight, height and birthday if you entered them; not the crash log) to a GAIN server on Cloudflare (<code>gain-sync.elmolla10.workers.dev</code>; deployment region and provider retention must be verified before submission) and keeps it until you delete it. It is <strong>not end-to-end encrypted</strong>. The account is anonymous: a random id and a hashed recovery code, no name or email. Without the recovery code a backup cannot be reached, and a lost code means an unreachable backup. Turning it off keeps your data on the phone; "Turn off and delete my backup" and "Delete all my data" delete the online copy. Provider recovery history may persist after deletion according to the deployed Cloudflare retention settings; verify and document that period before submission. Cloudflare can see your internet address and request metadata under its own policy.</li>
 <li><strong>Coach link</strong> (only when you tap "Share as a link" and agree on screen): that one card (session, loads and reps, next targets, pace line; no bodyweight) is stored on the same server and anyone with the link can read it, without an account, until it expires (7 days by default, 30 at most) or you stop sharing. The link is random; only a hash of it is stored.</li>
 </ol>
-<p>Nothing else. In particular: no analytics events, no crash upload, no advertising, no data selling, and no AI or model service in this version.</p>
+<p>Nothing else. In particular: no analytics events, no crash upload, no advertising, no data selling, and no remote AI provider. Experimental next-set inference runs on your phone. Frozen forecasts and matched outcomes stay local, outside sync; a full JSON backup includes them and Developer Mode can export evaluation JSON. Real-workout superiority has not been demonstrated.</p>
 <h2>4. Your choices and rights</h2>
-<p>The app lets you <strong>export everything</strong> (Settings &gt; Data &gt; Your data: JSON backup and CSV), <strong>delete everything on the phone</strong>, edit or delete any set in History, and switch off and clear the crash log. Uninstalling the app removes its storage. To delete your online backup or coach links, see <a href="delete-account.html">Delete your data</a>. Copies you shared and Android backups are outside GAIN's reach.</p>
+<p>The app lets you <strong>export everything</strong> (Settings &gt; Data &gt; Your data: JSON backup and CSV), <strong>delete everything on the phone</strong>, edit or delete any set in History, and switch off and clear the crash log. Uninstalling the app removes its storage. To delete your online backup or coach links, see <a href="delete-account.html">Delete your data</a>. Copies you shared and operating-system backups are outside GAIN's reach.</p>
 <p class="ph">[To be written by the reviewer: legal basis/consent wording, retention periods, rights of access, correction, deletion and portability, complaint route, applicability of Egyptian data-protection law and of EU law for any EU users, international transfer notes.]</p>
 <h2>5. Children</h2>
 <p>GAIN is not designed for children. If you are under 18, train under an adult's or qualified coach's guidance. <span class="ph">[Reviewer to set the minimum age.]</span></p>
@@ -58,12 +58,12 @@
 <h2>٣. اللي ممكن يخرج من تليفونك، وبس لما إنت تتصرف</h2>
 <ol>
 <li><strong>دوّر على تحديثات</strong> (النسخ التجريبية بس): بيتصل بـ GitHub (api.github.com، وgithub.com للتنزيل). GitHub ممكن يشوف عنوان الإنترنت بتاعك وإنك سألت. مفيش حاجة من تمرينك بتتبعت. نسخة Google Play من GAIN، لو اتنشرت يوم، مش هيبقى فيها المميزة دي.</li>
-<li><strong>التصدير والمشاركة</strong> (نسخة JSON وملف CSV وكارت المدرب وتقرير التشخيص): بيتعملوا على التليفون وبيتشاركوا من قايمة المشاركة بتاعة أندرويد. إنت اللي بتختار يروحوا فين؛ GAIN مش بيبعتهم.</li>
-<li><strong>النسخ الاحتياطي بتاع أندرويد:</strong> أندرويد ممكن ياخد نسخة من بيانات التطبيق على حساب جوجل بتاعك لو شغّال في إعدادات تليفونك. ده من أندرويد مش من GAIN.</li>
-<li><strong>النسخ الاحتياطي والمزامنة</strong> (مقفولة لحد ما تشغّلها): بترفع بيانات تمرينك على سيرفر GAIN في Cloudflare، مربوطة بحساب عشوائي ورمز استرجاع، مش باسمك ولا إيميلك. مش مشفّرة من طرف لطرف. "إيقاف ومسح نسختي" و"امسح كل بياناتي" بيمسحوا النسخة اللي على السيرفر. بعد المسح قاعدة بيانات Cloudflare بتحتفظ بسجل زمني لحد ٧ أيام قبل ما يختفي.</li>
+<li><strong>التصدير والمشاركة</strong> (نسخة JSON وملف CSV وكارت المدرب وتقرير التشخيص، وتقييم JSON): بيتعملوا على التليفون وبيتشاركوا من قايمة المشاركة بتاعة نظام التليفون. إنت اللي بتختار يروحوا فين؛ GAIN مش بيبعتهم.</li>
+<li>iOS ممكن يحط بيانات التطبيق في نسخة iCloud أو نسخة على الكمبيوتر لو شغّالة؛ دي خدمة أبل. <strong>النسخ الاحتياطي بتاع أندرويد:</strong> أندرويد ممكن ياخد نسخة من بيانات التطبيق على حساب جوجل بتاعك لو شغّال في إعدادات تليفونك. ده من أندرويد مش من GAIN.</li>
+<li><strong>النسخ الاحتياطي والمزامنة</strong> (مقفولة لحد ما تشغّلها): بترفع بيانات تمرينك على سيرفر GAIN في Cloudflare، مربوطة بحساب عشوائي ورمز استرجاع، مش باسمك ولا إيميلك. مش مشفّرة من طرف لطرف. "إيقاف ومسح نسختي" و"امسح كل بياناتي" بيمسحوا النسخة اللي على السيرفر. سجل الاسترجاع عند Cloudflare ممكن يفضل بعد المسح حسب إعدادات الاحتفاظ الفعلية؛ لازم تتراجع وتتكتب المدة قبل النشر.</li>
 <li><strong>رابط المدرب</strong> (بس لما تدوس "شارك كرابط" وتوافق): الكارت ده بس بيترفع على نفس السيرفر؛ أي حد معاه الرابط يقدر يقراه لحد ما ينتهي (٧ أيام افتراضيًا، ٣٠ بحد أقصى) أو توقّف المشاركة. مفيش وزن جسم على الكارت.</li>
 </ol>
-<p>مفيش حاجة تانية: مفيش أحداث تحليلات، ولا رفع لتقارير الأعطال، ولا إعلانات، ولا بيع بيانات، ولا خدمة ذكاء اصطناعي في النسخة دي.</p>
+<p>مفيش حاجة تانية: مفيش أحداث تحليلات، ولا رفع لتقارير الأعطال، ولا إعلانات، ولا بيع بيانات، ولا إرسال لمزوّد ذكاء اصطناعي. التوقع التجريبي بيشتغل على تليفونك. التوقعات والنتايج للتقييم محلية وخارج المزامنة؛ نسخة JSON الكاملة فيها السجلات دي ووضع المطوّر يقدر يصدّرها لوحدها. النموذج لسه ماثبتش إنه أفضل في تمارين حقيقية.</p>
 <h2>٤. اختياراتك</h2>
 <p>من التطبيق تقدر تصدّر كل حاجة (الإعدادات > البيانات > بياناتك)، وتمسح كل حاجة على التليفون، وتعدّل أو تمسح أي مجموعة. لمسح النسخة الاحتياطية الأونلاين شوف <a href="delete-account.html">صفحة مسح البيانات</a>.</p>
 <h2>٥. الأطفال</h2>
@@ -75,6 +75,6 @@
 
 </section>
 </main>
-<footer>GAIN is a free lifting log (Android). DRAFT pages, last edited 2026-10-04. Source: <a href="https://github.com/ElMolla10/gain/tree/main/docs/site">github.com/ElMolla10/gain, docs/site</a>. / GAIN سجل تمارين مجاني (أندرويد). صفحات مسودة.</footer>
+<footer>GAIN is a free lifting log for iPhone and Android. DRAFT policy source updated 2026-10-15; deployment unverified. Source: <a href="https://github.com/ElMolla10/gain/tree/main/docs/site">github.com/ElMolla10/gain, docs/site</a>. / GAIN سجل تمارين مجاني للأيفون وأندرويد. صفحات مسودة.</footer>
 </body>
 </html>

@@ -4,6 +4,7 @@
 #   scripts/ios-setup.sh                 check the Mac, install packages, generate the iOS project, print what to do next
 #   scripts/ios-setup.sh --check         only check the Mac (changes nothing)
 #   scripts/ios-setup.sh --run           ... and then build and install on the iPhone (standalone Release build)
+#   scripts/ios-setup.sh --archive ~/GAIN-2.xcarchive --build-number 2   local Release archive; never uploads
 #   scripts/ios-setup.sh --run --debug   explicit debug build (requires Metro)
 #   scripts/ios-setup.sh --bundle-id com.yourname.gain --team-id ABCDE12345
 #
@@ -16,6 +17,8 @@ set -euo pipefail
 CHECK_ONLY=0
 RUN_AFTER=0
 CONFIGURATION=Release
+ARCHIVE_PATH=""
+BUILD_NUMBER="${GAIN_IOS_BUILD_NUMBER:-}"
 BUNDLE_ID="${GAIN_IOS_BUNDLE_ID:-}"
 TEAM_ID="${GAIN_IOS_TEAM_ID:-}"
 MIN_XCODE="26.4" # Expo SDK 57 needs Xcode 26.4 or newer (docs.expo.dev/versions/v57.0.0)
@@ -33,13 +36,34 @@ while [ $# -gt 0 ]; do
     --check) CHECK_ONLY=1 ;;
     --run) RUN_AFTER=1 ;;
     --debug) CONFIGURATION=Debug ;;
-    --bundle-id) BUNDLE_ID="${2:-}"; shift ;;
-    --team-id) TEAM_ID="${2:-}"; shift ;;
+    --archive|--build-number|--bundle-id|--team-id)
+      [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != --* ]] || { say "Missing value for $1"; exit 2; }
+      case "$1" in
+        --archive) ARCHIVE_PATH="$2" ;;
+        --build-number) BUILD_NUMBER="$2" ;;
+        --bundle-id) BUNDLE_ID="$2" ;;
+        --team-id) TEAM_ID="$2" ;;
+      esac
+      shift ;;
+
     -h | --help) usage; exit 0 ;;
     *) say "Unknown option: $1"; usage; exit 2 ;;
   esac
   shift
 done
+
+if [ -n "$BUILD_NUMBER" ] && ! printf '%s' "$BUILD_NUMBER" | grep -Eq '^[1-9][0-9]{0,3}$'; then
+  say "Build number must be an integer from 1 through 9999."; exit 2
+fi
+if [ -n "$ARCHIVE_PATH" ]; then
+  if [ "$RUN_AFTER" -eq 1 ] || [ "$CHECK_ONLY" -eq 1 ] || [ "$CONFIGURATION" != Release ]; then
+    say "--archive requires Release and cannot combine with --run, --debug or --check."; exit 2
+  fi
+  [ -n "$BUILD_NUMBER" ] || { say "--archive requires an explicit --build-number (or GAIN_IOS_BUILD_NUMBER)."; exit 2; }
+  [[ "$ARCHIVE_PATH" = /* ]] || ARCHIVE_PATH="$PWD/$ARCHIVE_PATH"
+  [[ "$ARCHIVE_PATH" = *.xcarchive ]] || { say "Archive path must end in .xcarchive."; exit 2; }
+  [ ! -e "$ARCHIVE_PATH" ] || { say "Archive already exists; choose a new path to preserve it."; exit 2; }
+fi
 
 if [ "$(uname -s)" != "Darwin" ]; then
   say "This script is for a Mac. iOS apps can only be built with Xcode on macOS."
@@ -163,6 +187,9 @@ if [ -n "$TEAM_ID" ] && ! printf '%s' "$TEAM_ID" | grep -Eq '^[A-Z0-9]{10}$'; th
   say "  '$TEAM_ID' is not a Team ID (10 capital letters and digits). Leave it out and choose the team in Xcode instead."
   exit 1
 fi
+if [ -n "$ARCHIVE_PATH" ] && [ -z "$TEAM_ID" ]; then
+  say "An archive requires a signing team. Pass --team-id or select/save your team first."; exit 2
+fi
 {
   echo "GAIN_IOS_BUNDLE_ID=$BUNDLE_ID"
   [ -z "$TEAM_ID" ] || echo "GAIN_IOS_TEAM_ID=$TEAM_ID"
@@ -170,6 +197,8 @@ fi
 ok "bundle id $BUNDLE_ID${TEAM_ID:+, team $TEAM_ID} (saved in apps/mobile/.env.ios, which git ignores)"
 export GAIN_IOS_BUNDLE_ID="$BUNDLE_ID"
 [ -z "$TEAM_ID" ] || export GAIN_IOS_TEAM_ID="$TEAM_ID"
+# Do not save the build number: each upload needs a consciously chosen new value.
+[ -z "$BUILD_NUMBER" ] || export GAIN_IOS_BUILD_NUMBER="$BUILD_NUMBER"
 
 say ""
 say "3. Installing packages"
@@ -187,6 +216,16 @@ CI=1 npx expo prebuild --platform ios
 ok "apps/mobile/ios is ready"
 
 say ""
+if [ -n "$ARCHIVE_PATH" ]; then
+  say "5. Archiving Release build $BUILD_NUMBER locally"
+  xcodebuild -workspace "$MOBILE/ios/GAIN.xcworkspace" -scheme GAIN -configuration Release \
+    -destination 'generic/platform=iOS' -archivePath "$ARCHIVE_PATH" archive
+  say "Archive created: $ARCHIVE_PATH"
+  say "Inspect it: node scripts/ios-archive-report.cjs '$ARCHIVE_PATH' '$BUNDLE_ID' '$BUILD_NUMBER'"
+  say "Open Xcode Organizer to validate signing/distribution. Nothing was uploaded."
+  exit 0
+fi
+
 say "5. Next steps"
 cat <<EOF
   a) Plug your iPhone into the Mac with a cable, unlock it, tap Trust on the phone.

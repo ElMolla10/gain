@@ -64,11 +64,12 @@ export function localPrediction(features: FeatureMap): number {
 export function liveRecommendation(context: SetContext, targetMin: number, targetMax: number, loadSpec: GymLoadSpec | null, predict = localPrediction): Decision {
   return recommendLiveSet({ context, targetMin, targetMax, loadSpec, predict });
 }
-/** Manual load wins. Accepting a card changes only the next normal unlogged row's ghost. */
-export function applyLiveLoad(rows: SetRowDraft[], key: string, load: number): SetRowDraft[] {
+/** Fill the next working row without overwriting either value the lifter typed. */
+export function applyLiveTarget(rows: SetRowDraft[], key: string, load: number, reps: number): SetRowDraft[] {
   const next = nextAdaptiveRow(rows);
-  if (!next || next.key !== key || next.load !== null || !Number.isFinite(load) || load <= 0) return rows;
-  return rows.map(r => r.key === key ? { ...r, ghostLoad: load } : r);
+  if (!next || next.key !== key || !Number.isFinite(load) || load <= 0 || !Number.isInteger(reps) || reps < 1) return rows;
+  if (next.ghostLoad === load && next.ghostReps === reps) return rows;
+  return rows.map(r => r.key === key ? { ...r, ghostLoad: load, ghostReps: reps } : r);
 }
 /** A maintain recommendation is still a real weight recommendation.
  * Never invent one when inference is unavailable or the exercise should stop. */

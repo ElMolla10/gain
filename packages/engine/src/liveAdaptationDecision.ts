@@ -6,7 +6,7 @@ import type { GymLoadSpec } from './types';
 export type Action = 'increase' | 'maintain' | 'decrease' | 'stop';
 /** Stable keys translated by the mobile app; the regressor does not assess injury risk. */
 export type LiveReason = 'within_range' | 'above_range' | 'below_range' | 'no_lighter_load' | 'performance_stop' | 'reported_symptoms' | 'no_suitable_increase';
-export interface Decision { action: Action; suggestedWeightKg: number; reason: LiveReason; predictedReps: number; /** False for an observed stop before inference; predictedReps must not be displayed/scored. */ predictionAvailable?: boolean }
+export interface Decision { action: Action; suggestedWeightKg: number; suggestedReps: number; reason: LiveReason; predictedReps: number; /** False for an observed stop before inference; predictedReps must not be displayed/scored. */ predictionAvailable?: boolean }
 export interface DecisionInput {
   predictedReps: number; previousReps: number; targetMin: number; targetMax: number; currentWeightKg: number;
   nextAvailableWeightKg?: number; lowerAvailableWeightKg?: number; previousSetRpe?: number | null;
@@ -43,10 +43,15 @@ function supportsIncrease(x: DecisionInput): boolean {
     && x.previousReps >= x.targetMax;
 }
 
+/** Turn the model estimate into one clear, achievable integer target. Fatigue may
+ * put it below the planned range, but it never invents extreme reps above it. */
+const prescriptionReps = (predicted: number, targetMax: number): number =>
+  Math.max(1, Math.min(targetMax, Math.round(predicted)));
+
 /** Compatibility policy: callers must supply actual available loads; no percentage-based fabrication. */
 export function decideNextSet(x: DecisionInput): Decision {
   validateInput(x);
-  const result = (action: Action, weight: number, reason: LiveReason): Decision => ({action, suggestedWeightKg: weight, reason, predictedReps: x.predictedReps});
+  const result = (action: Action, weight: number, reason: LiveReason): Decision => ({action, suggestedWeightKg: weight, suggestedReps: prescriptionReps(x.predictedReps, x.targetMax), reason, predictedReps: x.predictedReps});
   const stop = stopReason(x);
   if (stop) return result('stop', x.currentWeightKg, stop);
   if (x.predictedReps < x.targetMin) {
@@ -85,7 +90,7 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
   };
   validateInput(base);
   const stop = stopReason(base);
-  if (stop) return {action:'stop', suggestedWeightKg:current, predictedReps:0, predictionAvailable:false, reason:stop};
+  if (stop) return {action:'stop', suggestedWeightKg:current, suggestedReps:0, predictedReps:0, predictionAvailable:false, reason:stop};
   // The logged or manually selected load is valid workout data regardless of
   // the gym's optional rack configuration. Only alternate weights need a rack.
   const p = predict(current);
@@ -95,7 +100,7 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
     if (upper !== null && upper <= current * 1.05 + 1e-6) {
       const heavierPrediction = predict(upper);
       if (heavierPrediction >= x.targetMin && heavierPrediction <= p)
-        return {action:'increase', suggestedWeightKg:upper, predictedReps:heavierPrediction, reason:'above_range'};
+        return {action:'increase', suggestedWeightKg:upper, suggestedReps:prescriptionReps(heavierPrediction, x.targetMax), predictedReps:heavierPrediction, reason:'above_range'};
     }
   }
   if (p < x.targetMin) {
@@ -109,8 +114,8 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
       if (reps > p && reps >= x.targetMin) { best = {weight:lower, reps}; break; }
       lower = x.loadSpec ? nextLoadBelow(x.loadSpec, lower) : null;
     }
-    if (best) return {action:'decrease', suggestedWeightKg:best.weight, predictedReps:best.reps, reason:'below_range'};
-    return {action:'maintain', suggestedWeightKg:current, predictedReps:p, reason:'no_lighter_load'};
+    if (best) return {action:'decrease', suggestedWeightKg:best.weight, suggestedReps:prescriptionReps(best.reps, x.targetMax), predictedReps:best.reps, reason:'below_range'};
+    return {action:'maintain', suggestedWeightKg:current, suggestedReps:prescriptionReps(p, x.targetMax), predictedReps:p, reason:'no_lighter_load'};
   }
-  return {action:'maintain', suggestedWeightKg:current, predictedReps:p, reason:p > x.targetMax ? 'no_suitable_increase' : 'within_range'};
+  return {action:'maintain', suggestedWeightKg:current, suggestedReps:prescriptionReps(p, x.targetMax), predictedReps:p, reason:p > x.targetMax ? 'no_suitable_increase' : 'within_range'};
 }

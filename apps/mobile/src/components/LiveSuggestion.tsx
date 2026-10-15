@@ -22,7 +22,7 @@ interface Props {
 }
 
 /** Presentation only: the logger owns persistence, staleness checks and acceptance. */
-export function LiveSuggestion({ decision, detailsOpen = false, onToggleDetails, basis, repMin, repMax, manualLoad, busy, onApply, onKeep, onReport }: Props) {
+export function LiveSuggestion({ decision, detailsOpen = false, onToggleDetails, basis, repMin, repMax, manualLoad, busy, onKeep, onReport }: Props) {
   const { t, lang, unit } = useI18n();
   const p = useLogPalette();
   return (
@@ -37,18 +37,19 @@ export function LiveSuggestion({ decision, detailsOpen = false, onToggleDetails,
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.sm }}>
         <AppText style={{ fontWeight: "600" }}>{t(`live.${decision.action}` as never)}</AppText>
-        {decision.action !== "stop" ? <AppText ltr style={{ fontWeight: "600", color: p.accent }}>{formatLoad(decision.suggestedWeightKg, lang, unit)}</AppText> : null}
+        {decision.action !== "stop" ? <AppText ltr style={{ fontWeight: "700", color: p.accent }}>{t("live.prescription", { load: formatLoad(decision.suggestedWeightKg, lang, unit), reps: decision.suggestedReps })}</AppText> : null}
       </View>
-      {decision.action === "stop" ? <AppText>{t(`live.reason.${decision.reason}` as never)}</AppText> : <AppText style={{ color: p.muted }}>{t("live.shortNote")}</AppText>}
+      {decision.action === "stop" ? <AppText>{t(`live.reason.${decision.reason}` as never)}</AppText> : <>
+        {basis ? <AppText style={{ color: p.muted }}>{t("live.afterSet", { load: formatLoad(basis.load, lang, unit), reps: basis.reps })}</AppText> : null}
+        <AppText style={{ color: p.muted }}>{t("live.shortNote")}</AppText>
+      </>}
       {detailsOpen ? <View style={{ gap: space.xs }}>
         {decision.reason !== "reported_symptoms" && decision.predictionAvailable !== false ? <AppText>{t("live.predicted", { reps: Math.round(decision.predictedReps * 10) / 10, min: repMin, max: repMax })}</AppText> : null}
         {decision.action !== "stop" ? <AppText style={{ color: p.muted }}>{t(`live.reason.${decision.reason}` as never)}</AppText> : null}
-        {basis && decision.reason !== "reported_symptoms" ? <AppText style={{ color: p.muted }}>{t("live.basis", { load: formatLoad(basis.load, lang, unit), reps: basis.reps })}</AppText> : null}
         {decision.reason !== "reported_symptoms" && decision.predictionAvailable !== false ? <AppText style={{ color: p.muted }}>{t("live.estimateNote")}</AppText> : null}
       </View> : null}
       <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap", alignItems: "center" }}>
-        {decision.action !== "stop" ? <BigButton variant="secondary" label={t("live.apply")} disabled={manualLoad || busy} onPress={onApply} /> : null}
-        <BigButton variant="quiet" label={decision.action === "stop" ? t("live.dismiss") : t("live.keep")} disabled={busy} onPress={onKeep} />
+        {decision.action === "stop" ? <BigButton variant="quiet" label={t("live.dismiss")} disabled={busy} onPress={onKeep} /> : null}
         <QuietAction label={detailsOpen ? t("live.less") : t("live.details")} expanded={detailsOpen} onPress={onToggleDetails ?? (() => undefined)} />
       </View>
       {decision.action !== "stop" && manualLoad ? <AppText style={{ color: p.muted }}>{t("live.manual")}</AppText> : null}

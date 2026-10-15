@@ -71,22 +71,29 @@ export function validCalendarFields(year: number, month: number, day: number, ho
     && days !== undefined && day >= 1 && day <= days && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 && second >= 0 && second <= 59;
 }
 
-/** "Sep 29, 2026, 3:15 PM" -> "2026-09-29T15:15:00" (local wall clock, no zone). */
+/** Accept explicit month names or ISO local dates; never guess ambiguous numeric dates or time zones. */
 export function parseHevyDate(s: string): string {
-  const m = /^\s*([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM)?\s*$/i.exec(s);
-  if (!m) throw new HevyParseError(`Unrecognised date: "${s}"`);
-  const mon = MONTHS.indexOf(m[1]!.slice(0, 3).toLowerCase());
-  if (mon < 0) throw new HevyParseError(`Unrecognised month in date: "${s}"`);
-  let h = Number(m[4]);
-  const ap = m[6]?.toUpperCase();
+  const monthFirst = /^\s*([A-Za-z]{3,9})\s+(\d{1,2}),\s*(\d{4}),\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?\s*$/i.exec(s);
+  const dayFirst = /^\s*(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?\s*$/i.exec(s);
+  const iso = /^\s*(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?\s*$/.exec(s);
+  if (!monthFirst && !dayFirst && !iso) throw new HevyParseError(`Unrecognised date: "${s}"`);
+  const monthName = monthFirst?.[1] ?? dayFirst?.[2];
+  const month = iso ? Number(iso[2]) : MONTHS.indexOf(monthName!.slice(0, 3).toLowerCase()) + 1;
+  if (!iso && month === 0) throw new HevyParseError(`Unrecognised month in date: "${s}"`);
+  const year = Number(iso?.[1] ?? monthFirst?.[3] ?? dayFirst?.[3]);
+  const day = Number(iso?.[3] ?? monthFirst?.[2] ?? dayFirst?.[1]);
+  let h = Number(iso?.[4] ?? monthFirst?.[4] ?? dayFirst?.[4]);
+  const minute = Number(iso?.[5] ?? monthFirst?.[5] ?? dayFirst?.[5]);
+  const second = Number(iso?.[6] ?? monthFirst?.[6] ?? dayFirst?.[6] ?? 0);
+  const ap = (monthFirst?.[7] ?? dayFirst?.[7])?.toUpperCase();
   if (ap) {
     if (h < 1 || h > 12) throw new HevyParseError(`Bad hour in date: "${s}"`);
     if (ap === "AM" && h === 12) h = 0;
     else if (ap === "PM" && h !== 12) h += 12;
   }
-  if (!validCalendarFields(Number(m[3]), mon + 1, Number(m[2]), h, Number(m[5]))) throw new HevyParseError(`Invalid calendar date: "${s}"`);
+  if (!validCalendarFields(year, month, day, h, minute, second)) throw new HevyParseError(`Invalid calendar date: "${s}"`);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${m[3]}-${p(mon + 1)}-${p(Number(m[2]))}T${p(h)}:${m[5]}:00`;
+  return `${String(year).padStart(4, "0")}-${p(month)}-${p(day)}T${p(h)}:${p(minute)}:${p(second)}`;
 }
 
 export interface HevySet {

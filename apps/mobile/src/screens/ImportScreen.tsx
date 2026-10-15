@@ -218,7 +218,15 @@ export function ImportScreen() {
             )}
             {preview.duplicateWorkouts > 0 ? <AppText style={{ color: p.muted }}>{t("import.preview.duplicates", { n: preview.duplicateWorkouts })}</AppText> : null}
             {preview.emptyWorkouts > 0 ? <AppText style={{ color: p.muted }}>{t("import.preview.empty", { n: preview.emptyWorkouts })}</AppText> : null}
-            {preview.warnings.length > 0 ? <AppText style={{ color: p.muted }}>{t("import.preview.warnings", { n: preview.warnings.length })}</AppText> : null}
+            {preview.warnings.length > 0 ? (
+              <>
+                <AppText style={{ color: p.muted }}>{t("import.preview.warnings", { n: preview.warnings.length })}</AppText>
+                <AppText style={{ color: p.muted }}>
+                  {t("import.preview.firstIssue")}
+                </AppText>
+                <AppText ltr selectable style={{ color: p.muted }}>{preview.warnings[0]!.slice(0, 180)}</AppText>
+              </>
+            ) : null}
           </Card>
 
           {preview.newWorkouts > 0 ? (

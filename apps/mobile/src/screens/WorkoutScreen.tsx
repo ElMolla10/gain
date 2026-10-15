@@ -26,6 +26,8 @@ import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
 import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
 import { isTimed, parseQuantityInput, quantityFields, setQuantity } from "../logic/quantity";
+import { replacementDisplay } from "../logic/replacement";
+import { substitutionCandidates } from "../logic/substitutions";
 import { focusedExercise, livePromptVisible } from "../logic/workoutFocus";
 import { liveSummary, volumeText } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
@@ -127,7 +129,7 @@ export function WorkoutScreen() {
   /** The exercise shown for a program slot today. */
   const makeDisp = useCallback((slotEx: DayEx, st?: ExerciseState): Disp => {
     const lib = st?.replacedBy ? libRef.current.find((l) => l.id === st.replacedBy) : undefined;
-    if (lib) return { ...slotEx, exerciseId: lib.id, nameEn: lib.nameEn, nameAr: lib.nameAr, aliasesAr: lib.aliasesAr, equipment: lib.equipment, setup: lib.setup, measure: lib.measure, isGoalLift: false, repCeilingIsCustom: false, slot: slotEx.exerciseId };
+    if (lib) return replacementDisplay(slotEx, lib);
     return { ...slotEx, slot: slotEx.exerciseId };
   }, []);
 
@@ -670,6 +672,10 @@ export function WorkoutScreen() {
 
   const focus = focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise);
 
+  const replacing = shown.find(ex => ex.slot === pickFor);
+  const source = replacing ? library.find(ex => ex.id === replacing.exerciseId) : undefined;
+  const alternatives = source ? substitutionCandidates(source, library, loaded.gym.loads.map(spec => spec.equipment), shown.map(ex => ex.exerciseId)) : [];
+
   const renderExercise = (ex: Disp, position: number) => {
     const info = loaded.info[ex.exerciseId];
     if (!info) return null;
@@ -945,6 +951,7 @@ export function WorkoutScreen() {
       <ExercisePicker
         visible={pickFor !== null}
         exercises={library}
+        suggested={alternatives}
         exclude={shown.map((e) => e.exerciseId)}
         onClose={() => setPickFor(null)}
         onPick={(id) => pickFor && void replaceWith(pickFor, id)}

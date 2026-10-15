@@ -1,3 +1,4 @@
+import { replacementRange } from "../logic/replacement";
 import {
   checkOutlier,
   checkTimedOutlier,
@@ -554,11 +555,15 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       );
       if (exists) throw new ExerciseAlreadyInWorkout();
       const t = now();
-      await db.run("UPDATE programme_day_exercise SET exercise_id = ?, updated_at = ? WHERE programme_day_id = ? AND exercise_id = ?", [
-        withExerciseId,
-        t,
-        session.programme_day_id,
-        slot,
+      const original = await db.get<{measure:Measure;repMin:number;repMax:number;topSets:number|null;trackEffort:number}>(
+        "SELECT e.measure, p.rep_min AS repMin, p.rep_max AS repMax, p.top_sets AS topSets, p.track_effort AS trackEffort FROM programme_day_exercise p JOIN exercise e ON e.id = p.exercise_id WHERE p.programme_day_id = ? AND p.exercise_id = ? AND p.deleted_at IS NULL", [session.programme_day_id,slot]);
+      const replacement = await db.get<{measure:Measure}>("SELECT measure FROM exercise WHERE id = ? AND deleted_at IS NULL",[withExerciseId]);
+      if (!original || !replacement) throw new Error("Unknown replacement");
+      const range = replacementRange(original,replacement.measure);
+      await db.run("UPDATE programme_day_exercise SET exercise_id = ?, rep_min = ?, rep_max = ?, top_sets = ?, track_effort = ?, is_goal_lift = 0, rep_ceiling = NULL, updated_at = ? WHERE programme_day_id = ? AND exercise_id = ? AND deleted_at IS NULL", [
+        withExerciseId,range.repMin,range.repMax,
+        replacement.measure === "reps" && original.measure === "reps" ? original.topSets : null,
+        replacement.measure === "reps" ? original.trackEffort : 0,t,session.programme_day_id,slot,
       ]);
       const row = await db.get<{ id: string }>(
         "SELECT id FROM session_exercise WHERE session_id = ? AND slot_exercise_id = ? AND deleted_at IS NULL",

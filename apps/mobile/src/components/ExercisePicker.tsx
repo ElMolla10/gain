@@ -1,5 +1,5 @@
 import type { EquipmentType, SetupType } from "@gain/engine";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
@@ -31,6 +31,7 @@ export function ExercisePicker(props: {
   onCreate: (input: NewExerciseInput) => Promise<string>;
   /** Exercises to hide (already in the day). */
   exclude?: string[];
+  suggested?: readonly LibraryExercise[];
 }) {
   const { t, lang } = useI18n();
   const p = usePalette();
@@ -46,6 +47,11 @@ export function ExercisePicker(props: {
   const [group, setGroup] = useState<LibraryGroup | null>(null);
   const [gear, setGear] = useState<Gear | null>(null);
   const [limit, setLimit] = useState(PICKER_PAGE);
+
+  useEffect(() => {
+    if (!props.visible) return;
+    setQ(""); setGroup(null); setGear(null); setLimit(PICKER_PAGE); setCreating(false); setError(null);
+  }, [props.visible]);
 
   // The searchable text is built once per list; a keystroke only filters it.
   const index = useMemo(() => buildSearchIndex(props.exercises), [props.exercises]);
@@ -105,6 +111,13 @@ export function ExercisePicker(props: {
             </Card>
           ) : (
             <>
+              {!q.trim() && !group && !gear && props.suggested?.length ? <Card>
+                <AppText accessibilityRole="header" style={{fontWeight:"600"}}>{t("pick.similar")}</AppText>
+                <AppText style={{color:p.muted,fontSize:ty.caption}}>{t("pick.similarNote")}</AppText>
+                {props.suggested.filter(ex => !props.exclude?.includes(ex.id)).map(ex => <Pressable key={ex.id} accessibilityRole="button" onPress={() => props.onPick(ex.id)} style={{minHeight:48,justifyContent:"center"}}>
+                  <AppText style={{fontWeight:"600"}}>{exerciseLabels(ex,lang).primary}</AppText>
+                </Pressable>)}
+              </Card> : null}
               <Field label={t("pick.search")} value={q} onChangeText={(v) => { setQ(v); setLimit(PICKER_PAGE); }} />
               <FilterPanel
                 title={t("pick.filters")}

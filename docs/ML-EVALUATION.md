@@ -13,6 +13,12 @@ A high next-set forecast alone is insufficient to recommend an increase. Both de
 
 For a 6–10 range, 8 or 10 observed reps with missing RPE cannot trigger an increase solely because the model predicts 13. Twelve observed reps without a decline can remain eligible. These thresholds are conservative product rules, not calibrated probabilities or proof of safety. An unreported failure cannot be reliably inferred from rep count; real-session review remains required.
 
+## Observed fatigue — phase 3 follow-up
+
+A drop from at least six first-set reps to at most two reps after two or more working sets can trigger the existing reassessment/stop message for a target minimum of four or more. Two consecutive sets of at most two reps at comparable loads can also trigger it when the target minimum is at least four. The phone counts these from logged rows. The check now runs before inference: an optimistic forecast or unavailable model cannot suppress it. The mobile context supplies both observed loads; a deliberately heavier later set is not treated as the same-load collapse. Legacy callers without load metadata retain the earlier comparability assumption.
+
+Observed-only stops carry `predictionAvailable: false`: their numeric compatibility field is not a forecast and is neither shown as an estimate nor captured for model scoring. Explicit symptom stops also bypass inference. Low-rep targets remain supported. These are conservative product rules, not a diagnosis or a validated injury-risk model.
+
 ## Collection and matching
 
 Eligible forecasts are captured automatically and kept locally in `ml_prediction`, outside cloud sync. There is no opt-in capture toggle. A full backup includes local evaluation records; a dedicated export is available in Settings > Developer Mode > ML Accuracy. Export opens the native share sheet and sends nothing automatically. To reveal Developer Mode, touch and hold the version in Settings > About, or tap it seven times within five seconds. Hiding these tools does not stop local forecast capture.

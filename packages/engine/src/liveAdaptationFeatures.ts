@@ -2,6 +2,9 @@ import type { FeatureMap } from './liveAdaptationInference';
 /** Only call after a confirmed working set; all fields must be known before the next set. */
 export interface SetContext {
   previousSetWeightKg:number; proposedWeightKg:number; previousSetReps:number;
+  /** Policy-only observation; not a trained model feature. */
+  firstWorkingSetWeightKg?:number;
+  consecutiveVeryLowSets?:number;
   firstWorkingSetReps:number; previousWorkoutFirstWeightKg?:number|null;
   priorWorkingVolume:number; workingSetsBefore:number;
   loadConvention:'displayed_machine_load'|'per_dumbbell'|'total_barbell_load'|'unknown';

@@ -5,8 +5,8 @@ const context: SetContext = { previousSetWeightKg: 80, proposedWeightKg: 80, pre
 const input = { context, targetMin: 6, targetMax: 10, loadSpec: { equipment: 'barbell' as const, increment: 2.5, min: 20, max: 200 }, predict: () => 8 };
 describe('equipment-aware live recommendation', () => {
  it('maintains a selectable load within range', () => expect(recommendLiveSet(input)).toMatchObject({action:'maintain', suggestedWeightKg:80, predictedReps:8}));
- it('evaluates the increased load and reports its prediction', () => expect(recommendLiveSet({...input, predict: f => Number(f.relative_load_change) > 0 ? 9 : 13})).toMatchObject({action:'increase',suggestedWeightKg:82.5,predictedReps:9}));
- it('does not increase if the heavier candidate falls below target', () => expect(recommendLiveSet({...input,predict:f=>Number(f.relative_load_change)>0?4:13}).action).toBe('maintain'));
+ it('evaluates the increased load and reports its prediction', () => expect(recommendLiveSet({...input, context: {...context, previousSetReps:12, firstWorkingSetReps:12}, predict: f => Number(f.relative_load_change) > 0 ? 9 : 13})).toMatchObject({action:'increase',suggestedWeightKg:82.5,predictedReps:9}));
+ it('does not increase if the heavier candidate falls below target', () => expect(recommendLiveSet({...input,context:{...context,previousSetReps:12,firstWorkingSetReps:12},predict:f=>Number(f.relative_load_change)>0?4:13}).action).toBe('maintain'));
  it('does not increase excessively on a coarse dumbbell rack', () => expect(recommendLiveSet({...input,loadSpec:{equipment:'dumbbell',loads:[20,25,30]},context:{...context,previousSetWeightKg:25,proposedWeightKg:25},predict:()=>14}).action).toBe('maintain'));
  it('decreases to the nearest suitable available rung', () => expect(recommendLiveSet({...input,predict:f=>Number(f.relative_load_change)<0?7:4})).toMatchObject({action:'decrease',suggestedWeightKg:77.5,predictedReps:7}));
  it('uses a real lower rack load rather than a 5% placeholder', () => expect(recommendLiveSet({...input,loadSpec:{equipment:'machine',loads:[60,70,80]},predict:f=>Number(f.relative_load_change)<0?8:4})).toMatchObject({action:'decrease',suggestedWeightKg:70}));
@@ -25,4 +25,36 @@ describe('equipment-aware live recommendation', () => {
 });
 describe('decision policy without candidate inference',()=>{
  it('never fabricates a lower load',()=>expect(decideNextSet({predictedReps:4,previousReps:8,targetMin:6,targetMax:10,currentWeightKg:80})).toMatchObject({action:'maintain',suggestedWeightKg:80}));
+});
+
+// Both public decision paths must apply the same observed-performance vetoes.
+describe('observed performance before increasing load', () => {
+ const base = { predictedReps: 15, previousReps: 12, targetMin: 6, targetMax: 10, currentWeightKg: 80, nextAvailableWeightKg: 82.5, firstWorkingSetReps: 12 };
+ it.each([
+   { name:'missing RPE at the top of range', previousReps:10, firstWorkingSetReps:10 },
+   { name:'missing RPE below range', previousReps:4, firstWorkingSetReps:4 },
+   { name:'missing RPE with only one extra rep', previousReps:11, firstWorkingSetReps:11 },
+   { name:'observed rep decline despite a high forecast', previousReps:12, firstWorkingSetReps:14 },
+   { name:'reported near failure', previousSetRpe:9 },
+   { name:'reported failure', previousSetRpe:10 },
+   { name:'nonfinite effort', previousSetRpe:NaN },
+   { name:'invalid effort', previousSetRpe:-1 },
+   { name:'low effort but underperformed reps', previousReps:8, firstWorkingSetReps:8, previousSetRpe:7 },
+ ])('holds after $name', patch => {
+   const decision = { ...base, ...patch };
+   expect(decideNextSet(decision)).toMatchObject({action:'maintain',reason:'no_suitable_increase'});
+   const result = recommendLiveSet({...input, context:{...context,previousSetReps:decision.previousReps,firstWorkingSetReps:decision.firstWorkingSetReps,previousSetRpe:decision.previousSetRpe},predict:()=>15});
+   expect(result).toMatchObject({action:'maintain',suggestedWeightKg:80});
+ });
+ it.each([null, undefined])('still permits supported increases with unknown RPE (%s)', previousSetRpe => {
+   expect(decideNextSet({...base,previousSetRpe}).action).toBe('increase');
+   expect(recommendLiveSet({...input,context:{...context,previousSetReps:12,firstWorkingSetReps:12,previousSetRpe},predict:f=>Number(f.relative_load_change)>0?10:15})).toMatchObject({action:'increase',suggestedWeightKg:82.5});
+ });
+ it('allows reported low effort at the top of range', () => {
+   expect(decideNextSet({...base,previousReps:10,firstWorkingSetReps:10,previousSetRpe:8}).action).toBe('increase');
+ });
+ it('keeps symptom stops above increase eligibility', () => {
+   expect(decideNextSet({...base,severePain:true}).action).toBe('stop');
+   expect(decideNextSet({...base,dizziness:true}).action).toBe('stop');
+ });
 });

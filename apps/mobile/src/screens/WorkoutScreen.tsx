@@ -34,7 +34,7 @@ import { focusedExercise, livePromptVisible } from "../logic/workoutFocus";
 import { liveSummary, volumeText } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
-import { applyLiveLoad, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
+import { applyLiveTarget, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
 import { staleOffGridTarget } from "../logic/targetRefresh";
@@ -306,6 +306,7 @@ export function WorkoutScreen() {
     let cancelled = false;
     const handle = setTimeout(async () => {
       const cards: typeof liveCards = {};
+      const rowUpdates: Record<string, { before: string; after: SetRowDraft[] }> = {};
       const supportedExerciseIds = loaded.slots
         .map(slot => makeDisp(slot, exState[slot.exerciseId]))
         .filter(ex => ex.measure === "reps" && ex.setup === "free" && ex.equipment !== "assisted")
@@ -321,12 +322,26 @@ export function WorkoutScreen() {
           cards[ex.exerciseId] = { decision: reported, key: nextAdaptiveRow(list)?.key ?? "", performance, snapshot: JSON.stringify(list) };
           continue;
         }
+        const next = nextAdaptiveRow(list);
+        const existing = liveCards[ex.exerciseId];
+        // A target filled by this exact saved performance is still the same
+        // recommendation. Do not feed it back into the model as new user input.
+        if (next && existing?.performance === performance && existing.key === next.key
+            && next.load === null && next.reps === null
+            && next.ghostLoad === existing.decision.suggestedWeightKg
+            && next.ghostReps === existing.decision.suggestedReps) {
+          cards[ex.exerciseId] = { ...existing, snapshot: JSON.stringify(list) };
+          continue;
+        }
         const spec = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
-        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: loaded.info[ex.exerciseId]?.last, targetReps: effectiveOf(nextAdaptiveRow(list) ?? { load:null, reps:null, ghostLoad:null, ghostReps:null }).reps ?? ex.repMin });
+        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: loaded.info[ex.exerciseId]?.last, targetReps: next?.reps ?? loaded.info[ex.exerciseId]?.prefill.reps ?? ex.repMax });
         if (!context) continue;
         const decision = tryLiveRecommendation(context, ex.repMin, ex.repMax, spec, undefined, e => diagnostics.record("warn", "live adaptation", e));
         if (decision) {
-          cards[ex.exerciseId] = { decision, key: nextAdaptiveRow(list)!.key, performance, snapshot: JSON.stringify(list) };
+          const key = nextAdaptiveRow(list)!.key;
+          const filled = decision.action === "stop" ? list : applyLiveTarget(list, key, decision.suggestedWeightKg, decision.suggestedReps);
+          cards[ex.exerciseId] = { decision, key, performance, snapshot: JSON.stringify(filled) };
+          if (filled !== list) rowUpdates[ex.exerciseId] = { before: JSON.stringify(list), after: filled };
           const prediction = evaluationPrediction(loaded.sessionId, ex.exerciseId, list, sets, context, decision);
           if (prediction && !cancelled) {
             try { await mlEvaluation.record(prediction); }
@@ -334,7 +349,19 @@ export function WorkoutScreen() {
           }
         }
       }
-      if (!cancelled) setLiveCards(cards);
+      if (!cancelled) {
+        if (Object.keys(rowUpdates).length) setRows(current => {
+          let changed = false;
+          const nextRows = { ...current };
+          for (const [exerciseId, update] of Object.entries(rowUpdates)) {
+            if (JSON.stringify(current[exerciseId] ?? []) !== update.before) continue;
+            nextRows[exerciseId] = update.after;
+            changed = true;
+          }
+          return changed ? nextRows : current;
+        });
+        setLiveCards(cards);
+      }
     }, 0);
     return () => { cancelled = true; clearTimeout(handle); };
   }, [loaded, rows, sets, exState, liveDismissed, reportedSymptoms, makeDisp, mlEvaluation]);
@@ -719,7 +746,7 @@ export function WorkoutScreen() {
         onLog={row => { setPreferredExercise(ex.exerciseId); void logRow(ex, row); }} onUntick={row => void untick(ex, row)}
         onLiveApply={() => {
           if (!card) return;
-          setRows(r => ({ ...r, [ex.exerciseId]: applyLiveLoad(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg) }));
+          setRows(r => ({ ...r, [ex.exerciseId]: applyLiveTarget(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg, card.decision.suggestedReps) }));
           setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }));
         }}
         onLiveReport={symptom => {

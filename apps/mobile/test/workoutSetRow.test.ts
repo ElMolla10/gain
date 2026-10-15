@@ -162,7 +162,7 @@ describe("extracted exercise section wiring", () => {
   });
   it("only highlights the focused exercise and puts a normal suggestion before its target row", async () => {
     const p = await sectionProps();
-    const card = { key: p.list[1]!.key, performance:"observed", snapshot:"draft", decision: {action:"maintain" as const, reason:"within_range" as const, predictedReps:8, suggestedWeightKg:60} };
+    const card = { key: p.list[1]!.key, performance:"observed", snapshot:"draft", decision: {action:"maintain" as const, reason:"within_range" as const, predictedReps:8, suggestedWeightKg:60, suggestedReps:8} };
     const tree = nodes(WorkoutExerciseSection({...p, active:false, card}));
     expect(tree.filter(n => n.type === WorkoutSetRow).every(n => n.props.current === false)).toBe(true);
     const suggestion = tree.findIndex(n => n.type === LiveSuggestion);
@@ -175,7 +175,7 @@ describe("extracted exercise section wiring", () => {
 });
 
 describe("live suggestion explanations", () => {
-  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, predictedReps: 8.25, reason: "within_range" as const }, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onKeep: vi.fn(), onReport: vi.fn() });
+  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8.25, reason: "within_range" as const }, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onKeep: vi.fn(), onReport: vi.fn() });
   it("explains the observed set in the user's unit without changing the decision", () => {
     settings.unit = "lb";
     const p = presentation();
@@ -184,18 +184,23 @@ describe("live suggestion explanations", () => {
     const text = tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).toContain("132.3");
     expect(text).toContain("10");
+    expect(text).toContain("132.3");
+    expect(text).toContain("8");
+    expect(text).toContain("reps");
     expect(text).toContain("Sleep, readiness and rest time are unknown");
-    tree.find(n => (n.type as unknown) === "BigButton" && n.props.variant === "secondary")!.props.onPress();
-    expect(p.onApply).toHaveBeenCalledOnce();
+    expect(tree.some(n => n.props.label === "Use for next set")).toBe(false);
     expect(p.decision).toEqual(before);
   });
-  it("keeps the default prompt compact while preserving explicit Apply and Details", () => {
+  it("shows the exact prefilled target and completed-set basis before Details", () => {
     const p = presentation();
     const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false }));
     const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
-    expect(text).toContain("Experimental AI");
-    expect(text).toContain("review before applying");
-    expect(text).not.toContain("Last saved set");
+    expect(text).toContain("Next set");
+    expect(text).toContain("60");
+    expect(text).toContain("8");
+    expect(text).toContain("After");
+    expect(text).toContain("this is your next target");
+    expect(text).toContain("Filled into the next set");
     expect(text).not.toContain("Estimated next set:");
     tree.find(n => n.type as unknown === "QuietAction")!.props.onPress();
     expect(p.onToggleDetails).toHaveBeenCalledOnce();
@@ -218,12 +223,12 @@ describe("live suggestion explanations", () => {
     expect(text).not.toContain("Estimated next set:");
     expect(text).not.toContain("Estimate from logged sets");
   });
-  it("keeps manual input and saving guards on Apply", () => {
+  it("explains that typed values win over the automatic target", () => {
     const p = presentation();
-    for (const patch of [{manualLoad:true}, {busy:true}]) {
-      const tree = nodes(LiveSuggestion({...p,...patch}));
-      expect(tree.find(n => n.props.label === "Use for next set")!.props.disabled).toBe(true);
-    }
+    const tree = nodes(LiveSuggestion({...p,manualLoad:true}));
+    const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(text).toContain("Your entered weight or reps are kept");
+    expect(tree.some(n => n.props.label === "Use for next set")).toBe(false);
   });
   it("does not present a model estimate as the basis for a reported-symptom stop", () => {
     const p = presentation();

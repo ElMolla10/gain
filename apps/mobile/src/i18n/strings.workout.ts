@@ -1,10 +1,12 @@
 /** Active workout list (v0.8.0, redesigned v0.9.0). ARABIC IS A DRAFT TRANSLATION, still to be reviewed. */
 export const enWorkout = {
-  "live.title": "Next set · Experimental AI",
+  "live.title": "Next set",
   "live.details": "Details",
   "live.less": "Less",
   "live.dismiss": "Dismiss warning",
-  "live.shortNote": "Estimate · review before applying",
+  "live.shortNote": "Filled into the next set. Type over it anytime.",
+  "live.prescription": "{load} × {reps} reps",
+  "live.afterSet": "After {load} × {reps}, this is your next target.",
   "workout.focus": "Focus on {exercise}",
   "workout.summary": "Workout summary",
   "live.basis": "Last saved set: {load} × {reps}",
@@ -19,7 +21,7 @@ export const enWorkout = {
   "live.predicted": "Estimated next set: {reps} reps · target {min}–{max}",
   "live.apply": "Use for next set",
   "live.keep": "Keep my plan",
-  "live.manual": "Your entered load is kept. Clear it to use this suggestion.",
+  "live.manual": "Your entered weight or reps are kept.",
   "live.reason.within_range": "Estimated performance supports keeping your planned load.",
   "live.reason.no_suitable_increase": "Your planned load is kept because no suitable small increase is available.",
   "live.reason.above_range": "A small available increase may bring the next set into your target range.",
@@ -140,11 +142,13 @@ export const enWorkout = {
 } as const;
 
 export const arWorkout: Record<keyof typeof enWorkout, string> = {
-  "live.title": "المجموعة التالية · ذكاء اصطناعي تجريبي",
+  "live.title": "المجموعة الجاية",
   "live.details": "التفاصيل",
   "live.less": "تفاصيل أقل",
   "live.dismiss": "إغلاق التنبيه",
-  "live.shortNote": "تقدير · راجعه قبل ما تطبّقه",
+  "live.shortNote": "اتحط في المجموعة الجاية. تقدر تغيّره في أي وقت.",
+  "live.prescription": "{load} × {reps} عدّة",
+  "live.afterSet": "بعد {load} × {reps}، ده هدف مجموعتك الجاية.",
   "workout.focus": "ركّز على {exercise}",
   "workout.summary": "ملخّص التمرينة",
   "live.basis": "آخر مجموعة متسجلة: {load} × {reps}",
@@ -159,7 +163,7 @@ export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "live.predicted": "المجموعة الجاية: حوالي {reps} عدّة · الهدف {min}–{max}",
   "live.apply": "استخدم الوزن ده للمجموعة الجاية",
   "live.keep": "كمّل بخطتي",
-  "live.manual": "هنستخدم الوزن اللي كتبته. امسحه لو عايز تستخدم الاقتراح.",
+  "live.manual": "هنستخدم الوزن أو العدّات اللي كتبتها.",
   "live.reason.within_range": "التوقع داخل هدفك، فكمّل بنفس الوزن.",
   "live.reason.no_suitable_increase": "مفيش زيادة بسيطة مناسبة، فهنفضل على الوزن المخطط.",
   "live.reason.above_range": "فيه زيادة بسيطة متاحة ممكن تخلي المجموعة الجاية داخل هدفك.",

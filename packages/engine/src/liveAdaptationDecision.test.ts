@@ -5,10 +5,14 @@ const context: SetContext = { previousSetWeightKg: 80, proposedWeightKg: 80, pre
 const input = { context, targetMin: 6, targetMax: 10, loadSpec: { equipment: 'barbell' as const, increment: 2.5, min: 20, max: 200 }, predict: () => 8 };
 describe('equipment-aware live recommendation', () => {
  it('maintains a selectable load within range', () => expect(recommendLiveSet(input)).toMatchObject({action:'maintain', suggestedWeightKg:80, predictedReps:8}));
- it('evaluates the increased load and reports its prediction', () => expect(recommendLiveSet({...input, context: {...context, previousSetReps:12, firstWorkingSetReps:12}, predict: f => Number(f.relative_load_change) > 0 ? 9 : 13})).toMatchObject({action:'increase',suggestedWeightKg:82.5,predictedReps:9}));
+ it('evaluates the increased load and returns an exact integer prescription', () => expect(recommendLiveSet({...input, context: {...context, previousSetReps:12, firstWorkingSetReps:12}, predict: f => Number(f.relative_load_change) > 0 ? 8.6 : 13})).toMatchObject({action:'increase',suggestedWeightKg:82.5,predictedReps:8.6,suggestedReps:9}));
  it('does not increase if the heavier candidate falls below target', () => expect(recommendLiveSet({...input,context:{...context,previousSetReps:12,firstWorkingSetReps:12},predict:f=>Number(f.relative_load_change)>0?4:13}).action).toBe('maintain'));
  it('does not increase excessively on a coarse dumbbell rack', () => expect(recommendLiveSet({...input,loadSpec:{equipment:'dumbbell',loads:[20,25,30]},context:{...context,previousSetWeightKg:25,proposedWeightKg:25},predict:()=>14}).action).toBe('maintain'));
- it('decreases to the nearest suitable available rung', () => expect(recommendLiveSet({...input,predict:f=>Number(f.relative_load_change)<0?7:4})).toMatchObject({action:'decrease',suggestedWeightKg:77.5,predictedReps:7}));
+ it('decreases to the nearest suitable available rung', () => expect(recommendLiveSet({...input,predict:f=>Number(f.relative_load_change)<0?7:4})).toMatchObject({action:'decrease',suggestedWeightKg:77.5,predictedReps:7,suggestedReps:7}));
+ it('keeps the exact rep prescription within a sensible one-to-target-max boundary', () => {
+   expect(recommendLiveSet({...input,predict:()=>13})).toMatchObject({suggestedReps:10});
+   expect(recommendLiveSet({...input,predict:()=>0.2})).toMatchObject({suggestedReps:1});
+ });
  it('uses a real lower rack load rather than a 5% placeholder', () => expect(recommendLiveSet({...input,loadSpec:{equipment:'machine',loads:[60,70,80]},predict:f=>Number(f.relative_load_change)<0?8:4})).toMatchObject({action:'decrease',suggestedWeightKg:70}));
  it('keeps plan when no lighter load exists', () => expect(recommendLiveSet({...input,loadSpec:{equipment:'barbell',loads:[80,90]},predict:()=>4})).toMatchObject({action:'maintain',reason:'no_lighter_load'}));
  it('does not stop merely for a low prediction', () => expect(recommendLiveSet({...input,predict:()=>1}).action).toBe('maintain'));

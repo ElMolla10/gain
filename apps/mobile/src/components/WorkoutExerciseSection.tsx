@@ -76,7 +76,7 @@ export function WorkoutExerciseSection({ active = true, onFocus, liveDetailsOpen
 
   const live = card ? <LiveSuggestion decision={card.decision} basis={basis} repMin={ex.repMin} repMax={ex.repMax}
     detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
-    manualLoad={nextAdaptiveRow(list)?.load !== null} busy={busy}
+    manualLoad={nextAdaptiveRow(list)?.load !== null || nextAdaptiveRow(list)?.reps !== null} busy={busy}
     onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep} /> : null;
 
   return (

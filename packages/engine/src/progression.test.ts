@@ -95,6 +95,15 @@ describe("low confidence gives a smaller suggestion", () => {
 });
 
 describe("currency 1: reps inside the range", () => {
+  it("earns the next weight when one trusted set reaches the ceiling, even if another set does fewer reps", () => {
+    const h = [session(dbLine, "2026-09-28", sets(30, 9)),
+      session(dbLine, "2026-09-30", [S(30, 12), S(30, 8)])];
+    const p = P({ exercise: exDb({ progression: { preset: "acsm_2009" } }), history: h });
+    expect(p.currency).toBe("load");
+    expect(p.load).toBe(32.5);
+    expect(p.inputs.readiness).toMatchObject({ requiredSetsAtTop: 1, qualifyingSessions: 1 });
+    expect(p.inputs.sessions[0]).toMatchObject({ repsAtTop: 8, bestRepsAtTop: 12 });
+  });
   it("one more rep, and the next real dumbbell is named", () => {
     const p = P({ history: run(dbLine, 30, [10, 10, 11]) });
     expect(p.currency).toBe("reps");
@@ -102,9 +111,9 @@ describe("currency 1: reps inside the range", () => {
     expect(p.reps).toBe(12);
     expect(renderReason(p.reason)).toBe("Stay at 30 kg, aim for 12, the next dumbbell is 32.5.");
   });
-  it("uses the minimum reps across the sets at the top load (conservative)", () => {
+  it("uses the best trusted set for the next rep target", () => {
     const h = [session(dbLine, "2026-09-28", sets(30, 9)), session(dbLine, "2026-09-30", [S(30, 12), S(30, 12), S(30, 10)])];
-    expect(P({ history: h }).reps).toBe(11);
+    expect(P({ exercise: exDb({ progression: { preset: "acsm_2009" } }), history: h }).currency).toBe("load");
   });
   it("the anchor is the heaviest working load of the session", () => {
     const h = [session(dbLine, "2026-09-28", sets(27.5, 10)), session(dbLine, "2026-09-30", [S(27.5, 12), S(30, 9)])];
@@ -347,7 +356,7 @@ describe("gym-aware anchors", () => {
     const p = P({ exercise: ex, history });
     expect(p.load).toBe(14);
     expect(p.inputs.sessions[0]).toMatchObject({ topLoad: 14, repsAtTop: 10, setsAtTop: 1 });
-    expect(p.warnings).toContain("fewer_sets_than_planned");
+    expect(p.warnings).not.toContain("fewer_sets_than_planned");
   });
   it("every proposed load exists in the gym across many starting points", () => {
     for (const load of [10, 12.5, 17.5, 22.5, 27.5, 35, 37.5]) {
@@ -424,7 +433,7 @@ describe("assisted and bodyweight lines", () => {
 describe("result shape", () => {
   it("carries rule version, inputs, reason key + params and is JSON-safe", () => {
     const p = P({ history: run(dbLine, 30, [10, 10, 11]) });
-    expect(p.ruleVersion).toBe("rule-v0.4");
+    expect(p.ruleVersion).toBe("rule-v0.5");
     expect(p.reason.key).toBe("reps_in_range");
     expect(p.reason.params).toMatchObject({ load: 30, reps: 12, nextLoad: 32.5, equipment: "dumbbell" });
     expect(p.inputs.sessions[0]).toMatchObject({ topLoad: 30, repsAtTop: 11 });

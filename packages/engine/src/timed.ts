@@ -64,6 +64,7 @@ function summarizeTimed(s: HistorySession, measure: "time" | "distance", setup: 
     performedAt: s.performedAt,
     topLoad: top,
     repsAtTop: Math.min(...qs),
+    bestRepsAtTop: Math.max(...qs),
     lastSetReps: qs[qs.length - 1]!,
     setsAtTop: atTop.length,
     workingSets: trusted.length,

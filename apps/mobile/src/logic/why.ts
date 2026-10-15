@@ -49,10 +49,10 @@ export function describeDecision(
         : i.sessions.map((s) =>
             i.measure === "time" || i.measure === "distance"
               ? L(s.topLoad > 0 ? "why.sessionTimed" : "why.sessionTimedBare", { date: s.performedAt.slice(0, 10), load: W(s.topLoad), q: quantityText(s.repsAtTop, i.measure, { s: L("qty.s"), m: L("qty.m") }), sets: s.setsAtTop })
-              : L("why.session", {
+              : L(i.policy.trigger.repsBasis === "best_set" ? "why.sessionBest" : "why.session", {
               date: s.performedAt.slice(0, 10),
               load: W(s.topLoad),
-              reps: s.repsAtTop,
+              reps: i.policy.trigger.repsBasis === "best_set" ? (s.bestRepsAtTop ?? s.repsAtTop) : s.repsAtTop,
               sets: s.setsAtTop,
               effort: s.rir === null ? L("why.effortNone") : String(s.rir),
             }),
@@ -105,8 +105,8 @@ export function describeDecision(
   }
   if (i.trackEffort) ruleLines.push(L("why.effortTracked"));
   if (p.needsModel.needed) ruleLines.push(L("why.needsModel"));
-  if (i.measure === undefined || i.measure === "reps") ruleLines.push(L("why.weakestNote", { n: i.readiness.requiredSetsAtTop ?? 1 }));
-  if (i.topSets !== undefined && (i.measure === undefined || i.measure === "reps")) ruleLines.push(L("why.topSets", { n: i.topSets }));
+  if (i.measure === undefined || i.measure === "reps") ruleLines.push(i.policy.trigger.repsBasis === "best_set" ? L("why.oneSetNote") : L("why.weakestNote", { n: i.readiness.requiredSetsAtTop ?? 1 }));
+  if (i.topSets !== undefined && i.policy.trigger.repsBasis !== "best_set" && (i.measure === undefined || i.measure === "reps")) ruleLines.push(L("why.topSets", { n: i.topSets }));
   for (const w of p.warnings) ruleLines.push(L(`why.warning.${w}`));
   out.push({ title: L("why.rule"), lines: ruleLines });
 

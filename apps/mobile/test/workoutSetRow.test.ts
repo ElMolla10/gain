@@ -115,16 +115,16 @@ async function sectionProps(): Promise<Parameters<typeof WorkoutExerciseSection>
   const gym = await repos.loadGymFingerprint(gymId);
   const day = (await repos.getNextDay())!.day;
   const ex = (await repos.listDayExercises(day.id))[0]!;
-  const { proposal, line } = await workout.liveProposal(ex, gym);
+  const { proposal, line, lineId } = await workout.liveProposal(ex, gym);
   let n = 0;
   const list = initialRows([], 3, { load: 60, reps: 8 }, () => `row${n++}`);
   return {
     ex: { ...ex, slot: ex.exerciseId }, position: 0, gym, list,
-    info: { proposal, line, last: null, stored: null, prefill: { load: 60, reps: 8 } },
+    info: { proposal, line, lineId, last: null, stored: null, prefill: { load: 60, reps: 8 } },
     st: { slot: ex.exerciseId, removed: false, replacedBy: null, note: "", restOff: false, added: false, position: null, superset: null },
     exSets: [], outliers: {}, expanded: false, supersetLabel: "A", restDurationMs: 90000,
     busy: false, warmOpen: false, warmDone: false,
-    onPatch: vi.fn(), onKind: vi.fn(), onAskDelete: vi.fn(), onDelete: vi.fn(), onLog: vi.fn(), onUntick: vi.fn(),
+    onOpenProgress: vi.fn(), onPatch: vi.fn(), onKind: vi.fn(), onAskDelete: vi.fn(), onDelete: vi.fn(), onLog: vi.fn(), onUntick: vi.fn(),
     onToggleRest: vi.fn(), onMenu: vi.fn(), onWhy: vi.fn(), onWhyLong: vi.fn(),
     onLiveApply: vi.fn(), onLiveReport: vi.fn(), onLiveKeep: vi.fn(), onOutlierConfirm: vi.fn(), onOutlierReject: vi.fn(),
     onWarmConfirm: vi.fn(), onWarmOpen: vi.fn(), onWarmClose: vi.fn(), onAddSet: vi.fn(),

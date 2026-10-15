@@ -18,7 +18,7 @@ describe("resolveProgression: the default is ACSM 2009 + the lifter's ceilings",
       const c = resolveProgression(region);
       expect(c.preset).toBe("acsm_2009");
       expect(c.increment).toEqual({ minPct: 0.02, maxPct: 0.1 });
-      expect(c.trigger).toEqual({ extraReps: 0, sessions: 1, repsBasis: "all_sets", fastTrackRir: null });
+      expect(c.trigger).toEqual({ extraReps: 0, sessions: 1, repsBasis: "best_set", fastTrackRir: null });
       expect(c.stall).toBeNull();
       expect(c.stepDownAfterMisses).toBeNull();
     }

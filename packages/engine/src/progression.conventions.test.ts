@@ -20,8 +20,8 @@ const D = (c: Partial<ProposeContext> & Pick<ProposeContext, "history">) => prop
 
 describe("rule version", () => {
   it("is rule-v0.4", () => {
-    expect(RULE_VERSION).toBe("rule-v0.4");
-    expect(B({ history: run(barLine, 100, [10, 10]) }).ruleVersion).toBe("rule-v0.4");
+    expect(RULE_VERSION).toBe("rule-v0.5");
+    expect(B({ history: run(barLine, 100, [10, 10]) }).ruleVersion).toBe("rule-v0.5");
   });
 });
 

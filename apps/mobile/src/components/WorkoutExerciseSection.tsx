@@ -1,5 +1,5 @@
 import React from "react";
-import { View, useWindowDimensions } from "react-native";
+import { Pressable, View, useWindowDimensions } from "react-native";
 import { findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
 import type { Disp, ExInfo } from "../logic/workoutTypes";
 import type { ExerciseState, SetRow } from "../db/workoutRepo";
@@ -9,7 +9,8 @@ import { localizeReason, weightText } from "../logic/units";
 import { warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
 import { isTimed, quantityText, setQuantity } from "../logic/quantity";
 import { workingIndexes } from "../logic/liveSummary";
-import { rowLabels, currentRowKey, type SetRowDraft } from "../logic/workoutRows";
+import { focusedRowKey } from "../logic/workoutFocus";
+import { rowLabels, type SetRowDraft } from "../logic/workoutRows";
 import { nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
 import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
@@ -21,6 +22,7 @@ import { WorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
 
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string }
 interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
+  active?: boolean; onFocus?: () => void; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
   ex: Disp; position: number; info: ExInfo; list: SetRowDraft[]; st: ExerciseState;
   gym: GymFingerprint; exSets: SetRow[]; outliers: Record<string, OutlierResult>;
   candidate?: LiveCard; card?: LiveCard; expanded: boolean; supersetLabel?: string;
@@ -33,7 +35,7 @@ interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDe
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
+export function WorkoutExerciseSection({ active = true, onFocus, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
@@ -42,7 +44,7 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
   const pr = info.proposal;
   const spec = ex.loadSpec ?? findSpec(gym, ex.equipment);
   const numbering = rowLabels(list);
-  const currentKey = currentRowKey(list);
+  const currentKey = focusedRowKey(list);
   const widx = workingIndexes(list);
   const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
   const timed = isTimed(ex.measure);
@@ -71,16 +73,22 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
   // At large font sizes the five columns no longer fit side by side: the row becomes two lines (set, previous, tick / weight, reps).
   const stacked = fontScale > 1.3;
 
+  const live = card ? <LiveSuggestion decision={card.decision} basis={basis} repMin={ex.repMin} repMax={ex.repMax}
+    detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
+    manualLoad={nextAdaptiveRow(list)?.load !== null} busy={busy}
+    onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep} /> : null;
+
   return (
     <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, paddingStart: space.lg, paddingEnd: space.xs }}>
-        <View style={{ flex: 1 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.focus", { exercise: labels.primary })}
+          accessibilityState={{ selected: active }} onPress={onFocus} style={{ flex: 1, minHeight: 48, justifyContent: "center" }}>
           {supersetLabel ? (
             <AppText style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}>{t("workout.superset.label", { letter: supersetLabel! })}</AppText>
           ) : null}
           <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
           {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
-        </View>
+        </Pressable>
         {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
         <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} />
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
@@ -93,7 +101,7 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
           label={t("workout.nextTarget")}
           value={targetText}
           whyLabel={t("workout.whyShort")}
-          suggestedLabel={t("workout.suggestedWeight")}
+          suggestedLabel={suggestedWeight && !card ? t("workout.suggestedWeight") : undefined}
           suggestedValue={suggestedWeight}
           whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
           expanded={info.stored ? undefined : expanded}
@@ -119,23 +127,19 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
         <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
       </View>
 
+      {card?.decision.action === "stop" ? live : null}
       <View>
         {list.map((row, i) => (
-          <WorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
-            workingIndex={widx[i] ?? null} lastSets={info.last?.sets ?? null}
-            current={currentKey === row.key} stacked={stacked} busy={busy}
-            onPatch={onPatch} onKind={onKind} onAskDelete={onAskDelete}
-            onDelete={onDelete} onLog={onLog} onUntick={onUntick} />
+          <React.Fragment key={row.key}>
+            {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
+            <WorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
+              workingIndex={widx[i] ?? null} lastSets={info.last?.sets ?? null}
+              current={active && currentKey === row.key} stacked={stacked} busy={busy}
+              onPatch={onPatch} onKind={onKind} onAskDelete={onAskDelete}
+              onDelete={onDelete} onLog={onLog} onUntick={onUntick} />
+          </React.Fragment>
         ))}
       </View>
-
-      {card ? (
-        <LiveSuggestion
-          decision={card.decision} basis={basis} repMin={ex.repMin} repMax={ex.repMax}
-          manualLoad={nextAdaptiveRow(list)?.load !== null} busy={busy}
-          onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep}
-        />
-      ) : null}
 
       {pending.map((s) => {
         const o = outliers[s.id];

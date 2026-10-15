@@ -103,7 +103,7 @@ describe("logger and Today: layout rules (source)", () => {
     const r = parts.slice(parts.indexOf("export function RestToggle"));
     expect(r).toContain("minHeight: 48");
     expect(r).toContain("minWidth: 48");
-    expect(section).toContain("currentRowKey(list)");
+    expect(section).toContain("focusedRowKey(list)");
     expect(row).toContain("p.activeBg");
     expect(row).toContain("done={done}");
     expect(row).toContain("current={current}");

@@ -1,6 +1,12 @@
 /** Active workout list (v0.8.0, redesigned v0.9.0). ARABIC IS A DRAFT TRANSLATION, still to be reviewed. */
 export const enWorkout = {
   "live.title": "Next set · Experimental AI",
+  "live.details": "Details",
+  "live.less": "Less",
+  "live.dismiss": "Dismiss warning",
+  "live.shortNote": "Estimate · review before applying",
+  "workout.focus": "Focus on {exercise}",
+  "workout.summary": "Workout summary",
   "live.basis": "Last saved set: {load} × {reps}",
   "live.estimateNote": "Estimate from logged sets. Sleep, readiness and rest time are unknown.",
   "live.report": "Report pain or dizziness",
@@ -132,6 +138,12 @@ export const enWorkout = {
 
 export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "live.title": "المجموعة التالية · ذكاء اصطناعي تجريبي",
+  "live.details": "التفاصيل",
+  "live.less": "تفاصيل أقل",
+  "live.dismiss": "إغلاق التنبيه",
+  "live.shortNote": "تقدير · راجعه قبل ما تطبّقه",
+  "workout.focus": "ركّز على {exercise}",
+  "workout.summary": "ملخّص التمرينة",
   "live.basis": "آخر مجموعة متسجلة: {load} × {reps}",
   "live.estimateNote": "تقدير من المجموعات المسجلة. النوم والاستعداد ووقت الراحة مش معروفين.",
   "live.report": "عندي ألم أو دوخة",

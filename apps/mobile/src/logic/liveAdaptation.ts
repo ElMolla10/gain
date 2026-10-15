@@ -2,10 +2,10 @@ import { recommendLiveSet, predictNextReps, type Decision, type FeatureMap, type
 import type { SetRow } from "../db/workoutRepo";
 import { effectiveOf, kindOf, type SetRowDraft } from "./workoutRows";
 
-export const trustedWorkingSet = (s: SetRow): boolean => !s.warmup && !s.tags.includes("drop") && !s.tags.includes("failure") && (s.outlierStatus === "none" || s.outlierStatus === "confirmed") && s.durationS === null && s.distanceM === null && s.load > 0 && s.reps > 0;
+export const trustedWorkingSet = (s: SetRow): boolean => !s.warmup && !s.tags.includes("drop") && (s.outlierStatus === "none" || s.outlierStatus === "confirmed") && s.durationS === null && s.distanceM === null && s.load > 0 && s.reps > 0;
 export function nextAdaptiveRow(rows: SetRowDraft[]): SetRowDraft | undefined {
   const next = rows.find(r => !r.saved);
-  return next && kindOf(next) === "normal" ? next : undefined;
+  return next && kindOf(next) !== "warmup" && kindOf(next) !== "drop" ? next : undefined;
 }
 /** The database does not record historic equipment or load convention. Missing inputs stay missing; RIR is never converted to RPE. */
 export function liveContext(input: { exerciseId: string; measure: Measure; setup: SetupType; equipment: EquipmentType; sets: SetRow[]; rows: SetRowDraft[]; targetReps: number; last?: { performedAt: string; sets: LoggedSet[] } | null; supportedExerciseIds?: readonly string[] }): SetContext | null {
@@ -22,7 +22,7 @@ export function liveContext(input: { exerciseId: string; measure: Measure; setup
   // suppressing a useful recommendation. An explicitly entered next load wins.
   const proposed = effectiveOf(next).load ?? previous?.load ?? null;
   if (!previous || proposed === null || proposed <= 0) return null;
-  const prior = input.last?.sets.find(s => !s.warmup && !s.tags?.includes("drop") && !s.tags?.includes("failure") && (s.outlierStatus === undefined || s.outlierStatus === "none" || s.outlierStatus === "confirmed") && !s.durationS && !s.distanceM);
+  const prior = input.last?.sets.find(s => !s.warmup && !s.tags?.includes("drop") && (s.outlierStatus === undefined || s.outlierStatus === "none" || s.outlierStatus === "confirmed") && !s.durationS && !s.distanceM);
   const convention = input.equipment === "dumbbell" ? "per_dumbbell" : input.equipment === "barbell" ? "total_barbell_load" : input.equipment === "machine" || input.equipment === "cable" ? "displayed_machine_load" : "unknown";
   let consecutiveVeryLowSets = 0;
   for (const set of [...exercise].reverse()) {
@@ -61,7 +61,7 @@ export function localPrediction(features: FeatureMap): number {
   cached ??= { model: require("../../../../packages/engine/assets/live-adaptation-v2/model.json") as XGBoostJSON, schema: require("../../../../packages/engine/assets/live-adaptation-v2/schema.json") as ModelSchema };
   return predictNextReps(cached.model, cached.schema, features);
 }
-export function liveRecommendation(context: SetContext, targetMin: number, targetMax: number, loadSpec: GymLoadSpec, predict = localPrediction): Decision {
+export function liveRecommendation(context: SetContext, targetMin: number, targetMax: number, loadSpec: GymLoadSpec | null, predict = localPrediction): Decision {
   return recommendLiveSet({ context, targetMin, targetMax, loadSpec, predict });
 }
 /** Manual load wins. Accepting a card changes only the next normal unlogged row's ghost. */
@@ -88,7 +88,7 @@ export function reportedSymptomDecision(decision: Decision, symptom?: ReportedSy
   return symptom ? { ...decision, action: "stop", reason: "reported_symptoms" } : decision;
 }
 /** Failure never changes row data or deterministic plan; the logger can omit the optional card. */
-export function tryLiveRecommendation(context: SetContext, targetMin: number, targetMax: number, loadSpec: GymLoadSpec, predict = localPrediction, onError?: (error: unknown) => void): Decision | null {
+export function tryLiveRecommendation(context: SetContext, targetMin: number, targetMax: number, loadSpec: GymLoadSpec | null, predict = localPrediction, onError?: (error: unknown) => void): Decision | null {
   try { return liveRecommendation(context, targetMin, targetMax, loadSpec, predict); }
   catch (error) { onError?.(error); return null; }
 }

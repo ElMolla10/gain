@@ -17,7 +17,17 @@ describe('equipment-aware live recommendation', () => {
  it('stops after unusually severe observed deterioration', () => expect(recommendLiveSet({...input,context:{...context,previousSetReps:2,firstWorkingSetReps:10,workingSetsBefore:3},predict:()=>1})).toMatchObject({action:'stop',reason:'performance_stop'}));
  it('does not stop a legitimate low-rep target', () => expect(recommendLiveSet({...input,targetMin:1,targetMax:3,context:{...context,previousSetReps:2,workingSetsBefore:3},predict:()=>2}).action).toBe('maintain'));
  it('only responds to explicitly reported symptoms', () => expect(recommendLiveSet({...input,dizziness:true})).toMatchObject({action:'stop',reason:'reported_symptoms'}));
- it('refuses off-grid planned loads', () => expect(()=>recommendLiveSet({...input,context:{...context,proposedWeightKg:81}})).toThrow());
+ it('uses a manually chosen load even if the rack does not list it', () => {
+   expect(recommendLiveSet({...input,context:{...context,proposedWeightKg:81}}))
+     .toMatchObject({action:'maintain',suggestedWeightKg:81});
+ });
+ it('recommends the saved weight when no rack is configured', () => {
+   const logged = {...context,previousSetWeightKg:16,proposedWeightKg:16,firstWorkingSetWeightKg:16,previousSetReps:7,firstWorkingSetReps:7};
+   expect(recommendLiveSet({...input,context:logged,loadSpec:null,predict:()=>7}))
+     .toMatchObject({action:'maintain',suggestedWeightKg:16});
+   expect(recommendLiveSet({...input,context:{...logged,proposedWeightKg:18},loadSpec:null,predict:()=>7}))
+     .toMatchObject({action:'maintain',suggestedWeightKg:18});
+ });
  it('uses a logged 16 kg dumbbell even when the generic rack omits it', () => {
    const logged = {...context,previousSetWeightKg:16,proposedWeightKg:16,firstWorkingSetWeightKg:16,previousSetReps:7,firstWorkingSetReps:7};
    expect(recommendLiveSet({...input,context:logged,loadSpec:{equipment:'dumbbell',loads:[12.5,15,17.5,20]},predict:()=>7}))

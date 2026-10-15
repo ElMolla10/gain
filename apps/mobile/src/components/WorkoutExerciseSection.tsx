@@ -23,7 +23,7 @@ import { WorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
 
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string }
 interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
-  active?: boolean; onFocus?: () => void; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
+  active?: boolean; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
   ex: Disp; position: number; info: ExInfo; list: SetRowDraft[]; st: ExerciseState;
   gym: GymFingerprint; exSets: SetRow[]; outliers: Record<string, OutlierResult>;
   candidate?: LiveCard; card?: LiveCard; expanded: boolean; supersetLabel?: string;
@@ -36,7 +36,7 @@ interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDe
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ active = true, onFocus, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
+export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
@@ -82,8 +82,8 @@ export function WorkoutExerciseSection({ active = true, onFocus, liveDetailsOpen
   return (
     <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, paddingStart: space.lg, paddingEnd: space.xs }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.focus", { exercise: labels.primary })}
-          accessibilityState={{ selected: active }} onPress={onFocus} style={{ flex: 1, minHeight: 48, justifyContent: "center" }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.openProgress", { exercise: labels.primary })}
+          onPress={onOpenProgress} style={{ flex: 1, minHeight: 48, justifyContent: "center" }}>
           {supersetLabel ? (
             <AppText style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}>{t("workout.superset.label", { letter: supersetLabel! })}</AppText>
           ) : null}

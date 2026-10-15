@@ -152,6 +152,13 @@ describe("extracted exercise section wiring", () => {
     for (const handler of [p.onToggleRest, p.onMenu, p.onWhy, p.onWhyLong, p.onAddSet]) expect(handler).toHaveBeenCalledOnce();
     expect(tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ")).toContain("A");
   });
+  it("opens exercise history and the personal record when the exercise name is pressed", async () => {
+    const p = await sectionProps();
+    const heading = nodes(WorkoutExerciseSection(p)).find(n => n.type as unknown === "Pressable" && String(n.props.accessibilityLabel).includes("personal record"))!;
+    expect(heading.props.accessibilityLabel).toContain("Bench Press");
+    heading.props.onPress();
+    expect(p.onOpenProgress).toHaveBeenCalledOnce();
+  });
   it("adapts every set row to large text without changing the action callbacks", async () => {
     settings.fontScale = 1.6;
     const p = await sectionProps();

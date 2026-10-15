@@ -730,7 +730,7 @@ export function WorkoutScreen() {
       && livePromptVisible(currentCandidate.decision.action, ex.exerciseId === focus) ? currentCandidate : undefined;
     const detailKey = card ? `${ex.exerciseId}:${card.performance}:${card.key}` : null;
     return (
-      <WorkoutExerciseSection key={ex.id} active={ex.exerciseId === focus} onFocus={() => setPreferredExercise(ex.exerciseId)}
+      <WorkoutExerciseSection key={ex.id} active={ex.exerciseId === focus}
         liveDetailsOpen={detailKey !== null && liveDetails === detailKey} onLiveDetails={() => setLiveDetails(current => current === detailKey ? null : detailKey)} ex={ex} position={position} info={info} list={list}
         st={exState[ex.slot] ?? NO_STATE(ex.slot)} gym={loaded.gym} exSets={setsByEx.get(ex.exerciseId) ?? []}
         outliers={outliers} candidate={currentCandidate} card={card} expanded={!!whyOpen[ex.exerciseId]}

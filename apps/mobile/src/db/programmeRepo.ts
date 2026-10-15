@@ -1,4 +1,5 @@
 import type { EquipmentType, GymLoadSpec, Measure, SetupType } from "@gain/engine";
+import { parseStoredLoads } from "../logic/exerciseLoads";
 import { validateGym } from "../logic/gymInput";
 import { DEFAULT_TIMED_RANGE } from "./library/measures";
 import { computeExposure, type ExposureRow } from "../logic/exposure";
@@ -21,6 +22,7 @@ export class SessionInProgress extends Error {
 }
 
 export interface LibraryExercise {
+  loadSpec?: GymLoadSpec | null;
   id: string;
   seedKey: string | null;
   nameEn: string;
@@ -86,8 +88,8 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
 
   // ---- exercise library -----------------------------------------------------------------------------------
   async function listExercises(): Promise<LibraryExercise[]> {
-    const rows = await db.all<{ id: string; seed_key: string | null; name_en: string; name_ar: string; aliases_ar_json: string; pattern: string; equipment: EquipmentType; setup: SetupType; measure: Measure; is_sample: number }>(
-      "SELECT id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, measure, is_sample FROM exercise WHERE deleted_at IS NULL ORDER BY name_en",
+    const rows = await db.all<{ id: string; seed_key: string | null; name_en: string; name_ar: string; aliases_ar_json: string; pattern: string; equipment: EquipmentType; setup: SetupType; measure: Measure; is_sample: number; load_spec_json: string | null }>(
+      "SELECT id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, measure, is_sample, load_spec_json FROM exercise WHERE deleted_at IS NULL ORDER BY name_en",
     );
     return rows.map((r) => ({
       id: r.id,
@@ -100,6 +102,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       setup: r.setup,
       measure: r.measure,
       isCustom: r.seed_key === null,
+      loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
     }));
   }
 

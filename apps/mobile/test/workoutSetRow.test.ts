@@ -210,6 +210,14 @@ describe("live suggestion explanations", () => {
     expect(tree.some(n => n.props.label === "Use for next set")).toBe(false);
     expect(tree.some(n => n.props.label === "Keep my plan")).toBe(false);
   });
+  it("never labels an observed-only fatigue stop as a model forecast", () => {
+    const p = presentation();
+    const tree = nodes(LiveSuggestion({...p,decision:{...p.decision,action:"stop",reason:"performance_stop",predictionAvailable:false}}));
+    const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(text).toContain("large performance drop");
+    expect(text).not.toContain("Estimated next set:");
+    expect(text).not.toContain("Estimate from logged sets");
+  });
   it("keeps manual input and saving guards on Apply", () => {
     const p = presentation();
     for (const patch of [{manualLoad:true}, {busy:true}]) {

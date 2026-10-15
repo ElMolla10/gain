@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { recommendLiveSet, decideNextSet } from './liveAdaptationDecision';
 import type { SetContext } from './liveAdaptationFeatures';
 const context: SetContext = { previousSetWeightKg: 80, proposedWeightKg: 80, previousSetReps: 8, firstWorkingSetReps: 8, priorWorkingVolume: 640, workingSetsBefore: 1, loadConvention: 'total_barbell_load', setIndex: 2, workoutSetsBefore: 1, targetReps: 8, priorWorkingReps: 8, priorWorkoutsOnEquipment: 0 };
@@ -56,5 +56,23 @@ describe('observed performance before increasing load', () => {
  it('keeps symptom stops above increase eligibility', () => {
    expect(decideNextSet({...base,severePain:true}).action).toBe('stop');
    expect(decideNextSet({...base,dizziness:true}).action).toBe('stop');
+ });
+});
+
+describe('observed fatigue before model inference', () => {
+ it.each(['optimistic','failed'] as const)('a comparable collapse stops with an %s model without asking it', mode => {
+   const predict = vi.fn(() => { if (mode === 'failed') throw Error('model unavailable'); return 15; });
+   const result = recommendLiveSet({...input,context:{...context,previousSetReps:2,firstWorkingSetReps:10,firstWorkingSetWeightKg:80,previousSetWeightKg:80,workingSetsBefore:3},predict});
+   expect(result).toMatchObject({action:'stop',reason:'performance_stop',predictionAvailable:false});
+   expect(predict).not.toHaveBeenCalled();
+ });
+ it('does not call a heavier deliberate set an observed fatigue collapse', () => {
+   expect(recommendLiveSet({...input,context:{...context,previousSetReps:2,firstWorkingSetReps:10,firstWorkingSetWeightKg:60,previousSetWeightKg:80,workingSetsBefore:3},predict:()=>8}).action).toBe('maintain');
+ });
+ it('respects low-rep programming and explicit symptom stops with an unavailable model', () => {
+   const predict = vi.fn(() => 2);
+   expect(recommendLiveSet({...input,targetMin:1,targetMax:3,context:{...context,previousSetReps:2,firstWorkingSetReps:10,firstWorkingSetWeightKg:80,workingSetsBefore:3},predict}).action).not.toBe('stop');
+   predict.mockImplementation(() => {throw Error('offline');});
+   expect(recommendLiveSet({...input,dizziness:true,predict})).toMatchObject({action:'stop',reason:'reported_symptoms',predictionAvailable:false});
  });
 });

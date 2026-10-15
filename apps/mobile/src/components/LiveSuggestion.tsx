@@ -41,10 +41,10 @@ export function LiveSuggestion({ decision, detailsOpen = false, onToggleDetails,
       </View>
       {decision.action === "stop" ? <AppText>{t(`live.reason.${decision.reason}` as never)}</AppText> : <AppText style={{ color: p.muted }}>{t("live.shortNote")}</AppText>}
       {detailsOpen ? <View style={{ gap: space.xs }}>
-        {decision.reason !== "reported_symptoms" ? <AppText>{t("live.predicted", { reps: Math.round(decision.predictedReps * 10) / 10, min: repMin, max: repMax })}</AppText> : null}
+        {decision.reason !== "reported_symptoms" && decision.predictionAvailable !== false ? <AppText>{t("live.predicted", { reps: Math.round(decision.predictedReps * 10) / 10, min: repMin, max: repMax })}</AppText> : null}
         {decision.action !== "stop" ? <AppText style={{ color: p.muted }}>{t(`live.reason.${decision.reason}` as never)}</AppText> : null}
         {basis && decision.reason !== "reported_symptoms" ? <AppText style={{ color: p.muted }}>{t("live.basis", { load: formatLoad(basis.load, lang, unit), reps: basis.reps })}</AppText> : null}
-        {decision.reason !== "reported_symptoms" ? <AppText style={{ color: p.muted }}>{t("live.estimateNote")}</AppText> : null}
+        {decision.reason !== "reported_symptoms" && decision.predictionAvailable !== false ? <AppText style={{ color: p.muted }}>{t("live.estimateNote")}</AppText> : null}
       </View> : null}
       <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap", alignItems: "center" }}>
         {decision.action !== "stop" ? <BigButton variant="secondary" label={t("live.apply")} disabled={manualLoad || busy} onPress={onApply} /> : null}

@@ -46,6 +46,9 @@ The helper prints the commit/configuration. Release is the default and should ru
 | Rejected backup | Missing core tables or sync bookkeeping refused before replacement | NOT RUN; test copies only |
 | Developer Mode | Off by default; version unlock works; mode survives restart and can be disabled; technical routes disappear | NOT RUN on updated build |
 | Focus and AI Details | Focus follows edits/completion; no keyboard loss; stop warnings remain visible; Details and manual Apply work in both languages | NOT RUN on updated build |
+| Replacement suggestions | Similar choices respect measurement/setup and recorded equipment category; full library remains searchable | NOT RUN on updated build |
+| Replacement settings | Today-only/permanent swaps use their own grid/history; reps-to-time/distance gets a sensible range and keeps set count | NOT RUN on updated build |
+| Observed fatigue | Same/lighter-load collapse warns without a forecast; deliberately heavier sets and low-rep targets do not get that warning | NOT RUN on updated build |
 | Evaluation export | Enable Developer Mode; iOS shares JSON; file replays; edits/skips excluded | NOT RUN |
 | History read/page retry | Failure is not empty history; failed page preserves last good page | NOT RUN; controlled read failure needed |
 

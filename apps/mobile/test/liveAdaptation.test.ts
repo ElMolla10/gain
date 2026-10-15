@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { applyLiveLoad, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow, suggestedNextLoad } from "../src/logic/liveAdaptation";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
 import type { SetRow } from "../src/db/workoutRepo";
@@ -165,4 +165,23 @@ describe("live card presentation and fallback", () => {
     expect(plan.every(r=>!r.saved)).toBe(true);
     expect(remainingMs(timer,2000)).toBe(89000);
   });
+});
+
+it("uses recorded comparable loads for an observed fatigue stop even if inference fails", () => {
+  const sets = [saved({id:"first",load:60,reps:10}),saved({id:"second",load:60,reps:2,position:2})];
+  const draft = initialRows(sets,3,{load:60,reps:8},()=>"next");
+  const c = context({sets,rows:draft})!;
+  expect(c.firstWorkingSetWeightKg).toBe(60);
+  const predict = vi.fn(() => {throw Error("model offline");});
+  expect(tryLiveRecommendation(c,6,10,{equipment:"barbell",increment:2.5,min:20,max:200},predict)).toMatchObject({action:"stop",reason:"performance_stop",predictionAvailable:false});
+  expect(predict).not.toHaveBeenCalled();
+});
+
+it("counts repeated very-low sets from real rows, but keeps legitimate low-rep targets", () => {
+  const sets = [saved({id:"first-low",load:60,reps:2}),saved({id:"second-low",load:60,reps:2,position:2})];
+  const c = context({sets,rows:initialRows(sets,3,{load:60,reps:8},()=>"next")})!;
+  expect(c.consecutiveVeryLowSets).toBe(2);
+  const spec = {equipment:"barbell" as const,increment:2.5,min:20,max:200};
+  expect(tryLiveRecommendation(c,6,10,spec,()=>15)).toMatchObject({action:"stop",reason:"performance_stop",predictionAvailable:false});
+  expect(tryLiveRecommendation(c,1,3,spec,()=>2)?.action).not.toBe("stop");
 });

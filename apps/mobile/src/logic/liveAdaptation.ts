@@ -24,11 +24,18 @@ export function liveContext(input: { exerciseId: string; measure: Measure; setup
   if (!previous || proposed === null || proposed <= 0) return null;
   const prior = input.last?.sets.find(s => !s.warmup && !s.tags?.includes("drop") && !s.tags?.includes("failure") && (s.outlierStatus === undefined || s.outlierStatus === "none" || s.outlierStatus === "confirmed") && !s.durationS && !s.distanceM);
   const convention = input.equipment === "dumbbell" ? "per_dumbbell" : input.equipment === "barbell" ? "total_barbell_load" : input.equipment === "machine" || input.equipment === "cable" ? "displayed_machine_load" : "unknown";
+  let consecutiveVeryLowSets = 0;
+  for (const set of [...exercise].reverse()) {
+    if (set.reps > 2 || set.load > exercise[0]!.load) break;
+    consecutiveVeryLowSets++;
+  }
   return {
     previousSetWeightKg: previous.load,
     proposedWeightKg: proposed,
     previousSetReps: previous.reps,
     firstWorkingSetReps: exercise[0]!.reps,
+    firstWorkingSetWeightKg: exercise[0]!.load,
+    consecutiveVeryLowSets,
     priorWorkingVolume: exercise.reduce((n, s) => n + s.load * s.reps, 0),
     workingSetsBefore: exercise.length,
     loadConvention: convention,

@@ -86,7 +86,12 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
   validateInput(base);
   const stop = stopReason(base);
   if (stop) return {action:'stop', suggestedWeightKg:current, predictedReps:0, predictionAvailable:false, reason:stop};
-  if (!isGymLoad(x.loadSpec, current) || current <= 0) throw new Error('Next planned load is unavailable');
+  // A load actually used in the preceding set is available even if a gym's
+  // generic rack has not been configured to include it (e.g. 16 kg dumbbells).
+  // Other off-grid proposals are still rejected; increases/decreases continue
+  // to use only configured, selectable loads.
+  if (current <= 0 || (!isGymLoad(x.loadSpec, current) && Math.abs(current - x.context.previousSetWeightKg) > 1e-6))
+    throw new Error('Next planned load is unavailable');
   const p = predict(current);
   base.predictedReps = p;
   if (p > x.targetMax + 1 && supportsIncrease(base)) {

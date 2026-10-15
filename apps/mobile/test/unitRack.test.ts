@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { findSpec, nextLoadAbove } from "@gain/engine";
-import { defaultGymLoads, isStandardRack } from "../src/logic/defaultGym";
+import { defaultGymLoads, isStandardRack, upgradeLegacyKgDumbbells } from "../src/logic/defaultGym";
 import { kgToUnit } from "../src/logic/units";
 import { freshDb } from "./helpers";
 
 describe("standard rack detection (Step 11 polish)", () => {
+  it("uses 2 kg dumbbells, skipping 26, and upgrades only the old untouched list", () => {
+    const current = defaultGymLoads("kg");
+    const pairs = current.find(s => s.equipment === "dumbbell")!.loads!;
+    expect(pairs.slice(5, 10)).toEqual([12, 14, 16, 18, 20]);
+    expect(pairs).not.toContain(26);
+    expect(pairs).toContain(28);
+    const old = current.map(s => s.equipment === "dumbbell" ? { ...s, loads: [5,7.5,10,12.5,15,17.5,20,22.5,25,27.5,30,32.5,35,40,45,50] } : s);
+    expect(upgradeLegacyKgDumbbells(old)).toEqual(current);
+    expect(upgradeLegacyKgDumbbells(current)).toBeNull();
+    expect(upgradeLegacyKgDumbbells(old.map(s => s.equipment === "dumbbell" ? { ...s, loads: [...s.loads!,16] } : s))).toBeNull();
+  });
   it("the standard racks are recognised as themselves and not as the other unit", () => {
     for (const u of ["kg", "lb"] as const) {
       expect(isStandardRack(defaultGymLoads(u), u)).toBe(true);

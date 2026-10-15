@@ -23,6 +23,7 @@ import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { joinSuperset, leaveSuperset, orderSlots, reorderBlocks, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
+import { upgradeLegacyKgDumbbells } from "../logic/defaultGym";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
 import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
@@ -68,7 +69,7 @@ const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, repla
  * today's target, so one tap on the tick accepts it. A set is saved on the phone the moment it is ticked (offline); nothing waits for the finish.
  */
 export function WorkoutScreen() {
-  const { repos, workout, finish, programmes, restAlerts, mlEvaluation } = useServices();
+  const { repos, gyms, workout, finish, programmes, restAlerts, mlEvaluation } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const insets = useSafeAreaInsets();
@@ -171,7 +172,17 @@ export function WorkoutScreen() {
     (async () => {
       const gymId = await repos.getActiveGymId();
       if (!gymId) return setLoaded("nogym");
-      const gym = await repos.loadGymFingerprint(gymId);
+      let gym = await repos.loadGymFingerprint(gymId);
+      if (unit === "kg") {
+        const upgraded = upgradeLegacyKgDumbbells(gym.loads);
+        if (upgraded) {
+          const detail = await gyms.getGym(gymId);
+          if (detail && !detail.isSample) {
+            await gyms.updateGym(gymId, { name: detail.name, loads: upgraded });
+            gym = await repos.loadGymFingerprint(gymId);
+          }
+        }
+      }
       const { id, resumed } = await workout.startOrResumeSession(dayId, gymId);
       sessionRef.current = id;
       const programmeSlots = await repos.listDayExercises(dayId);
@@ -211,7 +222,7 @@ export function WorkoutScreen() {
       startedRef.current = false;
       setLoadError(true);
     });
-  }, [repos, workout, programmes, mlEvaluation, dayId, makeDisp, buildInfo, attempt]);
+  }, [repos, gyms, workout, programmes, mlEvaluation, dayId, unit, makeDisp, buildInfo, attempt]);
 
   useEffect(() => {
     if (!resumeNote) return;

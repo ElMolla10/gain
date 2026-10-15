@@ -18,6 +18,7 @@ import type { LibraryExercise } from "../db/programmeRepo";
 import { DEFAULT_EXERCISE_REST_OFF, type ExerciseState, type SetRow } from "../db/workoutRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { weightText } from "../logic/units";
+import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { joinSuperset, leaveSuperset, orderSlots, reorderBlocks, restAfterSet, supersetLabels } from "../logic/superset";
@@ -102,6 +103,7 @@ export function WorkoutScreen() {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState<Record<string, boolean>>({});
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [machineFor, setMachineFor] = useState<string | null>(null);
   const [pickFor, setPickFor] = useState<string | null>(null);
   /** The row whose type (normal / warm-up / drop / failure) is being chosen. */
   const [addOpen, setAddOpen] = useState(false);
@@ -737,6 +739,30 @@ export function WorkoutScreen() {
   };
 
   const menuEx = menuFor ? shown.find((e) => e.slot === menuFor) : undefined;
+  const machineEx = machineFor ? shown.find((e) => e.slot === machineFor) : undefined;
+  const machineChoice = machineEx ? library.find(e => e.id === machineEx.exerciseId) : undefined;
+  async function chooseMachineStep(ex: Disp, kind: MachineLoadKind, step?: PinMachineStep) {
+    if (busy || !loaded || loaded === "nogym") return;
+    setBusy("machine-weights");
+    try {
+      await programmes.setMachineLoadKind(ex.exerciseId, kind, step);
+      const updatedLibrary = await programmes.listExercises();
+      libRef.current = updatedLibrary;
+      setLibrary(updatedLibrary);
+      const spec = (await repos.getExerciseLoads(ex.exerciseId))?.spec ?? null;
+      const slots = loaded.slots.map(slot => slot.exerciseId === ex.exerciseId ? { ...slot, loadSpec: spec } : slot);
+      const currentSlot = slots.find(slot => slot.exerciseId === ex.slot);
+      if (!currentSlot) return;
+      const updatedEx = makeDisp(currentSlot, exState[ex.slot]);
+      const info = await buildInfo(updatedEx, loaded.sessionId, loaded.gym);
+      setLoaded(prev => prev && prev !== "nogym" ? { ...prev, slots, info: { ...prev.info, [ex.exerciseId]: info } } : prev);
+      setRows(prev => ({ ...prev, [ex.exerciseId]: (prev[ex.exerciseId] ?? []).map(row => row.saved || row.load !== null ? row : { ...row, ghostLoad: info.prefill.load, ghostReps: row.reps === null ? info.prefill.reps : row.ghostReps }) }));
+      setLiveDismissed(prev => { const { [ex.exerciseId]: _old, ...rest } = prev; return rest; });
+    } catch (e) {
+      diagnostics.record("error", "machine weight steps", e);
+      Alert.alert(t("loads.preset.failed"));
+    } finally { setBusy(null); }
+  }
   const dockVisible = timerOpen || timerRunning || restOver;
 
   return (
@@ -901,6 +927,7 @@ export function WorkoutScreen() {
           menuEx
             ? [
                 { label: t("workout.menu.notes"), onPress: () => setTimeout(() => noteInputs.current[menuEx.slot]?.focus(), 150) },
+                ...(menuEx.equipment === "machine" ? [{ label: t("workout.menu.machineSteps"), onPress: () => setMachineFor(menuEx.slot) }] : []),
                 ...(exState[menuEx.slot]?.added ? [] : [{ label: t("workout.menu.replace"), onPress: () => startReplace(menuEx) }]),
                 ...(shown.length > 1 ? [{ label: t("workout.menu.superset"), onPress: () => setSsFor(menuEx.slot) }] : []),
                 ...(ssLabel[menuEx.slot] ? [{ label: t("workout.menu.supersetLeave"), onPress: () => void applySuperset(leaveSuperset(menuEx.slot)) }] : []),
@@ -908,6 +935,20 @@ export function WorkoutScreen() {
               ]
             : []
         }
+      />
+      <MenuSheet
+        visible={machineEx !== undefined}
+        title={t("workout.menu.machineSteps")}
+        onClose={() => setMachineFor(null)}
+        items={machineEx ? ([
+          { kind: "pin" as const, step: 2.5 as const, label: t("workout.machine.pin", { step: 2.5 }) },
+          { kind: "pin" as const, step: 5 as const, label: t("workout.machine.pin", { step: 5 }) },
+          { kind: "plate" as const, step: undefined, label: t("workout.machine.plate") },
+        ]).map(choice => ({
+          label: choice.label,
+          selected: machineChoice?.machineLoadKind === choice.kind && (choice.kind === "plate" || machineChoice?.machinePinStep === choice.step),
+          onPress: () => void chooseMachineStep(machineEx, choice.kind, choice.step),
+        })) : []}
       />
       <MenuSheet
         visible={kindFor !== null}

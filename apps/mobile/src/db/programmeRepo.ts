@@ -1,7 +1,7 @@
 import type { EquipmentType, GymLoadSpec, Measure, SetupType } from "@gain/engine";
 import { parseStoredLoads } from "../logic/exerciseLoads";
 import { validateGym } from "../logic/gymInput";
-import { machineKind, machineKindJson, type MachineLoadKind } from "../logic/machineLoadKind";
+import { machineKind, machineKindJson, machinePinStep, type MachineLoadKind, type PinMachineStep } from "../logic/machineLoadKind";
 import { DEFAULT_TIMED_RANGE } from "./library/measures";
 import { computeExposure, type ExposureRow } from "../logic/exposure";
 import { draftFingerprint, normTopSets, validateDraft, type DraftProblem, type ProgrammeDraft } from "../logic/programmeDraft";
@@ -25,6 +25,7 @@ export class SessionInProgress extends Error {
 export interface LibraryExercise {
   loadSpec?: GymLoadSpec | null;
   machineLoadKind?: MachineLoadKind;
+  machinePinStep?: PinMachineStep;
   id: string;
   seedKey: string | null;
   nameEn: string;
@@ -106,6 +107,7 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       isCustom: r.seed_key === null,
       loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
       machineLoadKind: r.equipment === "machine" ? machineKind(r.load_spec_json, r.name_en) : undefined,
+      machinePinStep: r.equipment === "machine" ? machinePinStep(r.load_spec_json) : undefined,
     }));
   }
 
@@ -168,11 +170,12 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
   }
 
   /** Select the machine's loading mechanism; this sets its default weights and refreshes future targets. */
-  async function setMachineLoadKind(exerciseId: string, kind: MachineLoadKind): Promise<void> {
+  async function setMachineLoadKind(exerciseId: string, kind: MachineLoadKind, pinStep?: PinMachineStep): Promise<void> {
     if (kind !== "pin" && kind !== "plate") throw new Error("Unknown machine type");
-    const row = await db.get<{ equipment: EquipmentType }>("SELECT equipment FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+    if (pinStep !== undefined && pinStep !== 2.5 && pinStep !== 5) throw new Error("Unknown pin step");
+    const row = await db.get<{ equipment: EquipmentType; load_spec_json: string | null }>("SELECT equipment, load_spec_json FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
     if (row?.equipment !== "machine") throw new Error("Not a machine exercise");
-    await db.run("UPDATE exercise SET load_spec_json = ?, updated_at = ? WHERE id = ?", [machineKindJson(kind), now(), exerciseId]);
+    await db.run("UPDATE exercise SET load_spec_json = ?, updated_at = ? WHERE id = ?", [machineKindJson(kind, pinStep ?? machinePinStep(row.load_spec_json)), now(), exerciseId]);
     const gymId = await repos.getActiveGymId();
     if (gymId) await finish.refreshPlannedSessions(gymId);
   }

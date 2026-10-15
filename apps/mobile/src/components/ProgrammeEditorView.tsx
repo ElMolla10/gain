@@ -2,7 +2,7 @@ import type { Measure } from "@gain/engine";
 import React, { useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
-import type { MachineLoadKind } from "../logic/machineLoadKind";
+import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { computeExposure } from "../logic/exposure";
@@ -37,7 +37,7 @@ export function ProgrammeEditorView(props: {
   onSetMeasure?: (exerciseId: string, measure: Measure) => Promise<void>;
   /** Open the screen where the weights that exist for an exercise are set. Absent = the chip is not shown (e.g. during onboarding). */
   onOpenLoads?: (exerciseId: string) => void;
-  onSetMachineLoadKind?: (exerciseId: string, kind: MachineLoadKind) => Promise<void>;
+  onSetMachineLoadKind?: (exerciseId: string, kind: MachineLoadKind, pinStep?: PinMachineStep) => Promise<void>;
 }) {
   const { t, lang } = useI18n();
   const p = usePalette();
@@ -184,6 +184,11 @@ export function ProgrammeEditorView(props: {
                       <Chip key={kind} label={t(`loads.machine.${kind}`)} selected={byId.get(e.exerciseId)?.machineLoadKind === kind} onPress={() => void props.onSetMachineLoadKind!(e.exerciseId, kind)} />
                     ))}
                   </View>
+                  {byId.get(e.exerciseId)?.machineLoadKind === "pin" ? (
+                    <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                      {([2.5, 5] as const).map(step => <Chip key={step} label={t("loads.machine.step", { step })} selected={byId.get(e.exerciseId)?.machinePinStep === step} onPress={() => void props.onSetMachineLoadKind!(e.exerciseId, "pin", step)} />)}
+                    </View>
+                  ) : null}
                   <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.machine.hint")}</AppText>
                 </View>
               ) : null}

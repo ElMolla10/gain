@@ -3,6 +3,8 @@ import { cleanSpec, validateGym, type GymProblem } from "../logic/gymInput";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { Repos } from "./repos";
+import { dumbbellPairs, presetForExercise } from "../logic/gymStepPreset";
+import { serializeLoads } from "../logic/exerciseLoads";
 
 export interface GymSummary {
   id: string;
@@ -109,6 +111,36 @@ export function createGymRepo(db: Db, deps: Deps, repos: Repos, finish: FinishRe
     if ((await repos.getActiveGymId()) === id) await syncPlanned();
   }
 
+  /** Apply the chosen rack to the active gym and clearly identified lifts in one transaction.
+   * Existing per-exercise weight choices remain untouched; all planned proposals refresh once. */
+  async function applyLoadStepPreset(): Promise<{ exercises: number }> {
+    const gymId = await repos.getActiveGymId();
+    if (!gymId) throw new Error("No active gym");
+    const gym = await getGym(gymId);
+    if (!gym) throw new Error("No active gym");
+    const loads = gym.loads.map((spec) => spec.equipment === "dumbbell" ? { equipment: "dumbbell" as const, loads: dumbbellPairs } : spec);
+    if (!loads.some((spec) => spec.equipment === "dumbbell")) loads.push({ equipment: "dumbbell", loads: dumbbellPairs });
+    const problems = validateGym(gym.name, loads);
+    if (problems.length > 0) throw new GymInvalid(problems);
+    const exercises = await db.transaction(async () => {
+      await db.run("UPDATE gym SET is_sample = 0, updated_at = ? WHERE id = ?", [now(), gymId]);
+      await writeLoads(gymId, loads);
+      const rows = await db.all<{ id: string; name_en: string; equipment: EquipmentType; load_spec_json: string | null }>(
+        "SELECT id, name_en, equipment, load_spec_json FROM exercise WHERE deleted_at IS NULL",
+      );
+      let updated = 0;
+      for (const row of rows) {
+        const spec = presetForExercise(row.name_en, row.equipment);
+        if (!spec || row.load_spec_json !== null) continue;
+        await db.run("UPDATE exercise SET load_spec_json = ?, updated_at = ? WHERE id = ?", [serializeLoads(spec), now(), row.id]);
+        updated++;
+      }
+      return updated;
+    });
+    await syncPlanned();
+    return { exercises };
+  }
+
   /** A copy of the rack under a new name. History is NOT copied: another gym is another set of lines. */
   async function copyGym(sourceId: string, name: string, activate = false): Promise<string> {
     const src = await getGym(sourceId);
@@ -135,6 +167,6 @@ export function createGymRepo(db: Db, deps: Deps, repos: Repos, finish: FinishRe
     });
   }
 
-  return { listGyms, getGym, createGym, updateGym, copyGym, setActiveGym, deleteGym };
+  return { listGyms, getGym, createGym, updateGym, applyLoadStepPreset, copyGym, setActiveGym, deleteGym };
 }
 export type GymRepo = ReturnType<typeof createGymRepo>;

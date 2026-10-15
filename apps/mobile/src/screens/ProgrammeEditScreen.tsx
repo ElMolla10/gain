@@ -1,4 +1,4 @@
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import type { Measure } from "@gain/engine";
 import React, { useCallback, useEffect, useState } from "react";
 import { useServices } from "../AppContext";
@@ -7,6 +7,7 @@ import { DraftInvalid, MeasureLocked, SessionInProgress, type LibraryExercise } 
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { resetRangeFor, validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
+import type { MachineLoadKind } from "../logic/machineLoadKind";
 import { ArDraftNote, BigButton, LoadingState, Notice, Screen } from "../ui";
 
 export function ProgrammeEditScreen() {
@@ -25,6 +26,17 @@ export function ProgrammeEditScreen() {
   const refreshLibrary = useCallback(() => {
     programmes.listExercises().then(setLibrary);
   }, [programmes]);
+  useFocusEffect(useCallback(() => { refreshLibrary(); }, [refreshLibrary]));
+
+  async function setMachineLoadKind(exerciseId: string, kind: MachineLoadKind) {
+    try {
+      await programmes.setMachineLoadKind(exerciseId, kind);
+      refreshLibrary();
+      setMessage(null);
+    } catch {
+      setMessage(t("loads.preset.failed"));
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -86,7 +98,7 @@ export function ProgrammeEditScreen() {
         <BigButton label={params.programmeId && nextVersion ? t("prog.save", { v: nextVersion }) : t("prog.saveNew")} onPress={() => void save()} />
       }
     >
-      <ProgrammeEditorView initialSettingsDay={params.settingsDay} initialReorderWorkouts={params.reorderWorkouts} draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} onSetMeasure={setMeasure} onOpenLoads={(exerciseId) => nav.navigate("ExerciseLoads", { exerciseId })} />
+      <ProgrammeEditorView initialSettingsDay={params.settingsDay} initialReorderWorkouts={params.reorderWorkouts} draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} onSetMeasure={setMeasure} onSetMachineLoadKind={setMachineLoadKind} onOpenLoads={(exerciseId) => nav.navigate("ExerciseLoads", { exerciseId })} />
       {touched ? problems.map((pr, i) => <Notice key={i} kind="error">{t(`prog.problem.${pr.code}` as StringKey, { day: (pr.day ?? 0) + 1 })}</Notice>) : null}
       {message ? <Notice kind="warn">{message}</Notice> : null}
       <ArDraftNote />

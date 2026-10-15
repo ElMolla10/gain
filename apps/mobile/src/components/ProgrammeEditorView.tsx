@@ -2,6 +2,7 @@ import type { Measure } from "@gain/engine";
 import React, { useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
+import type { MachineLoadKind } from "../logic/machineLoadKind";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { computeExposure } from "../logic/exposure";
@@ -36,6 +37,7 @@ export function ProgrammeEditorView(props: {
   onSetMeasure?: (exerciseId: string, measure: Measure) => Promise<void>;
   /** Open the screen where the weights that exist for an exercise are set. Absent = the chip is not shown (e.g. during onboarding). */
   onOpenLoads?: (exerciseId: string) => void;
+  onSetMachineLoadKind?: (exerciseId: string, kind: MachineLoadKind) => Promise<void>;
 }) {
   const { t, lang } = useI18n();
   const p = usePalette();
@@ -174,11 +176,18 @@ export function ProgrammeEditorView(props: {
                   <Chip label={t("prog.ex.effort")} selected={e.trackEffort} onPress={() => props.onChange(updateExercise(d, di, ei, { trackEffort: !e.trackEffort }))} />
                 </View>
               )}
-              {props.onOpenLoads ? (
-                <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-                  <Chip label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} />
+              {byId.get(e.exerciseId)?.equipment === "machine" && props.onSetMachineLoadKind ? (
+                <View style={{ gap: space.xs }}>
+                  <AppText style={{ fontWeight: "600" }}>{t("loads.machine.title")}</AppText>
+                  <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                    {(["pin", "plate"] as const).map(kind => (
+                      <Chip key={kind} label={t(`loads.machine.${kind}`)} selected={byId.get(e.exerciseId)?.machineLoadKind === kind} onPress={() => void props.onSetMachineLoadKind!(e.exerciseId, kind)} />
+                    ))}
+                  </View>
+                  <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.machine.hint")}</AppText>
                 </View>
               ) : null}
+              {props.onOpenLoads ? <BigButton variant="secondary" label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} /> : null}
                 </View>
               ) : null}
             </View>

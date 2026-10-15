@@ -26,6 +26,7 @@ import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
 import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
 import { isTimed, parseQuantityInput, quantityFields, setQuantity } from "../logic/quantity";
+import { focusedExercise, livePromptVisible } from "../logic/workoutFocus";
 import { liveSummary, volumeText } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
@@ -34,7 +35,7 @@ import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
 import { adjustTimer, formatClock, isDone, newTimer, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
+import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 
 import type { DayEx, Disp, ExInfo } from "../logic/workoutTypes";
 
@@ -93,6 +94,9 @@ export function WorkoutScreen() {
   const [resumeNote, setResumeNote] = useState(false);
   const [warmOpen, setWarmOpen] = useState<string | null>(null);
   const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
+  const [preferredExercise, setPreferredExercise] = useState<string | null>(null);
+  const [liveDetails, setLiveDetails] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState<Record<string, boolean>>({});
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [pickFor, setPickFor] = useState<string | null>(null);
@@ -316,7 +320,10 @@ export function WorkoutScreen() {
     return () => { cancelled = true; clearTimeout(handle); };
   }, [loaded, rows, sets, exState, liveDismissed, reportedSymptoms, makeDisp, mlEvaluation]);
 
-  const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
+  const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => {
+    setPreferredExercise(exId);
+    setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
+  };
 
   async function logRow(ex: Disp, row: SetRowDraft) {
     if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
@@ -661,15 +668,20 @@ export function WorkoutScreen() {
     ]);
   }
 
+  const focus = focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise);
+
   const renderExercise = (ex: Disp, position: number) => {
     const info = loaded.info[ex.exerciseId];
     if (!info) return null;
     const list = rows[ex.exerciseId] ?? [];
     const candidate = liveCards[ex.exerciseId];
     const currentCandidate = candidate && candidate.snapshot === JSON.stringify(list) && candidate.performance === livePerformanceKey(sets, ex.exerciseId) ? candidate : undefined;
-    const card = currentCandidate && liveDismissed[ex.exerciseId] !== currentCandidate.performance ? currentCandidate : undefined;
+    const card = currentCandidate && liveDismissed[ex.exerciseId] !== currentCandidate.performance
+      && livePromptVisible(currentCandidate.decision.action, ex.exerciseId === focus) ? currentCandidate : undefined;
+    const detailKey = card ? `${ex.exerciseId}:${card.performance}:${card.key}` : null;
     return (
-      <WorkoutExerciseSection key={ex.id} ex={ex} position={position} info={info} list={list}
+      <WorkoutExerciseSection key={ex.id} active={ex.exerciseId === focus} onFocus={() => setPreferredExercise(ex.exerciseId)}
+        liveDetailsOpen={detailKey !== null && liveDetails === detailKey} onLiveDetails={() => setLiveDetails(current => current === detailKey ? null : detailKey)} ex={ex} position={position} info={info} list={list}
         st={exState[ex.slot] ?? NO_STATE(ex.slot)} gym={loaded.gym} exSets={setsByEx.get(ex.exerciseId) ?? []}
         outliers={outliers} candidate={currentCandidate} card={card} expanded={!!whyOpen[ex.exerciseId]}
         supersetLabel={ssLabel[ex.slot]} restDurationMs={timer.durationMs} busy={busy !== null}
@@ -680,7 +692,7 @@ export function WorkoutScreen() {
         onPatch={(key, change) => patch(ex.exerciseId, key, change)}
         onKind={row => setKindFor({ exId: ex.exerciseId, key: row.key })}
         onAskDelete={row => askDrop(ex, row)} onDelete={row => void dropRow(ex, row)}
-        onLog={row => void logRow(ex, row)} onUntick={row => void untick(ex, row)}
+        onLog={row => { setPreferredExercise(ex.exerciseId); void logRow(ex, row); }} onUntick={row => void untick(ex, row)}
         onLiveApply={() => {
           if (!card) return;
           setRows(r => ({ ...r, [ex.exerciseId]: applyLiveLoad(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg) }));
@@ -760,12 +772,15 @@ export function WorkoutScreen() {
           <Stat label={t("workout.stat.duration")}>
             <LiveDuration startedAt={loaded.startedAt} color={p.accent} />
           </Stat>
-          <Stat label={t("workout.stat.volume")}>
-            <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
-          </Stat>
           <Stat label={t("workout.stat.sets")}>
             <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{summary.sets}</AppText>
           </Stat>
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
+            <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
+          </Pressable>
+          {summaryOpen ? <Stat label={t("workout.stat.volume")}>
+            <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
+          </Stat> : null}
         </View>
 
         {finishFailed ? (
@@ -778,7 +793,7 @@ export function WorkoutScreen() {
 
         {shown.length > 1 ? (
           <View style={{ paddingHorizontal: space.md, paddingBottom: space.sm }}>
-            <BigButton variant="secondary" icon="drag" label={t("workout.reorder.button")} onPress={() => setReorderOpen(true)} />
+            <QuietAction icon="drag" label={t("workout.reorder.button")} onPress={() => setReorderOpen(true)} />
           </View>
         ) : null}
 

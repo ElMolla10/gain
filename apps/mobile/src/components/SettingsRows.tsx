@@ -47,13 +47,14 @@ export function LinkRow(props: { label: string; note?: string; onPress: () => vo
 }
 
 /** An on/off setting: the whole row is the target. The switch is the picture; the row carries the role and state for TalkBack. */
-export function SwitchRow(props: { label: string; note?: string; value: boolean; onChange: (on: boolean) => void }) {
+export function SwitchRow(props: { label: string; note?: string; value: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
   const p = usePalette();
   return (
     <Pressable
       accessibilityRole="switch"
       accessibilityLabel={props.label}
-      accessibilityState={{ checked: props.value }}
+      accessibilityState={{ checked: props.value, disabled: props.disabled === true }}
+      disabled={props.disabled}
       onPress={() => props.onChange(!props.value)}
       style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md, paddingVertical: space.sm, borderBottomWidth: 1, borderColor: p.border, backgroundColor: pressed ? p.raised : "transparent" })}
     >

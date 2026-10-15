@@ -1,6 +1,7 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
+import { useDeveloperMode } from "../DeveloperMode";
 import { useServices } from "../AppContext";
 import { createHistoryLoader, EMPTY_HISTORY_LOAD } from "../logic/historyLoad";
 import { diagnostics } from "../diagnostics";
@@ -16,6 +17,7 @@ const PAGE = 30;
 /** Past workouts and one trend per lift. Reads finished sessions only; imported ones are labelled. */
 export function HistoryScreen() {
   const { history } = useServices();
+  const { enabled: developerMode } = useDeveloperMode();
   const { t, lang } = useI18n();
   const nav = useNavigation<{ navigate: (n: string, params: object) => void }>();
   const [mode, setMode] = useState<"sessions" | "lifts">("sessions");
@@ -71,9 +73,9 @@ export function HistoryScreen() {
         </Card>
       )}
 
-      <Card style={{ paddingVertical: space.xs }}>
+      {developerMode ? <Card style={{ paddingVertical: space.xs }}>
         <ListRow title={t("dec.entry")} last onPress={() => nav.navigate("DecisionLog", {})} />
-      </Card>
+      </Card> : null}
     </Screen>
   );
 }

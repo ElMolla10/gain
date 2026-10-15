@@ -44,7 +44,9 @@ The helper prints the commit/configuration. Release is the default and should ru
 | Hevy/Strong import | Valid dates preserved; impossible rows warn; use a real Strong export | NOT RUN |
 | JSON backup/restore | Native save/reopen works; safety copy exists; history/targets recover; shared file has no sync credentials | NOT RUN |
 | Rejected backup | Missing core tables or sync bookkeeping refused before replacement | NOT RUN; test copies only |
-| Evaluation export | iOS shares JSON; file replays; edits/skips excluded | NOT RUN |
+| Developer Mode | Off by default; version unlock works; mode survives restart and can be disabled; technical routes disappear | NOT RUN on updated build |
+| Focus and AI Details | Focus follows edits/completion; no keyboard loss; stop warnings remain visible; Details and manual Apply work in both languages | NOT RUN on updated build |
+| Evaluation export | Enable Developer Mode; iOS shares JSON; file replays; edits/skips excluded | NOT RUN |
 | History read/page retry | Failure is not empty history; failed page preserves last good page | NOT RUN; controlled read failure needed |
 
 ## Delivery still open

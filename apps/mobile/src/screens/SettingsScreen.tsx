@@ -3,9 +3,9 @@ import { HealthNote } from "../components/HealthNote";
 import { buildFlags } from "../buildConfig";
 import { UpdateCard } from "../components/UpdateCard";
 import { hasSelfUpdater } from "../logic/buildFlags";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { CeilingClass, RepCeilings } from "@gain/engine";
-import { Platform, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
@@ -17,7 +17,9 @@ import Constants from "expo-constants";
 import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
 import { loadReminderSettings, REMINDER_KEYS, reminderText, serializeDays, serializeTime, syncReminders, toggleDay, type ReminderSettings } from "../logic/reminders";
 import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
-import { MlAccuracyCard } from "../components/MlAccuracyCard";
+import { useDeveloperMode } from "../DeveloperMode";
+import { developerUnlock } from "../logic/developerMode";
+import { DeveloperTools } from "../components/DeveloperTools";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
 
@@ -204,6 +206,14 @@ export function SettingsScreen() {
   const p = usePalette();
   const appearance = useAppearance();
   const version = Constants.expoConfig?.version ?? "0";
+  const developer = useDeveloperMode();
+  const unlock = useRef(developerUnlock()).current;
+  const [developerError, setDeveloperError] = useState(false);
+  const changeDeveloperMode = async (on: boolean) => {
+    setDeveloperError(false);
+    try { await developer.setEnabled(on); }
+    catch { setDeveloperError(true); }
+  };
   useSilentRackSync();
   const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy") => void }>();
   return (
@@ -265,24 +275,33 @@ export function SettingsScreen() {
       </Group>
 
       <Group title={t("settings.group.data")}>
-        <MlAccuracyCard />
         <LinkRow label={t("data.entry")} onPress={() => nav.navigate("Data")} />
         <LinkRow label={t("sync.entry")} onPress={() => nav.navigate("Sync")} />
         <LinkRow label={t("import.entry")} note={t("import.entryNote")} onPress={() => nav.navigate("Import")} />
-        <LinkRow label={t("dec.entry")} onPress={() => nav.navigate("DecisionLog")} />
       </Group>
 
       <Group title={t("settings.group.about")}>
         <LinkRow label={t("privacy.entry")} onPress={() => nav.navigate("Privacy")} />
-        <LinkRow label={t("diag.entry")} onPress={() => nav.navigate("Diagnostics")} />
         <View style={{ paddingVertical: space.md, gap: space.sm }}>
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.privacy")}</AppText>
           <HealthNote />
           {hasSelfUpdater(buildFlags, Platform.OS) ? <UpdateCard /> : null}
-          <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("settings.version", { v: version })}
+            accessibilityHint={t("settings.developer.unlock")}
+            accessibilityActions={[{ name: "enableDeveloperMode", label: t("settings.developer.enable") }]}
+            onAccessibilityAction={event => { if (event.nativeEvent.actionName === "enableDeveloperMode") void changeDeveloperMode(true); }}
+            disabled={!developer.ready || developer.saving}
+            onPress={() => { if (!developer.enabled && unlock(Date.now())) void changeDeveloperMode(true); }}
+            onLongPress={() => void changeDeveloperMode(true)}
+            style={{ minHeight: 48, justifyContent: "center" }}>
+            <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
+          </Pressable>
+          {developerError ? <InlineStatus kind="error" text={t("settings.developer.error")} /> : null}
           {buildFlags.pilotTemplateIds ? <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.pilotBuild")}</AppText> : null}
         </View>
       </Group>
+      <DeveloperTools enabled={developer.enabled} saving={developer.saving}
+        onChange={on => void changeDeveloperMode(on)} onNavigate={route => nav.navigate(route)} />
     </Screen>
   );
 }

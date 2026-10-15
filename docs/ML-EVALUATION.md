@@ -15,7 +15,7 @@ For a 6–10 range, 8 or 10 observed reps with missing RPE cannot trigger an inc
 
 ## Collection and matching
 
-Eligible forecasts are captured automatically and kept locally in `ml_prediction`, outside cloud sync. There is no opt-in capture toggle. A full backup includes local evaluation records; a dedicated export is available in Settings > ML Accuracy. Export opens the native share sheet and sends nothing automatically.
+Eligible forecasts are captured automatically and kept locally in `ml_prediction`, outside cloud sync. There is no opt-in capture toggle. A full backup includes local evaluation records; a dedicated export is available in Settings > Developer Mode > ML Accuracy. Export opens the native share sheet and sends nothing automatically. To reveal Developer Mode, touch and hold the version in Settings > About, or tap it seven times within five seconds. Hiding these tools does not stop local forecast capture.
 
 The first pre-outcome forecast for each target set/model is frozen. Set identity, confirmed working-set eligibility and actual load must match. Edited/deleted/skipped/special sets and corrected source histories are invalidated. Pending outlier results wait for confirmation. No replay or historical import creates pre-outcome forecasts. Headline and report eligibility use one shared SQL filter.
 

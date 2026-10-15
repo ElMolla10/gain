@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { nextLoadAbove } from "@gain/engine";
 import { defaultGymLoads } from "../src/logic/defaultGym";
+import { gridFor } from "../src/db/exerciseGrid";
 import { dumbbellPairs, presetForExercise } from "../src/logic/gymStepPreset";
 import { freshDb } from "./helpers";
 
@@ -40,5 +41,28 @@ describe("gym weight setup", () => {
     expect((await s.repos.getExerciseLoads(pin.id))!.spec).toBeNull();
     expect((await s.repos.getExerciseLoads(curl.id))!.spec?.loads).toEqual([12, 14, 16]);
     expect((await s.gyms.applyLoadStepPreset()).exercises).toBe(0);
+  });
+
+  it("lets a machine be declared plate-loaded or pin-loaded regardless of its name", async () => {
+    const s = await freshDb();
+    await s.repos.seedIfNeeded();
+    await s.repos.topUpLibrary();
+    const gymId = await s.gyms.createGym({ name: "My gym", loads: defaultGymLoads("kg"), activate: true });
+    const gym = (await s.gyms.getGym(gymId))!;
+    const generic = (await s.db.get<{ id: string }>("SELECT id FROM exercise WHERE name_en = 'Machine Chest Press'"))!;
+    const namedPlate = (await s.db.get<{ id: string }>("SELECT id FROM exercise WHERE name_en = 'Shoulder Press (Machine Plates)'"))!;
+    await s.programmes.setMachineLoadKind(generic.id, "plate");
+    expect((await s.programmes.listExercises()).find(e => e.id === generic.id)?.machineLoadKind).toBe("plate");
+    expect(nextLoadAbove((await gridFor(s.db, gym, generic.id, "machine"))!, 50)).toBe(60);
+    await s.programmes.setMachineLoadKind(generic.id, "pin");
+    expect(nextLoadAbove((await gridFor(s.db, gym, generic.id, "machine"))!, 50)).toBe(55);
+    await s.programmes.setMachineLoadKind(namedPlate.id, "pin");
+    await s.gyms.applyLoadStepPreset();
+    expect((await s.programmes.listExercises()).find(e => e.id === namedPlate.id)?.machineLoadKind).toBe("pin");
+    expect(nextLoadAbove((await gridFor(s.db, gym, namedPlate.id, "machine"))!, 50)).toBe(55);
+    await s.programmes.setMachineLoadKind(generic.id, "plate");
+    await s.programmes.setExerciseLoads(generic.id, { equipment: "machine", loads: [20, 30, 45] });
+    expect((await s.programmes.listExercises()).find(e => e.id === generic.id)?.machineLoadKind).toBe("plate");
+    expect((await s.repos.getExerciseLoads(generic.id))?.spec?.loads).toEqual([20, 30, 45]);
   });
 });

@@ -2,6 +2,10 @@
 export const enLoads = {
   "loads.title": "Available weights",
   "loads.open": "Available weights",
+  "loads.machine.title": "Machine type",
+  "loads.machine.pin": "Pin-loaded",
+  "loads.machine.plate": "Plate-loaded",
+  "loads.machine.hint": "Plate-loaded uses 10 kg steps. Pin-loaded uses your gym's machine steps. Choosing a type resets this exercise's custom weights; set exact weights below.",
   "loads.preset.title": "My gym's weight steps",
   "loads.preset.note": "Use 2 kg dumbbells from 2–50 kg (skip 26), 10 kg steps for Barbell Bench Press and machines explicitly named plate-loaded or Machine Plates. Applies to this gym's dumbbells and these exercises. Other machines keep their steps; exercise weights you set yourself stay as they are.",
   "loads.preset.apply": "Use these weight steps",
@@ -47,6 +51,10 @@ export const enLoads = {
 export const arLoads: Record<keyof typeof enLoads, string> = {
   "loads.title": "الأوزان المتاحة",
   "loads.open": "الأوزان المتاحة",
+  "loads.machine.title": "نوع الجهاز",
+  "loads.machine.pin": "بأوزان ودبوس",
+  "loads.machine.plate": "بأطباق",
+  "loads.machine.hint": "الأطباق بتزيد ١٠ كجم. الدبوس بيستخدم قفزات الأجهزة في جيمك. اختيار النوع بيرجع أوزان التمرين للقفزات دي؛ تقدر تحددها بالضبط تحت.",
   "loads.preset.title": "قفزات الأوزان في جيمي",
   "loads.preset.note": "دمبلز كل ٢ كجم من ٢ لـ٥٠ (من غير ٢٦)، وقفزة ١٠ كجم للبنش بالبار والأجهزة المكتوب في اسمها إنها بأطباق. ده للجيم الحالي والتمارين دي. باقي الأجهزة زي ما هي، وأوزان التمارين اللي حددتها بنفسك مش هتتغير.",
   "loads.preset.apply": "استخدم قفزات الأوزان دي",

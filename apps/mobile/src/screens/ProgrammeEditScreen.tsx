@@ -7,7 +7,7 @@ import { DraftInvalid, MeasureLocked, SessionInProgress, type LibraryExercise } 
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { resetRangeFor, validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
-import type { MachineLoadKind } from "../logic/machineLoadKind";
+import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { ArDraftNote, BigButton, LoadingState, Notice, Screen } from "../ui";
 
 export function ProgrammeEditScreen() {
@@ -28,9 +28,9 @@ export function ProgrammeEditScreen() {
   }, [programmes]);
   useFocusEffect(useCallback(() => { refreshLibrary(); }, [refreshLibrary]));
 
-  async function setMachineLoadKind(exerciseId: string, kind: MachineLoadKind) {
+  async function setMachineLoadKind(exerciseId: string, kind: MachineLoadKind, pinStep?: PinMachineStep) {
     try {
-      await programmes.setMachineLoadKind(exerciseId, kind);
+      await programmes.setMachineLoadKind(exerciseId, kind, pinStep);
       refreshLibrary();
       setMessage(null);
     } catch {

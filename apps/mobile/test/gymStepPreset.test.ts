@@ -57,9 +57,14 @@ describe("gym weight setup", () => {
     await s.programmes.setMachineLoadKind(generic.id, "pin");
     expect(nextLoadAbove((await gridFor(s.db, gym, generic.id, "machine"))!, 50)).toBe(55);
     expect((await s.repos.getExerciseLoads(generic.id))?.spec?.increment).toBe(5);
+    await s.programmes.setMachineLoadKind(generic.id, "pin", 2.5);
+    expect(nextLoadAbove((await gridFor(s.db, gym, generic.id, "machine"))!, 50)).toBe(52.5);
+    expect((await s.programmes.listExercises()).find(e => e.id === generic.id)?.machinePinStep).toBe(2.5);
+    await s.programmes.setMachineLoadKind(generic.id, "pin");
+    expect((await s.repos.getExerciseLoads(generic.id))?.spec?.increment).toBe(2.5);
     await s.db.run("UPDATE gym_load SET increment = 7.5 WHERE gym_id = ? AND equipment = 'machine'", [gymId]);
     const customGym = { ...(await s.gyms.getGym(gymId))!, gymId };
-    expect(nextLoadAbove((await gridFor(s.db, customGym, generic.id, "machine"))!, 50)).toBe(55);
+    expect(nextLoadAbove((await gridFor(s.db, customGym, generic.id, "machine"))!, 50)).toBe(52.5);
     await s.programmes.setMachineLoadKind(namedPlate.id, "pin");
     await s.gyms.applyLoadStepPreset();
     expect((await s.programmes.listExercises()).find(e => e.id === namedPlate.id)?.machineLoadKind).toBe("pin");
@@ -68,5 +73,11 @@ describe("gym weight setup", () => {
     await s.programmes.setExerciseLoads(generic.id, { equipment: "machine", loads: [20, 30, 45] });
     expect((await s.programmes.listExercises()).find(e => e.id === generic.id)?.machineLoadKind).toBe("plate");
     expect((await s.repos.getExerciseLoads(generic.id))?.spec?.loads).toEqual([20, 30, 45]);
+    await s.programmes.setMachineLoadKind(generic.id, "pin", 2.5);
+    await s.programmes.setExerciseLoads(generic.id, { equipment: "machine", loads: [20, 22.5, 25] });
+    expect((await s.programmes.listExercises()).find(e => e.id === generic.id)?.machinePinStep).toBe(2.5);
+    await s.programmes.setExerciseLoads(generic.id, null);
+    expect((await s.repos.getExerciseLoads(generic.id))?.spec?.increment).toBe(2.5);
+    await expect(s.programmes.setMachineLoadKind(generic.id, "pin", 3 as 2.5)).rejects.toThrow("Unknown pin step");
   });
 });

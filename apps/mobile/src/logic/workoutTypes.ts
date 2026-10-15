@@ -1,6 +1,7 @@
 import type { LineIdentity, LoggedSet, Proposal } from "@gain/engine";
 import type { Repos } from "../db/repos";
 import type { TargetRow } from "../db/finishRepo";
+import type { MilestoneSession } from "./personalProgress";
 import type { Prefill } from "./workoutRows";
 
 export type DayEx = Awaited<ReturnType<Repos["listDayExercises"]>>[number];
@@ -8,8 +9,9 @@ export type DayEx = Awaited<ReturnType<Repos["listDayExercises"]>>[number];
 export type Disp = DayEx & { slot: string };
 export interface ExInfo {
   proposal: Proposal;
-  personalHistory?: LoggedSet[];
+  personalHistory?: MilestoneSession[];
   line: LineIdentity;
+  lineId: string;
   last: { performedAt: string; sets: LoggedSet[] } | null;
   /** The target written when the previous workout was finished, if any. */
   stored: TargetRow | null;

@@ -176,13 +176,13 @@ describe("the ceiling is where load goes up: 10 upper, 12 legs, 15 lateral raise
     expect(p.inputs.readiness).toMatchObject({ qualifyingSessions: 1, requiredSessions: 1, fastTracked: false });
     expect(p.currency).toBe("load");
   });
-  it("the WEAKEST working set decides: 10, 10, 9 is not the ceiling", () => {
+  it("one set at the ceiling is enough even when another gets 9", () => {
     const l = lineOf(bench.exerciseId);
     const h = [session(l, "2026-09-27", [S(100, 9), S(100, 9), S(100, 9)]), session(l, "2026-09-30", [S(100, 10), S(100, 10), S(100, 9)])];
     const p = P(bench, h);
-    expect(p.currency).toBe("reps");
-    expect(p.load).toBe(100);
-    expect(p.reps).toBe(10);
+    expect(p.currency).toBe("load");
+    expect(p.load).toBe(102.5);
+    expect(p.inputs.readiness.requiredSetsAtTop).toBe(1);
   });
   it("reps above the ceiling also count", () => {
     expect(P(bench, run(lineOf(bench.exerciseId), 100, [11, 12])).currency).toBe("load");

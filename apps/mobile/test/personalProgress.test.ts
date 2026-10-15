@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { LoggedSet } from "@gain/engine";
+import type { GymLoadSpec, LoggedSet } from "@gain/engine";
 import { consistencyProgress, personalMilestone, personalTop } from "../src/logic/personalProgress";
 import { summarizeExercise } from "../src/logic/summary";
 import { improvementLines as rawImprovementLines } from "../src/logic/workoutRecap";
@@ -7,29 +7,40 @@ import type { SessionSummary } from "../src/db/finishRepo";
 const improvementLines: typeof rawImprovementLines = (...args) => rawImprovementLines(...args).map(s => s.replace(/[\u2066\u2069]/g, ""));
 const S = (load: number, reps: number, extra: Partial<LoggedSet> = {}): LoggedSet => ({ load, reps, ...extra });
 const summary = (today: LoggedSet[], before: LoggedSet[], setup: "free" | "assisted" = "free", measure: "reps" | "time" | "distance" = "reps"): SessionSummary => ({ sessionId: "s", totals: { exercises: 1, counted: 1, warmups: 0, unconfirmed: 0, records: 1 }, exercises: [{ exerciseId: "bench", nameEn: "Bench", nameAr: "بنش", ...summarizeExercise(setup, today, before, measure) }] });
-describe("personal milestones", () => {
-  it("uses all same-load history, not only the previous session", () => {
-    const before = [S(80, 5), S(80, 3), S(70, 12)];
-    expect(personalMilestone(before, [S(80, 4)], 80)).toEqual({ load: 80, previous: 5, quantity: 6, progress: 4 / 6, reached: false });
-    expect(personalMilestone(before, [S(80, 7)], 80)?.progress).toBe(1);
-    expect(personalMilestone(before, [S(80, 6)], 80)?.reached).toBe(true);
+describe("monthly strength goals", () => {
+  const now = new Date(2026, 9, 15).getTime();
+  const H = (day: string, ...sets: LoggedSet[]) => ({ performedAt: day, sets });
+  const db = { equipment: "dumbbell", loads: [12, 14, 16, 18, 20] } satisfies GymLoadSpec;
+  const cable = { equipment: "cable", increment: 2.5, min: 2.5 } satisfies GymLoadSpec;
+  it("uses the gym's next actual weight for a meaningful month-scale goal", () => {
+    expect(personalMilestone([H("2026-09-20", S(14, 10))], [], db, "reps", 8, 12, now))
+      .toMatchObject({ load: 16, quantity: 8, previous: 10, progress: 0, reached: false });
+    expect(personalMilestone([H("2026-09-20", S(27.5, 8))], [], cable, "reps", 7, 10, now))
+      .toMatchObject({ load: 30, quantity: 7, reached: false });
   });
-  it("never invents a best at a new load, a first session, or an invalid load", () => {
-    expect(personalMilestone([], [], 80)).toBeNull();
-    expect(personalMilestone([S(70, 5)], [], 80)).toBeNull();
-    expect(personalMilestone([S(80, 5)], [], null)).toBeNull();
-    expect(personalMilestone([S(80, 5)], [], NaN)).toBeNull();
-    expect(personalMilestone([S(80, 100)], [], 80)).toBeNull();
+  it("holds the baseline fixed through the month and marks it reached", () => {
+    const history = [H("2026-09-20", S(14, 10)), H("2026-10-02", S(14, 11))];
+    const goal = personalMilestone(history, [S(16, 8)], db, "reps", 8, 12, now)!;
+    expect(goal).toMatchObject({ load: 16, quantity: 8, reached: true, progress: 1 });
+    expect(personalMilestone(history, [], db, "reps", 8, 12, now)?.quantity).toBe(8);
+    expect(personalMilestone(history, [S(14, 14)], db, "reps", 8, 12, now)?.reached).toBe(false);
   });
-  it("excludes warmups, drop sets, and untrusted sets on both sides", () => {
-    const excluded = [S(80, 20, { warmup: true }), S(80, 20, { tags: ["drop"] }), S(80, 20, { outlierStatus: "unconfirmed" }), S(80, 20, { outlierStatus: "rejected" })];
-    expect(personalMilestone(excluded, [], 80)).toBeNull();
-    expect(personalMilestone([S(80, 5)], excluded, 80)?.progress).toBe(0);
+  it("ignores warmups and unconfirmed sets; waits for a trusted baseline", () => {
+    expect(personalMilestone([], [], db, "reps", 8, 12, now)).toBeNull();
+    expect(personalMilestone([H("2026-09-20", S(14, 10, { warmup: true }))], [], db, "reps", 8, 12, now)).toBeNull();
+    expect(personalMilestone([H("2026-09-20", S(14, 10))], [S(16, 8, { outlierStatus: "unconfirmed" })], db, "reps", 8, 12, now)?.reached).toBe(false);
   });
-  it("supports holds and carries, without falling back to their dummy reps", () => {
-    expect(personalMilestone([S(0, 1, { durationS: 45 })], [S(0, 1, { durationS: 50 })], 0, "time")).toMatchObject({ quantity: 50, reached: true });
-    expect(personalMilestone([S(20, 1, { distanceM: 30 })], [], 20, "distance")?.quantity).toBe(31);
-    expect(personalMilestone([S(0, 1)], [], 0, "time")).toBeNull();
+  it("does not offer an implausible weight jump or exceed the rep ceiling", () => {
+    const sparse = { equipment: "dumbbell", loads: [14, 30] } satisfies GymLoadSpec;
+    expect(personalMilestone([H("2026-09-20", S(14, 10))], [], sparse, "reps", 8, 12, now))
+      .toBeNull();
+    expect(personalMilestone([H("2026-09-20", S(14, 14))], [], null, "reps", 8, 15, now)).toBeNull();
+  });
+  it("gives timed work a substantial gain while retaining bodyweight reps", () => {
+    expect(personalMilestone([H("2026-09-20", S(0, 1, { durationS: 45 }))], [], null, "time", 1, 12, now))
+      .toMatchObject({ load: 0, quantity: 55 });
+    expect(personalMilestone([H("2026-09-20", S(0, 8))], [], null, "reps", 6, 12, now))
+      .toMatchObject({ load: 0, quantity: 11 });
   });
   it("treats less assistance as the harder top", () => {
     expect(personalTop([S(20, 6), S(30, 12)], "assisted")).toEqual({ load: 20, quantity: 6 });

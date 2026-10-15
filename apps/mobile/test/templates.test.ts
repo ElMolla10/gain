@@ -376,7 +376,7 @@ describe("every template works with the real library, the program repo, the swit
     }
     expect(combos).toBeGreaterThan(50);
   });
-  it("5x5 / 3x5 shapes: hitting 5 reps on every set raises the load next session (ceiling 5), 4 reps on one set does not", async () => {
+  it("5x5 / 3x5 shapes: one set at 5 reps raises the load next session even if another gets 4", async () => {
     for (const [id, miss] of [["sl_5x5_3", false], ["sl_5x5_3", true], ["ss_3", false]] as const) {
       const ctx = await ctxWithLibrary();
       const gymId = (await ctx.repos.getActiveGymId())!;
@@ -399,8 +399,7 @@ describe("every template works with the real library, the program repo, the swit
         ctx.deps.tick(86_400_000);
         tg = (await ctx.finish.getTargets(written.sessionId)).find((x) => x.exerciseId === squat.exerciseId);
       }
-      if (miss) expect(tg!.load, `${id} missed`).toBe(60);
-      else expect(tg!.load!, `${id} hit`).toBeGreaterThan(60);
+      expect(tg!.load!, `${id} one qualifying set`).toBeGreaterThan(60);
     }
   });
   it("a full rotation of every template logs, finishes and writes next-session targets under rule-v0.4 (strength lines with a ceiling of 5 earn more weight at 5 reps)", async () => {
@@ -428,7 +427,7 @@ describe("every template works with the real library, the program repo, the swit
           expect(targets.length, `${t.id}/${next.day.name}`).toBeGreaterThan(0);
           for (const tg of targets) {
             checked++;
-            expect(tg.ruleVersion, `${t.id}/${tg.nameEn}`).toBe("rule-v0.4");
+            expect(tg.ruleVersion, `${t.id}/${tg.nameEn}`).toBe("rule-v0.5");
             expect(tg.reason.key, `${t.id}/${tg.nameEn}`).toBeTruthy();
           }
         }

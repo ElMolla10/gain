@@ -158,7 +158,7 @@ export function WorkoutScreen() {
         target: stored ? (stored.effectiveLoad !== null && storedQ !== null && stored.status !== "rejected" ? { load: stored.effectiveLoad, reps: storedQ } : null) : proposal.status === "proposed" && proposedQ !== null ? { load: proposal.load, reps: proposedQ } : null,
         last: lastTop ? { load: lastTop.load, reps: setQuantity(lastTop, m) } : null,
       });
-      return { proposal, line, last, stored, personalHistory: personalHistory.flatMap(h => h.sets), prefill: { load: d.load, reps: d.reps } };
+      return { proposal, line, lineId, last, stored, personalHistory: personalHistory.map(h => ({ performedAt: h.performedAt, sets: h.sets })), prefill: { load: d.load, reps: d.reps } };
     },
     [workout, finish],
   );
@@ -698,6 +698,7 @@ export function WorkoutScreen() {
         outliers={outliers} candidate={currentCandidate} card={card} expanded={!!whyOpen[ex.exerciseId]}
         supersetLabel={ssLabel[ex.slot]} restDurationMs={timer.durationMs} busy={busy !== null}
         warmOpen={warmOpen === ex.exerciseId} warmDone={!!warmDone[ex.exerciseId]}
+        onOpenProgress={() => navigation.dispatch(StackActions.push("LiftTrend", { lineId: info.lineId }))}
         onToggleRest={() => void toggleRest(ex.slot)} onMenu={() => setMenuFor(ex.slot)}
         onWhy={() => info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored.id })) : setWhyOpen(w => ({ ...w, [ex.exerciseId]: !whyOpen[ex.exerciseId] }))}
         onWhyLong={() => setWhyOpen(w => ({ ...w, [ex.exerciseId]: !whyOpen[ex.exerciseId] }))}

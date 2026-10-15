@@ -24,7 +24,7 @@ describe("P05 the effective rep range is explicit", () => {
   it("no extra sentence when the program and the ceiling agree", () => {
     const r = effectiveRange({ programmeMin: 8, programmeMax: 10, ceiling: 10, source: "default" });
     expect(r.overridesProgramme).toBe(false);
-    expect(rangeText(r, T)).toBe("Reps: 8-10. Load goes up when every set reaches 10.");
+    expect(rangeText(r, T)).toBe("Reps: 8-10. Load goes up when one working set reaches 10.");
   });
   it("a ceiling below the program's bottom pulls the bottom down with it", () => {
     expect(effectiveRange({ programmeMin: 12, programmeMax: 15, ceiling: 10, source: "default" })).toMatchObject({ min: 10, max: 10 });
@@ -76,13 +76,13 @@ describe("rule-v0.4 the Why text says where the top of the range comes from", ()
     const d = (await ctx.finish.getDecision(targets[0]!.id))!;
     return d;
   };
-  const rule = (payload: DecisionPayload, version = "rule-v0.4") => describeDecision(payload, { ruleVersion: version, path: "rule" }, L, "en").find((s) => s.title === en["why.rule"])!.lines.join("\n");
+  const rule = (payload: DecisionPayload, version = "rule-v0.5") => describeDecision(payload, { ruleVersion: version, path: "rule" }, L, "en").find((s) => s.title === en["why.rule"])!.lines.join("\n");
   it("program: the program's own range is named, the GAIN ceiling is mentioned as not used", async () => {
     const d = await base();
     const i = d.payload.inputs;
     expect(i.repTopBasis).toBe("program");
     const text = rule({ ...d.payload, inputs: { ...i, programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 12 }, gainCeiling: 10 } });
-    expect(text).toContain("Rep range 8-12 is your program's own, so load goes up when every set reaches 12.");
+    expect(text).toContain("Rep range 8-12 is your program's own, so load goes up when one working set reaches 12.");
     expect(text).toContain("GAIN's ceiling for this kind of lift would be 10");
     expect(text).toContain("\"Use GAIN rep ceilings\" is off");
   });
@@ -120,6 +120,6 @@ describe("rule-v0.4 the Why text says where the top of the range comes from", ()
     const text = rangeText(effectiveRange({ programmeMin: 8, programmeMax: 12, ceiling: 10, source: "setting" }), T);
     expect(text).toContain("Reps: 8-10");
     expect(text).toContain("\"Use GAIN rep ceilings\" is on");
-    expect(rangeText(effectiveRange({ programmeMin: 8, programmeMax: 12, ceiling: 12, source: "program" }), T)).toBe("Reps: 8-12. Load goes up when every set reaches 12.");
+    expect(rangeText(effectiveRange({ programmeMin: 8, programmeMax: 12, ceiling: 12, source: "program" }), T)).toBe("Reps: 8-12. Load goes up when one working set reaches 12.");
   });
 });

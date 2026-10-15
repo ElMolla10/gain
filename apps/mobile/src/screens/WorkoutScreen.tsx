@@ -143,7 +143,9 @@ export function WorkoutScreen() {
         { exerciseId: ex.exerciseId, name: ex.nameEn, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, programmeRepMin: ex.programmeRepMin, programmeRepMax: ex.programmeRepMax, repCeiling: ex.repCeiling, repCeilingIsCustom: ex.repCeilingIsCustom, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets, topSets: ex.topSets },
         gym,
       );
-      const last = await workout.lastPerformance(line, lineId);
+      const personalHistory = await workout.getHistory(line, lineId);
+      const latest = personalHistory.at(-1);
+      const last = latest ? { performedAt: latest.performedAt, sets: latest.sets.filter(s => !s.warmup && !s.tags?.includes("drop")) } : null;
       const savedTarget = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
       const stored = staleOffGridTarget(savedTarget, proposal) ? null : savedTarget;
       const lastTop = last?.sets.reduce<LoggedSet | null>((a, s) => (a === null || s.load > a.load ? s : a), null) ?? null;
@@ -156,7 +158,7 @@ export function WorkoutScreen() {
         target: stored ? (stored.effectiveLoad !== null && storedQ !== null && stored.status !== "rejected" ? { load: stored.effectiveLoad, reps: storedQ } : null) : proposal.status === "proposed" && proposedQ !== null ? { load: proposal.load, reps: proposedQ } : null,
         last: lastTop ? { load: lastTop.load, reps: setQuantity(lastTop, m) } : null,
       });
-      return { proposal, line, last, stored, prefill: { load: d.load, reps: d.reps } };
+      return { proposal, line, last, stored, personalHistory: personalHistory.flatMap(h => h.sets), prefill: { load: d.load, reps: d.reps } };
     },
     [workout, finish],
   );

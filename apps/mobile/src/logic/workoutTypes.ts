@@ -8,6 +8,7 @@ export type DayEx = Awaited<ReturnType<Repos["listDayExercises"]>>[number];
 export type Disp = DayEx & { slot: string };
 export interface ExInfo {
   proposal: Proposal;
+  personalHistory?: LoggedSet[];
   line: LineIdentity;
   last: { performedAt: string; sets: LoggedSet[] } | null;
   /** The target written when the previous workout was finished, if any. */

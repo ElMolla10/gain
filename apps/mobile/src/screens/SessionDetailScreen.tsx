@@ -1,3 +1,5 @@
+import type { SessionSummary } from "../db/finishRepo";
+import { AchievementCard } from "../components/AchievementCard";
 import type { Measure } from "@gain/engine";
 import { isTimed, parseQuantityInput, setQuantity, targetPhrase } from "../logic/quantity";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
@@ -31,6 +33,7 @@ export function SessionDetailScreen() {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
+  const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [detail, setDetail] = useState<SessionDetail | null | "none">(null);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
@@ -40,7 +43,15 @@ export function SessionDetailScreen() {
   const [deletingWorkout, setDeletingWorkout] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
 
-  const refresh = useCallback(async () => setDetail((await history.getSession(sessionId)) ?? "none"), [history, sessionId]);
+  const refresh = useCallback(async () => {
+    setSummary(null);
+    const fresh = await history.getSession(sessionId);
+    setDetail(fresh ?? "none");
+    if (fresh) {
+      try { setSummary(await finish.summarizeSession(sessionId)); }
+      catch (e) { diagnostics.record("warn", "history achievement", e); }
+    }
+  }, [history, finish, sessionId]);
   useFocusEffect(
     useCallback(() => {
       void refresh();
@@ -120,6 +131,7 @@ export function SessionDetailScreen() {
 
   return (
     <Screen title={detail.imported ? t("history.imported") : detail.dayName}>
+      {summary ? <AchievementCard detail={detail} summary={summary} /> : null}
       <BigButton variant="secondary" icon="export" label={t("recap.shareText")} loading={sharingText} disabled={sharingText} onPress={() => void shareWorkout()} />
       {shareFailed ? <InlineStatus kind="error" text={t("recap.shareFailed")} /> : null}
       <AppText ltr style={{ color: p.muted, fontWeight: "600" }}>{localDateText(detail.finishedAt)}</AppText>

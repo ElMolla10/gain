@@ -1,3 +1,4 @@
+import { PersonalProgressCard } from "../components/PersonalProgressCard";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -36,6 +37,7 @@ export function HistoryScreen() {
         <Chip label={t("history.lifts")} selected={mode === "lifts"} onPress={() => setMode("lifts")} />
       </View>
 
+      <PersonalProgressCard />
       {state.failed ? <View accessibilityLiveRegion="polite">
         <InlineStatus kind="error" text={t("history.error.body")} />
         <BigButton variant="secondary" label={t("history.error.retry")} disabled={state.loading} onPress={() => void loader.load()} />

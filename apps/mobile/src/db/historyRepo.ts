@@ -1,4 +1,5 @@
-import { isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
+import { consistencyProgress } from "../logic/personalProgress";
+import { weekStartOf, isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import { hasLoggedSets } from "./sessionSql";
 import type { FinishRepo } from "./finishRepo";
@@ -73,6 +74,32 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       [limit, offset],
     );
     return rows.map((r) => ({ id: r.id, dayName: r.day_name, gymName: r.gym_name, finishedAt: r.finished_at, startedAt: r.started_at, exercises: r.exercises, workingSets: r.sets, imported: r.imported === 1 }));
+  }
+
+  /** Only days with trusted working sets qualify. Read all history, without the History screen's pagination limit. */
+  async function getPersonalProgress(at = now()) {
+    const sessions = await db.all<{ finishedAt: number }>(
+      `SELECT s.finished_at AS finishedAt FROM session s
+       WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM workout_set ws JOIN exercise e ON e.id = ws.exercise_id
+           WHERE ws.session_id = s.id AND ws.deleted_at IS NULL AND ws.is_warmup = 0
+             AND ws.outlier_status NOT IN ('unconfirmed', 'rejected')
+             AND NOT EXISTS (SELECT 1 FROM json_each(ws.tags_json) WHERE value = 'drop')
+             AND CASE e.measure WHEN 'time' THEN ws.duration_s > 0 WHEN 'distance' THEN ws.distance_m > 0 ELSE ws.reps > 0 END
+         )`,
+    );
+    const rawGoal = await repos.getSetting("days_per_week");
+    const rawStart = await repos.getSetting("week_starts_on");
+    const start = rawStart === null || rawStart === "" ? 1 : Number(rawStart);
+    const startsOn = Number.isInteger(start) && start >= 0 && start <= 6 ? start : 1;
+    const active = await repos.getLatestProgrammeVersion();
+    const short = active ? await db.get<{ days: number; week_start: string }>(
+      "SELECT days, week_start FROM short_week WHERE status = 'active' AND short_version_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1", [active.versionId],
+    ) : null;
+    const weekStart = weekStartOf(at - new Date(at).getTimezoneOffset() * 60_000, startsOn);
+    const goal = short?.week_start === weekStart ? short.days : rawGoal === null || rawGoal === "" ? null : Number(rawGoal);
+    return consistencyProgress(sessions, at, goal, startsOn);
   }
 
   async function countSessions(): Promise<number> {
@@ -242,6 +269,6 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     await resync();
   }
 
-  return { listSessions, countSessions, getSession, listLifts, getLiftTrend, updateSet, removeSet, deleteWorkout };
+  return { getPersonalProgress, listSessions, countSessions, getSession, listLifts, getLiftTrend, updateSet, removeSet, deleteWorkout };
 }
 export type HistoryRepo = ReturnType<typeof createHistoryRepo>;

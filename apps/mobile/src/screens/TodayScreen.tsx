@@ -1,3 +1,4 @@
+import { PersonalProgressCard } from "../components/PersonalProgressCard";
 import { quantityText } from "../logic/quantity";
 import { leadTarget, targetText } from "../logic/nextTarget";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
@@ -223,6 +224,7 @@ export function TodayScreen() {
         </Card>
       </View>
 
+      <PersonalProgressCard />
       <WeeklyReviewCard />
 
       {paceLine ? <ListCard title={t("goals.entry")} note={paceLine} onPress={() => navigation.navigate("Goals")} /> : null}

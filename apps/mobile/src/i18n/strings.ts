@@ -1,3 +1,4 @@
+import { enProgress, arProgress } from "./strings.progress";
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
 import { arCommon, enCommon } from "./strings.common";
 import { arDate, enDate } from "./strings.date";
@@ -199,6 +200,7 @@ export const en = {
   ...enRemind,
   ...enGoals,
   ...enWeekly,
+  ...enProgress,
   ...enShortWeek,
   ...enStop,
   ...enSync,
@@ -392,6 +394,7 @@ export const ar: Record<StringKey, string> = {
   ...arRemind,
   ...arGoals,
   ...arWeekly,
+  ...arProgress,
   ...arShortWeek,
   ...arStop,
   ...arSync,

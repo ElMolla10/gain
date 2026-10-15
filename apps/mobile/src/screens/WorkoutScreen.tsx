@@ -323,7 +323,7 @@ export function WorkoutScreen() {
         }
         const spec = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
         const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: loaded.info[ex.exerciseId]?.last, targetReps: effectiveOf(nextAdaptiveRow(list) ?? { load:null, reps:null, ghostLoad:null, ghostReps:null }).reps ?? ex.repMin });
-        if (!context || !spec) continue;
+        if (!context) continue;
         const decision = tryLiveRecommendation(context, ex.repMin, ex.repMax, spec, undefined, e => diagnostics.record("warn", "live adaptation", e));
         if (decision) {
           cards[ex.exerciseId] = { decision, key: nextAdaptiveRow(list)!.key, performance, snapshot: JSON.stringify(list) };

@@ -43,7 +43,8 @@ describe("live logger adapter", () => {
   it("excludes unsupported setups, quantities and special sets", () => {
     for (const measure of ["time","distance"] as const) expect(context({measure})).toBeNull();
     for (const setup of ["assisted","bodyweight_plus_added"] as const) expect(context({setup})).toBeNull();
-    for (const tags of [["drop"],["failure"]]) expect(context({sets:[saved({tags})]})).toBeNull();
+    expect(context({sets:[saved({tags:["drop"]})]})).toBeNull();
+    expect(context({sets:[saved({tags:["failure"]})]})?.previousSetWeightKg).toBe(60);
     expect(context({equipment:"assisted"})).toBeNull();
     expect(context({equipment:"plate"})!.loadConvention).toBe("unknown");
   });
@@ -66,6 +67,9 @@ describe("live logger adapter", () => {
     const warm=editRow(original,"draft1",{warmup:true});
     expect(nextAdaptiveRow(warm)).toBeUndefined();
     expect(applyLiveLoad(warm,"draft1",57.5)).toBe(warm);
+    const failure=editRow(original,"draft1",{tags:["failure"]});
+    expect(nextAdaptiveRow(failure)?.key).toBe("draft1");
+    expect(applyLiveLoad(failure,"draft1",57.5)[0]?.ghostLoad).toBe(57.5);
   });
   it("evaluates the real bundled offline model with missing optional inputs", () => {
     const features = { previous_reps:10, relative_load_change:0, load_convention:2, first_working_set_reps:10, working_sets_before:1, set_index:2, target_reps:8 };
@@ -108,7 +112,7 @@ describe("live adaptation with persisted sessions", () => {
     expect(await read()).toBeNull();
   });
   it("does not use an older normal set after an unsupported or unconfirmed latest set", () => {
-    for (const tail of [{outlierStatus:"unconfirmed" as const},{tags:["drop"]},{tags:["failure"]},{warmup:true}]) {
+    for (const tail of [{outlierStatus:"unconfirmed" as const},{tags:["drop"]},{warmup:true}]) {
       expect(context({sets:[saved(),saved({id:"latest",...tail})]})).toBeNull();
     }
   });

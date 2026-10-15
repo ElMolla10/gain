@@ -1,6 +1,6 @@
 import { buildLiveAdaptationFeatures, type SetContext } from './liveAdaptationFeatures';
 import type { FeatureMap } from './liveAdaptationInference';
-import { isGymLoad, nextLoadAbove, nextLoadBelow } from './loads';
+import { nextLoadAbove, nextLoadBelow } from './loads';
 import type { GymLoadSpec } from './types';
 
 export type Action = 'increase' | 'maintain' | 'decrease' | 'stop';
@@ -63,7 +63,7 @@ export function decideNextSet(x: DecisionInput): Decision {
 }
 
 export interface LiveRecommendationInput {
-  context: SetContext; targetMin: number; targetMax: number; loadSpec: GymLoadSpec;
+  context: SetContext; targetMin: number; targetMax: number; loadSpec?: GymLoadSpec | null;
   /** Returns clipped next-set reps from the real locally cached model. */
   predict: (features: FeatureMap) => number;
   severePain?: boolean; dizziness?: boolean; consecutiveVeryLowSets?: number;
@@ -86,16 +86,12 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
   validateInput(base);
   const stop = stopReason(base);
   if (stop) return {action:'stop', suggestedWeightKg:current, predictedReps:0, predictionAvailable:false, reason:stop};
-  // A load actually used in the preceding set is available even if a gym's
-  // generic rack has not been configured to include it (e.g. 16 kg dumbbells).
-  // Other off-grid proposals are still rejected; increases/decreases continue
-  // to use only configured, selectable loads.
-  if (current <= 0 || (!isGymLoad(x.loadSpec, current) && Math.abs(current - x.context.previousSetWeightKg) > 1e-6))
-    throw new Error('Next planned load is unavailable');
+  // The logged or manually selected load is valid workout data regardless of
+  // the gym's optional rack configuration. Only alternate weights need a rack.
   const p = predict(current);
   base.predictedReps = p;
   if (p > x.targetMax + 1 && supportsIncrease(base)) {
-    const upper = nextLoadAbove(x.loadSpec, current);
+    const upper = x.loadSpec ? nextLoadAbove(x.loadSpec, current) : null;
     if (upper !== null && upper <= current * 1.05 + 1e-6) {
       const heavierPrediction = predict(upper);
       if (heavierPrediction >= x.targetMin && heavierPrediction <= p)
@@ -103,7 +99,7 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
     }
   }
   if (p < x.targetMin) {
-    let lower = nextLoadBelow(x.loadSpec, current);
+    let lower = x.loadSpec ? nextLoadBelow(x.loadSpec, current) : null;
     let best: {weight:number; reps:number} | null = null;
     // Search a bounded neighborhood; require predicted improvement even if no load recovers the target.
     for (let i = 0; i < 3 && lower !== null && lower > 0; i++) {
@@ -111,7 +107,7 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
       const reps = predict(lower);
       if (reps > p && (best === null || reps > best.reps)) best = {weight:lower, reps};
       if (reps > p && reps >= x.targetMin) { best = {weight:lower, reps}; break; }
-      lower = nextLoadBelow(x.loadSpec, lower);
+      lower = x.loadSpec ? nextLoadBelow(x.loadSpec, lower) : null;
     }
     if (best) return {action:'decrease', suggestedWeightKg:best.weight, predictedReps:best.reps, reason:'below_range'};
     return {action:'maintain', suggestedWeightKg:current, predictedReps:p, reason:'no_lighter_load'};

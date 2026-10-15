@@ -9,7 +9,7 @@ import { Platform, Pressable, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
-import { AppText, BigButton, Chip, InlineStatus, Screen, Stepper } from "../ui";
+import { AppText, Chip, InlineStatus, Screen, Stepper } from "../ui";
 import { Block, Group, LinkRow, SelectRow, SwitchRow } from "../components/SettingsRows";
 import { unitLabel } from "../logic/units";
 import type { StringKey } from "../i18n/strings";
@@ -30,11 +30,13 @@ function GymStepsCard() {
   const [status, setStatus] = useState<"saved" | "failed" | null>(null);
   return (
     <Block title={t("loads.preset.title")} note={t("loads.preset.note")}>
-      <BigButton label={t("loads.preset.apply")} disabled={busy} onPress={() => {
+      <LinkRow label={t("loads.preset.apply")} onPress={() => {
+        if (busy) return;
         setBusy(true);
         setStatus(null);
         void gyms.applyLoadStepPreset().then(() => setStatus("saved")).catch(() => setStatus("failed")).finally(() => setBusy(false));
       }} />
+      {busy ? <InlineStatus kind="info" text={t("loads.preset.saving")} /> : null}
       {status ? <InlineStatus kind={status === "saved" ? "success" : "error"} text={t(status === "saved" ? "loads.preset.saved" : "loads.preset.failed")} /> : null}
     </Block>
   );

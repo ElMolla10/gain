@@ -328,11 +328,26 @@ describe("what does not drive the target", () => {
 });
 
 describe("gym-aware anchors", () => {
-  it("a load that does not exist here (21 kg) is snapped to the lighter real load and flagged", () => {
-    const p = P({ history: run(dbLine, 21, [10, 10, 10]) });
-    expect(p.load).toBe(20);
+  it("a trusted load omitted from the gym grid is kept for a repeat and flagged", () => {
+    const p = P({ history: run(dbLine, 21, [8, 8, 8]) });
+    expect(p.load).toBe(21);
+    expect(p.inputs.gym.anchorOnGymLoads).toBe(false);
     expect(p.warnings).toContain("anchor_off_gym_loads");
     expect(p.needsModel.reasons).toContain("anchor_off_gym_loads");
+  });
+  it("uses the real next grid load once an off-grid top set earns an increase", () => {
+    const p = P({ exercise: exDb({ qualityOptions: [] }), history: run(dbLine, 21, [12, 12, 12]) });
+    expect(p.inputs.gym.anchorLoad).toBe(21);
+    expect(p.inputs.gym.nextHarderLoad).toBe(22.5);
+    expect(p.load).toBe(22.5);
+  });
+  it("a 12 kg x 14 then 14 kg x 10 preacher curl does not get rounded below the logged 14 kg", () => {
+    const ex = exDb({ name: "Preacher Curl (Dumbbell)", repRange: { min: 8, max: 10 }, plannedSets: 2 });
+    const history = [session(dbLine, "2026-10-10T21:20:00", [S(12, 14), S(14, 10)])];
+    const p = P({ exercise: ex, history });
+    expect(p.load).toBe(14);
+    expect(p.inputs.sessions[0]).toMatchObject({ topLoad: 14, repsAtTop: 10, setsAtTop: 1 });
+    expect(p.warnings).toContain("fewer_sets_than_planned");
   });
   it("every proposed load exists in the gym across many starting points", () => {
     for (const load of [10, 12.5, 17.5, 22.5, 27.5, 35, 37.5]) {
@@ -380,9 +395,10 @@ describe("assisted and bodyweight lines", () => {
     const p = proposeNext({ exercise: aEx(), gym: gymA, asOf: ASOF, history: h });
     expect(p.inputs.gym.anchorLoad).toBe(30);
   });
-  it("an assistance logged off the stack snaps to MORE assistance (the easier side)", () => {
+  it("an assistance logged off the stack is kept as the trusted anchor", () => {
     const p = proposeNext({ exercise: aEx(), gym: gymA, asOf: ASOF, history: run(aLine, 32, [8, 8, 8]) });
-    expect(p.inputs.gym.anchorLoad).toBe(35);
+    expect(p.inputs.gym.anchorLoad).toBe(32);
+    expect(p.inputs.gym.anchorOnGymLoads).toBe(false);
   });
   it("zero assistance is the floor: says so instead of proposing a heavier load", () => {
     const p = proposeNext({ exercise: aEx({ qualityOptions: [] }), gym: gymA, asOf: ASOF, history: run(aLine, 0, [10, 10, 10]) });

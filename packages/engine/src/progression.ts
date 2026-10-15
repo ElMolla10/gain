@@ -231,9 +231,11 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     for (const t of s.tags) streakTags.add(t);
   }
 
-  // 2. Snap the last load to a load that exists here (towards the easier side when it does not).
+  // 2. A trusted logged load is evidence that the lifter used it, even when the saved gym grid is incomplete.
+  // Keep that load for a repeat; use the grid only to choose a NEW load. Otherwise a 14 kg set can become
+  // a 12.5 kg target solely because the rack configuration omitted 14 kg.
   const snap = roundToGymLoad(spec, last.topLoad, { mode: setup === "assisted" ? "up" : "down", zero });
-  const anchor = snap.load ?? last.topLoad;
+  const anchor = last.topLoad;
   const warnings: string[] = [];
   if (!snap.exact) warnings.push("anchor_off_gym_loads");
   if (pendingOutlier) warnings.push("pending_outlier");

@@ -35,6 +35,7 @@ import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows,
 import { applyLiveLoad, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
+import { staleOffGridTarget } from "../logic/targetRefresh";
 import { adjustTimer, formatClock, isDone, newTimer, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
@@ -141,7 +142,8 @@ export function WorkoutScreen() {
         gym,
       );
       const last = await workout.lastPerformance(line, lineId);
-      const stored = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
+      const savedTarget = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
+      const stored = staleOffGridTarget(savedTarget, proposal) ? null : savedTarget;
       const lastTop = last?.sets.reduce<LoggedSet | null>((a, s) => (a === null || s.load > a.load ? s : a), null) ?? null;
       // Never invented: today's target, else last time's top set, else empty.
       const m = ex.measure;

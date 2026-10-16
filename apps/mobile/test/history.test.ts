@@ -43,6 +43,25 @@ async function setup() {
 }
 const BENCH = "Barbell Bench Press";
 
+describe("modeled comparison history", () => {
+  it("uses trusted working sets and excludes warmups, drops and deleted sessions", async () => {
+    const { history, train, db } = await setup();
+    const saved = await train({ [BENCH]: [[120, 1, true], [60, 8], [80, 1]] });
+    const rows = await history.getWorldLiftPerformances();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ seedKey: "bench_press", strength: 80 });
+    expect(await history.getWorldBodyweightPerformances()).toEqual([]);
+    await db.run("UPDATE workout_set SET tags_json = '[\"drop\"]' WHERE id = ?", [saved.setIds[2]!]);
+    expect((await history.getWorldLiftPerformances())[0]!.strength).toBeCloseTo(76);
+    await db.run("UPDATE exercise_line SET setup = 'bodyweight_plus_added'");
+    await db.run("UPDATE exercise SET equipment = 'plate' WHERE seed_key = 'bench_press'");
+    expect((await history.getWorldBodyweightPerformances()).map(s => [s.load, s.reps])).toEqual([[60, 8]]);
+    await history.deleteWorkout(saved.sessionId);
+    expect(await history.getWorldLiftPerformances()).toEqual([]);
+    expect(await history.getWorldBodyweightPerformances()).toEqual([]);
+  });
+});
+
 describe("history: sessions", () => {
   it("lists finished sessions newest first with counts, and nothing for planned or open ones", async () => {
     const { history, train, repos, workout, gymId } = await setup();

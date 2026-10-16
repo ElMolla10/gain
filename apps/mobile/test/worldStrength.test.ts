@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AGE_STANDARD_LOADERS } from "../src/data/synthetic-standards";
-import { modeledBodyweightIndex, modeledStrengthIndex } from "../src/logic/worldStrength";
+import { modeledAlternativeIndex, modeledBodyweightIndex, modeledStrengthIndex } from "../src/logic/worldStrength";
 import { CATALOG } from "../src/db/libraryDraft";
 import exerciseModels from "../src/data/synthetic-standards/exercises.json";
 
@@ -48,5 +48,21 @@ describe("synthetic comparison model", () => {
     expect(heavy.score).toBeGreaterThan(light.score);
     expect(modeledBodyweightIndex("pullup", { reps: 11, load: 20, seconds: null }, "male", 30, 74, 175)).toBeNull();
     expect(modeledBodyweightIndex("pullup", { reps: 8, load: 0, seconds: null }, "male", 17, 60, 170)?.ageClass).toBe("youth");
+  });
+
+  it("scores assistance in the correct direction and rejects impossible help", () => {
+    const set = (load: number) => modeledAlternativeIndex("assisted_pullup", { load, reps: 8, seconds: null, distance: null }, "male", 30, 74, 175);
+    expect(set(10)!.score).toBeGreaterThan(set(20)!.score);
+    expect(set(74)).toBeNull();
+  });
+
+  it("requires logged load and distance for carries and load and time for weighted holds", () => {
+    const carry = (load: number, distance: number | null) => modeledAlternativeIndex("farmers_walk", { load, distance, reps: 0, seconds: null }, "male", 30, 74, 175);
+    expect(carry(30, 40)!.score).toBeGreaterThan(carry(30, 20)!.score);
+    expect(carry(0, 40)).toBeNull();
+    const hold = (load: number) => modeledAlternativeIndex("weighted_plank", { load, distance: null, reps: 0, seconds: 45 }, "male", 30, 74, 175);
+    expect(hold(20)!.score).toBeGreaterThan(hold(10)!.score);
+    expect(hold(0)).toBeNull();
+    expect(modeledAlternativeIndex("ab_crunch_band", { load: 10, distance: null, reps: 12, seconds: null }, "male", 30, 74, 175)).toBeNull();
   });
 });

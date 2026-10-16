@@ -24,9 +24,13 @@ Loaded performance uses the best trusted saved working set of 1–10 reps in the
 - Holds: compare the best unweighted duration with a synthetic seconds baseline.
 - Weighted vertical pulls and dips: use estimated total-system 1RM from bodyweight plus added load, for sets of 1–10 reps. Their baseline derives from the synthetic bodyweight-rep model. This is an experimental conversion, not a measured max.
 - Weighted push-ups and other variations without a whole-body vertical model are withheld. Their effective bodyweight fraction cannot be inferred from the log.
-- Assisted, band and distance movements have no comparison yet.
+- Assisted pull-ups and dips: subtract logged machine assistance from the current comparison bodyweight, then estimate total-system 1RM for 1–10 reps. Assistance at or above bodyweight is withheld.
+- Loaded carries: compare logged metres times logged total load divided by current bodyweight with a synthetic reference of 35% of bodyweight over 30 m (male) or 25 m (female), before age and profile adjustments.
+- Weighted plank: compare hold seconds times `(1 + added load / bodyweight)` with a synthetic loaded-hold reference of 1.2 times the ordinary hold baseline.
+- Machine crunch: uses the loaded exercise model when logged as a 1–10 rep set.
+- Band exercises remain withheld: neither color nor nominal load in the log reliably identifies resistance throughout the movement. A future calibrated band-resistance input is needed.
 
-Repetition, duration and weighted bodyweight scores are shown separately. The app uses the comparison profile's current bodyweight/height, because historical sets do not reliably carry those measurements. Changing the comparison profile can therefore change earlier performances' current index.
+Repetition, duration, weighted bodyweight, assisted, carry and loaded-hold scores are shown separately. Assistance, carry and weighted-hold conversions are product hypotheses, not validated strength standards. The app uses the comparison profile's current bodyweight/height, because historical sets do not reliably carry those measurements. Changing the comparison profile can therefore change earlier performances' current index.
 
 ## Age classes
 

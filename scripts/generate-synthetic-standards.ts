@@ -54,7 +54,7 @@ const manifest = { version: 1, type: "synthetic_model", ages: [12, 100],
   model: "baseline = age-file-sex-median * (bodyweight/reference-bodyweight)^0.2 * (height/reference-height)^0.08; index = clamp(round(500 + 250*log2(best-estimated-1RM/baseline)),0,1000)",
   ageAssumptions: "Youth ages 12–17: factors 0.50 to 0.875 of adult reference; adult ages 18–24: 0.90 to 0.986; 25–40: 1.0; 41–100: declines 0.008 per year to 0.52. These are product hypotheses, not measured age effects.",
   bodyweightModel: "Unweighted reps and holds use independent synthetic reps/seconds baselines scaled by sqrt(age-factor), inverse bodyweight^0.2 and inverse height^0.08. Weighted vertical pulls and dips use (bodyweight+added-load) estimated 1RM for 1–10 reps; other loaded bodyweight variations are withheld. Metrics remain separate.",
-  limitation: "Synthetic estimates are not measured population percentiles. Bodyweight and height are evaluated continuously, not stored as bins. Assisted, bands and distance exercises have no modeled comparison." };
+  limitation: "Synthetic estimates are not measured population percentiles. Bodyweight and height are evaluated continuously, not stored as bins. Bands lack a calibrated resistance measurement and are withheld." };
 writeFileSync(join(output, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 const exercises = [...new Map(CATALOG.map(x => [x.key, x])).values()].sort((a, b) => a.key.localeCompare(b.key));
 const coverage: Record<string, string> = {};
@@ -75,6 +75,29 @@ for (let age = 12; age <= 100; age++) {
   const factor = age <= 17 ? youthAgeFactor(age) : adultAgeFactor(age);
   const values: Record<string, { male: number; female: number; basis: "published_anchor" | "synthetic_estimate"; metric: string; weightedEligible?: boolean } | null> = {};
   for (const item of exercises) {
+    const measure = measureOfKey(item.key);
+    if (item.gear === "assisted" && measure === "reps") {
+      const bw = bodyweightBaseline(item);
+      values[item.key] = { male: Math.round(bw.male * Math.sqrt(factor) * 10) / 10,
+        female: Math.round(bw.female * Math.sqrt(factor) * 10) / 10,
+        basis: "synthetic_estimate", metric: "assisted" };
+      coverage[item.key] = "assisted";
+      continue;
+    }
+    if (measure === "distance" && item.gear !== "band") {
+      values[item.key] = { male: Math.round(30 * Math.sqrt(factor) * 10) / 10,
+        female: Math.round(25 * Math.sqrt(factor) * 10) / 10,
+        basis: "synthetic_estimate", metric: "carry" };
+      coverage[item.key] = "carry";
+      continue;
+    }
+    if (item.key === "weighted_plank") {
+      values[item.key] = { male: Math.round(45 * Math.sqrt(factor) * 10) / 10,
+        female: Math.round(35 * Math.sqrt(factor) * 10) / 10,
+        basis: "synthetic_estimate", metric: "weighted_hold" };
+      coverage[item.key] = "weighted_hold";
+      continue;
+    }
     if (["bodyweight", "suspension"].includes(item.gear) && measureOfKey(item.key) !== "distance") {
       const bw = bodyweightBaseline(item);
       values[item.key] = { male: Math.round(bw.male * Math.sqrt(factor) * 10) / 10,
@@ -84,7 +107,7 @@ for (let age = 12; age <= 100; age++) {
       continue;
     }
     const eligible = measureOfKey(item.key) === "reps" && !["bodyweight", "suspension", "assisted", "band"].includes(item.gear)
-      && item.setup === "free" && !/^(plank|crunch|sit.up|push.up|pull.up|chin.up|burpee|air.squat)/i.test(item.en);
+      && item.setup === "free" && (item.key === "crunch_machine" || !/^(plank|crunch|sit.up|push.up|pull.up|chin.up|burpee|air.squat)/i.test(item.en));
     const anchor = exact[item.key];
     const base = pattern[item.pattern] ?? [bench, .65];
     const equipmentFactor = gear[item.gear];

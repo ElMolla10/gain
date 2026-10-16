@@ -18,7 +18,7 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
     // UpdateCard hands the platform fetch to updateCheck.ts (which only builds the GitHub URL and is otherwise pure) and downloads the APK.
     expect(users).toEqual(["src/components/UpdateCard.tsx"]);
   });
-  it("source hosts stay limited to GitHub and the opt-in Cloudflare transport", () => {
+  it("source hosts stay limited to GitHub, the opt-in Cloudflare transport", () => {
     const hosts = new Set<string>();
     for (const f of src) for (const m of text(f).matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) if (!f.endsWith("src/sync/transport.ts")) hosts.add(m[1]!.toLowerCase());
     expect(hosts.has("api.github.com")).toBe(true);

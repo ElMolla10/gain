@@ -465,6 +465,17 @@ CREATE TABLE lift_pin (
 CREATE INDEX lift_pin_exercise ON lift_pin(exercise_id) WHERE deleted_at IS NULL;
 `,
   },
+  {
+    version: 17,
+    name: "session readiness and focus-block pins",
+    sql: `
+-- Optional session flag: normal/fatigued/returning. Null = normal / cleared. Never a recovery percentage.
+ALTER TABLE session ADD COLUMN readiness TEXT;
+-- 4–6 week focus block on a pin. Null = default 4 weeks from the pin's created_at week when first read.
+ALTER TABLE lift_pin ADD COLUMN weeks INTEGER;
+ALTER TABLE lift_pin ADD COLUMN started_week TEXT;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

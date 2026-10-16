@@ -11,8 +11,8 @@ import { WorkoutSetRow, type WorkoutSetRowProps } from "../src/components/Workou
 const settings = vi.hoisted(() => ({ unit: "kg" as "kg" | "lb", lang: "en" as "en" | "ar", fontScale: 1 }));
 vi.mock("react-native", () => ({ View: "View", Alert: { alert: vi.fn() }, Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale }) }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ ...settings, unitText: settings.unit, fmt: (kg: number) => `${kg} kg`, t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(settings.lang, key, params) }) }));
-vi.mock("../src/theme", () => ({ radius: { button: 8, card: 12 }, space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 13 }, useLogPalette: () => ({ doneBg: "done", activeBg: "active", bg: "page" }) }));
-vi.mock("../src/ui", () => ({ AppText: "AppText", QuietAction: "QuietAction", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice" }));
+vi.mock("../src/theme", () => ({ radius: { button: 8, card: 12, pill: 24 }, space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 13, load: 36, caption: 13 }, useLogPalette: () => ({ doneBg: "done", activeBg: "active", bg: "page", card: "card", line: "line", fill: "fill", accent: "accent", muted: "muted", danger: "danger", text: "text" }), usePalette: () => ({ muted: "muted", border: "border", text: "text", fill: "fill", onFill: "onFill", edge: "edge", danger: "danger" }) }));
+vi.mock("../src/ui", () => ({ AppText: "AppText", QuietAction: "QuietAction", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", Chip: "Chip", Field: "Field" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
 vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", TargetLine: "TargetLine" }));
 
@@ -126,7 +126,7 @@ async function sectionProps(): Promise<Parameters<typeof WorkoutExerciseSection>
     busy: false, warmOpen: false, warmDone: false,
     onOpenProgress: vi.fn(), onPatch: vi.fn(), onKind: vi.fn(), onAskDelete: vi.fn(), onDelete: vi.fn(), onLog: vi.fn(), onUntick: vi.fn(),
     onToggleRest: vi.fn(), onMenu: vi.fn(), onWhy: vi.fn(), onWhyLong: vi.fn(),
-    onLiveApply: vi.fn(), onLiveReport: vi.fn(), onLiveKeep: vi.fn(), onOutlierConfirm: vi.fn(), onOutlierReject: vi.fn(),
+    onLiveApply: vi.fn(), onLiveOwn: vi.fn(), onLiveReport: vi.fn(), onLiveKeep: vi.fn(), onOutlierConfirm: vi.fn(), onOutlierReject: vi.fn(),
     onWarmConfirm: vi.fn(), onWarmOpen: vi.fn(), onWarmClose: vi.fn(), onAddSet: vi.fn(),
   };
 }
@@ -182,7 +182,7 @@ describe("extracted exercise section wiring", () => {
 });
 
 describe("live suggestion explanations", () => {
-  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8.25, reason: "within_range" as const }, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onKeep: vi.fn(), onReport: vi.fn() });
+  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8.25, reason: "within_range" as const }, state: "hold" as const, equipment: "barbell" as const, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onOwn: vi.fn(), onKeep: vi.fn(), onReport: vi.fn() });
   it("explains the observed set in the user's unit without changing the decision", () => {
     settings.unit = "lb";
     const p = presentation();
@@ -191,40 +191,54 @@ describe("live suggestion explanations", () => {
     const text = tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).toContain("132.3");
     expect(text).toContain("10");
-    expect(text).toContain("132.3");
     expect(text).toContain("8");
-    expect(text).toContain("reps");
+    expect(text).toContain("Hold");
     expect(text).toContain("Sleep, readiness and rest time are unknown");
-    expect(tree.some(n => n.props.label === "Use for next set")).toBe(false);
+    expect(tree.some(n => n.props.label === "Use this")).toBe(true);
     expect(p.decision).toEqual(before);
   });
-  it("shows the exact prefilled target and completed-set basis before Details", () => {
+  it("shows Next load×reps, Hold, predicted range, and Use this / Enter my own", () => {
     const p = presentation();
     const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false }));
     const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).toContain("Next set");
+    expect(text).toContain("Next:");
     expect(text).toContain("60");
     expect(text).toContain("8");
+    expect(text).toContain("Hold");
     expect(text).toContain("After");
-    expect(text).toContain("this is your next target");
-    expect(text).toContain("Filled into the next set");
-    expect(text).not.toContain("Estimated next set:");
-    tree.find(n => n.type as unknown === "QuietAction")!.props.onPress();
-    expect(p.onToggleDetails).toHaveBeenCalledOnce();
-    expect(p.onApply).not.toHaveBeenCalled();
+    expect(text).toContain("Estimated next set:");
+    tree.find(n => n.props.label === "Use this")!.props.onPress();
+    expect(p.onApply).toHaveBeenCalledOnce();
+    tree.find(n => n.props.label === "Enter my own")!.props.onPress();
+    expect(p.onOwn).toHaveBeenCalledOnce();
+  });
+  it("labels increase, decrease, no-heavier and starting states", () => {
+    const p = presentation();
+    const increase = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "increase", decision: { ...p.decision, action: "increase", reason: "above_range", suggestedWeightKg: 62.5 } }));
+    expect(increase.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("Increase");
+    const decrease = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "decrease", decision: { ...p.decision, action: "decrease", reason: "below_range", suggestedWeightKg: 57.5 } }));
+    expect(decrease.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("Decrease");
+    const none = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "no_heavier", equipment: "dumbbell", decision: { ...p.decision, action: "maintain", reason: "no_suitable_increase", suggestedWeightKg: 16, suggestedReps: 8 } }));
+    const noneText = none.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(noneText).toContain("No heavier load");
+    expect(noneText).toContain("Keep");
+    expect(noneText).toContain("16");
+    const start = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "starting", decision: { ...p.decision, predictionAvailable: false } }));
+    expect(start.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("Starting estimate");
   });
   it("keeps stop reasons visible even when Details is collapsed", () => {
     const p = presentation();
-    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false, decision: {...p.decision, action:"stop", reason:"reported_symptoms"} }));
+    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "stop", decision: {...p.decision, action:"stop", reason:"reported_symptoms"} }));
     const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).toContain("Stop and assess");
     expect(tree[0]!.props.accessibilityLiveRegion).toBe("assertive");
-    expect(tree.some(n => n.props.label === "Use for next set")).toBe(false);
-    expect(tree.some(n => n.props.label === "Keep my plan")).toBe(false);
+    expect(tree.some(n => n.props.label === "Use this")).toBe(false);
+    expect(tree.some(n => n.props.label === "Enter my own")).toBe(false);
   });
   it("never labels an observed-only fatigue stop as a model forecast", () => {
     const p = presentation();
-    const tree = nodes(LiveSuggestion({...p,decision:{...p.decision,action:"stop",reason:"performance_stop",predictionAvailable:false}}));
+    const tree = nodes(LiveSuggestion({...p, state: "stop", decision:{...p.decision,action:"stop",reason:"performance_stop",predictionAvailable:false}}));
     const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).toContain("large performance drop");
     expect(text).not.toContain("Estimated next set:");
@@ -235,15 +249,24 @@ describe("live suggestion explanations", () => {
     const tree = nodes(LiveSuggestion({...p,manualLoad:true}));
     const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).toContain("Your entered weight or reps are kept");
-    expect(tree.some(n => n.props.label === "Use for next set")).toBe(false);
+    expect(tree.some(n => n.props.label === "Use this")).toBe(true);
   });
   it("does not present a model estimate as the basis for a reported-symptom stop", () => {
     const p = presentation();
-    const tree = nodes(LiveSuggestion({ ...p, decision: { ...p.decision, action: "stop", reason: "reported_symptoms" } }));
+    const tree = nodes(LiveSuggestion({ ...p, state: "stop", decision: { ...p.decision, action: "stop", reason: "reported_symptoms" } }));
     const text = tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).not.toContain("Last saved set");
     expect(text).not.toContain("Estimate from logged sets");
     expect(tree.some(n => n.props.variant === "secondary")).toBe(false);
+  });
+  it("in-card load chips call onPickJump", () => {
+    const p = presentation();
+    const onPickJump = vi.fn();
+    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false, onPickJump, loadSpec: { equipment: "barbell", increment: 2.5, min: 20 } }));
+    const strip = (s: unknown) => String(s).replace(/\u2066|\u2069/g, "");
+    const chip = tree.find(n => n.type as unknown === "Chip" && strip(n.props.label) === "5 kg jumps")!;
+    chip.props.onPress();
+    expect(onPickJump).toHaveBeenCalledWith(5);
   });
 });
 

@@ -19,11 +19,12 @@ describe("sync covers the real schema", () => {
     await migrate(db);
     const all = (await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")).map((r) => r.name);
     expect(all).toContain("ml_prediction");
-    const localOnly = new Set(["ml_prediction", "user_achievements", "achievement_audit_log", "user_quest", "lift_pin"]);
+    const localOnly = new Set(["ml_prediction", "achievement_audit_log", "user_quest", "lift_pin"]);
     expect(all).toContain("user_achievements");
     expect(all).toContain("achievement_audit_log");
     expect(all).toContain("user_quest");
     expect(all).toContain("lift_pin");
+    expect(SYNC_TABLES).toContain("user_achievements");
     expect([...all.filter((t) => !t.startsWith("sync_") && !localOnly.has(t))].sort()).toEqual([...SYNC_TABLES].sort());
     const info = await loadTableInfo(db);
     for (const t of SYNC_TABLES) for (const c of ["id", "created_at", "updated_at", "deleted_at"]) expect(info.get(t)!.cols, `${t}.${c}`).toContain(c);
@@ -45,7 +46,7 @@ describe("sync covers the real schema", () => {
       const text = readFileSync(join(__dirname, "..", "src", f), "utf8");
       for (const m of text.matchAll(/(?:setSetting|getSetting)\(\s*"([a-z_]+)"/g)) keys.add(m[1]!);
     }
-    const deviceOnly = new Set(["language", "rtl_override", "rest_seconds", "rest_vibrate", "rest_notify", "last_update_check", "update_skipped", "app_version_seen", "appearance", "second_name", "achievements_backfill_done", "achievements_backfill_count", "achievements_banner_seen"]);
+    const deviceOnly = new Set(["language", "rtl_override", "last_update_check", "update_skipped", "app_version_seen", "second_name", "achievements_backfill_done", "achievements_backfill_count", "achievements_banner_seen"]);
     const unknown = [...keys].filter((k) => !(SYNCED_SETTING_KEYS as readonly string[]).includes(k) && !deviceOnly.has(k));
     expect(unknown, "decide for each: sync it (SYNCED_SETTING_KEYS) or list it as device-only here").toEqual([]);
   });

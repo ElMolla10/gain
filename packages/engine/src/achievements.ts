@@ -204,6 +204,10 @@ export interface LiftPin {
   setup?: SetupType;
   load: number;
   reps: number;
+  /** Focus-block length in training weeks. Omitted on pins saved before v17. */
+  weeks?: 4 | 5 | 6;
+  /** YYYY-MM-DD week start when this pin was set. */
+  startedWeek?: string;
 }
 
 export interface ActiveQuestEval {

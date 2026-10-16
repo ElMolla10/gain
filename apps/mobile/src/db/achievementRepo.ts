@@ -4,6 +4,7 @@ import {
   logicalTrainingDateFromMs,
   monthKey,
   pinProgress,
+  weekStartOf,
   reconcileAchievements,
   canSwapQuest,
   offerMonthlyQuests,
@@ -30,6 +31,13 @@ import type { Repos } from "./repos";
 const BACKFILL_DONE = "achievements_backfill_done";
 const BACKFILL_COUNT = "achievements_backfill_count";
 const BANNER_SEEN = "achievements_banner_seen";
+export const MAX_FOCUS_PINS = 3;
+
+export class FocusTooMany extends Error {
+  constructor() {
+    super("Pin up to 3 focus lifts");
+  }
+}
 
 export interface EarnedAchievementRow extends SurfaceBadge {
   primarySetId: string | null;
@@ -319,18 +327,28 @@ async function loadProgramContext(db: Db, repos: Repos): Promise<{ patterns: str
   };
 }
 
-async function loadPins(db: Db): Promise<LiftPin[]> {
-  const rows = await db.all<{ id: string; exercise_id: string; equipment: EquipmentType | null; setup: SetupType | null; load: number; reps: number }>(
-    "SELECT id, exercise_id, equipment, setup, load, reps FROM lift_pin WHERE deleted_at IS NULL",
-  );
-  return rows.map((r) => ({
+function pinWeeks(raw: number | null | undefined): 4 | 5 | 6 | undefined {
+  return raw === 5 || raw === 6 ? raw : raw === 4 ? 4 : undefined;
+}
+
+function pinFromRow(r: { id: string; exercise_id: string; equipment: EquipmentType | null; setup: SetupType | null; load: number; reps: number; weeks: number | null; started_week: string | null }): LiftPin {
+  return {
     id: r.id,
     exerciseId: r.exercise_id,
     equipment: r.equipment ?? undefined,
     setup: r.setup ?? undefined,
     load: r.load,
     reps: r.reps,
-  }));
+    weeks: pinWeeks(r.weeks),
+    startedWeek: r.started_week ?? undefined,
+  };
+}
+
+async function loadPins(db: Db): Promise<LiftPin[]> {
+  const rows = await db.all<{ id: string; exercise_id: string; equipment: EquipmentType | null; setup: SetupType | null; load: number; reps: number; weeks: number | null; started_week: string | null }>(
+    "SELECT id, exercise_id, equipment, setup, load, reps, weeks, started_week FROM lift_pin WHERE deleted_at IS NULL",
+  );
+  return rows.map(pinFromRow);
 }
 
 function parseOffers(json: string): QuestCard[] {
@@ -592,10 +610,10 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
       earned.map((r) => r.badgeId),
     );
     const pinNext = pins
-      .map((p) => pinProgress(p, sessions))
-      .filter((p) => !p.reached)
-      .slice(0, 1)
-      .map((p) => ({ badgeId: "pin_target", i18nKey: "achv.pinTarget", current: Math.round(p.current * 100), target: 100 }));
+      .map((p) => ({ pin: p, progress: pinProgress(p, sessions) }))
+      .filter((p) => !p.progress.reached)
+      .slice(0, MAX_FOCUS_PINS)
+      .map((p) => ({ badgeId: `pin_target:${p.pin.exerciseId}`, i18nKey: "achv.pinTarget", current: Math.round(p.progress.current * 100), target: 100 }));
     const quest = await ensureMonthQuest(sessions, week, localDate);
     if (quest.picked && !quest.progress.complete) {
       next.unshift({ badgeId: `quest_${quest.picked.kind}`, i18nKey: quest.picked.titleKey, current: quest.progress.current, target: quest.progress.target });
@@ -628,19 +646,34 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
   }
 
   async function getPin(exerciseId: string): Promise<LiftPin | null> {
-    const r = await db.get<{ id: string; exercise_id: string; equipment: EquipmentType | null; setup: SetupType | null; load: number; reps: number }>(
-      "SELECT id, exercise_id, equipment, setup, load, reps FROM lift_pin WHERE exercise_id = ? AND deleted_at IS NULL AND reached_at_utc IS NULL ORDER BY created_at DESC LIMIT 1",
+    const r = await db.get<{ id: string; exercise_id: string; equipment: EquipmentType | null; setup: SetupType | null; load: number; reps: number; weeks: number | null; started_week: string | null }>(
+      "SELECT id, exercise_id, equipment, setup, load, reps, weeks, started_week FROM lift_pin WHERE exercise_id = ? AND deleted_at IS NULL AND reached_at_utc IS NULL ORDER BY created_at DESC LIMIT 1",
       [exerciseId],
     );
-    return r ? { id: r.id, exerciseId: r.exercise_id, equipment: r.equipment ?? undefined, setup: r.setup ?? undefined, load: r.load, reps: r.reps } : null;
+    return r ? pinFromRow(r) : null;
+  }
+
+  async function listPins(): Promise<LiftPin[]> {
+    const rows = await db.all<{ id: string; exercise_id: string; equipment: EquipmentType | null; setup: SetupType | null; load: number; reps: number; weeks: number | null; started_week: string | null }>(
+      "SELECT id, exercise_id, equipment, setup, load, reps, weeks, started_week FROM lift_pin WHERE deleted_at IS NULL AND reached_at_utc IS NULL ORDER BY created_at, rowid",
+    );
+    return rows.map(pinFromRow);
   }
 
   async function setPin(pin: LiftPin): Promise<void> {
     const t = deps.now();
+    const others = await db.get<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM lift_pin WHERE deleted_at IS NULL AND reached_at_utc IS NULL AND exercise_id != ?",
+      [pin.exerciseId],
+    );
+    if (Number(others?.n) >= MAX_FOCUS_PINS) throw new FocusTooMany();
+    const existing = await getPin(pin.exerciseId);
+    const weeks = pin.weeks === 5 || pin.weeks === 6 ? pin.weeks : 4;
+    const startedWeek = pin.startedWeek ?? existing?.startedWeek ?? weekStartOf(t, await weekStartsOn(repos));
     await db.run("UPDATE lift_pin SET deleted_at = ?, updated_at = ? WHERE exercise_id = ? AND deleted_at IS NULL AND reached_at_utc IS NULL", [t, t, pin.exerciseId]);
     await db.run(
-      `INSERT INTO lift_pin (id, exercise_id, equipment, setup, gym_id, load, reps, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [deps.newId(), pin.exerciseId, pin.equipment ?? null, pin.setup ?? null, null, pin.load, pin.reps, t, t],
+      `INSERT INTO lift_pin (id, exercise_id, equipment, setup, gym_id, load, reps, weeks, started_week, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [deps.newId(), pin.exerciseId, pin.equipment ?? null, pin.setup ?? null, null, pin.load, pin.reps, weeks, startedWeek, t, t],
     );
   }
 
@@ -654,7 +687,7 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
     return all[0] ?? null;
   }
 
-  return { sync, ensureBackfill, dismissBanner, listEarned, listCabinet, listLedger, listForSession, markCelebrated, getHome, getById, pickQuest, getPin, setPin, clearPin };
+  return { sync, ensureBackfill, dismissBanner, listEarned, listCabinet, listLedger, listForSession, markCelebrated, getHome, getById, pickQuest, getPin, listPins, setPin, clearPin };
 }
 
 export type AchievementRepo = ReturnType<typeof createAchievementRepo>;

@@ -325,9 +325,10 @@ export function createRepos(db: Db, deps: Deps) {
       track_effort: number;
       position: number;
       pattern: string;
+      seed_key: string | null;
       load_spec_json: string | null;
     }>(
-      `SELECT pde.id, pde.exercise_id, e.name_en, e.name_ar, e.aliases_ar_json, e.equipment, e.setup, e.measure, e.pattern, e.load_spec_json,
+      `SELECT pde.id, pde.exercise_id, e.name_en, e.name_ar, e.aliases_ar_json, e.equipment, e.setup, e.measure, e.pattern, e.seed_key, e.load_spec_json,
               pde.sets, pde.rep_min, pde.rep_max, pde.rep_ceiling, pde.top_sets, pde.is_goal_lift, pde.track_effort, pde.position
        FROM programme_day_exercise pde JOIN exercise e ON e.id = pde.exercise_id
        WHERE pde.programme_day_id = ? AND pde.deleted_at IS NULL ORDER BY pde.position`,
@@ -348,6 +349,7 @@ export function createRepos(db: Db, deps: Deps) {
           setup: r.setup,
           measure: r.measure,
           pattern: r.pattern,
+          seedKey: r.seed_key,
           sets: r.sets,
           repMin: r.rep_min,
           repMax: r.rep_max,
@@ -378,6 +380,7 @@ export function createRepos(db: Db, deps: Deps) {
       setup: r.setup,
       measure: r.measure,
       pattern: r.pattern,
+      seedKey: r.seed_key,
       sets: r.sets,
       /** Bottom of the program range, never above the ceiling. */
       repMin: Math.min(r.rep_min, policy.repCeiling),
@@ -408,8 +411,8 @@ export function createRepos(db: Db, deps: Deps) {
    * defaults (3 sets, rep range 8 up to the rep ceiling for this kind of lift, not a goal lift, no effort tracking). Never stored in the program.
    */
   async function adHocDayExercise(exerciseId: string): Promise<DayExercise | null> {
-    const r = await db.get<{ id: string; name_en: string; name_ar: string; aliases_ar_json: string; equipment: GymLoadSpec["equipment"]; setup: "free" | "assisted" | "bodyweight_plus_added"; measure: Measure; pattern: string; load_spec_json: string | null }>(
-      "SELECT id, name_en, name_ar, aliases_ar_json, equipment, setup, measure, pattern, load_spec_json FROM exercise WHERE id = ? AND deleted_at IS NULL",
+    const r = await db.get<{ id: string; name_en: string; name_ar: string; aliases_ar_json: string; equipment: GymLoadSpec["equipment"]; setup: "free" | "assisted" | "bodyweight_plus_added"; measure: Measure; pattern: string; seed_key: string | null; load_spec_json: string | null }>(
+      "SELECT id, name_en, name_ar, aliases_ar_json, equipment, setup, measure, pattern, seed_key, load_spec_json FROM exercise WHERE id = ? AND deleted_at IS NULL",
       [exerciseId],
     );
     if (!r) return null;
@@ -417,7 +420,7 @@ export function createRepos(db: Db, deps: Deps) {
       const d = DEFAULT_TIMED_RANGE[r.measure];
       return {
         id: `added:${r.id}`, exerciseId: r.id, nameEn: r.name_en, nameAr: r.name_ar, aliasesAr: JSON.parse(r.aliases_ar_json) as string[], equipment: r.equipment, setup: r.setup,
-        measure: r.measure, pattern: r.pattern, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, topSets: null as number | null, loadSpec: parseStoredLoads(r.load_spec_json, r.equipment), isGoalLift: false, trackEffort: false,
+        measure: r.measure, pattern: r.pattern, seedKey: r.seed_key, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, topSets: null as number | null, loadSpec: parseStoredLoads(r.load_spec_json, r.equipment), isGoalLift: false, trackEffort: false,
       };
     }
     const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings: await getRepCeilingDefaults() });
@@ -431,6 +434,7 @@ export function createRepos(db: Db, deps: Deps) {
       setup: r.setup,
       measure: r.measure,
       pattern: r.pattern,
+      seedKey: r.seed_key,
       sets: 3,
       repMin: Math.min(8, policy.repCeiling),
       repMax: policy.repCeiling,

@@ -1,5 +1,5 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { estimateStartingLoad, findSpec, nextLoadAbove, type Decision, type GymFingerprint, type LoggedSet, type Measure, type OutlierResult } from "@gain/engine";
+import { estimateStartingLoad, expectationPenaltyReps, findSpec, nextLoadAbove, orderAdjustedReps, parseReadiness, readinessPenaltyReps, sessionOrderFatigue, type Decision, type GymFingerprint, type GymLoadSpec, type LoggedSet, type Measure, type OutlierResult, type ReadinessFlag } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, Vibration, View } from "react-native";
@@ -34,14 +34,16 @@ import { focusedExercise, livePromptVisible } from "../logic/workoutFocus";
 import { liveSummary, volumeText } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
-import { applyLiveTarget, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
+import { applyExpectedReps, applyLiveTarget, takeLiveTarget, clearLiveTarget, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow, trustedWorkingSet } from "../logic/liveAdaptation";
+import { specWithJump, buildLoads, specValues, emptyLoadsForm } from "../logic/exerciseLoads";
+import { muscleGroupOf } from "../logic/muscleVolume";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
 import { staleOffGridTarget } from "../logic/targetRefresh";
 import { adjustTimer, formatClock, isDone, newTimer, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { pauseClock, resumeClock } from "../logic/workoutClock";
 import { radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
+import { AppText, BigButton, Chip, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 
 import { attachLoads, resolveLoads } from "../db/exerciseGrid";
 import type { DayEx, Disp, ExInfo } from "../logic/workoutTypes";
@@ -89,9 +91,12 @@ export function WorkoutScreen() {
   const [jumpAsk, setJumpAsk] = useState<{ ex: Disp; row: SetRowDraft; check: JumpCheck; load: number; reps: number; prev: number } | null>(null);
   const okJumps = useRef<Set<string>>(new Set());
   const [rows, setRows] = useState<Record<string, SetRowDraft[]>>({});
-  const [liveCards, setLiveCards] = useState<Record<string, { decision: Decision; key: string; performance: string; snapshot: string }>>({});
+  const [liveCards, setLiveCards] = useState<Record<string, { decision: Decision; key: string; performance: string; snapshot: string; fatigueKey: string; specKey: string; starting?: boolean }>>({});
   const [reportedSymptoms, setReportedSymptoms] = useState<Record<string, Decision>>({});
   const [liveDismissed, setLiveDismissed] = useState<Record<string, string>>({});
+  const [liveManual, setLiveManual] = useState<Record<string, boolean>>({});
+  const [focusRow, setFocusRow] = useState<{ exId: string; key: string; nonce: number } | null>(null);
+  const [cardListText, setCardListText] = useState<Record<string, string>>({});
   const [sets, setSets] = useState<SetRow[]>([]);
   const [exState, setExState] = useState<Record<string, ExerciseState>>({});
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
@@ -117,6 +122,7 @@ export function WorkoutScreen() {
   const [helpOpen, setHelpOpen] = useState(false);
   /** The exercise for which "Superset with ..." is being chosen. */
   const [ssFor, setSsFor] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessFlag | null>(null);
   const [reorderOpen, setReorderOpen] = useState(false);
   const [reorderSaving, setReorderSaving] = useState(false);
   const [kindFor, setKindFor] = useState<{ exId: string; key: string } | null>(null);
@@ -229,6 +235,8 @@ export function WorkoutScreen() {
         initial[ex.exerciseId] = resumeEvaluationTarget(initial[ex.exerciseId]!, pendingId);
       }
       const session = await workout.getSession(id);
+      const flag = parseReadiness(session?.readiness);
+      setReadiness(flag === "fatigued" || flag === "returning" ? flag : null);
       setExState(states);
       setSets(all);
       setRows(initial);
@@ -328,36 +336,72 @@ export function WorkoutScreen() {
         .map(slot => makeDisp(slot, exState[slot.exerciseId]))
         .filter(ex => ex.measure === "reps" && ex.setup === "free" && ex.equipment !== "assisted")
         .map(ex => ex.exerciseId);
+      const programmeIds = loaded.slots.filter((s) => !exState[s.exerciseId]?.added).map((s) => s.exerciseId);
+      const order = orderSlots(programmeIds, exState);
+      const fatigueSlots = order.flatMap((id) => {
+        const slot = loaded.slots.find((x) => x.exerciseId === id);
+        if (!slot || exState[id]?.removed) return [];
+        const ex = makeDisp(slot, exState[id]);
+        return [{
+          exerciseId: ex.exerciseId,
+          name: exerciseLabels(ex, lang).primary,
+          muscle: muscleGroupOf({ seedKey: ex.seedKey ?? null, pattern: ex.pattern, equipment: ex.equipment }),
+          done: sets.some((s) => s.exerciseId === ex.exerciseId && trustedWorkingSet(s)),
+        }];
+      });
       for (const slot of loaded.slots) {
         if (exState[slot.exerciseId]?.removed) continue;
         const ex = makeDisp(slot, exState[slot.exerciseId]);
         const list = rows[ex.exerciseId] ?? [];
         const performance = livePerformanceKey(sets, ex.exerciseId);
         if (liveDismissed[ex.exerciseId] === performance) continue;
+        const fatigue = sessionOrderFatigue(fatigueSlots, ex.exerciseId);
+        const readyPen = readinessPenaltyReps(readiness);
+        const combinedPen = expectationPenaltyReps(fatigue?.penaltyReps ?? 0, readyPen);
+        const fatigueKey = `${fatigue ? `${fatigue.earlierName}:${fatigue.penaltyReps}` : ""}:${readiness ?? ""}`;
         const reported = reportedSymptoms[ex.exerciseId];
         if (reported) {
-          cards[ex.exerciseId] = { decision: reported, key: nextAdaptiveRow(list)?.key ?? "", performance, snapshot: JSON.stringify(list) };
+          const specKey = JSON.stringify((ex.loadSpec ?? findSpec(loaded.gym, ex.equipment)) ?? null);
+          cards[ex.exerciseId] = { decision: reported, key: nextAdaptiveRow(list)?.key ?? "", performance, snapshot: JSON.stringify(list), fatigueKey, specKey };
           continue;
         }
         const next = nextAdaptiveRow(list);
+        const spec = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
+        const specKey = JSON.stringify(spec ?? null);
         const existing = liveCards[ex.exerciseId];
+        const manual = !!liveManual[ex.exerciseId];
         // A target filled by this exact saved performance is still the same
         // recommendation. Do not feed it back into the model as new user input.
-        if (next && existing?.performance === performance && existing.key === next.key
+        if (next && existing?.performance === performance && existing.key === next.key && existing.fatigueKey === fatigueKey && existing.specKey === specKey
             && next.load === null && next.reps === null
-            && next.ghostLoad === existing.decision.suggestedWeightKg
-            && next.ghostReps === existing.decision.suggestedReps) {
+            && (manual || (next.ghostLoad === existing.decision.suggestedWeightKg
+            && next.ghostReps === existing.decision.suggestedReps))) {
           cards[ex.exerciseId] = { ...existing, snapshot: JSON.stringify(list) };
           continue;
         }
-        const spec = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
-        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: loaded.info[ex.exerciseId]?.last, targetReps: next?.reps ?? loaded.info[ex.exerciseId]?.prefill.reps ?? ex.repMax });
-        if (!context) continue;
+        const info = loaded.info[ex.exerciseId];
+        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: info?.last, targetReps: next?.reps ?? info?.prefill.reps ?? ex.repMax, sessionFatigueReps: combinedPen });
+        if (!context) {
+          let filled = list;
+          const protect = info?.proposal.currency === "load";
+          const expected = info?.prefill.reps != null ? orderAdjustedReps(info.prefill.reps, combinedPen, protect) : null;
+          if (next && !manual && next.reps === null && expected != null) {
+            filled = applyExpectedReps(list, next.key, expected);
+            if (filled !== list) rowUpdates[ex.exerciseId] = { before: JSON.stringify(list), after: filled };
+          }
+          if (next && info?.prefill.load != null && info.prefill.load > 0 && ex.measure === "reps") {
+            cards[ex.exerciseId] = {
+              decision: { action: "maintain", suggestedWeightKg: info.prefill.load, suggestedReps: expected ?? info.prefill.reps ?? ex.repMin, predictedReps: expected ?? info.prefill.reps ?? 0, reason: "within_range", predictionAvailable: false },
+              key: next.key, performance, snapshot: JSON.stringify(filled), fatigueKey, specKey, starting: true,
+            };
+          }
+          continue;
+        }
         const decision = tryLiveRecommendation(context, ex.repMin, ex.repMax, spec, undefined, e => diagnostics.record("warn", "live adaptation", e));
         if (decision) {
           const key = nextAdaptiveRow(list)!.key;
-          const filled = decision.action === "stop" ? list : applyLiveTarget(list, key, decision.suggestedWeightKg, decision.suggestedReps);
-          cards[ex.exerciseId] = { decision, key, performance, snapshot: JSON.stringify(filled) };
+          const filled = decision.action === "stop" || manual ? list : applyLiveTarget(list, key, decision.suggestedWeightKg, decision.suggestedReps);
+          cards[ex.exerciseId] = { decision, key, performance, snapshot: JSON.stringify(filled), fatigueKey, specKey };
           if (filled !== list) rowUpdates[ex.exerciseId] = { before: JSON.stringify(list), after: filled };
           const prediction = evaluationPrediction(loaded.sessionId, ex.exerciseId, list, sets, context, decision);
           if (prediction && !cancelled) {
@@ -381,7 +425,7 @@ export function WorkoutScreen() {
       }
     }, 0);
     return () => { cancelled = true; clearTimeout(handle); };
-  }, [loaded, rows, sets, exState, liveDismissed, reportedSymptoms, makeDisp, mlEvaluation]);
+  }, [loaded, rows, sets, exState, liveDismissed, liveManual, reportedSymptoms, makeDisp, mlEvaluation, lang, readiness]);
 
   const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => {
     setPreferredExercise(exId);
@@ -402,6 +446,7 @@ export function WorkoutScreen() {
         if (check.needsConfirm) return void setJumpAsk({ ex, row, check, load: e0.load, reps: e0.reps, prev: lastTop.load });
       }
     }
+    setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
     setBusy(row.key);
     // Empty boxes take the ghost target as the row's own numbers (what the lifter saw is what is saved).
     setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
@@ -681,6 +726,12 @@ export function WorkoutScreen() {
     const s = loaded.slots.find((x) => x.exerciseId === slot);
     return s ? [makeDisp(s, exState[slot])] : [];
   });
+  const fatigueSlots = shown.map((ex) => ({
+    exerciseId: ex.exerciseId,
+    name: exerciseLabels(ex, lang).primary,
+    muscle: muscleGroupOf({ seedKey: ex.seedKey ?? null, pattern: ex.pattern, equipment: ex.equipment }),
+    done: sets.some((s) => s.exerciseId === ex.exerciseId && trustedWorkingSet(s)),
+  }));
   const removedSlots = loaded.slots.filter((s) => exState[s.exerciseId]?.removed);
   const reorderGroups = reorderBlocks(order, exState);
   const namesBySlot = new Map(shown.map(ex => [ex.slot, exerciseLabels(ex, lang).primary]));
@@ -769,6 +820,10 @@ export function WorkoutScreen() {
     const list = rows[ex.exerciseId] ?? [];
     const candidate = liveCards[ex.exerciseId];
     const currentCandidate = candidate && candidate.snapshot === JSON.stringify(list) && candidate.performance === livePerformanceKey(sets, ex.exerciseId) ? candidate : undefined;
+    const fatigue = sessionOrderFatigue(fatigueSlots, ex.exerciseId);
+    const protectFirst = !currentCandidate && info.proposal.currency === "load";
+    const afterExercise = fatigue && !protectFirst ? fatigue.earlierName : null;
+    const whyReadiness = !protectFirst && (readiness === "fatigued" || readiness === "returning") ? readiness : null;
     const card = currentCandidate && liveDismissed[ex.exerciseId] !== currentCandidate.performance
       && livePromptVisible(currentCandidate.decision.action, ex.exerciseId === focus) ? currentCandidate : undefined;
     const detailKey = card ? `${ex.exerciseId}:${card.performance}:${card.key}` : null;
@@ -777,7 +832,7 @@ export function WorkoutScreen() {
         liveDetailsOpen={detailKey !== null && liveDetails === detailKey} onLiveDetails={() => setLiveDetails(current => current === detailKey ? null : detailKey)} ex={ex} position={position} info={info} list={list}
         st={exState[ex.slot] ?? NO_STATE(ex.slot)} gym={loaded.gym} exSets={setsByEx.get(ex.exerciseId) ?? []}
         outliers={outliers} candidate={currentCandidate} card={card} expanded={!!whyOpen[ex.exerciseId]}
-        supersetLabel={ssLabel[ex.slot]} restDurationMs={timer.durationMs} busy={busy !== null}
+        supersetLabel={ssLabel[ex.slot]} afterExercise={afterExercise} readiness={whyReadiness} restDurationMs={timer.durationMs} busy={busy !== null}
         warmOpen={warmOpen === ex.exerciseId} warmDone={!!warmDone[ex.exerciseId]}
         onOpenProgress={() => navigation.dispatch(StackActions.push("LiftTrend", { lineId: info.lineId }))}
         onToggleRest={() => void toggleRest(ex.slot)} onMenu={() => setMenuFor(ex.slot)}
@@ -789,10 +844,33 @@ export function WorkoutScreen() {
         onAskDelete={row => askDrop(ex, row)} onDelete={row => void dropRow(ex, row)}
         onLog={row => { setPreferredExercise(ex.exerciseId); void logRow(ex, row); }} onUntick={row => void untick(ex, row)}
         onLiveApply={() => {
-          if (!card) return;
-          setRows(r => ({ ...r, [ex.exerciseId]: applyLiveTarget(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg, card.decision.suggestedReps) }));
-          setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }));
+          if (!card || card.decision.action === "stop") return;
+          setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
+          setRows(r => ({ ...r, [ex.exerciseId]: takeLiveTarget(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg, card.decision.suggestedReps) }));
+          setPreferredExercise(ex.exerciseId);
+          setFocusRow({ exId: ex.exerciseId, key: card.key, nonce: Date.now() });
         }}
+        onLiveOwn={() => {
+          if (!card) return;
+          setLiveManual(m => ({ ...m, [ex.exerciseId]: true }));
+          setRows(r => ({ ...r, [ex.exerciseId]: clearLiveTarget(r[ex.exerciseId] ?? [], card.key) }));
+          setPreferredExercise(ex.exerciseId);
+          setFocusRow({ exId: ex.exerciseId, key: card.key, nonce: Date.now() });
+        }}
+        onPickJump={kg => void persistCardLoads(ex, specWithJump(ex.equipment, kg, ex.loadSpec, findSpec(loaded.gym, ex.equipment)))}
+        listText={cardListText[ex.exerciseId] ?? (ex.loadSpec?.loads?.length ? ex.loadSpec.loads.map(x => weightText(x, unit)).join(", ") : "")}
+        onListChange={text => setCardListText(cur => ({ ...cur, [ex.exerciseId]: text }))}
+        onSaveList={() => {
+          const listText = cardListText[ex.exerciseId] ?? "";
+          const built = buildLoads({ ...emptyLoadsForm(), mode: "list", listText }, ex.equipment, unit, specValues(ex.loadSpec));
+          if (built.problems.length > 0) {
+            const pr = built.problems[0]!;
+            Alert.alert(t(`loads.problem.${pr.code}` as never, { bad: (pr.detail ?? []).join(" ") }));
+            return;
+          }
+          if (built.spec) void persistCardLoads(ex, built.spec);
+        }}
+        focusRow={focusRow?.exId === ex.exerciseId ? { key: focusRow.key, nonce: focusRow.nonce } : null}
         onLiveReport={symptom => {
           if (!card) return;
           setReportedSymptoms(s => ({ ...s, [ex.exerciseId]: reportedSymptomDecision(card.decision, symptom) }));
@@ -837,6 +915,24 @@ export function WorkoutScreen() {
     : [];
   const machineEx = machineFor ? shown.find((e) => e.slot === machineFor) : undefined;
   const machineChoice = machineEx ? library.find(e => e.id === machineEx.exerciseId) : undefined;
+  async function persistCardLoads(ex: Disp, spec: GymLoadSpec) {
+    if (busy || !loaded || loaded === "nogym") return;
+    setBusy("machine-weights");
+    try {
+      await programmes.setLineLoads(ex.exerciseId, loaded.gym.gymId, ex.setup, spec);
+      const resolved = await resolveLoads(db, loaded.gym, ex.exerciseId, ex.equipment, ex.setup);
+      const slots = loaded.slots.map(slot => slot.exerciseId === ex.exerciseId ? { ...slot, loadSpec: resolved.spec, loadSource: resolved.source } : slot);
+      const currentSlot = slots.find(slot => slot.exerciseId === ex.slot);
+      if (!currentSlot) return;
+      const updatedEx = makeDisp(currentSlot, exState[ex.slot]);
+      const info = await buildInfo(updatedEx, loaded.sessionId, loaded.gym);
+      setLoaded(prev => prev && prev !== "nogym" ? { ...prev, slots, info: { ...prev.info, [ex.exerciseId]: info } } : prev);
+      setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
+    } catch (e) {
+      diagnostics.record("error", "card load steps", e);
+      Alert.alert(t("loads.preset.failed"));
+    } finally { setBusy(null); }
+  }
   async function chooseMachineStep(ex: Disp, kind: MachineLoadKind, step?: PinMachineStep) {
     if (busy || !loaded || loaded === "nogym") return;
     setBusy("machine-weights");
@@ -911,6 +1007,21 @@ export function WorkoutScreen() {
           {summaryOpen ? <Stat label={t("workout.stat.volume")}>
             <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
           </Stat> : null}
+        </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.sm }}>
+          <AppText style={{ color: p.muted, alignSelf: "center" }}>{t("workout.readiness.label")}</AppText>
+          {(["normal", "fatigued", "returning"] as const).map((flag) => (
+            <Chip
+              key={flag}
+              label={t(`workout.readiness.${flag}`)}
+              selected={flag === "normal" ? readiness == null : readiness === flag}
+              onPress={() => {
+                const next = flag === "normal" ? null : flag;
+                setReadiness(next);
+                void workout.setSessionReadiness(loaded.sessionId, next);
+              }}
+            />
+          ))}
         </View>
 
         {finishFailed ? (

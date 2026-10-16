@@ -7,7 +7,7 @@ import { copyAtVersion, dumpAll, populatedWithRealHistory } from "./realData";
 describe("update over install: schema 9 -> latest in one run, real data (Mohamed's 70-workout Hevy export + own sessions)", () => {
   it("runs the pending migrations together, keeps every row, adds top_sets and load_spec_json as NULL, and a second run changes nothing", async () => {
     const cur = await populatedWithRealHistory();
-    expect(LATEST_VERSION).toBe(16);
+    expect(LATEST_VERSION).toBe(17);
     const before = await dumpAll(cur.db);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);
     const old = await copyAtVersion(cur.db, 9);
@@ -25,14 +25,22 @@ describe("update over install: schema 9 -> latest in one run, real data (Mohamed
     expect((await old.all<{ name: string }>("PRAGMA table_info(session)")).map((c) => c.name)).toContain("local_calendar_date");
     expect((await old.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('user_achievements','achievement_audit_log','user_quest','lift_pin')")).map((r) => r.name).sort()).toEqual(["achievement_audit_log", "lift_pin", "user_achievements", "user_quest"]);
     expect((await old.all<{ name: string }>("PRAGMA table_info(exercise_line)")).map((c) => c.name)).toContain("load_spec_json");
+    expect((await old.all<{ name: string }>("PRAGMA table_info(session)")).map((c) => c.name)).toContain("readiness");
+    expect((await old.all<{ name: string }>("PRAGMA table_info(lift_pin)")).map((c) => c.name)).toEqual(expect.arrayContaining(["weeks", "started_week"]));
 
     const after = await dumpAll(old);
-    expect(after).toEqual(before); // row for row identical, new columns NULL (or 0) on both sides
+    // Achievements are derived after import on latest; schema 9 had no such tables, so a v9 copy + migrate starts them empty.
+    const durable = (d: Record<string, unknown[]>) => {
+      const { user_achievements: _a, achievement_audit_log: _b, ...rest } = d;
+      return rest;
+    };
+    expect(durable(after)).toEqual(durable(before)); // row for row identical, new columns NULL (or 0) on both sides
     for (const r of after.programme_day_exercise as { top_sets: number | null }[]) expect(r.top_sets).toBeNull();
     for (const r of after.exercise as { load_spec_json: string | null }[]) expect(r.load_spec_json).toBeNull();
-    for (const r of after.session as { paused_ms: number; paused_at: number | null }[]) {
+    for (const r of after.session as { paused_ms: number; paused_at: number | null; readiness: string | null }[]) {
       expect(r.paused_ms).toBe(0);
       expect(r.paused_at).toBeNull();
+      expect(r.readiness).toBeNull();
     }
     expect(after.user_achievements).toEqual([]);
     expect(after.achievement_audit_log).toEqual([]);
@@ -41,6 +49,6 @@ describe("update over install: schema 9 -> latest in one run, real data (Mohamed
     for (const r of after.exercise_line as { load_spec_json: string | null }[]) expect(r.load_spec_json).toBeNull();
 
     expect(await migrate(old, MIGRATIONS)).toEqual({ from: LATEST_VERSION, to: LATEST_VERSION });
-    expect(await dumpAll(old)).toEqual(before);
+    expect(durable(await dumpAll(old))).toEqual(durable(before));
   });
 });

@@ -142,13 +142,13 @@ export function loadsSummaryText(spec: GymLoadSpec, unit: Unit, unitName: string
   return out;
 }
 
-/** Jump sizes offered on the lift screen. Stored in kilograms. */
-export const TREND_LOAD_JUMPS_KG = [2.5, 2, 5, 10] as const;
+/** Jump sizes offered on the lift screen and the next-set card. Stored in kilograms. */
+export const TREND_LOAD_JUMPS_KG = [1, 2, 2.5, 5, 10] as const;
 
 const JUMP_EPS = 1e-6;
 const isList = (spec: GymLoadSpec): boolean => !!spec.loads && spec.loads.length > 0;
 
-/** Which of the four jump chips matches this spec, or null (a list, a custom step, or nothing set). */
+/** Which of the jump chips matches this spec, or null (a list, a custom step, or nothing set). */
 export function matchingJumpKg(spec: GymLoadSpec | null): number | null {
   if (!spec || isList(spec) || spec.increment === undefined) return null;
   return TREND_LOAD_JUMPS_KG.find((j) => Math.abs(j - spec.increment!) < JUMP_EPS) ?? null;

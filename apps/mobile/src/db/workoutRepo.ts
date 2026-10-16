@@ -208,10 +208,17 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   }
 
   async function getSession(sessionId: string) {
-    return db.get<{ id: string; programme_day_id: string; gym_id: string; status: string; started_at: number | null; finished_at: number | null; paused_ms: number; paused_at: number | null }>(
-      "SELECT id, programme_day_id, gym_id, status, started_at, finished_at, paused_ms, paused_at FROM session WHERE id = ? AND deleted_at IS NULL",
+    return db.get<{ id: string; programme_day_id: string; gym_id: string; status: string; started_at: number | null; finished_at: number | null; paused_ms: number; paused_at: number | null; readiness: string | null }>(
+      "SELECT id, programme_day_id, gym_id, status, started_at, finished_at, paused_ms, paused_at, readiness FROM session WHERE id = ? AND deleted_at IS NULL",
       [sessionId],
     );
+  }
+
+  /** Optional session flag. Null / "normal" clears it. A new session starts unset. */
+  async function setSessionReadiness(sessionId: string, flag: "normal" | "fatigued" | "returning" | null): Promise<void> {
+    const stored = flag === "fatigued" || flag === "returning" ? flag : null;
+    const t = now();
+    await db.run("UPDATE session SET readiness = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [stored, t, sessionId]);
   }
 
   /** Freeze the duration clock. No-op if already paused or the session is not in progress. */
@@ -680,6 +687,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     startOrResumeSession,
     getOpenSession,
     getSession,
+    setSessionReadiness,
     pauseDuration,
     resumeDuration,
     finishSession,

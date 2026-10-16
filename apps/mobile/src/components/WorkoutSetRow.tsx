@@ -29,10 +29,12 @@ export interface WorkoutSetRowProps {
   onDelete: (row: SetRowDraft) => void;
   onLog: (row: SetRowDraft) => void;
   onUntick: (row: SetRowDraft) => void;
+  autoFocus?: boolean;
+  focusNonce?: number;
 }
 
 /** Inputs and actions for one set. Persistence and draft state belong to the logger. */
-export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: WorkoutSetRowProps) {
+export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce }: WorkoutSetRowProps) {
   const { t, lang, unit, unitText } = useI18n();
   const p = useLogPalette();
   const labels = exerciseLabels(ex, lang);
@@ -84,6 +86,8 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       decimal
       done={done}
       current={current}
+      autoFocus={autoFocus}
+      focusNonce={focusNonce}
     />
   );
   const repsCell = (

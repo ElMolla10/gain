@@ -18,7 +18,7 @@ import type { SecretStore } from "./secretStore";
  */
 
 export type SyncStatus = "off" | "pending" | "on";
-export type SyncError = "not_enabled" | "offline" | "auth" | "rate_limited" | "server" | "clock" | "busy" | "bad_response";
+export type SyncError = "not_enabled" | "offline" | "auth" | "rate_limited" | "server" | "clock" | "busy" | "bad_response" | "email_not_configured" | "bad_email" | "bad_code" | "email_in_use";
 
 export type SyncOutcome =
   | { ok: true; pushed: number; stale: number; rejected: number; pulled: number; parked: number; /** The server's copy was replaced or rewound; this phone re-sent its rows. */ reconciled?: boolean }
@@ -27,6 +27,7 @@ export type SyncOutcome =
 export interface SyncInfo {
   status: SyncStatus;
   accountId: string | null;
+  email: string | null;
   lastSyncAt: number | null;
   lastError: string | null;
   /** Rows changed on this phone and not yet acknowledged by the server. */
@@ -43,7 +44,7 @@ export type ConnectResult =
 const PAGE = 200;
 // A fixed constant from @gain/sync, never user input.
 const SETTING_KEYS_SQL = SYNCED_SETTING_KEYS.map((k) => `'${k}'`).join(",");
-const S = { status: "status", account: "account_id", token: "device_token", recovery: "recovery_code", cursor: "cursor", last: "last_sync_at", err: "last_error", rejected: "rejected_total", generation: "server_generation", reconciled: "reconciled_total" } as const;
+const S = { status: "status", account: "account_id", email: "email", token: "device_token", recovery: "recovery_code", cursor: "cursor", last: "last_sync_at", err: "last_error", rejected: "rejected_total", generation: "server_generation", reconciled: "reconciled_total" } as const;
 
 type Row = Record<string, string | number | null>;
 const versionOf = (updatedAt: number, deletedAt: number | null) => `${updatedAt}:${deletedAt ?? ""}`;
@@ -325,10 +326,14 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
   async function call(method: "GET" | "POST" | "DELETE", path: string, token: string | null, body?: unknown): Promise<{ status: number; json: unknown } | { error: SyncError; detail?: string }> {
     try {
       const res = await transport.request(method, path, { token, body });
-      if (res.status === 401) return { error: "auth" };
+      const err = (res.json as { error?: string } | null)?.error;
+      if (res.status === 401) return { error: err === "bad_code" ? "bad_code" : "auth" };
       if (res.status === 429) return { error: "rate_limited" };
+      if (res.status === 501 && err === "email_not_configured") return { error: "email_not_configured" };
+      if (res.status === 409 && err === "email_in_use") return { error: "email_in_use" };
+      if (res.status === 400 && (err === "bad_email" || err === "bad_request")) return { error: err === "bad_email" ? "bad_email" : "bad_code" };
       if (res.status >= 500) return { error: "server", detail: `HTTP ${res.status}` };
-      if (res.status >= 400) return { error: "bad_response", detail: `HTTP ${res.status} ${(res.json as { error?: string } | null)?.error ?? ""}`.trim() };
+      if (res.status >= 400) return { error: "bad_response", detail: `HTTP ${res.status} ${err ?? ""}`.trim() };
       return res;
     } catch (e) {
       if (e instanceof TransportError) return { error: "offline", detail: e.message };
@@ -408,6 +413,50 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
       });
     }
     const me = await call("GET", "/v1/me", token);
+    if ("error" in me) return { ok: false, error: me.error, detail: me.detail };
+    const serverRows = Number((me.json as { rows?: number })?.rows ?? 0);
+    const local = await hasUserData();
+    if (serverRows > 0 && local) return { ok: true, recoveryCode: recovery ?? "", needsChoice: true };
+    if (serverRows > 0) {
+      const r = await takeBackup();
+      if (!r.ok) return { ok: false, error: r.error, detail: r.detail };
+    } else {
+      await setState(S.status, "on");
+    }
+    return { ok: true, recoveryCode: recovery ?? "", needsChoice: false };
+  }
+
+  /** POST /v1/auth/email/start. Does not create an account; verifyEmail does. */
+  async function startEmail(email: string): Promise<{ ok: true } | { ok: false; error: SyncError; detail?: string }> {
+    const res = await call("POST", "/v1/auth/email/start", null, { email });
+    if ("error" in res) return { ok: false, error: res.error, detail: res.detail };
+    return { ok: true };
+  }
+
+  /**
+   * Sign in or create an account with the emailed code (no token), or link the email to this phone's account (token present).
+   * Same first-sync choice as `connect` when both sides already have data.
+   */
+  async function verifyEmail(opts: { email: string; code: string; label?: string }): Promise<ConnectResult> {
+    const existing = await getState(S.token);
+    const res = await call("POST", "/v1/auth/email/verify", existing, { email: opts.email, code: opts.code, label: opts.label });
+    if ("error" in res) return { ok: false, error: res.error, detail: res.detail };
+    const j = res.json as { accountId?: string; deviceToken?: string; recoveryCode?: string; linked?: boolean };
+    if (j?.linked) {
+      if (!j.accountId) return { ok: false, error: "bad_response" };
+      await setState(S.email, opts.email.trim().toLowerCase());
+      return { ok: true, recoveryCode: (await getState(S.recovery)) ?? "", needsChoice: false };
+    }
+    if (!j?.deviceToken || !j.accountId) return { ok: false, error: "bad_response" };
+    const recovery = j.recoveryCode ?? null;
+    await db.transaction(async () => {
+      await setState(S.token, j.deviceToken!);
+      await setState(S.account, j.accountId!);
+      await setState(S.email, opts.email.trim().toLowerCase());
+      if (recovery) await setState(S.recovery, recovery);
+      await setState(S.status, "pending");
+    });
+    const me = await call("GET", "/v1/me", j.deviceToken);
     if ("error" in me) return { ok: false, error: me.error, detail: me.detail };
     const serverRows = Number((me.json as { rows?: number })?.rows ?? 0);
     const local = await hasUserData();
@@ -532,6 +581,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
     return {
       status: st,
       accountId: await getState(S.account),
+      email: await getState(S.email),
       lastSyncAt: Number((await getState(S.last)) ?? "") || null,
       lastError: await getState(S.err),
       pendingOut: st === "on" ? await pendingOut() : 0,
@@ -543,7 +593,7 @@ export function createSyncEngine(db: Db, deps: Deps, transport: Transport, secre
     return getState(S.recovery);
   }
 
-  return { syncNow, connect, useBackup, disconnect, ensureAccount, api, clearLocal, getInfo, getRecoveryCode, hasUserData, status, token: () => getState(S.token) };
+  return { syncNow, connect, startEmail, verifyEmail, useBackup, disconnect, ensureAccount, api, clearLocal, getInfo, getRecoveryCode, hasUserData, status, token: () => getState(S.token) };
 }
 export type SyncEngine = ReturnType<typeof createSyncEngine>;
 

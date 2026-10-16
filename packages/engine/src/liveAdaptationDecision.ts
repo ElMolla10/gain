@@ -1,6 +1,7 @@
 import { buildLiveAdaptationFeatures, type SetContext } from './liveAdaptationFeatures';
 import type { FeatureMap } from './liveAdaptationInference';
 import { nextLoadAbove, nextLoadBelow } from './loads';
+import { orderAdjustedReps } from './sessionOrder';
 import type { GymLoadSpec } from './types';
 
 export type Action = 'increase' | 'maintain' | 'decrease' | 'stop';
@@ -73,6 +74,14 @@ export interface LiveRecommendationInput {
   predict: (features: FeatureMap) => number;
   severePain?: boolean; dizziness?: boolean; consecutiveVeryLowSets?: number;
 }
+/** Apply same-muscle session order after the load action is decided, so a PR increase keeps its weight. */
+function withSessionOrder(d: Decision, ctx: SetContext): Decision {
+  const n = ctx.sessionFatigueReps ?? 0;
+  if (n <= 0 || d.action === 'stop') return d;
+  const reps = orderAdjustedReps(d.suggestedReps, n);
+  return reps === d.suggestedReps ? d : { ...d, suggestedReps: reps };
+}
+
 /** At most five model evaluations, using selectable equipment rungs and the actual proposed next load. */
 export function recommendLiveSet(x: LiveRecommendationInput): Decision {
   const current = x.context.proposedWeightKg;
@@ -90,7 +99,7 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
   };
   validateInput(base);
   const stop = stopReason(base);
-  if (stop) return {action:'stop', suggestedWeightKg:current, suggestedReps:0, predictedReps:0, predictionAvailable:false, reason:stop};
+  if (stop) return withSessionOrder({action:'stop', suggestedWeightKg:current, suggestedReps:0, predictedReps:0, predictionAvailable:false, reason:stop}, x.context);
   // The logged or manually selected load is valid workout data regardless of
   // the gym's optional rack configuration. Only alternate weights need a rack.
   const p = predict(current);
@@ -100,7 +109,7 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
     if (upper !== null && upper <= current * 1.05 + 1e-6) {
       const heavierPrediction = predict(upper);
       if (heavierPrediction >= x.targetMin && heavierPrediction <= p)
-        return {action:'increase', suggestedWeightKg:upper, suggestedReps:prescriptionReps(heavierPrediction, x.targetMax), predictedReps:heavierPrediction, reason:'above_range'};
+        return withSessionOrder({action:'increase', suggestedWeightKg:upper, suggestedReps:prescriptionReps(heavierPrediction, x.targetMax), predictedReps:heavierPrediction, reason:'above_range'}, x.context);
     }
   }
   if (p < x.targetMin) {
@@ -114,8 +123,8 @@ export function recommendLiveSet(x: LiveRecommendationInput): Decision {
       if (reps > p && reps >= x.targetMin) { best = {weight:lower, reps}; break; }
       lower = x.loadSpec ? nextLoadBelow(x.loadSpec, lower) : null;
     }
-    if (best) return {action:'decrease', suggestedWeightKg:best.weight, suggestedReps:prescriptionReps(best.reps, x.targetMax), predictedReps:best.reps, reason:'below_range'};
-    return {action:'maintain', suggestedWeightKg:current, suggestedReps:prescriptionReps(p, x.targetMax), predictedReps:p, reason:'no_lighter_load'};
+    if (best) return withSessionOrder({action:'decrease', suggestedWeightKg:best.weight, suggestedReps:prescriptionReps(best.reps, x.targetMax), predictedReps:best.reps, reason:'below_range'}, x.context);
+    return withSessionOrder({action:'maintain', suggestedWeightKg:current, suggestedReps:prescriptionReps(p, x.targetMax), predictedReps:p, reason:'no_lighter_load'}, x.context);
   }
-  return {action:'maintain', suggestedWeightKg:current, suggestedReps:prescriptionReps(p, x.targetMax), predictedReps:p, reason:p > x.targetMax ? 'no_suitable_increase' : 'within_range'};
+  return withSessionOrder({action:'maintain', suggestedWeightKg:current, suggestedReps:prescriptionReps(p, x.targetMax), predictedReps:p, reason:p > x.targetMax ? 'no_suitable_increase' : 'within_range'}, x.context);
 }

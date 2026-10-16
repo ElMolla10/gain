@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FocusTooMany, MAX_FOCUS_PINS } from "../src/db/achievementRepo";
 import { freshDb } from "./helpers";
 
 const DAY = 86_400_000;
@@ -135,7 +136,10 @@ describe("achievement persistence", () => {
     await c.train({ load: 60, reps: 5 });
     await c.achievements.sync();
     const home = await c.achievements.getHome();
-    expect(home.nextUp.some((n) => n.badgeId === "pin_target")).toBe(true);
+    expect(home.nextUp.some((n) => n.badgeId.startsWith("pin_target"))).toBe(true);
+    const toward = home.nextUp.find((n) => n.badgeId.startsWith("pin_target"))!;
+    expect(toward.current).toBeGreaterThan(0);
+    expect(toward.current).toBeLessThan(100);
     expect((await c.achievements.listEarned()).some((r) => r.badgeId === "pin_target" && r.status === "earned")).toBe(false);
     c.deps.tick(DAY);
     await c.train({ load: 70, reps: 5 });
@@ -145,5 +149,30 @@ describe("achievement persistence", () => {
     expect(earned?.evidence?.kind).toBe("pin_target");
     expect(await c.achievements.getPin(c.ex.exerciseId)).toBeNull();
     expect((await c.db.get<{ n: number }>("SELECT reached_at_utc AS n FROM lift_pin WHERE exercise_id = ? AND deleted_at IS NULL", [c.ex.exerciseId]))!.n).toBeGreaterThan(0);
+  });
+
+  it("pins up to 3 focus lifts with a 4–6 week block and refuses a fourth", async () => {
+    const c = await setup();
+    const lib = await c.programmes.listExercises();
+    const ids = lib.slice(0, 4).map((e) => e.id);
+    expect(ids).toHaveLength(4);
+    expect(MAX_FOCUS_PINS).toBe(3);
+    await c.achievements.setPin({ exerciseId: ids[0]!, load: 70, reps: 5, weeks: 6 });
+    await c.achievements.setPin({ exerciseId: ids[1]!, load: 80, reps: 5, weeks: 4 });
+    await c.achievements.setPin({ exerciseId: ids[2]!, load: 90, reps: 5, weeks: 5 });
+    await expect(c.achievements.setPin({ exerciseId: ids[3]!, load: 100, reps: 5 })).rejects.toBeInstanceOf(FocusTooMany);
+    const pins = await c.achievements.listPins();
+    expect(pins).toHaveLength(3);
+    const first = pins.find((p) => p.exerciseId === ids[0]);
+    expect(first).toMatchObject({ exerciseId: ids[0], weeks: 6 });
+    expect(first!.startedWeek).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    await c.achievements.setPin({ exerciseId: ids[0]!, load: 72.5, reps: 5, weeks: 6 });
+    expect(await c.achievements.listPins()).toHaveLength(3);
+    expect((await c.achievements.getPin(ids[0]!))!.load).toBe(72.5);
+    await c.train({ load: 60, reps: 5 });
+    await c.achievements.sync();
+    const home = await c.achievements.getHome();
+    expect(home.nextUp.filter((n) => n.badgeId.startsWith("pin_target")).length).toBeGreaterThanOrEqual(1);
+    expect(home.nextUp.filter((n) => n.badgeId.startsWith("pin_target")).length).toBeLessThanOrEqual(3);
   });
 });

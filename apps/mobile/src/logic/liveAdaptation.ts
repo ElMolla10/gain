@@ -9,7 +9,7 @@ export function nextAdaptiveRow(rows: SetRowDraft[]): SetRowDraft | undefined {
   return next && kindOf(next) !== "warmup" && kindOf(next) !== "drop" ? next : undefined;
 }
 /** The database does not record historic equipment or load convention. Missing inputs stay missing; RIR is never converted to RPE. */
-export function liveContext(input: { exerciseId: string; measure: Measure; setup: SetupType; equipment: EquipmentType; sets: SetRow[]; rows: SetRowDraft[]; targetReps: number; last?: { performedAt: string; sets: LoggedSet[] } | null; supportedExerciseIds?: readonly string[] }): SetContext | null {
+export function liveContext(input: { exerciseId: string; measure: Measure; setup: SetupType; equipment: EquipmentType; sets: SetRow[]; rows: SetRowDraft[]; targetReps: number; last?: { performedAt: string; sets: LoggedSet[] } | null; supportedExerciseIds?: readonly string[]; sessionFatigueReps?: number }): SetContext | null {
   if (input.measure !== "reps" || input.setup !== "free" || input.equipment === "assisted") return null;
   const next = nextAdaptiveRow(input.rows);
   if (!next || input.rows.some(r => r.saved && r.dirty)) return null;
@@ -54,6 +54,7 @@ export function liveContext(input: { exerciseId: string; measure: Measure; setup
     sleepHours: null,
     readiness: null,
     previousSetRpe: null,
+    sessionFatigueReps: input.sessionFatigueReps && input.sessionFatigueReps > 0 ? input.sessionFatigueReps : undefined,
   };
 }
 /** Static requires are discoverable by Metro, inside the function so launch does not parse the trees. */
@@ -65,12 +66,33 @@ export function localPrediction(features: FeatureMap): number {
 export function liveRecommendation(context: SetContext, targetMin: number, targetMax: number, loadSpec: GymLoadSpec | null, predict = localPrediction): Decision {
   return recommendLiveSet({ context, targetMin, targetMax, loadSpec, predict });
 }
+/** Fill only expected reps on the next working row. Typed reps and saved rows stay. */
+export function applyExpectedReps(rows: SetRowDraft[], key: string, reps: number): SetRowDraft[] {
+  const next = nextAdaptiveRow(rows);
+  if (!next || next.key !== key || next.reps !== null || !Number.isInteger(reps) || reps < 1) return rows;
+  if (next.ghostReps === reps) return rows;
+  return rows.map(r => r.key === key ? { ...r, ghostReps: reps } : r);
+}
 /** Fill the next working row without overwriting either value the lifter typed. */
 export function applyLiveTarget(rows: SetRowDraft[], key: string, load: number, reps: number): SetRowDraft[] {
   const next = nextAdaptiveRow(rows);
   if (!next || next.key !== key || !Number.isFinite(load) || load <= 0 || !Number.isInteger(reps) || reps < 1) return rows;
   if (next.ghostLoad === load && next.ghostReps === reps) return rows;
   return rows.map(r => r.key === key ? { ...r, ghostLoad: load, ghostReps: reps } : r);
+}
+/** "Use this": put the suggestion in the next working row, replacing typed values. Saved rows stay. */
+export function takeLiveTarget(rows: SetRowDraft[], key: string, load: number, reps: number): SetRowDraft[] {
+  const next = nextAdaptiveRow(rows);
+  if (!next || next.key !== key || !Number.isFinite(load) || load <= 0 || !Number.isInteger(reps) || reps < 1) return rows;
+  if (next.load === null && next.reps === null && next.ghostLoad === load && next.ghostReps === reps) return rows;
+  return rows.map(r => r.key === key ? { ...r, load: null, reps: null, invalidLoad: false, invalidReps: false, ghostLoad: load, ghostReps: reps } : r);
+}
+/** "Enter my own": drop auto-filled ghosts on the next working row so the boxes are empty to type. */
+export function clearLiveTarget(rows: SetRowDraft[], key: string): SetRowDraft[] {
+  const next = nextAdaptiveRow(rows);
+  if (!next || next.key !== key) return rows;
+  if (next.ghostLoad === null && next.ghostReps === null) return rows;
+  return rows.map(r => r.key === key ? { ...r, ghostLoad: null, ghostReps: null } : r);
 }
 /** A maintain recommendation is still a real weight recommendation.
  * Never invent one when inference is unavailable or the exercise should stop. */

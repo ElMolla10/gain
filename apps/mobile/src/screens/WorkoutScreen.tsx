@@ -1,5 +1,5 @@
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { findSpec, nextLoadAbove, type Decision, type GymFingerprint, type LoggedSet, type Measure, type OutlierResult } from "@gain/engine";
+import { estimateStartingLoad, findSpec, nextLoadAbove, type Decision, type GymFingerprint, type LoggedSet, type Measure, type OutlierResult } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, Vibration, View } from "react-native";
@@ -39,6 +39,7 @@ import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
 import { staleOffGridTarget } from "../logic/targetRefresh";
 import { adjustTimer, formatClock, isDone, newTimer, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
+import { pauseClock, resumeClock } from "../logic/workoutClock";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 
@@ -48,6 +49,8 @@ interface Loaded {
   sessionId: string;
   resumed: boolean;
   startedAt: number;
+  pausedMs: number;
+  pausedAt: number | null;
   gym: GymFingerprint;
   slots: DayEx[];
   info: Record<string, ExInfo>;
@@ -106,6 +109,8 @@ export function WorkoutScreen() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [machineFor, setMachineFor] = useState<string | null>(null);
   const [pickFor, setPickFor] = useState<string | null>(null);
+  /** Replace-with sheet: program slot plus optional "feels off" filter. Null until the lifter asks. */
+  const [subFor, setSubFor] = useState<{ slot: string; fatigue: boolean } | null>(null);
   /** The row whose type (normal / warm-up / drop / failure) is being chosen. */
   const [addOpen, setAddOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -159,9 +164,20 @@ export function WorkoutScreen() {
         target: stored ? (stored.effectiveLoad !== null && storedQ !== null && stored.status !== "rejected" ? { load: stored.effectiveLoad, reps: storedQ } : null) : proposal.status === "proposed" && proposedQ !== null ? { load: proposal.load, reps: proposedQ } : null,
         last: lastTop ? { load: lastTop.load, reps: setQuantity(lastTop, m) } : null,
       });
-      return { proposal, line, lineId, last, stored, personalHistory: personalHistory.map(h => ({ performedAt: h.performedAt, sets: h.sets })), prefill: { load: d.load, reps: d.reps } };
+      const history = personalHistory.map((h) => ({ performedAt: h.performedAt, sets: h.sets }));
+      if (d.load !== null || isTimed(m)) return { proposal, line, lineId, last, stored, personalHistory: history, prefill: { load: d.load, reps: d.reps } };
+      const bwRaw = await repos.getSetting("bodyweight_kg");
+      const bw = bwRaw ? Number(bwRaw) : NaN;
+      const est = estimateStartingLoad({
+        pattern: ex.pattern,
+        equipment: ex.equipment,
+        setup: ex.setup,
+        bodyweightKg: Number.isFinite(bw) ? bw : null,
+        spec: findSpec(gym, ex.equipment),
+      });
+      return { proposal, line, lineId, last, stored, personalHistory: history, prefill: est ? { load: est.load, reps: ex.repMin, estimated: true } : { load: d.load, reps: d.reps } };
     },
-    [workout, finish],
+    [workout, finish, repos],
   );
 
   // Open (or resume) the session exactly once; leaving and coming back never creates a second one. A failed open is an error with a
@@ -215,7 +231,7 @@ export function WorkoutScreen() {
       setExState(states);
       setSets(all);
       setRows(initial);
-      setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), gym, slots, info });
+      setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), pausedMs: session?.paused_ms ?? 0, pausedAt: session?.paused_at ?? null, gym, slots, info });
       if (resumed) setResumeNote(true);
     })().catch((e) => {
       diagnostics.record("error", "open workout", e);
@@ -481,6 +497,25 @@ export function WorkoutScreen() {
     await workout.patchExerciseState(loaded.sessionId, slot, { restOff: off });
   }
 
+  const durationBusy = useRef(false);
+  async function toggleDurationPause() {
+    if (!loaded || loaded === "nogym" || durationBusy.current) return;
+    durationBusy.current = true;
+    const nowMs = Date.now();
+    const next = loaded.pausedAt != null ? resumeClock(loaded.pausedMs, loaded.pausedAt, nowMs) : pauseClock(loaded.pausedMs, loaded.pausedAt, nowMs);
+    setLoaded({ ...loaded, ...next });
+    try {
+      if (loaded.pausedAt != null) await workout.resumeDuration(loaded.sessionId);
+      else await workout.pauseDuration(loaded.sessionId);
+    } catch (e) {
+      diagnostics.record("warn", "pause duration", e);
+      const s = await workout.getSession(loaded.sessionId).catch(() => null);
+      if (s) setLoaded((cur) => (cur && cur !== "nogym" ? { ...cur, pausedMs: s.paused_ms ?? 0, pausedAt: s.paused_at ?? null } : cur));
+    } finally {
+      durationBusy.current = false;
+    }
+  }
+
   function askRemove(ex: Disp, title: string) {
     if (!loaded || loaded === "nogym") return;
     const lo = loaded;
@@ -504,7 +539,7 @@ export function WorkoutScreen() {
 
   function startReplace(ex: Disp) {
     if ((setsByEx.get(ex.exerciseId) ?? []).length > 0) return void Alert.alert(t("workout.replace.blocked"));
-    setPickFor(ex.slot);
+    setSubFor({ slot: ex.slot, fatigue: false });
   }
 
   /** Put an exercise (back) into a slot: rebuild its target info and rows. */
@@ -557,6 +592,7 @@ export function WorkoutScreen() {
     if (!slotEx) return;
     const cur = makeDisp(slotEx, exState[slot]);
     setPickFor(null);
+    setSubFor(null);
     if (exerciseId === slot) {
       await applyReplace(lo, slot, cur, null, false);
       return;
@@ -718,7 +754,12 @@ export function WorkoutScreen() {
 
   const replacing = shown.find(ex => ex.slot === pickFor);
   const source = replacing ? library.find(ex => ex.id === replacing.exerciseId) : undefined;
-  const alternatives = source ? substitutionCandidates(source, library, loaded.gym.loads.map(spec => spec.equipment), shown.map(ex => ex.exerciseId)) : [];
+  const alternatives = source ? substitutionCandidates({
+    current: source,
+    library,
+    gymEquipment: loaded.gym.loads.map((spec) => spec.equipment),
+    exclude: shown.map((row) => row.exerciseId),
+  }) : [];
 
   const renderExercise = (ex: Disp, position: number) => {
     const info = loaded.info[ex.exerciseId];
@@ -738,6 +779,7 @@ export function WorkoutScreen() {
         warmOpen={warmOpen === ex.exerciseId} warmDone={!!warmDone[ex.exerciseId]}
         onOpenProgress={() => navigation.dispatch(StackActions.push("LiftTrend", { lineId: info.lineId }))}
         onToggleRest={() => void toggleRest(ex.slot)} onMenu={() => setMenuFor(ex.slot)}
+        onOpenTrend={() => (navigation as { navigate: (name: string, params?: object) => void }).navigate("LiftTrend", { lineId: info.lineId })}
         onWhy={() => info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored.id })) : setWhyOpen(w => ({ ...w, [ex.exerciseId]: !whyOpen[ex.exerciseId] }))}
         onWhyLong={() => setWhyOpen(w => ({ ...w, [ex.exerciseId]: !whyOpen[ex.exerciseId] }))}
         onPatch={(key, change) => patch(ex.exerciseId, key, change)}
@@ -780,6 +822,17 @@ export function WorkoutScreen() {
   };
 
   const menuEx = menuFor ? shown.find((e) => e.slot === menuFor) : undefined;
+  const subEx = subFor ? shown.find((e) => e.slot === subFor.slot) : undefined;
+  const subLib = subEx ? library.find((l) => l.id === subEx.exerciseId) : undefined;
+  const subCands = subEx
+    ? substitutionCandidates({
+        current: { id: subEx.exerciseId, pattern: subEx.pattern, equipment: subEx.equipment, seedKey: subLib?.seedKey ?? null, measure: subEx.measure, setup: subEx.setup },
+        library,
+        gymEquipment: loaded.gym.loads.map((l) => l.equipment),
+        fatigue: subFor?.fatigue,
+        exclude: shown.map((e) => e.exerciseId),
+      }).slice(0, 8)
+    : [];
   const machineEx = machineFor ? shown.find((e) => e.slot === machineFor) : undefined;
   const machineChoice = machineEx ? library.find(e => e.id === machineEx.exerciseId) : undefined;
   async function chooseMachineStep(ex: Disp, kind: MachineLoadKind, step?: PinMachineStep) {
@@ -845,7 +898,7 @@ export function WorkoutScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
         <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, rowGap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
           <Stat label={t("workout.stat.duration")}>
-            <LiveDuration startedAt={loaded.startedAt} color={p.accent} />
+            <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} onToggle={() => void toggleDurationPause()} />
           </Stat>
           <Stat label={t("workout.stat.sets")}>
             <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{summary.sets}</AppText>
@@ -1018,6 +1071,36 @@ export function WorkoutScreen() {
             label: exerciseLabels(e, lang).primary,
             onPress: () => ssFor && void applySuperset(joinSuperset(exState, ssFor, e.slot)),
           }))}
+      />
+      <MenuSheet
+        visible={subFor !== null}
+        title={subCands.length === 0 ? t("coach.sub.none") : t("coach.sub.title")}
+        onClose={() => setSubFor(null)}
+        items={
+          subFor
+            ? [
+                ...subCands.map((c) => ({
+                  label: exerciseLabels(c, lang).primary,
+                  onPress: () => subFor && void replaceWith(subFor.slot, c.id),
+                })),
+                {
+                  label: t("coach.sub.fatigue"),
+                  selected: subFor.fatigue,
+                  onPress: () => {
+                    const next = { slot: subFor.slot, fatigue: !subFor.fatigue };
+                    setTimeout(() => setSubFor(next), 0);
+                  },
+                },
+                {
+                  label: t("coach.sub.other"),
+                  onPress: () => {
+                    const slot = subFor.slot;
+                    setTimeout(() => setPickFor(slot), 0);
+                  },
+                },
+              ]
+            : []
+        }
       />
       <ExercisePicker
         visible={addOpen}

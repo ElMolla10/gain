@@ -62,6 +62,8 @@ export function buildCardModel(i: CardInput): CardModel {
           parts.push(e.top.load > 0 ? t("finish.record.quantity", { load: formatLoad(e.top.load, lang, unit), q }) : t("finish.record.quantityBare", { q }));
         }
         if (r === "reps_at_load") parts.push(t("finish.record.reps", { load: formatLoad(e.top.load, lang, unit), reps: e.top.reps }));
+        if (r === "rep" && e.repPr) parts.push(t("finish.record.rep", { load: formatLoad(e.repPr.load, lang, unit), reps: e.repPr.reps }));
+        if (r === "e1rm" && e.estimated1rm != null) parts.push(t("finish.record.e1rm", { load: formatLoad(e.estimated1rm, lang, unit) }));
       }
     }
     if (e.firstTime) parts.push(t("finish.firstTime"));

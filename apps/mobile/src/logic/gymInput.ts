@@ -105,7 +105,33 @@ export function cleanSpec(spec: GymLoadSpec): GymLoadSpec {
   if (spec.increment !== undefined) out.increment = spec.increment;
   if (spec.min !== undefined) out.min = spec.min;
   if (spec.max !== undefined) out.max = spec.max;
+  if (spec.plates && spec.plates.length > 0) {
+    const plates = [...new Set(spec.plates.map((x) => Math.round(x * 1000) / 1000).filter((x) => x > 0))].sort((a, b) => a - b);
+    if (plates.length > 0) out.plates = plates;
+  }
   return out;
+}
+
+/** Persist plates as a tagged object so they never become the barbell increment grid. A plain array is the load list. */
+export function serializeLoadsJson(spec: GymLoadSpec): string | null {
+  if (spec.plates && spec.plates.length > 0) return JSON.stringify({ kind: "plates", plates: spec.plates });
+  if (spec.loads && spec.loads.length > 0) return JSON.stringify(spec.loads);
+  return null;
+}
+
+export function parseLoadsJson(raw: string | null | undefined): { loads?: number[]; plates?: number[] } {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw) as unknown;
+    if (Array.isArray(v) && v.every((x) => typeof x === "number" && Number.isFinite(x))) return { loads: v as number[] };
+    if (v && typeof v === "object" && (v as { kind?: string }).kind === "plates" && Array.isArray((v as { plates?: unknown }).plates)) {
+      const plates = (v as { plates: unknown[] }).plates.filter((x): x is number => typeof x === "number" && Number.isFinite(x) && x > 0);
+      return plates.length > 0 ? { plates } : {};
+    }
+  } catch {
+    /* damaged text is ignored */
+  }
+  return {};
 }
 
 /** The smallest steps between neighbouring rungs of a list (for the "dumbbells go 20, then 22.5" line). */

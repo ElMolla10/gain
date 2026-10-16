@@ -6,11 +6,21 @@ export interface WarmupStep {
   reps: number;
 }
 
+/** Barbell working-set ramp: 50% × 5, 70% × 3, 85% × 1 (empty bar is added separately). */
 export const DEFAULT_WARMUP_STEPS: WarmupStep[] = [
-  { pct: 0.5, reps: 8 },
-  { pct: 0.7, reps: 5 },
-  { pct: 0.85, reps: 3 },
+  { pct: 0.5, reps: 5 },
+  { pct: 0.7, reps: 3 },
+  { pct: 0.85, reps: 1 },
 ];
+
+/** Dumbbell, machine, cable, plate: fewer steps, no empty-bar opener. */
+export const SHORT_WARMUP_STEPS: WarmupStep[] = [
+  { pct: 0.5, reps: 5 },
+  { pct: 0.8, reps: 3 },
+];
+
+/** Isolation: a single ramp set. */
+export const ISOLATION_WARMUP_STEPS: WarmupStep[] = [{ pct: 0.7, reps: 5 }];
 
 export interface WarmupSet {
   load: number;
@@ -29,16 +39,23 @@ export interface WarmupPlan {
  * They are logged with warmup=true and never drive progression. Each warm-up is strictly heavier than the last and
  * strictly lighter than the working load. Barbell-style grids open with the empty bar when the working load is >= 1.5x the bar.
  */
+function stepsFor(spec: GymLoadSpec, opts: { steps?: WarmupStep[]; isolation?: boolean }): WarmupStep[] {
+  if (opts.steps) return opts.steps;
+  if (opts.isolation) return ISOLATION_WARMUP_STEPS;
+  if (spec.equipment === "barbell") return DEFAULT_WARMUP_STEPS;
+  return SHORT_WARMUP_STEPS;
+}
+
 export function generateWarmups(
   workingLoad: number,
   spec: GymLoadSpec | null,
-  opts: { setup?: SetupType; steps?: WarmupStep[]; maxSets?: number } = {},
+  opts: { setup?: SetupType; steps?: WarmupStep[]; maxSets?: number; isolation?: boolean } = {},
 ): WarmupPlan {
   const setup = opts.setup ?? "free";
   if (setup === "assisted") return { sets: [], skipped: "assisted_line" };
   if (!spec) return { sets: [], skipped: "no_gym_loads" };
   const zero = setup === "bodyweight_plus_added";
-  const steps = opts.steps ?? DEFAULT_WARMUP_STEPS;
+  const steps = stepsFor(spec, opts);
   const maxSets = opts.maxSets ?? steps.length + 1;
   if (!(workingLoad > 0)) return { sets: [], skipped: "working_load_too_light" };
 

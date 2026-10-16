@@ -3,6 +3,7 @@ import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
 import { normTopSets } from "../logic/programmeDraft";
 import { parseStoredLoads, serializeLoads } from "../logic/exerciseLoads";
+import { parseLoadsJson } from "../logic/gymInput";
 import { loadsJsonWithKind, machineLoads } from "../logic/machineLoadKind";
 import { hasLoggedSets } from "./sessionSql";
 import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
@@ -194,7 +195,11 @@ export function createRepos(db: Db, deps: Deps) {
       gymId,
       loads: rows.map((r) => {
         const spec: GymLoadSpec = { equipment: r.equipment };
-        if (r.loads_json) spec.loads = JSON.parse(r.loads_json) as number[];
+        if (r.loads_json) {
+          const parsed = parseLoadsJson(r.loads_json);
+          if (parsed.loads) spec.loads = parsed.loads;
+          if (parsed.plates) spec.plates = parsed.plates;
+        }
         if (r.increment !== null) spec.increment = r.increment;
         if (r.min_load !== null) spec.min = r.min_load;
         if (r.max_load !== null) spec.max = r.max_load;

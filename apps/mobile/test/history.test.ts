@@ -132,7 +132,13 @@ describe("history: lifts and trend", () => {
     const lifts = await history.listLifts();
     const bench = lifts.find((l) => l.nameEn === BENCH)!;
     expect(bench).toMatchObject({ sessions: 3, setup: "free", hasImported: false });
-    const { trend } = (await history.getLiftTrend(bench.lineId))!;
+    const { trend, sessions } = (await history.getLiftTrend(bench.lineId))!;
+    expect(sessions).toHaveLength(3);
+    expect(sessions.flatMap((s) => s.sets).map((s) => [s.load, s.reps, !!s.warmup])).toEqual([
+      [40, 10, true], [60, 8, false], [65, 5, false],
+      [100, 3, true], [65, 6, false],
+      [67.5, 5, false],
+    ]);
     expect(trend.points.map((p) => [p.load, p.reps])).toEqual([[65, 5], [65, 6], [67.5, 5]]);
     expect(trend.best).toMatchObject({ load: 67.5 });
     expect(await history.getLiftTrend("nope")).toBeNull();
@@ -180,7 +186,7 @@ describe("history: deleting a whole finished workout", () => {
     const second = await train({ [BENCH]: [[40, 12, true], [65, 7], [65, 6]] });
     const line = (await history.listLifts()).find((lift) => lift.nameEn === BENCH)!;
     expect((await history.getLiftTrend(line.lineId))!.trend.points.map((p) => p.load)).toEqual([60, 65]);
-    expect((await finish.summarizeSession(second.sessionId)).totals.records).toBe(1);
+    expect((await finish.summarizeSession(second.sessionId)).totals.records).toBe(2);
     expect(await history.countSessions()).toBe(2);
 
     // A finished session can retain notes/rest choices. These are tombstoned too.

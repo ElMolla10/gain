@@ -7,7 +7,8 @@ import type { ExerciseState, SetRow } from "../db/workoutRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { localizeReason, weightText } from "../logic/units";
-import { warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
+import { isIsolationPattern, warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
+import { plateLine } from "../logic/plateText";
 import { isTimed, quantityText, setQuantity } from "../logic/quantity";
 import { workingIndexes } from "../logic/liveSummary";
 import { focusedRowKey } from "../logic/workoutFocus";
@@ -33,10 +34,11 @@ interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDe
   onOutlierConfirm: (set: SetRow) => Promise<void>; onOutlierReject: (set: SetRow) => Promise<void>;
   onWarmConfirm: (steps: { load: number; reps: number }[]) => Promise<void>;
   onWarmOpen: () => void; onWarmClose: () => void; onAddSet: () => void;
+  onOpenTrend?: () => void;
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
+export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
@@ -50,7 +52,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
   const timed = isTimed(ex.measure);
   const qUnits = { s: t("qty.s"), m: t("qty.m") };
-  const offer = timed ? ({ kind: "none", reason: "already_started" } as unknown as ReturnType<typeof warmupOffer>) : warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length });
+  const offer = timed ? ({ kind: "none", reason: "already_started" } as unknown as ReturnType<typeof warmupOffer>) : warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length, isolation: isIsolationPattern(ex.pattern) });
   const pending = exSets.filter((s) => s.outlierStatus === "unconfirmed");
   // "Maintain" is an actual recommendation too: show its current load, not a blank.
   // If inference is unavailable or tells the lifter to stop, do not fake a weight.
@@ -64,6 +66,8 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   const targetNone = info.stored ? info.stored.status === "rejected" || info.stored.effectiveLoad === null || storedQ === null : !(pr.status === "proposed" && pr.load !== null && proposedQ !== null);
   const tLoad = info.stored ? info.stored.effectiveLoad : pr.load;
   const tReps = info.stored ? storedQ : proposedQ;
+  const plates = !timed ? plateLine(spec, typeof tLoad === "number" ? tLoad : workingLoad, unit, t) : null;
+  const suggestedPlates = !timed && suggestedKg !== null ? plateLine(spec, suggestedKg, unit, t) : null;
   // A hold or carry target: "45 s" (or "24 kg × 45 s" when it is loaded); a reps target: "60 kg × 8".
   const targetText = targetNone ? t("workout.targetNone") : timed ? ((tLoad as number) > 0 ? `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(quantityText(tReps as number, ex.measure, qUnits))}` : isolateLtr(quantityText(tReps as number, ex.measure, qUnits))) : `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(String(tReps))}`;
   const reasonText = info.stored?.status === "rejected" ? t("finish.rejectedNote") : renderReason(localizeReason(info.stored ? info.stored.reason : pr.reason, unit, lang), lang);
@@ -87,7 +91,13 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
           {supersetLabel ? (
             <AppText style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}>{t("workout.superset.label", { letter: supersetLabel! })}</AppText>
           ) : null}
-          <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
+          {onOpenTrend ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={labels.primary} onPress={onOpenTrend}>
+              <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
+            </Pressable>
+          ) : (
+            <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
+          )}
           {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
         </Pressable>
         {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
@@ -110,6 +120,9 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
           onWhy={() => onWhy()}
           onWhyLong={() => onWhyLong()}
         />
+        {plates ? <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>{plates.text}</AppText> : null}
+        {suggestedPlates && suggestedPlates.text !== plates?.text ? <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>{suggestedPlates.text}</AppText> : null}
+        {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
         {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
         <PersonalMilestoneLine onOpen={onOpenProgress} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
         {ex.topSets && !timed ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("workout.topset.note", { n: ex.topSets })}</AppText> : null}

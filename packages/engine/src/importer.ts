@@ -6,7 +6,7 @@ import type { EquipmentType, LoggedSet, SetupType } from "./types";
  * Hevy and Strong CSV import, source-neutral. Pure functions, no I/O. Everything is read exactly as written in the file:
  * a unit that the file does not state is reported as "unknown" and the lifter must say it; nothing is guessed.
  */
-export type ImportSource = "hevy" | "strong";
+export type ImportSource = "hevy" | "strong" | "fitnotes" | "csv";
 export type WeightUnit = "kg" | "lb";
 
 /** A row with seconds and/or metres instead of reps (plank, dead hang, farmer's walk). Kept so it can be imported once the exercise is a timed one. */
@@ -76,11 +76,15 @@ function detectDelimiter(text: string): "," | ";" {
   return semis > commas ? ";" : ",";
 }
 
-/** Which app exported this file, from its header. Null when it looks like neither. */
+const normHeader = (h: string): string => h.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** Which app exported this file, from its header. Null when it looks like none of the known formats. */
 export function detectSource(text: string): ImportSource | null {
-  const h = headerOf(text, detectDelimiter(text)).map((x) => x.toLowerCase());
+  const h = headerOf(text, detectDelimiter(text)).map(normHeader);
   if (h.includes("exercise_title") && h.includes("start_time")) return "hevy";
   if (h.includes("exercise name") && h.includes("workout name") && h.includes("set order")) return "strong";
+  if (h.includes("exercise") && h.includes("category") && h.includes("date") && h.includes("reps") && h.some((x) => x.startsWith("weight"))) return "fitnotes";
+  if (suggestCsvMapping(h)) return "csv";
   return null;
 }
 
@@ -88,7 +92,151 @@ export function parseImport(text: string): ImportParse {
   const source = detectSource(text);
   if (source === "hevy") return parseHevy(text);
   if (source === "strong") return parseStrong(text);
-  throw new HevyParseError("This does not look like a Hevy or Strong export");
+  if (source === "fitnotes") return parseFitNotes(text);
+  if (source === "csv") return parseMappedCsv(text, suggestCsvMapping(headerOf(text, detectDelimiter(text)).map(normHeader))!);
+  throw new HevyParseError("This does not look like a Hevy, Strong, FitNotes or CSV export");
+}
+
+export function csvHeaders(text: string): string[] {
+  return headerOf(text, detectDelimiter(text));
+}
+
+/** Column indexes for a generic CSV. Required: exercise, date, weight, reps. */
+export interface CsvMapping {
+  exercise: number;
+  date: number;
+  weight: number;
+  reps: number;
+  set?: number;
+  workout?: number;
+}
+
+const headerIndex = (headers: string[], ...names: string[]): number => headers.findIndex((h) => names.includes(normHeader(h)));
+
+/** Guess a mapping from header names. Null when a required column is missing. */
+export function suggestCsvMapping(headers: string[]): CsvMapping | null {
+  const h = headers.map(normHeader);
+  const exercise = headerIndex(h, "exercise", "exercise name", "name", "title");
+  const date = headerIndex(h, "date", "workout date", "day", "start", "start time");
+  const weight = headerIndex(h, "weight", "weight (kg)", "weight (lbs)", "weight (lb)", "load", "kg", "lbs");
+  const reps = headerIndex(h, "reps", "repetitions", "rep");
+  if (exercise < 0 || date < 0 || weight < 0 || reps < 0) return null;
+  const set = headerIndex(h, "set", "set order", "set number");
+  const workout = headerIndex(h, "workout", "workout name", "session");
+  const m: CsvMapping = { exercise, date, weight, reps };
+  if (set >= 0) m.set = set;
+  if (workout >= 0) m.workout = workout;
+  return m;
+}
+
+/**
+ * A date the file wrote: ISO datetime, ISO date, or a numeric date. Invalid values return null (the row is a warning, never a silent shift).
+ * Ambiguous 1–12 / 1–12 / year is read as month/day/year.
+ */
+export function parseFlexibleDate(s: string): string | null {
+  const t = s.trim();
+  if (t === "") return null;
+  try {
+    return parseStrongDate(t);
+  } catch {
+    /* other shapes */
+  }
+  let m = /^\s*(\d{4})-(\d{2})-(\d{2})\s*$/.exec(t);
+  if (m) {
+    if (!validCalendarFields(+m[1]!, +m[2]!, +m[3]!, 0, 0, 0)) return null;
+    return `${m[1]}-${m[2]}-${m[3]}T00:00:00`;
+  }
+  m = /^\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\s*$/.exec(t);
+  if (m) {
+    const a = +m[1]!, b = +m[2]!, y = +m[3]!;
+    const dmy = a > 12;
+    const day = dmy ? a : b;
+    const month = dmy ? b : a;
+    if (!validCalendarFields(y, month, day, 0, 0, 0)) return null;
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${y}-${p(month)}-${p(day)}T00:00:00`;
+  }
+  return null;
+}
+
+export function parseMappedCsv(text: string, mapping: CsvMapping): ImportParse {
+  return parseColumnar(text, "csv", mapping);
+}
+
+function parseFitNotes(text: string): ImportParse {
+  const delimiter = detectDelimiter(text);
+  const header = headerOf(text, delimiter).map(normHeader);
+  const mapping: CsvMapping = {
+    date: headerIndex(header, "date"),
+    exercise: headerIndex(header, "exercise"),
+    weight: headerIndex(header, "weight (kg)", "weight (lbs)", "weight (lb)", "weight"),
+    reps: headerIndex(header, "reps"),
+  };
+  if (mapping.date < 0 || mapping.exercise < 0 || mapping.weight < 0 || mapping.reps < 0) {
+    throw new HevyParseError("Missing FitNotes columns: Date, Exercise, Weight, Reps");
+  }
+  return parseColumnar(text, "fitnotes", mapping, { kind: headerIndex(header, "kind"), time: headerIndex(header, "time") });
+}
+
+function parseColumnar(
+  text: string,
+  source: "fitnotes" | "csv",
+  mapping: CsvMapping,
+  extra: { kind?: number; time?: number } = {},
+): ImportParse {
+  const delimiter = detectDelimiter(text);
+  const rows = parseCsv(text, delimiter);
+  if (rows.length === 0) throw new HevyParseError("Empty file");
+  const header = (rows[0] ?? []).map(normHeader);
+  const wHeader = header[mapping.weight] ?? "";
+  const unit: ImportParse["unit"] = wHeader.includes("kg") ? "kg" : wHeader.includes("lb") ? "lb" : "unknown";
+  const warnings: string[] = [];
+  const byKey = new Map<string, ImportedWorkout>();
+  let rowCount = 0;
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r]!;
+    const start = parseFlexibleDate(row[mapping.date] ?? "");
+    if (!start) {
+      warnings.push(`row ${r + 1}: Unrecognised or invalid date: "${row[mapping.date] ?? ""}"; skipped`);
+      continue;
+    }
+    const exTitle = (row[mapping.exercise] ?? "").trim();
+    if (!exTitle) {
+      warnings.push(`row ${r + 1}: no exercise name; skipped`);
+      continue;
+    }
+    const title = mapping.workout !== undefined ? (row[mapping.workout] ?? "").trim() || `Workout ${start.slice(0, 10)}` : `Workout ${start.slice(0, 10)}`;
+    rowCount++;
+    const key = workoutKey(source, title, start);
+    let w = byKey.get(key);
+    if (!w) {
+      w = { source, title, startTime: start, endTime: null, key, exercises: [] };
+      byKey.set(key, w);
+    }
+    let ex = w.exercises.find((e) => e.title === exTitle);
+    if (!ex) {
+      ex = { title: exTitle, sets: [], skippedRows: 0 };
+      w.exercises.push(ex);
+    }
+    const kindRaw = extra.kind !== undefined && extra.kind >= 0 ? (row[extra.kind] ?? "").trim() : mapping.set !== undefined ? (row[mapping.set] ?? "").trim() : "";
+    const warmup = /^w(armup)?$/i.test(kindRaw);
+    const reps = num(row[mapping.reps]);
+    if (reps === null || reps < 1) {
+      ex.skippedRows++;
+      const secs = extra.time !== undefined && extra.time >= 0 ? parseDurationSeconds(row[extra.time] ?? "") : null;
+      if (secs !== null && secs > 0) {
+        const t: ImportedTimedSet = { load: num(row[mapping.weight]) ?? 0, durationS: Math.round(secs), distanceM: null };
+        if (warmup) t.warmup = true;
+        (ex.timed ??= []).push(t);
+      }
+      continue;
+    }
+    const set: LoggedSet = { load: num(row[mapping.weight]) ?? 0, reps };
+    if (warmup) set.warmup = true;
+    ex.sets.push(set);
+  }
+  const workouts = [...byKey.values()].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  return { source, unit, workouts, warnings, rowCount };
 }
 
 // ---- Hevy ---------------------------------------------------------------------------------------------------

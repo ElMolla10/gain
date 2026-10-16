@@ -49,7 +49,7 @@ describe("personal progress from saved history", () => {
   it("recalculates before-and-after results after history corrections", async () => {
     const c = await setup();
     const first = await c.train({ reps: 5 }); const second = await c.train({ reps: 6 });
-    expect((await c.finish.summarizeSession(second.sessionId)).exercises[0]).toMatchObject({ previousAtLoad: 5, records: ["reps_at_load"] });
+    expect((await c.finish.summarizeSession(second.sessionId)).exercises[0]).toMatchObject({ previousAtLoad: 5, records: ["reps_at_load", "e1rm"] });
     await c.history.updateSet(first.setId, { load: 60, reps: 7, rir: null });
     expect((await c.finish.summarizeSession(second.sessionId)).exercises[0]).toMatchObject({ previousAtLoad: 7, records: [] });
   });

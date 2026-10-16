@@ -1,5 +1,5 @@
 import type { EquipmentType, GymLoadSpec } from "@gain/engine";
-import { cleanSpec, validateGym, type GymProblem } from "../logic/gymInput";
+import { cleanSpec, serializeLoadsJson, validateGym, type GymProblem } from "../logic/gymInput";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { Repos } from "./repos";
@@ -72,7 +72,7 @@ export function createGymRepo(db: Db, deps: Deps, repos: Repos, finish: FinishRe
     for (const raw of loads) {
       const l = cleanSpec(raw);
       const row = existing.find((e) => e.equipment === l.equipment);
-      const vals = [l.loads ? JSON.stringify(l.loads) : null, l.increment ?? null, l.min ?? null, l.max ?? null];
+      const vals = [serializeLoadsJson(l), l.increment ?? null, l.min ?? null, l.max ?? null];
       if (row) await db.run("UPDATE gym_load SET loads_json = ?, increment = ?, min_load = ?, max_load = ?, updated_at = ? WHERE id = ?", [...vals, t, row.id]);
       else
         await db.run(

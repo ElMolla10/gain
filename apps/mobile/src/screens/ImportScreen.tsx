@@ -1,5 +1,5 @@
 import { File } from "expo-file-system";
-import { ImportParseError, parseImport, toKilograms, type EquipmentType, type ImportParse, type SetupType, type WeightUnit } from "@gain/engine";
+import { csvHeaders, ImportParseError, parseImport, parseMappedCsv, toKilograms, type CsvMapping, type EquipmentType, type ImportParse, type SetupType, type WeightUnit } from "@gain/engine";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import { useServices } from "../AppContext";
@@ -88,6 +88,8 @@ export function ImportScreen() {
   const [result, setResult] = useState<(ImportResult) | null>(null);
   const [undone, setUndone] = useState<number | null>(null);
   const [batches, setBatches] = useState<BatchInfo[]>([]);
+  const [mapFile, setMapFile] = useState<{ name: string; text: string; headers: string[] } | null>(null);
+  const [mapCols, setMapCols] = useState<Record<string, keyof CsvMapping | "ignore">>({});
 
   const refreshBatches = useCallback(() => void imports.listBatches().then(setBatches), [imports]);
   useEffect(() => {
@@ -129,10 +131,23 @@ export function ImportScreen() {
       if (picked.canceled) return;
       setBusy(t("import.reading"));
       const text = await picked.result.text();
-      const parse = parseImport(text);
-      setParsed({ name: picked.result.name, parse });
-      setUnit(parse.unit === "unknown" ? null : parse.unit);
-      setOverrides({});
+      try {
+        const parse = parseImport(text);
+        setMapFile(null);
+        setParsed({ name: picked.result.name, parse });
+        setUnit(parse.unit === "unknown" ? null : parse.unit);
+        setOverrides({});
+      } catch (e) {
+        const headers = csvHeaders(text);
+        if (headers.length >= 2) {
+          setMapFile({ name: picked.result.name, text, headers });
+          setMapCols({});
+          setParsed(null);
+          setError(null);
+        } else {
+          throw e;
+        }
+      }
     } catch (e) {
       setParsed(null);
       setError(t("import.readFailed", { detail: e instanceof ImportParseError || e instanceof Error ? e.message : String(e) }));
@@ -169,11 +184,52 @@ export function ImportScreen() {
   }
 
   const unitFromFile = parsed && parsed.parse.unit !== "unknown";
+  const mapRoles: (keyof CsvMapping | "ignore")[] = ["exercise", "date", "weight", "reps", "set", "workout", "ignore"];
+  const applyMap = () => {
+    if (!mapFile) return;
+    const idx = (role: keyof CsvMapping) => mapFile.headers.findIndex((_, i) => mapCols[String(i)] === role);
+    const mapping: CsvMapping = { exercise: idx("exercise"), date: idx("date"), weight: idx("weight"), reps: idx("reps") };
+    const setI = idx("set");
+    const workI = idx("workout");
+    if (setI >= 0) mapping.set = setI;
+    if (workI >= 0) mapping.workout = workI;
+    if (mapping.exercise < 0 || mapping.date < 0 || mapping.weight < 0 || mapping.reps < 0) {
+      setError(t("import.go.blocked"));
+      return;
+    }
+    try {
+      const parse = parseMappedCsv(mapFile.text, mapping);
+      setParsed({ name: mapFile.name, parse });
+      setUnit(parse.unit === "unknown" ? null : parse.unit);
+      setOverrides({});
+      setMapFile(null);
+      setError(null);
+    } catch (e) {
+      setError(t("import.readFailed", { detail: e instanceof Error ? e.message : String(e) }));
+    }
+  };
   return (
     <Screen>
       <ArDraftNote />
       <AppText style={{ color: p.muted }}>{t("import.intro")}</AppText>
-      <BigButton label={parsed ? t("import.pickAnother") : t("import.pick")} selected={!parsed} disabled={!!busy} onPress={() => void choose()} />
+      <BigButton label={parsed || mapFile ? t("import.pickAnother") : t("import.pick")} selected={!parsed && !mapFile} disabled={!!busy} onPress={() => void choose()} />
+      {mapFile ? (
+        <Card>
+          <AppText style={{ fontWeight: "600" }}>{t("import.map.title")}</AppText>
+          <AppText style={{ color: p.muted }}>{t("import.map.note")}</AppText>
+          {mapFile.headers.map((h, i) => (
+            <View key={i} style={{ gap: space.sm }}>
+              <AppText ltr style={{ fontWeight: "600" }}>{h || `#${i + 1}`}</AppText>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+                {mapRoles.map((role) => (
+                  <Chip key={role} label={t(`import.map.${role}` as StringKey)} selected={mapCols[String(i)] === role} onPress={() => setMapCols((cur) => ({ ...cur, [String(i)]: role }))} />
+                ))}
+              </View>
+            </View>
+          ))}
+          <BigButton label={t("import.map.go")} onPress={applyMap} />
+        </Card>
+      ) : null}
       {busy ? <InlineStatus kind="info" text={busy} /> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
       {undone !== null ? <InlineStatus kind="success" text={t("import.undone", { workouts: undone })} /> : null}

@@ -1,4 +1,4 @@
-import type { Measure } from "@gain/engine";
+import type { EquipmentType, Measure } from "@gain/engine";
 import React, { useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
@@ -7,14 +7,16 @@ import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { computeExposure } from "../logic/exposure";
 import {
-  addDay, addExercise, reorderDays, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, reorderExercises, updateExercise, type ProgrammeDraft,
+  addDay, addExercise, reorderDays, newExerciseFor, removeDay, removeExercise, renameDay, renameProgramme, reorderExercises, swapExercise, updateExercise, type ProgrammeDraft,
 } from "../logic/programmeDraft";
+import { substitutionCandidates } from "../logic/substitutions";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Field, IconButton, Stepper } from "../ui";
 import { EffectView, ExposureView } from "./ExposureView";
 import { ExercisePicker } from "./ExercisePicker";
 import { ExerciseReorderModal } from "./ExerciseReorderModal";
 import { WorkoutSettingsModal } from "./WorkoutSettingsModal";
+import { MenuSheet } from "./LogParts";
 import { Icon } from "./Icon";
 
 /**
@@ -37,6 +39,8 @@ export function ProgrammeEditorView(props: {
   onSetMeasure?: (exerciseId: string, measure: Measure) => Promise<void>;
   /** Open the screen where the weights that exist for an exercise are set. Absent = the chip is not shown (e.g. during onboarding). */
   onOpenLoads?: (exerciseId: string) => void;
+  /** Equipment in the current gym. Substitutions are offered only when this is set. */
+  gymEquipment?: EquipmentType[];
   onSetMachineLoadKind?: (exerciseId: string, kind: MachineLoadKind, pinStep?: PinMachineStep) => Promise<void>;
 }) {
   const { t, lang } = useI18n();
@@ -47,6 +51,8 @@ export function ProgrammeEditorView(props: {
   const [reorderDay, setReorderDay] = useState<number | null>(null);
   // Start collapsed. Only one exercise needs to reveal its advanced settings at a time.
   const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
+  const [swapFor, setSwapFor] = useState<{ day: number; index: number; fatigue: boolean } | null>(null);
+  const [swapPick, setSwapPick] = useState<{ day: number; index: number } | null>(null);
   const byId = useMemo(() => new Map(props.library.map((e) => [e.id, e])), [props.library]);
   const measureOf = (id: string): Measure => byId.get(id)?.measure ?? "reps";
   const patternOf = (id: string) => byId.get(id)?.pattern;
@@ -57,6 +63,20 @@ export function ProgrammeEditorView(props: {
   const after = computeExposure(props.draft, patternOf, props.daysPerWeek);
   const before = props.baseline ? computeExposure(props.baseline, patternOf, props.daysPerWeek) : null;
   const d = props.draft;
+  const swapCands = useMemo(() => {
+    if (!swapFor || !props.gymEquipment) return [];
+    const curId = d.days[swapFor.day]?.exercises[swapFor.index]?.exerciseId;
+    const cur = curId ? byId.get(curId) : undefined;
+    if (!cur) return [];
+    const dayIds = d.days[swapFor.day]?.exercises.map((x) => x.exerciseId) ?? [];
+    return substitutionCandidates({
+      current: cur,
+      library: props.library,
+      gymEquipment: props.gymEquipment,
+      fatigue: swapFor.fatigue,
+      exclude: dayIds,
+    }).slice(0, 8);
+  }, [swapFor, props.gymEquipment, props.library, d, byId]);
 
   const confirmRemoveExercise = (dayIndex: number, exerciseIndex: number) => {
     const exercise = d.days[dayIndex]?.exercises[exerciseIndex];
@@ -176,6 +196,11 @@ export function ProgrammeEditorView(props: {
                   <Chip label={t("prog.ex.effort")} selected={e.trackEffort} onPress={() => props.onChange(updateExercise(d, di, ei, { trackEffort: !e.trackEffort }))} />
                 </View>
               )}
+              {props.gymEquipment && props.gymEquipment.length > 0 ? (
+                <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                  <Chip label={t("coach.sub.title")} onPress={() => setSwapFor({ day: di, index: ei, fatigue: false })} />
+                </View>
+              ) : null}
               {byId.get(e.exerciseId)?.equipment === "machine" && props.onSetMachineLoadKind ? (
                 <View style={{ gap: space.xs }}>
                   <AppText style={{ fontWeight: "600" }}>{t("loads.machine.title")}</AppText>
@@ -245,6 +270,51 @@ export function ProgrammeEditorView(props: {
         onPick={(id) => {
           if (pickerDay !== null) props.onChange(addExercise(d, pickerDay, newExerciseFor(id, measureOf(id))));
           setPickerDay(null);
+        }}
+      />
+      <MenuSheet
+        visible={swapFor !== null}
+        title={swapCands.length === 0 ? t("coach.sub.none") : t("coach.sub.title")}
+        onClose={() => setSwapFor(null)}
+        items={
+          swapFor
+            ? [
+                ...swapCands.map((c) => ({
+                  label: nameOf(c.id),
+                  onPress: () => props.onChange(swapExercise(d, swapFor.day, swapFor.index, c.id)),
+                })),
+                {
+                  label: t("coach.sub.fatigue"),
+                  selected: swapFor.fatigue,
+                  onPress: () => {
+                    const next = { ...swapFor, fatigue: !swapFor.fatigue };
+                    setTimeout(() => setSwapFor(next), 0);
+                  },
+                },
+                {
+                  label: t("coach.sub.other"),
+                  onPress: () => {
+                    const pick = { day: swapFor.day, index: swapFor.index };
+                    setTimeout(() => setSwapPick(pick), 0);
+                  },
+                },
+              ]
+            : []
+        }
+      />
+      <ExercisePicker
+        visible={swapPick !== null}
+        exercises={props.library}
+        exclude={swapPick !== null ? d.days[swapPick.day]?.exercises.map((e) => e.exerciseId) : []}
+        onClose={() => setSwapPick(null)}
+        onCreate={async (input) => {
+          const id = await props.onCreateExercise(input);
+          props.onLibraryChanged?.();
+          return id;
+        }}
+        onPick={(id) => {
+          if (swapPick) props.onChange(swapExercise(d, swapPick.day, swapPick.index, id));
+          setSwapPick(null);
         }}
       />
     </View>

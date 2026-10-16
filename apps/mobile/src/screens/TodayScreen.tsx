@@ -8,6 +8,9 @@ import { useWindowDimensions, View } from "react-native";
 import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
 import { WeeklyReviewCard } from "../components/WeeklyReviewCard";
+import { MuscleVolumeCard } from "../components/MuscleVolumeCard";
+import { DeloadCard } from "../components/DeloadCard";
+import { PeriodizationCard } from "../components/PeriodizationCard";
 import { useServices } from "../AppContext";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { estimateDayMinutes } from "../logic/duration";
@@ -38,7 +41,7 @@ interface TodayData {
 }
 
 export function TodayScreen() {
-  const { repos, goals, programmes, shortWeek, finish, workout } = useServices();
+  const { repos, goals, programmes, shortWeek, deload, finish, workout } = useServices();
   const { t, lang, fmt, unit } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why", params?: { dayId: string } | { targetId: string }) => void }>();
@@ -57,6 +60,7 @@ export function TodayScreen() {
       void runLoad<TodayData>(async () => {
         // A new training week has begun: the normal program returns (if the lifter has not already edited it).
         await shortWeek.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
+        await deload.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
         const shortActive = await shortWeek.getActive();
         if (alive) setShort(shortActive);
         const next = await repos.getNextDay();
@@ -89,7 +93,7 @@ export function TodayScreen() {
       return () => {
         alive = false;
       };
-    }, [repos, goals, programmes, shortWeek, workout, finish, t, fmt, lang, attempt]),
+    }, [repos, goals, programmes, shortWeek, deload, workout, finish, t, fmt, lang, attempt]),
   );
 
   if (state.kind === "loading") return <LoadingState />;
@@ -226,6 +230,9 @@ export function TodayScreen() {
 
       <PersonalProgressCard />
       <WeeklyReviewCard />
+      <MuscleVolumeCard />
+      <DeloadCard />
+      <PeriodizationCard />
 
       {paceLine ? <ListCard title={t("goals.entry")} note={paceLine} onPress={() => navigation.navigate("Goals")} /> : null}
 

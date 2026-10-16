@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BackupInvalid } from "../src/logic/backup";
 import { LATEST_VERSION, MIGRATIONS, migrate } from "../src/db/migrations";
-import { buildLoads, emptyLoadsForm, formFromSpec, loadsSummaryText, parseStoredLoads, serializeLoads, specValues } from "../src/logic/exerciseLoads";
+import { buildLoads, emptyLoadsForm, formFromSpec, loadsSummaryText, matchingJumpKg, parseStoredLoads, serializeLoads, specValues, specWithJump, TREND_LOAD_JUMPS_KG } from "../src/logic/exerciseLoads";
 import { describeDecision } from "../src/logic/why";
 import { kgToUnit } from "../src/logic/units";
 import { ar, en } from "../src/i18n/strings";
@@ -74,12 +74,36 @@ describe("the form", () => {
   });
 });
 
+describe("quick jump presets on a lift", () => {
+  it("is 2.5, 2, 5 and 10 kg", () => {
+    expect(TREND_LOAD_JUMPS_KG).toEqual([2.5, 2, 5, 10]);
+  });
+  it("matches the selected jump on a step grid, not a list or a custom step", () => {
+    expect(matchingJumpKg({ equipment: "barbell", increment: 2.5, min: 20 })).toBe(2.5);
+    expect(matchingJumpKg({ equipment: "machine", increment: 5 })).toBe(5);
+    expect(matchingJumpKg({ equipment: "machine", increment: 4.5 })).toBeNull();
+    expect(matchingJumpKg({ equipment: "dumbbell", loads: [10, 12] })).toBeNull();
+    expect(matchingJumpKg(null)).toBeNull();
+  });
+  it("builds a spec with that jump, keeping min/max from the current grid and ignoring a list", () => {
+    expect(specWithJump("barbell", 5, { equipment: "barbell", increment: 2.5, min: 20, max: 200 })).toEqual({
+      equipment: "barbell", increment: 5, min: 20, max: 200,
+    });
+    expect(specWithJump("machine", 2, null)).toEqual({ equipment: "machine", increment: 2 });
+    expect(specWithJump("dumbbell", 2, { equipment: "dumbbell", loads: [10, 12] }, { equipment: "dumbbell", increment: 2.5, min: 2.5, max: 50 })).toEqual({
+      equipment: "dumbbell", increment: 2, min: 2.5, max: 50,
+    });
+  });
+});
+
 describe("migration 11: weights set per exercise (upgrade from schema 10 with real data)", () => {
   it("every row of a real history survives, load_spec_json = NULL everywhere (the gym's grid, as before)", async () => {
     const cur = await populatedWithRealHistory();
     expect(LATEST_VERSION).toBeGreaterThanOrEqual(11);
     const before = await dumpAll(cur.db);
     delete before.ml_prediction; // schema 11 predates the device-only evaluation table
+    before.session = (before.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, ...rest }) => rest);
+    before.import_batch = (before.import_batch as Record<string, unknown>[]).map(({ source_kind: _s, ...rest }) => rest);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);
     const old = await copyAtVersion(cur.db, 10);
     expect((await old.all<{ name: string }>("PRAGMA table_info(exercise)")).map((c) => c.name)).not.toContain("load_spec_json");

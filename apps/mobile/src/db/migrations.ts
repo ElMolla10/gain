@@ -371,6 +371,24 @@ ALTER TABLE exercise ADD COLUMN load_spec_json TEXT;
 `,
   },
   { version: 12, name: "local experimental ML evaluation", sql: ML_EVALUATION_SQL },
+  {
+    version: 13,
+    name: "pausable workout duration",
+    sql: `
+-- Accumulated paused milliseconds and the instant the duration clock was paused (NULL = running).
+-- Existing sessions keep paused_ms = 0 and paused_at NULL, so finished history duration is unchanged.
+ALTER TABLE session ADD COLUMN paused_ms INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE session ADD COLUMN paused_at INTEGER;
+`,
+  },
+  {
+    version: 14,
+    name: "import source kind",
+    sql: `
+-- FitNotes / generic CSV keep CHECK(source in hevy|strong) and record the real format here (NULL = the CHECK source).
+ALTER TABLE import_batch ADD COLUMN source_kind TEXT;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

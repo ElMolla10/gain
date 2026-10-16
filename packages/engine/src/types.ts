@@ -24,6 +24,11 @@ export interface GymLoadSpec {
   /** First rung of an increment grid (e.g. 20 for an Olympic bar). Defaults to `increment` (0 for assisted). */
   min?: number;
   max?: number;
+  /**
+   * Barbell plate denominations available in this gym, in kilograms. Ignored by floorLoad / the increment grid.
+   * Omitted = derive from `increment` (1.25–25 kg for a 2.5 kg jump).
+   */
+  plates?: number[];
 }
 
 export interface GymFingerprint {

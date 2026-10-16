@@ -16,14 +16,24 @@ describe("summarizeExercise", () => {
     expect(summarizeExercise("free", [S(62.5, 6)], [S(60, 10), S(60, 9)]).records).toEqual(["load"]);
   });
   it("same load with more reps than ever at that load is a reps record", () => {
-    expect(summarizeExercise("free", [S(60, 11)], [S(60, 10), S(57.5, 12)]).records).toEqual(["reps_at_load"]);
+    expect(summarizeExercise("free", [S(60, 11)], [S(60, 10), S(57.5, 12)]).records).toContain("reps_at_load");
   });
   it("same load, same or fewer reps: no record", () => {
     expect(summarizeExercise("free", [S(60, 10)], [S(60, 10)]).records).toEqual([]);
     expect(summarizeExercise("free", [S(60, 8)], [S(60, 10)]).records).toEqual([]);
   });
-  it("lighter than before and no earlier sets at that load: nothing to compare, no record", () => {
-    expect(summarizeExercise("free", [S(50, 20)], [S(60, 8)]).records).toEqual([]);
+  it("lighter than before and no earlier sets at that load: no load record", () => {
+    expect(summarizeExercise("free", [S(50, 8)], [S(60, 8)]).records).toEqual([]);
+  });
+  it("heavier at the same exact reps is a rep record", () => {
+    const r = summarizeExercise("free", [S(70, 8)], [S(80, 5), S(65, 8)]);
+    expect(r.records).toContain("rep");
+    expect(r.repPr).toEqual({ load: 70, reps: 8 });
+  });
+  it("a higher Epley is an estimated-strength record", () => {
+    const r = summarizeExercise("free", [S(80, 10)], [S(100, 1)]);
+    expect(r.records).toContain("e1rm");
+    expect(r.estimated1rm).toBeGreaterThan(100);
   });
   it("earlier warm-ups, drop sets and unconfirmed sets do not set records", () => {
     expect(summarizeExercise("free", [S(60, 8)], [S(100, 5, { warmup: true }), S(100, 5, { outlierStatus: "unconfirmed" }), S(100, 5, { tags: ["drop"] })])).toMatchObject({ firstTime: true, records: [] });

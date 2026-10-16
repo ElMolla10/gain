@@ -50,7 +50,7 @@ export function HistoryScreen() {
           <View style={{ gap: space.md }}>
             <Card style={{ paddingVertical: space.xs }}>
               {sessions.map((s, i) => {
-                const min = sessionMinutes(s.startedAt, s.finishedAt, s.imported);
+                const min = sessionMinutes(s.startedAt, s.finishedAt, s.imported, s.pausedMs);
                 const line = min !== null ? t("history.rowLine", { min, sets: s.workingSets }) : t("history.rowLineNoTime", { sets: s.workingSets });
                 const title = s.imported ? t("history.imported") : s.dayName;
                 return <ListRow key={s.id} title={title} note={`${localDateText(s.finishedAt)} · ${line}`} last={i === sessions.length - 1} onPress={() => nav.navigate("SessionDetail", { sessionId: s.id })} />;

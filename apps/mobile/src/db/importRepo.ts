@@ -175,7 +175,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     const all = await programmes.listExercises();
     const library: LibraryEntry[] = all.map((e) => ({ id: e.id, nameEn: e.nameEn, equipment: e.equipment, setup: e.setup }));
     const measureById = new Map(all.map((e) => [e.id, e.measure]));
-    const saved = await savedMappings(parse.source);
+    const saved = await savedMappings(parse.source === "hevy" ? "hevy" : "strong");
     const twins = await twinChoices(all);
     const byTitle = new Map<string, TitlePreview>();
     let newSets = 0;
@@ -313,7 +313,9 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
       const { versionId, dayId } = await ensureHistoryDay();
       const batchId = newId();
       const t0 = now();
-      await db.run("INSERT INTO import_batch (id, source, file_name, gym_id, workouts, sets, created_at, updated_at) VALUES (?, ?, ?, ?, 0, 0, ?, ?)", [batchId, parse.source, input.fileName ?? null, gymId, t0, t0]);
+      const storedSource = parse.source === "hevy" ? "hevy" : "strong";
+      const sourceKind = parse.source === "hevy" || parse.source === "strong" ? null : parse.source;
+      await db.run("INSERT INTO import_batch (id, source, file_name, gym_id, workouts, sets, created_at, updated_at, source_kind) VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?)", [batchId, storedSource, input.fileName ?? null, gymId, t0, t0, sourceKind]);
 
       let sets = 0;
       let skippedSets = 0;
@@ -377,7 +379,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         await db.run(
           `INSERT INTO import_mapping (id, source, source_title, exercise_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(source, source_title) WHERE deleted_at IS NULL DO UPDATE SET exercise_id = excluded.exercise_id, updated_at = excluded.updated_at`,
-          [newId(), parse.source, title, ex.id, t0, t0],
+          [newId(), parse.source === "hevy" ? "hevy" : "strong", title, ex.id, t0, t0],
         );
       }
       return { batchId, workouts, sets, duplicates, empty: emptyNow, skippedSets, newExercises };
@@ -394,11 +396,11 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   }
 
   async function listBatches(): Promise<BatchInfo[]> {
-    const rows = await db.all<{ id: string; source: ImportSource; file_name: string | null; gym_id: string; gym_name: string; workouts: number; sets: number; created_at: number }>(
-      `SELECT b.id, b.source, b.file_name, b.gym_id, g.name AS gym_name, b.workouts, b.sets, b.created_at
+    const rows = await db.all<{ id: string; source: ImportSource; source_kind: string | null; file_name: string | null; gym_id: string; gym_name: string; workouts: number; sets: number; created_at: number }>(
+      `SELECT b.id, b.source, b.source_kind, b.file_name, b.gym_id, g.name AS gym_name, b.workouts, b.sets, b.created_at
        FROM import_batch b JOIN gym g ON g.id = b.gym_id WHERE b.deleted_at IS NULL ORDER BY b.created_at DESC, b.rowid DESC`,
     );
-    return rows.map((r) => ({ id: r.id, source: r.source, fileName: r.file_name, gymId: r.gym_id, gymName: r.gym_name, workouts: r.workouts, sets: r.sets, createdAt: r.created_at }));
+    return rows.map((r) => ({ id: r.id, source: (r.source_kind as ImportSource | null) || r.source, fileName: r.file_name, gymId: r.gym_id, gymName: r.gym_name, workouts: r.workouts, sets: r.sets, createdAt: r.created_at }));
   }
 
   /**

@@ -18,3 +18,17 @@ describe("P27: the 250 ms rest-timer tick does not re-render the whole logger", 
     expect(src).not.toMatch(/isDone\(timer, now\)/);
   });
 });
+
+describe("workout duration pause", () => {
+  it("the duration readout is tappable, freezes its 1s tick while paused, and leaves the rest clock alone", () => {
+    const live = stats.slice(stats.indexOf("function LiveDuration"));
+    expect(live).toContain("onPress={onToggle}");
+    expect(live).toContain("if (paused) return");
+    expect(live).toContain('t("workout.stat.paused")');
+    expect(src).toContain("toggleDurationPause");
+    const pauseFn = src.slice(src.indexOf("async function toggleDurationPause"), src.indexOf("function askRemove"));
+    expect(pauseFn).not.toContain("setTimer");
+    expect(pauseFn).not.toContain("stopTimer");
+    expect(stats.match(/, 250\)/g)).toHaveLength(1);
+  });
+});

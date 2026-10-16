@@ -1,5 +1,26 @@
-import type { TrendDirection, TrendPoint } from "@gain/engine";
+import { epley, type HistorySession, type TrendDirection, type TrendPoint } from "@gain/engine";
 import type { StringKey } from "../i18n/strings";
+
+export type ChartMetric = "weight" | "e1rm" | "volume";
+export type ChartRange = "3m" | "1y" | "all";
+const DAY_MS = 86_400_000;
+
+/** Visible points only. Does not recompute the underlying trend. */
+export function filterTrendPoints(points: TrendPoint[], range: ChartRange, now: number): TrendPoint[] {
+  if (range === "all") return points;
+  const from = now - (range === "3m" ? 90 : 365) * DAY_MS;
+  return points.filter((p) => p.at >= from);
+}
+
+/** Remap each existing top-set point to the chart metric. Weight keeps the original load. */
+export function metricTrendPoints(points: TrendPoint[], metric: ChartMetric): TrendPoint[] {
+  if (metric === "weight") return points;
+  return points.map((p) => ({
+    ...p,
+    load: metric === "e1rm" ? epley(p.load, p.reps) : p.load * (p.quantity ?? p.reps),
+    quantity: undefined,
+  }));
+}
 
 export const MAX_BARS = 30;
 
@@ -36,4 +57,17 @@ export function localDateText(ms: number): string {
   const d = new Date(ms);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Consecutive sessions on the same local date share a header. Does not sort; pass newest-first. */
+export function groupSessionsByDate(sessions: HistorySession[]): { date: string; data: HistorySession[] }[] {
+  const groups: { date: string; data: HistorySession[] }[] = [];
+  for (const h of sessions) {
+    const at = Date.parse(h.performedAt);
+    const date = Number.isFinite(at) ? localDateText(at) : h.performedAt;
+    const last = groups[groups.length - 1];
+    if (last && last.date === date) last.data.push(h);
+    else groups.push({ date, data: [h] });
+  }
+  return groups;
 }

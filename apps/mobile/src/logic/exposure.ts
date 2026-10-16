@@ -5,9 +5,9 @@ import type { ProgrammeDraft } from "./programmeDraft";
  * It is arithmetic on the program, nothing more. Each exercise counts once, under its main movement pattern
  * (a squat is counted as quads, not also glutes), and the app does NOT say whether a number is enough.
  */
-export type MuscleGroup = "chest" | "back" | "shoulders" | "biceps" | "triceps" | "quads" | "hamstrings" | "calves" | "other";
+export type MuscleGroup = "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms" | "quads" | "hamstrings" | "glutes" | "calves" | "other";
 
-export const MUSCLE_GROUPS: MuscleGroup[] = ["chest", "back", "shoulders", "biceps", "triceps", "quads", "hamstrings", "calves", "other"];
+export const MUSCLE_GROUPS: MuscleGroup[] = ["chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "other"];
 
 /** The movement patterns an exercise can have in the library (and that a lifter picks for their own exercises). */
 export const PATTERNS = [

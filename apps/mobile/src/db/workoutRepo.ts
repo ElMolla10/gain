@@ -24,6 +24,7 @@ import {
 } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import { exerciseOwnLoads, gridFor } from "./exerciseGrid";
+import { foldPausedMs } from "../logic/workoutClock";
 import { orderSlots, validReorder } from "../logic/superset";
 
 /** New workout exercises do not auto-start a rest countdown until the lifter opts in. */
@@ -206,15 +207,47 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   }
 
   async function getSession(sessionId: string) {
-    return db.get<{ id: string; programme_day_id: string; gym_id: string; status: string; started_at: number | null; finished_at: number | null }>(
-      "SELECT id, programme_day_id, gym_id, status, started_at, finished_at FROM session WHERE id = ? AND deleted_at IS NULL",
+    return db.get<{ id: string; programme_day_id: string; gym_id: string; status: string; started_at: number | null; finished_at: number | null; paused_ms: number; paused_at: number | null }>(
+      "SELECT id, programme_day_id, gym_id, status, started_at, finished_at, paused_ms, paused_at FROM session WHERE id = ? AND deleted_at IS NULL",
       [sessionId],
     );
   }
 
+  /** Freeze the duration clock. No-op if already paused or the session is not in progress. */
+  async function pauseDuration(sessionId: string): Promise<void> {
+    const t = now();
+    await db.run(
+      "UPDATE session SET paused_at = ?, updated_at = ? WHERE id = ? AND status = 'in_progress' AND paused_at IS NULL AND deleted_at IS NULL",
+      [t, t, sessionId],
+    );
+  }
+
+  /** Resume the duration clock, folding the open pause into paused_ms. No-op if running. */
+  async function resumeDuration(sessionId: string): Promise<void> {
+    const t = now();
+    await db.transaction(async () => {
+      const s = await db.get<{ paused_ms: number; paused_at: number | null }>(
+        "SELECT paused_ms, paused_at FROM session WHERE id = ? AND status = 'in_progress' AND deleted_at IS NULL",
+        [sessionId],
+      );
+      if (!s || s.paused_at == null) return;
+      await db.run("UPDATE session SET paused_ms = ?, paused_at = NULL, updated_at = ? WHERE id = ?", [foldPausedMs(s.paused_ms ?? 0, s.paused_at, t), t, sessionId]);
+    });
+  }
+
   async function finishSession(sessionId: string): Promise<void> {
     const t = now();
-    await db.run("UPDATE session SET status = 'finished', finished_at = ?, updated_at = ? WHERE id = ? AND status = 'in_progress'", [t, t, sessionId]);
+    await db.transaction(async () => {
+      const s = await db.get<{ paused_ms: number; paused_at: number | null }>(
+        "SELECT paused_ms, paused_at FROM session WHERE id = ? AND status = 'in_progress' AND deleted_at IS NULL",
+        [sessionId],
+      );
+      if (!s) return;
+      await db.run(
+        "UPDATE session SET status = 'finished', finished_at = ?, paused_ms = ?, paused_at = NULL, updated_at = ? WHERE id = ? AND status = 'in_progress'",
+        [t, foldPausedMs(s.paused_ms ?? 0, s.paused_at, t), t, sessionId],
+      );
+    });
   }
 
   /**
@@ -649,6 +682,8 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     startOrResumeSession,
     getOpenSession,
     getSession,
+    pauseDuration,
+    resumeDuration,
     finishSession,
     discardEmptySession,
     getLine,

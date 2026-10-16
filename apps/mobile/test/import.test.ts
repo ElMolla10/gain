@@ -241,3 +241,24 @@ describe("converted loads land on loads that exist", () => {
     expect(snapImportedLoad(gym, "cable", "free", 33.3)).toBe(33.3);
   });
 });
+
+describe("FitNotes import", () => {
+  const csv = "Date,Exercise,Category,Weight (kg),Reps\n2026-01-02,Bench Press (Barbell),Chest,80,5\n2026-01-02,Bench Press (Barbell),Chest,80,5\nbad-date,Row,Back,60,8\n";
+  it("previews with a date warning, imports onto the active gym, and undo removes the sessions", async () => {
+    const { imports, gymId, db } = await setup();
+    const parse = parseImport(csv);
+    expect(parse.source).toBe("fitnotes");
+    expect(parse.warnings.length).toBeGreaterThan(0);
+    const p = await imports.preview(parse);
+    expect(p.newWorkouts).toBe(1);
+    expect(p.warnings.length).toBeGreaterThan(0);
+    const r = await imports.importHistory({ parse, gymId, mappings: acceptAll(p.titles) });
+    expect(r.workouts).toBe(1);
+    expect(r.sets).toBe(2);
+    const batches = await imports.listBatches();
+    expect(batches[0]!.source).toBe("fitnotes");
+    const undone = await imports.undoBatch(r.batchId!);
+    expect(undone.workouts).toBe(1);
+    expect(await count(db, "SELECT COUNT(*) AS n FROM session WHERE import_key IS NOT NULL AND deleted_at IS NULL")).toBe(0);
+  });
+});

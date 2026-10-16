@@ -141,3 +141,26 @@ export function loadsSummaryText(spec: GymLoadSpec, unit: Unit, unitName: string
   else if (s.max !== null) out += L("loads.sum.upTo", { max: s.max });
   return out;
 }
+
+/** Jump sizes offered on the lift screen. Stored in kilograms. */
+export const TREND_LOAD_JUMPS_KG = [2.5, 2, 5, 10] as const;
+
+const JUMP_EPS = 1e-6;
+const isList = (spec: GymLoadSpec): boolean => !!spec.loads && spec.loads.length > 0;
+
+/** Which of the four jump chips matches this spec, or null (a list, a custom step, or nothing set). */
+export function matchingJumpKg(spec: GymLoadSpec | null): number | null {
+  if (!spec || isList(spec) || spec.increment === undefined) return null;
+  return TREND_LOAD_JUMPS_KG.find((j) => Math.abs(j - spec.increment!) < JUMP_EPS) ?? null;
+}
+
+/**
+ * Own step-grid min/max win; else the gym's step grid. A dumbbell list is not a grid, so its min/max are not copied.
+ */
+export function specWithJump(equipment: EquipmentType, jumpKg: number, own: GymLoadSpec | null, gym: GymLoadSpec | null = null): GymLoadSpec {
+  const grid = [own, gym].find((s): s is GymLoadSpec => !!s && !isList(s)) ?? null;
+  const spec: GymLoadSpec = { equipment, increment: jumpKg };
+  if (grid?.min !== undefined) spec.min = grid.min;
+  if (grid?.max !== undefined) spec.max = grid.max;
+  return spec;
+}

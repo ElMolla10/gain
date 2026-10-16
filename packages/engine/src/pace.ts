@@ -32,6 +32,13 @@ export const FREQUENCY_WINDOW_DAYS = 28;
 
 export type PaceStatus = "reached" | "ahead" | "on_pace" | "behind" | "too_thin";
 
+const PACE_RANK: Record<PaceStatus, number> = { too_thin: 0, behind: 1, on_pace: 2, ahead: 3, reached: 4 };
+
+/** True when the later reading is further along (behind → on pace, on pace → reached, …). Does not change the target. */
+export function paceImproved(before: PaceStatus, after: PaceStatus): boolean {
+  return PACE_RANK[after] > PACE_RANK[before];
+}
+
 const round = (x: number, d = 2): number => {
   const f = 10 ** d;
   return Math.round(x * f) / f;

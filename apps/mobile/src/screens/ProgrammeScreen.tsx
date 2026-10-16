@@ -14,7 +14,7 @@ import { effectiveRange, rangeText, sourceOfBasis } from "../logic/repRange";
 import { resolveRepTop } from "@gain/engine";
 import type { RepCeilings } from "@gain/engine";
 
-type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void };
+type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions" | "ProgrammeShare" | "ProgramGenerate" | "MusclePriority", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void };
 
 interface Data {
   programmeId: string;
@@ -57,6 +57,7 @@ export function ProgrammeScreen() {
     return (
       <Screen tab title={t("prog.title")}>
         <EmptyState icon="plan" title={t("prog.none")} actionLabel={t("prog.switch.entry")} onAction={() => nav.navigate("ProgrammeSwitch")} />
+        <BigButton label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
         <BigButton variant="secondary" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
       </Screen>
     );
@@ -136,6 +137,9 @@ export function ProgrammeScreen() {
           <ListRow title={t("prog.exposure.title")} onPress={() => nav.navigate("ProgrammeExposure")} />
           <ListRow title={t("prog.versions")} onPress={() => nav.navigate("ProgrammeVersions")} />
           <ListRow title={t("prog.switch.entry")} onPress={() => nav.navigate("ProgrammeSwitch")} />
+          <ListRow title={t("prog.share.entry")} onPress={() => nav.navigate("ProgrammeShare")} />
+          <ListRow title={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
+          <ListRow title={t("coach.priority.entry")} onPress={() => nav.navigate("MusclePriority")} />
           <ListRow title={t("prog.new")} last onPress={() => nav.navigate("ProgrammeEdit")} />
         </Card>
       </View>

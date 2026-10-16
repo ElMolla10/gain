@@ -13,4 +13,8 @@ describe("history row duration", () => {
     expect(sessionMinutes(T, T + 7 * 3_600_000, false)).toBeNull();
     expect(sessionMinutes(T, T - 60_000, false)).toBeNull();
   });
+  it("subtracts paused milliseconds from the shown duration", () => {
+    expect(sessionMinutes(T, T + 10 * 60_000, false, 8 * 60_000)).toBe(2);
+    expect(sessionMinutes(T, T + 10 * 60_000, false, 9.6 * 60_000)).toBeNull(); // under a minute of active time
+  });
 });

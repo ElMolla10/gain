@@ -16,7 +16,7 @@ export function workoutRecapStats(detail: SessionDetail, summary: SessionSummary
     exercises: summary.totals.exercises,
     sets: summary.totals.counted,
     volumeKg,
-    durationMinutes: sessionMinutes(detail.startedAt, detail.finishedAt, detail.imported),
+    durationMinutes: sessionMinutes(detail.startedAt, detail.finishedAt, detail.imported, detail.pausedMs),
     personalBests: summary.totals.records,
   };
 }
@@ -30,6 +30,8 @@ export function personalBestLines(summary: SessionSummary, lang: Lang, unit: Uni
     return ex.records.map(record => {
       if (record === "load") return `${name} — ${t("finish.record.load", { load: fmt(ex.top!.load) })}`;
       if (record === "reps_at_load") return `${name} — ${t("finish.record.reps", { load: fmt(ex.top!.load), reps: ex.top!.reps })}`;
+      if (record === "rep" && ex.repPr) return `${name} — ${t("finish.record.rep", { load: fmt(ex.repPr.load), reps: ex.repPr.reps })}`;
+      if (record === "e1rm" && ex.estimated1rm != null) return `${name} — ${t("finish.record.e1rm", { load: fmt(ex.estimated1rm) })}`;
       if (record === "quantity_at_load" && ex.top?.quantity !== undefined && ex.measure) {
         const q = quantityText(ex.top.quantity, ex.measure, { s: t("qty.s"), m: t("qty.m") });
         return `${name} — ${ex.top.load > 0 ? t("finish.record.quantity", { load: fmt(ex.top.load), q }) : t("finish.record.quantityBare", { q })}`;

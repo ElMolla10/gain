@@ -68,6 +68,21 @@ describe("gym repo", () => {
     expect(roundToGymLoad(db, 21).load).toBe(20); // nearest real pair (ties and near-ties never invent a 21)
     expect(findSpec(fp, "barbell")!.increment).toBe(1.25);
   });
+  it("stores barbell plates without turning them into the load grid, and switching gyms changes the fingerprint", async () => {
+    const { gyms, repos, deps } = await freshDb();
+    const home = await gyms.createGym({ name: "Home", loads: [{ equipment: "barbell", increment: 2.5, min: 20, max: 200, plates: [10, 20] }] });
+    const fp = await repos.loadGymFingerprint(home);
+    const bar = findSpec(fp, "barbell")!;
+    expect(bar.plates).toEqual([10, 20]);
+    expect(bar.loads).toBeUndefined();
+    expect(bar.increment).toBe(2.5);
+    expect(isGymLoad(bar, 22.5)).toBe(true);
+    deps.tick();
+    const club = await gyms.createGym({ name: "Club", loads: [{ equipment: "barbell", increment: 2.5, min: 20, max: 200, plates: [5, 25] }] });
+    expect(findSpec(await repos.loadGymFingerprint(club), "barbell")!.plates).toEqual([5, 25]);
+    await gyms.setActiveGym(home);
+    expect(findSpec(await repos.loadGymFingerprint((await repos.getActiveGymId())!), "barbell")!.plates).toEqual([10, 20]);
+  });
   it("refuses an invalid gym and writes nothing", async () => {
     const { gyms, db } = await freshDb();
     await expect(gyms.createGym({ name: "", loads: rack })).rejects.toBeInstanceOf(GymInvalid);

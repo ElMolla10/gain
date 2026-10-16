@@ -55,6 +55,7 @@ export function isStandardRack(loads: GymLoadSpec[], unit: Unit): boolean {
     const a = l.loads, b = s.loads;
     if ((a === undefined) !== (b === undefined)) return false;
     if (a && b && (a.length !== b.length || a.some((v, i) => !same(v, b[i])))) return false;
+    if (l.plates && l.plates.length > 0) return false;
     return same(l.increment, s.increment) && same(l.min, s.min) && same(l.max, s.max);
   });
 }

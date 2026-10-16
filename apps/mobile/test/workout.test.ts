@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ExerciseAlreadyInWorkout } from "../src/db/workoutRepo";
+import { createWorkoutRepo, ExerciseAlreadyInWorkout } from "../src/db/workoutRepo";
+import { sessionMinutes } from "../src/logic/historyRows";
 import { freshDb } from "./helpers";
 
 async function setup() {
@@ -302,5 +303,62 @@ describe("per-workout exercise changes (remove / replace / note / rest timer)", 
     const targets = await finish.getTargets(planned!.sessionId);
     expect(targets.map((t) => t.exerciseId)).toContain(other.id);
     expect(targets.map((t) => t.exerciseId)).not.toContain(slot);
+  });
+});
+
+describe("pausable workout duration", () => {
+  it("pause freezes elapsed, resume continues, and a repo reopen still sees the pause", async () => {
+    const { workout, next, gymId, deps, db } = await setup();
+    const { id } = await workout.startOrResumeSession(next.day.id, gymId);
+    const start = (await workout.getSession(id))!.started_at!;
+    deps.tick(30_000);
+    await workout.pauseDuration(id);
+    const pausedAt = deps.now();
+    deps.tick(60_000);
+    await workout.pauseDuration(id);
+    const again = createWorkoutRepo(db, deps);
+    const paused = (await again.getSession(id))!;
+    expect(paused.paused_at).toBe(pausedAt);
+    expect(paused.paused_ms).toBe(0);
+    expect(paused.started_at).toBe(start);
+    await again.resumeDuration(id);
+    const running = (await again.getSession(id))!;
+    expect(running.paused_at).toBeNull();
+    expect(running.paused_ms).toBe(60_000);
+    await again.resumeDuration(id);
+    expect((await again.getSession(id))!.paused_ms).toBe(60_000);
+  });
+
+  it("finish after pause and resume stores only active time", async () => {
+    const { workout, next, gymId, deps, bench, dctx, history } = await setup();
+    const { id } = await workout.startOrResumeSession(next.day.id, gymId);
+    await workout.logSet({ sessionId: id, exerciseId: bench.exerciseId, load: 60, reps: 8 }, dctx);
+    deps.tick(2 * 60_000);
+    await workout.pauseDuration(id);
+    deps.tick(3 * 60_000);
+    await workout.resumeDuration(id);
+    deps.tick(1 * 60_000);
+    await workout.finishSession(id);
+    const done = (await workout.getSession(id))!;
+    expect(done.paused_at).toBeNull();
+    expect(done.paused_ms).toBe(3 * 60_000);
+    expect(sessionMinutes(done.started_at, done.finished_at!, false, done.paused_ms)).toBe(3);
+    expect((await history.getSession(id))!.pausedMs).toBe(3 * 60_000);
+  });
+
+  it("finish while paused folds the open pause into stored active time", async () => {
+    const { workout, next, gymId, deps, bench, dctx, history } = await setup();
+    const { id } = await workout.startOrResumeSession(next.day.id, gymId);
+    await workout.logSet({ sessionId: id, exerciseId: bench.exerciseId, load: 60, reps: 8 }, dctx);
+    deps.tick(2 * 60_000);
+    await workout.pauseDuration(id);
+    deps.tick(3 * 60_000);
+    await workout.finishSession(id);
+    const done = (await workout.getSession(id))!;
+    expect(done.status).toBe("finished");
+    expect(done.paused_at).toBeNull();
+    expect(done.paused_ms).toBe(3 * 60_000);
+    expect(sessionMinutes(done.started_at, done.finished_at!, false, done.paused_ms)).toBe(2);
+    expect((await history.getSession(id))!.pausedMs).toBe(3 * 60_000);
   });
 });

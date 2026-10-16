@@ -12,7 +12,7 @@ describe("generateWarmups", () => {
   it("barbell 100: empty bar, then 50 / 70 / 85", () => {
     const p = generateWarmups(100, bar);
     expect(p.sets.map((s) => s.load)).toEqual([20, 50, 70, 85]);
-    expect(p.sets.map((s) => s.reps)).toEqual([10, 8, 5, 3]);
+    expect(p.sets.map((s) => s.reps)).toEqual([10, 5, 3, 1]);
     expect(p.skipped).toBeNull();
   });
   it("every warm-up is flagged warmup and exists in the gym", () => {
@@ -31,12 +31,17 @@ describe("generateWarmups", () => {
       }
     }
   });
-  it("dumbbells use pairs on the rack (never 21 or 25.5)", () => {
+  it("dumbbells use pairs on the rack (never 21 or 25.5) and fewer steps than a barbell", () => {
     const p = generateWarmups(30, db);
-    expect(p.sets.map((s) => s.load)).toEqual([15, 20, 25]);
+    expect(p.sets.map((s) => s.load)).toEqual([15, 25]);
   });
-  it("cable stack jumps of 5", () => {
-    expect(generateWarmups(60, cable).sets.map((s) => s.load)).toEqual([30, 40, 50]);
+  it("cable stack jumps of 5, two steps", () => {
+    expect(generateWarmups(60, cable).sets.map((s) => s.load)).toEqual([30, 50]);
+  });
+  it("isolation is a shorter ramp", () => {
+    const p = generateWarmups(100, bar, { isolation: true });
+    expect(p.sets.map((s) => s.load)).toEqual([20, 70]);
+    expect(p.sets.map((s) => s.reps)).toEqual([10, 5]);
   });
   it("a light working weight near the bar gets no duplicates and nothing below the bar", () => {
     const loads = generateWarmups(30, bar).sets.map((s) => s.load);

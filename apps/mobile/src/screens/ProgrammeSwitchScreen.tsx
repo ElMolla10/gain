@@ -20,7 +20,7 @@ export function ProgrammeSwitchScreen() {
   const { programmes, repos, onboarding } = useServices();
   const { t, lang } = useI18n();
   const p = usePalette();
-  const nav = useNavigation<{ goBack: () => void; navigate: (n: "ProgrammeEdit") => void }>();
+  const nav = useNavigation<{ goBack: () => void; navigate: (n: "ProgrammeEdit" | "ProgramGenerate") => void }>();
   const [list, setList] = useState<ProgrammeInfo[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,6 +74,7 @@ export function ProgrammeSwitchScreen() {
       <SectionTitle>{t("prog.switch.templates")}</SectionTitle>
       <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
       <TemplateBrowser templates={activeTemplates()} showDaysFilter actionLabel={() => t("prog.switch.startTemplate")} disabled={busy} onPick={(tpl) => void run(() => startTemplate(tpl))} />
+      <BigButton label={t("coach.build")} disabled={busy} onPress={() => nav.navigate("ProgramGenerate")} />
       <BigButton variant="secondary" icon="plus" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
       <ArDraftNote />
     </Screen>

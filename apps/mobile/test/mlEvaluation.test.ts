@@ -5,7 +5,7 @@ import { evaluationPrediction, formatMlNumber, LIVE_MODEL_VERSION, resumeEvaluat
 import { liveContext, localPrediction } from "../src/logic/liveAdaptation";
 import { initialRows } from "../src/logic/workoutRows";
 import { freshDb } from "./helpers";
-import { migrate } from "../src/db/migrations";
+import { LATEST_VERSION, migrate } from "../src/db/migrations";
 import { copyAtVersion, dumpAll } from "./realData";
 
 // Isolated test databases only. These fixtures are never shipped or used as app accuracy.
@@ -44,12 +44,14 @@ describe("local ML evaluation persistence and matching", () => {
     expect(SYNC_TABLES as readonly string[]).not.toContain("ml_prediction");
     const old = await copyAtVersion(c.db, 11);
     const before = await dumpAll(old);
-    expect(await migrate(old)).toEqual({ from: 11, to: 12 });
+    expect(await migrate(old)).toEqual({ from: 11, to: LATEST_VERSION });
     const after = await dumpAll(old);
     expect(after.ml_prediction).toEqual([]);
     delete after.ml_prediction;
+    after.session = (after.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, ...rest }) => rest);
+    after.import_batch = (after.import_batch as Record<string, unknown>[]).map(({ source_kind: _s, ...rest }) => rest);
     expect(after).toEqual(before);
-    expect(await migrate(old)).toEqual({ from: 12, to: 12 });
+    expect(await migrate(old)).toEqual({ from: LATEST_VERSION, to: LATEST_VERSION });
   });
 
   it("freezes the first forecast, deduplicates concurrent renders and repeated saves", async () => {

@@ -2,6 +2,7 @@ import {
   isGymLoad,
   REJECTION_THRESHOLD,
   findSpec,
+  scaleDeloadLoad,
   type GymFingerprint,
   type LineIdentity,
   type LoggedSet,
@@ -132,6 +133,19 @@ function toProposalSpec(ex: DayExercise): Parameters<WorkoutRepo["liveProposal"]
 export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: WorkoutRepo) {
   const { newId, now } = deps;
 
+  async function applyLoadDeload(proposal: Proposal, equipment: DayExercise["equipment"], setup: SetupType, gym: GymFingerprint): Promise<Proposal> {
+    if (proposal.load == null) return proposal;
+    const raw = await repos.getSetting("deload");
+    if (!raw) return proposal;
+    try {
+      const v = JSON.parse(raw) as { status?: string; endsAt?: number };
+      if (v.status !== "load" || typeof v.endsAt !== "number" || now() >= v.endsAt) return proposal;
+    } catch {
+      return proposal;
+    }
+    return { ...proposal, load: scaleDeloadLoad(proposal.load, findSpec(gym, equipment), setup) };
+  }
+
   /** What counted, and what was a record, against each line's earlier FINISHED sessions. */
   async function summarizeSession(sessionId: string): Promise<SessionSummary> {
     const session = await workout.getSession(sessionId);
@@ -211,7 +225,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     const previews: DayLoadPreview[] = [];
     for (const ex of exercises) {
       const { proposal } = await workout.liveProposal(toProposalSpec(ex), gym);
-      previews.push({ exerciseId: ex.exerciseId, proposal });
+      previews.push({ exerciseId: ex.exerciseId, proposal: await applyLoadDeload(proposal, ex.equipment, ex.setup, gym) });
     }
     return previews;
   }
@@ -256,7 +270,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     const exercises: { exerciseId: string; nameEn: string; nameAr: string; measure: Measure; equipment: DayExercise["equipment"]; setup: SetupType; loadSpec: DayExercise["loadSpec"]; proposal: Proposal }[] = [];
     for (const ex of dayExercises) {
       const { proposal } = await workout.liveProposal(toProposalSpec(ex), gym);
-      exercises.push({ exerciseId: ex.exerciseId, nameEn: ex.nameEn, nameAr: ex.nameAr, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, loadSpec: ex.loadSpec, proposal });
+      exercises.push({ exerciseId: ex.exerciseId, nameEn: ex.nameEn, nameAr: ex.nameAr, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, loadSpec: ex.loadSpec, proposal: await applyLoadDeload(proposal, ex.equipment, ex.setup, gym) });
     }
     return { dayName: rawDay.name, dayId, gymId: finished.gym_id, exercises };
   }
@@ -320,7 +334,7 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         toProposalSpec(ex),
         gym,
       );
-      decided.push({ ex, proposal, lineId });
+      decided.push({ ex, proposal: await applyLoadDeload(proposal, ex.equipment, ex.setup, gym), lineId });
     }
     {
       const t = now();

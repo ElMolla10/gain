@@ -1,5 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
-import type { Measure } from "@gain/engine";
+import type { EquipmentType, Measure } from "@gain/engine";
 import React, { useCallback, useEffect, useState } from "react";
 import { useServices } from "../AppContext";
 import { ProgrammeEditorView } from "../components/ProgrammeEditorView";
@@ -10,7 +10,7 @@ import { resetRangeFor, validateDraft, type ProgrammeDraft } from "../logic/prog
 import { ArDraftNote, BigButton, LoadingState, Notice, Screen } from "../ui";
 
 export function ProgrammeEditScreen() {
-  const { programmes, repos } = useServices();
+  const { programmes, repos, gyms } = useServices();
   const { t } = useI18n();
   const nav = useNavigation<{ goBack: () => void; navigate: (name: string, params?: object) => void }>();
   const params = (useRoute().params ?? {}) as { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean };
@@ -21,6 +21,7 @@ export function ProgrammeEditScreen() {
   const [dpw, setDpw] = useState<number | null>(null);
   const [touched, setTouched] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [gymEquipment, setGymEquipment] = useState<EquipmentType[]>([]);
 
   const refreshLibrary = useCallback(() => {
     programmes.listExercises().then(setLibrary);
@@ -31,6 +32,11 @@ export function ProgrammeEditScreen() {
       refreshLibrary();
       const n = Number(await repos.getSetting("days_per_week"));
       setDpw(Number.isFinite(n) && n > 0 ? n : null);
+      const gymId = await repos.getActiveGymId();
+      if (gymId) {
+        const g = await gyms.getGym(gymId);
+        if (g) setGymEquipment(g.loads.map((l) => l.equipment));
+      }
       if (!params.programmeId) {
         setDraft({ name: "", days: [] });
         return;
@@ -44,7 +50,7 @@ export function ProgrammeEditScreen() {
       setDraft(await programmes.loadDraft(params.versionId ?? active!.versionId));
     })().catch(() => setDraft({ name: "", days: [] }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [programmes, repos, params.programmeId, params.versionId]);
+  }, [programmes, repos, gyms, params.programmeId, params.versionId]);
 
   if (!draft) return <LoadingState />;
   const problems = validateDraft(draft);
@@ -86,7 +92,7 @@ export function ProgrammeEditScreen() {
         <BigButton label={params.programmeId && nextVersion ? t("prog.save", { v: nextVersion }) : t("prog.saveNew")} onPress={() => void save()} />
       }
     >
-      <ProgrammeEditorView initialSettingsDay={params.settingsDay} initialReorderWorkouts={params.reorderWorkouts} draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} onSetMeasure={setMeasure} onOpenLoads={(exerciseId) => nav.navigate("ExerciseLoads", { exerciseId })} />
+      <ProgrammeEditorView initialSettingsDay={params.settingsDay} initialReorderWorkouts={params.reorderWorkouts} draft={draft} onChange={setDraft} baseline={baseline} library={library} daysPerWeek={dpw} onCreateExercise={programmes.createExercise} onLibraryChanged={refreshLibrary} onSetMeasure={setMeasure} onOpenLoads={(exerciseId) => nav.navigate("ExerciseLoads", { exerciseId })} gymEquipment={gymEquipment} />
       {touched ? problems.map((pr, i) => <Notice key={i} kind="error">{t(`prog.problem.${pr.code}` as StringKey, { day: (pr.day ?? 0) + 1 })}</Notice>) : null}
       {message ? <Notice kind="warn">{message}</Notice> : null}
       <ArDraftNote />

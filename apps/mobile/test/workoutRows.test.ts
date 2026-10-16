@@ -16,6 +16,11 @@ describe("workout rows (single list)", () => {
     const none = initialRows([], 2, { load: null, reps: null }, key);
     expect(none.every((r) => r.load === null && r.reps === null && !rowCanLog(r))).toBe(true);
   });
+  it("a labeled starting estimate is a ghost prefill, not a saved set", () => {
+    const rows = initialRows([], 2, { load: 20, reps: 8, estimated: true }, key);
+    expect(rows.every((r) => r.load === null && r.ghostLoad === 20 && !r.saved)).toBe(true);
+    expect(rows.every((r) => rowCanLog(r))).toBe(true);
+  });
   it("ghost values only become the row's values when it is ticked; typed values win; one typed box keeps the other ghost", () => {
     const rows = initialRows([], 1, target, key);
     const k = rows[0]!.key;

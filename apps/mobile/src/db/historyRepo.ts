@@ -17,6 +17,8 @@ export interface SessionListItem {
   finishedAt: number;
   /** When the workout was started (null when unknown, e.g. imported). */
   startedAt: number | null;
+  /** Accumulated paused milliseconds; subtracted from wall time for the shown duration. */
+  pausedMs: number;
   exercises: number;
   workingSets: number;
   imported: boolean;
@@ -40,6 +42,7 @@ export interface SessionDetail {
   finishedAt: number;
   /** Null if an import has no reliable start time. */
   startedAt: number | null;
+  pausedMs: number;
   imported: boolean;
   exercises: { exerciseId: string; nameEn: string; nameAr: string; setup: SetupType; measure: Measure; sets: HistorySetRow[] }[];
 }
@@ -63,8 +66,8 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   const { now } = deps;
 
   async function listSessions(limit = 30, offset = 0): Promise<SessionListItem[]> {
-    const rows = await db.all<{ id: string; day_name: string; gym_name: string; finished_at: number; started_at: number | null; imported: number; exercises: number; sets: number }>(
-      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, s.started_at, (s.import_key IS NOT NULL) AS imported,
+    const rows = await db.all<{ id: string; day_name: string; gym_name: string; finished_at: number; started_at: number | null; paused_ms: number; imported: number; exercises: number; sets: number }>(
+      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, s.started_at, s.paused_ms, (s.import_key IS NOT NULL) AS imported,
               (SELECT COUNT(DISTINCT ws.exercise_id) FROM workout_set ws WHERE ws.session_id = s.id AND ws.deleted_at IS NULL) AS exercises,
               (SELECT COUNT(*) FROM workout_set ws WHERE ws.session_id = s.id AND ws.deleted_at IS NULL AND ws.is_warmup = 0) AS sets
          FROM session s JOIN programme_day d ON d.id = s.programme_day_id JOIN gym g ON g.id = s.gym_id
@@ -72,7 +75,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
         ORDER BY s.finished_at DESC, s.rowid DESC LIMIT ? OFFSET ?`,
       [limit, offset],
     );
-    return rows.map((r) => ({ id: r.id, dayName: r.day_name, gymName: r.gym_name, finishedAt: r.finished_at, startedAt: r.started_at, exercises: r.exercises, workingSets: r.sets, imported: r.imported === 1 }));
+    return rows.map((r) => ({ id: r.id, dayName: r.day_name, gymName: r.gym_name, finishedAt: r.finished_at, startedAt: r.started_at, pausedMs: r.paused_ms ?? 0, exercises: r.exercises, workingSets: r.sets, imported: r.imported === 1 }));
   }
 
   async function countSessions(): Promise<number> {
@@ -80,8 +83,8 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   }
 
   async function getSession(id: string): Promise<SessionDetail | null> {
-    const s = await db.get<{ id: string; day_name: string; gym_name: string; finished_at: number; started_at: number | null; imported: number }>(
-      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, s.started_at, (s.import_key IS NOT NULL) AS imported
+    const s = await db.get<{ id: string; day_name: string; gym_name: string; finished_at: number; started_at: number | null; paused_ms: number; imported: number }>(
+      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, s.started_at, s.paused_ms, (s.import_key IS NOT NULL) AS imported
          FROM session s JOIN programme_day d ON d.id = s.programme_day_id JOIN gym g ON g.id = s.gym_id
         WHERE s.id = ? AND s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")}`,
       [id],
@@ -105,7 +108,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       }
       ex.sets.push({ id: r.id, load: r.load, reps: r.reps, durationS: r.duration_s, distanceM: r.distance_m, rir: r.rir, warmup: r.is_warmup === 1, tags: JSON.parse(r.tags_json) as string[], outlierStatus: r.outlier_status });
     }
-    return { id: s.id, dayName: s.day_name, gymName: s.gym_name, finishedAt: s.finished_at, startedAt: s.started_at, imported: s.imported === 1, exercises };
+    return { id: s.id, dayName: s.day_name, gymName: s.gym_name, finishedAt: s.finished_at, startedAt: s.started_at, pausedMs: s.paused_ms ?? 0, imported: s.imported === 1, exercises };
   }
 
   /** Every exercise + gym + setup line that has at least one finished working set. Lines are never merged. */
@@ -124,7 +127,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     }));
   }
 
-  async function getLiftTrend(lineId: string): Promise<{ lift: LiftItem; trend: LiftTrend } | null> {
+  async function getLiftTrend(lineId: string): Promise<{ lift: LiftItem; sessions: HistorySession[]; trend: LiftTrend } | null> {
     const lift = (await listLifts()).find((l) => l.lineId === lineId);
     if (!lift) return null;
     const rows = await db.all<{ sid: string; finished_at: number; imported: number; load: number; reps: number; duration_s: number | null; distance_m: number | null; rir: number | null; is_warmup: number; tags_json: string; outlier_status: OutlierStatus }>(
@@ -148,7 +151,11 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       h.sets.push(set);
     }
     const sessions = [...bySession.values()];
-    return { lift, trend: isTimedMeasure(lift.measure) ? timedTrend(sessions, lift.setup, lift.measure, imported) : liftTrend(sessions, lift.setup, imported) };
+    return {
+      lift,
+      sessions,
+      trend: isTimedMeasure(lift.measure) ? timedTrend(sessions, lift.setup, lift.measure, imported) : liftTrend(sessions, lift.setup, imported),
+    };
   }
 
   async function resync(): Promise<void> {
@@ -242,6 +249,49 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     await resync();
   }
 
-  return { listSessions, countSessions, getSession, listLifts, getLiftTrend, updateSet, removeSet, deleteWorkout };
+  async function weekExerciseSets(fromMs: number, toMs: number): Promise<{ exerciseId: string; pattern: string; seedKey: string | null; equipment: import("@gain/engine").EquipmentType; sets: LoggedSet[] }[]> {
+    const rows = await db.all<{
+      exercise_id: string;
+      pattern: string;
+      seed_key: string | null;
+      equipment: import("@gain/engine").EquipmentType;
+      load: number;
+      reps: number;
+      duration_s: number | null;
+      distance_m: number | null;
+      rir: number | null;
+      is_warmup: number;
+      tags_json: string;
+      outlier_status: OutlierStatus;
+    }>(
+      `SELECT e.id AS exercise_id, e.pattern, e.seed_key, e.equipment, ws.load, ws.reps, ws.duration_s, ws.distance_m, ws.rir, ws.is_warmup, ws.tags_json, ws.outlier_status
+         FROM workout_set ws JOIN session s ON s.id = ws.session_id JOIN exercise e ON e.id = ws.exercise_id
+        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND ws.deleted_at IS NULL
+          AND s.finished_at IS NOT NULL AND s.finished_at >= ? AND s.finished_at < ?
+        ORDER BY e.id, ws.position`,
+      [fromMs, toMs],
+    );
+    const byEx = new Map<string, { exerciseId: string; pattern: string; seedKey: string | null; equipment: import("@gain/engine").EquipmentType; sets: LoggedSet[] }>();
+    for (const r of rows) {
+      let row = byEx.get(r.exercise_id);
+      if (!row) {
+        row = { exerciseId: r.exercise_id, pattern: r.pattern, seedKey: r.seed_key, equipment: r.equipment, sets: [] };
+        byEx.set(r.exercise_id, row);
+      }
+      row.sets.push({
+        load: r.load,
+        reps: r.reps,
+        ...(r.duration_s !== null ? { durationS: r.duration_s } : {}),
+        ...(r.distance_m !== null ? { distanceM: r.distance_m } : {}),
+        rir: r.rir,
+        warmup: r.is_warmup === 1,
+        tags: JSON.parse(r.tags_json) as string[],
+        outlierStatus: r.outlier_status,
+      });
+    }
+    return [...byEx.values()];
+  }
+
+  return { listSessions, countSessions, getSession, listLifts, getLiftTrend, weekExerciseSets, updateSet, removeSet, deleteWorkout };
 }
 export type HistoryRepo = ReturnType<typeof createHistoryRepo>;

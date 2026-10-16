@@ -38,6 +38,15 @@ describe("warm-up offer", () => {
     expect(warmupOffer({ workingLoad: 100, spec: null, setup: "free", loggedToday: 0 })).toEqual({ kind: "none", reason: "no_loads" });
     expect(warmupOffer({ workingLoad: 20, spec, setup: "free", loggedToday: 0 }).kind).toBe("none");
   });
+  it("isolation offers a shorter ramp than a barbell compound", async () => {
+    const { gym } = await gymSetup();
+    const spec = findSpec(gym, "barbell");
+    const full = warmupOffer({ workingLoad: 100, spec, setup: "free", loggedToday: 0 });
+    const iso = warmupOffer({ workingLoad: 100, spec, setup: "free", loggedToday: 0, isolation: true });
+    expect(full.kind).toBe("offer");
+    expect(iso.kind).toBe("offer");
+    if (full.kind === "offer" && iso.kind === "offer") expect(iso.sets.length).toBeLessThan(full.sets.length);
+  });
 });
 
 describe("adding warm-ups", () => {

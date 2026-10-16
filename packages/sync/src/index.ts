@@ -56,6 +56,9 @@ export const SYNCED_SETTING_KEYS = [
   "week_starts_on",
   "seed_version",
   "library_version",
+  "deload",
+  "muscle_priorities",
+  "periodization",
 ] as const;
 
 export const MAX_EVENTS_PER_PUSH = 100;

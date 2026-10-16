@@ -66,7 +66,7 @@ export interface InstantiateOptions {
 export interface Instantiated {
   draft: ProgrammeDraft;
   /** What was left out and why, so the lifter sees it. Nothing is cut silently. */
-  dropped: { day: string; key: string; reason: "equipment" | "time" }[];
+  dropped: { day: string; key: string; reason: "equipment" | "time" | "avoid" }[];
 }
 
 export function estimateSessionMinutes(sets: number): number {

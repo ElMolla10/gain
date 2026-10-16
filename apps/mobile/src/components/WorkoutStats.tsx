@@ -1,9 +1,10 @@
 import React, { memo, useEffect, useState } from "react";
-import { View, type TextStyle } from "react-native";
+import { Pressable, View, type TextStyle } from "react-native";
 import { useI18n } from "../i18n";
 import { formatDuration } from "../logic/liveSummary";
 import { formatClock, remainingMs, type RestTimer } from "../logic/restTimer";
-import { useLogPalette } from "../theme";
+import { elapsedMs } from "../logic/workoutClock";
+import { MIN_TOUCH, useLogPalette } from "../theme";
 import { AppText } from "../ui";
 
 /**
@@ -25,18 +26,48 @@ export const RestClock = memo(function RestClock({ timer, style }: { timer: Rest
   );
 });
 
-/** Ticks once a second on its own, so the rest of the screen does not re-render every second. */
-export function LiveDuration({ startedAt, color }: { startedAt: number; color: string }) {
+/** Ticks once a second on its own, so the rest of the screen does not re-render every second. Frozen while paused. */
+export function LiveDuration({
+  startedAt,
+  pausedMs = 0,
+  pausedAt = null,
+  color,
+  onToggle,
+}: {
+  startedAt: number;
+  pausedMs?: number;
+  pausedAt?: number | null;
+  color: string;
+  onToggle?: () => void;
+}) {
   const { t } = useI18n();
+  const paused = pausedAt != null;
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
+    if (paused) return;
+    setNow(Date.now());
     const h = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(h);
-  }, []);
+  }, [paused]);
+  const text = formatDuration(elapsedMs(startedAt, pausedMs, pausedAt, now), { h: t("workout.dur.h"), m: t("workout.dur.m"), s: t("workout.dur.s") });
+  const action = paused ? t("workout.dur.resume") : t("workout.dur.pause");
+  const label = paused
+    ? `${t("workout.stat.duration")}, ${text}, ${t("workout.stat.paused")}. ${action}`
+    : `${t("workout.stat.duration")}, ${text}. ${action}`;
   return (
-    <AppText ltr style={{ fontSize: 20, fontWeight: "600", color }}>
-      {formatDuration(now - startedAt, { h: t("workout.dur.h"), m: t("workout.dur.m"), s: t("workout.dur.s") })}
-    </AppText>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: paused }}
+      onPress={onToggle}
+      disabled={!onToggle}
+      style={{ minHeight: MIN_TOUCH, justifyContent: "center" }}
+    >
+      <AppText ltr style={{ fontSize: 20, fontWeight: "600", color }}>
+        {text}
+      </AppText>
+      {paused ? <AppText style={{ fontSize: 13, color }}>{t("workout.stat.paused")}</AppText> : null}
+    </Pressable>
   );
 }
 

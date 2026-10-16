@@ -120,7 +120,7 @@ async function sectionProps(): Promise<Parameters<typeof WorkoutExerciseSection>
   const list = initialRows([], 3, { load: 60, reps: 8 }, () => `row${n++}`);
   return {
     ex: { ...ex, slot: ex.exerciseId }, position: 0, gym, list,
-    info: { proposal, line, last: null, stored: null, prefill: { load: 60, reps: 8 } },
+    info: { proposal, line, lineId: "line-1", last: null, stored: null, prefill: { load: 60, reps: 8 } },
     st: { slot: ex.exerciseId, removed: false, replacedBy: null, note: "", restOff: false, added: false, position: null, superset: null },
     exSets: [], outliers: {}, expanded: false, supersetLabel: "A", restDurationMs: 90000,
     busy: false, warmOpen: false, warmDone: false,

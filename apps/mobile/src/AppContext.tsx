@@ -14,6 +14,7 @@ import type { ImportRepo } from "./db/importRepo";
 import type { OnboardingRepo } from "./db/onboardingRepo";
 import type { RejectionRepo } from "./db/rejectionRepo";
 import type { ProgrammeRepo } from "./db/programmeRepo";
+import type { DeloadRepo } from "./db/deloadRepo";
 import type { ShortWeekRepo } from "./db/shortWeekRepo";
 import type { WeeklyRepo } from "./db/weeklyRepo";
 import type { WorkoutRepo } from "./db/workoutRepo";
@@ -33,6 +34,7 @@ export interface AppServices {
   goals: GoalRepo;
   weekly: WeeklyRepo;
   shortWeek: ShortWeekRepo;
+  deload: DeloadRepo;
   rejections: RejectionRepo;
   history: HistoryRepo;
   decisions: DecisionRepo;

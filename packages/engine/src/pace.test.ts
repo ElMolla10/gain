@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { epley, median } from "./line";
-import { bodyweightPace, liftPace, musclePace, theilSen, type BodyweightEntry, type LiftExposure } from "./pace";
+import { bodyweightPace, liftPace, musclePace, paceImproved, theilSen, type BodyweightEntry, type LiftExposure } from "./pace";
 
 const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 2); // 2026-10-02
@@ -10,6 +10,15 @@ const days = (n: number) => n * DAY;
 function steady(lastAgo = 0): LiftExposure[] {
   return Array.from({ length: 8 }, (_, i) => ({ at: NOW - days(lastAgo) - days((7 - i) * 3.5), e1rm: 100 + i }));
 }
+
+describe("paceImproved", () => {
+  it("ranks readings without rewriting the target", () => {
+    expect(paceImproved("behind", "on_pace")).toBe(true);
+    expect(paceImproved("on_pace", "reached")).toBe(true);
+    expect(paceImproved("ahead", "ahead")).toBe(false);
+    expect(paceImproved("reached", "on_pace")).toBe(false);
+  });
+});
 
 describe("helpers", () => {
   it("epley and median and theil-sen on hand values", () => {

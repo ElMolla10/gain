@@ -39,4 +39,12 @@ describe("P10 logger: instructions behind a help button, compact wrapping target
     }
     expect(en["workout.nextTarget"]).toBe("Target");
   });
+  it("does not show an explanatory paragraph under a personal milestone", () => {
+    const sentence = "A milestone to work toward over time";
+    expect(section).not.toContain(sentence);
+    expect(screen).not.toContain(sentence);
+    for (const v of Object.values(en)) expect(v).not.toContain(sentence);
+    for (const v of Object.values(ar)) expect(v).not.toContain(sentence);
+    expect(section).toContain("<TargetLine");
+  });
 });

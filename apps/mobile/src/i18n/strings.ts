@@ -25,6 +25,8 @@ import { arStop, enStop } from "./strings.stop";
 import { arSync, enSync } from "./strings.sync";
 import { arWarmup, enWarmup } from "./strings.warmup";
 import { arWeekly, enWeekly } from "./strings.weekly";
+import { arGym, enGym } from "./strings.gym";
+import { arCoach, enCoach } from "./strings.coach";
 
 export const en = {
   "app.name": "GAIN",
@@ -119,6 +121,8 @@ export const en = {
   "finish.records": "Records",
   "finish.record.load": "Heaviest working load logged: {load}",
   "finish.record.reps": "Most reps logged at {load}: {reps}",
+  "finish.record.rep": "Heaviest {reps}-rep set: {load}",
+  "finish.record.e1rm": "Estimated strength PR: {load} (estimated)",
   "finish.record.quantity": "Longest/furthest logged at {load}: {q}",
   "finish.record.quantityBare": "Longest/furthest logged so far: {q}",
   "finish.firstTime": "First time logged here, so no record is claimed.",
@@ -210,6 +214,8 @@ export const en = {
   ...enFixes,
   ...enLoads,
   ...enDesign,
+  ...enGym,
+  ...enCoach,
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -307,6 +313,8 @@ export const ar: Record<StringKey, string> = {
   "finish.records": "الأرقام القياسية",
   "finish.record.load": "أتقل وزن أساسي اتسجل: {load}",
   "finish.record.reps": "أكتر عدّات اتسجلت على {load}: {reps}",
+  "finish.record.rep": "أتقل وزن لـ {reps} عدّات: {load}",
+  "finish.record.e1rm": "رقم قوة متقدّر جديد: {load} (متقدّر)",
   "finish.record.quantity": "أطول/أبعد حاجة اتسجلت على {load}: {q}",
   "finish.record.quantityBare": "أطول/أبعد حاجة اتسجلت لحد دلوقتي: {q}",
   "finish.firstTime": "أول مرة تتسجل هنا، فمفيش رقم قياسي.",
@@ -398,4 +406,6 @@ export const ar: Record<StringKey, string> = {
   ...arFixes,
   ...arLoads,
   ...arDesign,
+  ...arGym,
+  ...arCoach,
 };

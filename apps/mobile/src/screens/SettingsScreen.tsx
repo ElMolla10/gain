@@ -4,7 +4,7 @@ import { buildFlags } from "../buildConfig";
 import { UpdateCard } from "../components/UpdateCard";
 import { hasSelfUpdater } from "../logic/buildFlags";
 import React, { useCallback, useEffect, useState } from "react";
-import type { CeilingClass, RepCeilings } from "@gain/engine";
+import { weekStartOf, type CeilingClass, type RepCeilings } from "@gain/engine";
 import { Platform, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
@@ -18,6 +18,8 @@ import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
 import { loadReminderSettings, REMINDER_KEYS, reminderText, serializeDays, serializeTime, syncReminders, toggleDay, type ReminderSettings } from "../logic/reminders";
 import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
 import { MlAccuracyCard } from "../components/MlAccuracyCard";
+import { parsePeriodization, serializePeriodization, type PeriodizationState } from "../logic/periodization";
+import { isolateLtr } from "../i18n/format";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
 
@@ -73,6 +75,43 @@ function WeekStartCard() {
           <Chip key={d} label={t(`weekly.day.${d}` as StringKey)} selected={day === d} onPress={() => void weekly.setWeekStartsOn(d).then(() => setDay(d))} />
         ))}
       </View>
+    </Block>
+  );
+}
+
+function PeriodizationSettings() {
+  const { t } = useI18n();
+  const { repos, weekly } = useServices();
+  const [state, setState] = useState<PeriodizationState | null>(null);
+  useEffect(() => {
+    void repos.getSetting("periodization").then((raw) => setState(parsePeriodization(raw)));
+  }, [repos]);
+  if (!state) return null;
+  async function write(next: PeriodizationState) {
+    setState(next);
+    await repos.setSetting("periodization", serializePeriodization(next));
+  }
+  return (
+    <Block title={t("coach.period.title")} note={t("coach.period.note")}>
+      <SwitchRow
+        label={t("coach.period.enable")}
+        value={state.enabled}
+        onChange={(on) => {
+          void (async () => {
+            const tz = -new Date().getTimezoneOffset() * 60_000;
+            const startsOn = await weekly.weekStartsOn();
+            const week = weekStartOf(Date.now() + tz, startsOn);
+            void write({ ...state, enabled: on, startedWeek: on ? week : state.startedWeek, lastPromptWeek: on ? null : state.lastPromptWeek });
+          })();
+        }}
+      />
+      {state.enabled ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+          {([4, 5, 6] as const).map((n) => (
+            <Chip key={n} label={`${t("coach.period.weeks")} ${isolateLtr(String(n))}`} selected={state.weeks === n} onPress={() => void write({ ...state, weeks: n })} />
+          ))}
+        </View>
+      ) : null}
     </Block>
   );
 }
@@ -205,7 +244,7 @@ export function SettingsScreen() {
   const appearance = useAppearance();
   const version = Constants.expoConfig?.version ?? "0";
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority") => void }>();
   return (
     <Screen tab title={t("tab.settings")}>
       <Group title={t("settings.group.training")}>
@@ -213,6 +252,9 @@ export function SettingsScreen() {
         <RestCard />
         <WeekStartCard />
         <ReminderCard />
+        <LinkRow label={t("gyms.entry")} note={t("gyms.entryNote")} onPress={() => nav.navigate("Gyms")} />
+        <LinkRow label={t("coach.priority.entry")} note={t("coach.priority.note")} onPress={() => nav.navigate("MusclePriority")} />
+        <PeriodizationSettings />
         <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
         <LinkRow label={t("stop.entry")} onPress={() => nav.navigate("StoppedSuggestions")} />
         <LinkRow label={t("settings.setupAgain")} note={t("settings.setupAgainNote")} onPress={() => nav.navigate("Setup")} />

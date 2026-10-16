@@ -21,13 +21,15 @@ import { dayTitles, draftHasExercise, markGoalLift, DAYS_OPTIONS, MINUTES_OPTION
 import { buildProfile, emptyOnboardingForm, STEPS, stepProblems, type OnboardingForm, type Step } from "../logic/onboardingForm";
 import { validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
 import { instantiateTemplate, templatesForDays, type Instantiated, type TemplateOffer } from "../logic/templates";
+import { serializeMusclePriorities } from "../logic/musclePriority";
+import { generateProgramme } from "../logic/programGenerator";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, Field, InlineStatus, Notice, Screen } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { activeTemplates } from "../buildConfig";
 import { TemplateBrowser } from "../components/TemplateBrowser";
 
-type ProgrammeMode = "template" | "own" | null;
+type ProgrammeMode = "template" | "own" | "generate" | null;
 
 /**
  * First-run setup: language, units, the minimum needed to write a first session (days, length, equipment, one goal),
@@ -88,7 +90,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   // A chosen template shows only its day titles and weekly exposure; the full split is edited later in the Program tab.
   useEffect(() => {
     let alive = true;
-    if (mode === "template" && draft) programmes.exposureOf(draft).then((r) => alive && setExposure(r)).catch(() => alive && setExposure([]));
+    if ((mode === "template" || mode === "generate") && draft) programmes.exposureOf(draft).then((r) => alive && setExposure(r)).catch(() => alive && setExposure([]));
     return () => {
       alive = false;
     };
@@ -140,7 +142,12 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
     const built = buildProfile(form, Date.now());
     if (!built.profile || !draft) return setError(t("ob.error"));
     setError(null);
-    await saver.save(() => onboarding.complete({ profile: built.profile!, programme: draft }), () => props.onDone());
+    await saver.save(async () => {
+      if (mode === "generate" && form.goalKind === "muscle" && form.goalMuscle && form.goalMuscle !== "other") {
+        await repos.setSetting("muscle_priorities", serializeMusclePriorities({ [form.goalMuscle]: "priority" }));
+      }
+      await onboarding.complete({ profile: built.profile!, programme: draft });
+    }, () => props.onDone());
   }
 
   async function quickStart(openImport = false) {
@@ -238,10 +245,39 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
             {chipRow(
               <>
                 <Chip label={t("ob.programme.template")} selected={mode === "template"} onPress={() => { setMode("template"); setDraft(null); setOffer(null); setDropped([]); }} />
+                <Chip label={t("coach.build")} selected={mode === "generate"} onPress={() => { setMode("generate"); setOffer(null); setDropped([]); setDraft(null); }} />
                 <Chip label={t("ob.programme.own")} selected={mode === "own"} onPress={() => { setMode("own"); setOffer(null); setDropped([]); setDraft({ name: "", days: [{ name: t("prog.day.default", { n: 1 }).replace(/[\u2066\u2069]/g, ""), exercises: [] }] }); }} />
               </>,
             )}
             {mode === "own" ? <AppText style={{ color: p.muted }}>{t("ob.programme.ownNote")}</AppText> : null}
+            {mode === "generate" && !draft && ceilings ? (
+              <BigButton
+                label={t("coach.generate")}
+                onPress={() => {
+                  if (!form.days || !form.minutes) return setTouched(true);
+                  const r = generateProgramme(
+                    {
+                      goal: "hypertrophy",
+                      experience: "intermediate",
+                      daysPerWeek: form.days,
+                      sessionMinutes: form.minutes,
+                      equipment: [...GYM_EQUIPMENT],
+                      priorities: form.goalKind === "muscle" && form.goalMuscle ? { [form.goalMuscle]: "priority" } : {},
+                      avoid: [],
+                      lang,
+                    },
+                    { byKey: seedKeys },
+                    (key) => {
+                      const name = library.find((e) => e.seedKey === key)?.nameEn ?? key;
+                      return ceilingForName(name, ceilings);
+                    },
+                  );
+                  if (!r) return setError(t("ob.programme.none", { n: form.days }));
+                  setDropped(r.dropped);
+                  setDraft(form.goalKind === "lift" && form.goalExerciseId ? markGoalLift(r.draft, form.goalExerciseId) : r.draft);
+                }}
+              />
+            ) : null}
             {mode === "template" && !draft ? (
               offers.length === 0 ? (
                 <AppText>{t("ob.programme.none", { n: form.days ?? 0 })}</AppText>
@@ -261,7 +297,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
                 </>
               )
             ) : null}
-            {mode === "template" && draft && offer ? (
+            {(mode === "template" || mode === "generate") && draft ? (
               <>
                 <AppText style={{ color: p.muted, fontSize: 13 }}>{t("ob.programme.unreviewed")}</AppText>
                 <BigButton variant="secondary" label={t("ob.programme.change")} onPress={() => { setDraft(null); setOffer(null); setDropped([]); }} />
@@ -273,14 +309,14 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
                 {dropped.map((d, i) => {
                   const nm = library.find((e) => e.seedKey === d.key);
                   const lift = nm ? exerciseLabels(nm, lang).primary : d.key;
-                  return <AppText key={i}>{d.reason === "equipment" ? t("ob.programme.droppedEquipment", { day: d.day, lift }) : t("ob.programme.droppedTime", { day: d.day, lift, n: form.minutes ?? 0 })}</AppText>;
+                  return <AppText key={i}>{d.reason === "equipment" ? t("ob.programme.droppedEquipment", { day: d.day, lift }) : d.reason === "avoid" ? t("coach.dropped.avoid", { day: d.day, lift }) : t("ob.programme.droppedTime", { day: d.day, lift, n: form.minutes ?? 0 })}</AppText>;
                 })}
               </Card>
             ) : null}
             {draft ? (
               <>
                 {form.goalKind === "lift" && form.goalExerciseId && !draftHasExercise(draft, form.goalExerciseId) ? <InlineStatus kind="info" text={t("ob.programme.goalMissing")} /> : null}
-                {mode === "template" ? (
+                {mode === "template" || mode === "generate" ? (
                   <>
                     <Card>
                       <AppText style={{ fontWeight: "600" }}>{t("ob.programme.days", { n: draft.days.length })}</AppText>

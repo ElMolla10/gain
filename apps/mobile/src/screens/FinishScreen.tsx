@@ -1,4 +1,4 @@
-import { shortReason, targetText } from "../logic/nextTarget";
+import { liftPace } from "@gain/engine";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -10,6 +10,7 @@ import type { SessionDetail } from "../db/historyRepo";
 import { exerciseLabels, formatLoad } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { buildCardModel, cardHtml, cardPaceLine, toCoachPayload } from "../logic/coachCard";
+import { sessionMilestones, type Milestone } from "../logic/sessionMilestones";
 import { formatWorkoutShareText, personalBestLines, workoutRecapStats } from "../logic/workoutRecap";
 import { volumeText } from "../logic/liveSummary";
 import type { StringKey } from "../i18n/strings";
@@ -40,6 +41,7 @@ export function FinishScreen() {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [finishedAt, setFinishedAt] = useState(0);
+  const [milestones, setMilestones] = useState<string[]>([]);
 
   // Continue planning the rotation; preview this finished day separately.
   useEffect(() => {
@@ -47,8 +49,48 @@ export function FinishScreen() {
     started.current = true;
     (async () => {
       const sess = await workout.getSession(sessionId);
-      setFinishedAt(Number(sess?.finished_at ?? Date.now()));
-      setSummary(await finish.summarizeSession(sessionId));
+      const finishedMs = Number(sess?.finished_at ?? Date.now());
+      setFinishedAt(finishedMs);
+      const nextSummary = await finish.summarizeSession(sessionId);
+      setSummary(nextSummary);
+      try {
+        const recent = await history.listSessions(20);
+        const pace = await goals.getPace(finishedMs);
+        let monthHistory: import("@gain/engine").HistorySession[] | null = null;
+        let monthSetup: import("@gain/engine").SetupType | null = null;
+        let trainedGoalLift = false;
+        let paceBefore = null as import("@gain/engine").PaceStatus | null;
+        if (pace.kind === "lift") {
+          trainedGoalLift = nextSummary.exercises.some((e) => e.exerciseId === pace.goal.exerciseId);
+          const lift = (await history.listLifts()).find((l) => l.exerciseId === pace.goal.exerciseId);
+          if (lift) {
+            const trend = await history.getLiftTrend(lift.lineId);
+            monthHistory = trend?.sessions ?? null;
+            monthSetup = lift.setup;
+          }
+          const hist = await goals.liftExposures(pace.goal.exerciseId);
+          if (hist.length >= 2) {
+            paceBefore = liftPace({ targetLoad: pace.goal.targetLoad, targetReps: pace.goal.targetReps, targetDate: pace.goal.targetDate }, hist.slice(0, -1), finishedMs).status;
+          }
+        }
+        const facts: Milestone[] = sessionMilestones({
+          finishedAt: recent.map((s) => s.finishedAt),
+          nowMs: finishedMs,
+          monthHistory,
+          monthSetup,
+          trainedGoalLift,
+          paceBefore,
+          paceAfter: pace.kind === "none" ? null : pace.pace.status,
+        });
+        setMilestones(facts.map((f) => {
+          if (f.kind === "goal_reached") return t("recap.goalReached");
+          if (f.kind === "goal_improved") return t("recap.goalImproved", { status: t(`pace.status.${f.status}` as StringKey) });
+          if (f.kind === "streak") return t("recap.streak", { n: f.streak ?? 0 });
+          return t("recap.monthPct", { pct: String(f.pct ?? 0) });
+        }));
+      } catch (e) {
+        diagnostics.record("warn", "finish milestones", e);
+      }
       // Sharing is secondary: a history-read failure must never block finishing a workout.
       try { setDetail(await history.getSession(sessionId)); }
       catch (e) { diagnostics.record("warn", "finish recap detail", e); }
@@ -209,6 +251,7 @@ export function FinishScreen() {
             {pbLines.length > 0 ? "🏆 " : ""}{t("recap.personalBests")}{pbLines.length ? ` (${pbLines.length})` : ""}
           </AppText>
           {pbLines.length ? pbLines.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText style={{ color: p.muted }}>{t("recap.noPbs")}</AppText>}
+          {milestones.map((line, i) => <AppText key={`m${i}`}>{line}</AppText>)}
         </View>
       </Card>
 

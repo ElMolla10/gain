@@ -40,6 +40,7 @@ import { createDecisionRepo } from "./src/db/decisionRepo";
 import { DecisionLogScreen } from "./src/screens/DecisionLogScreen";
 import { createHistoryRepo } from "./src/db/historyRepo";
 import { createRejectionRepo } from "./src/db/rejectionRepo";
+import { createDeloadRepo } from "./src/db/deloadRepo";
 import { createShortWeekRepo } from "./src/db/shortWeekRepo";
 import { createWeeklyRepo } from "./src/db/weeklyRepo";
 import { createWorkoutRepo } from "./src/db/workoutRepo";
@@ -65,6 +66,12 @@ import { ProgrammeExposureScreen, ProgrammeVersionsScreen } from "./src/screens/
 import { StoppedSuggestionsScreen } from "./src/screens/StoppedSuggestionsScreen";
 import { ShortWeekScreen } from "./src/screens/ShortWeekScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
+import { GymsScreen } from "./src/screens/GymsScreen";
+import { GymEditScreen } from "./src/screens/GymEditScreen";
+import { PlateCalcScreen } from "./src/screens/PlateCalcScreen";
+import { ProgrammeShareScreen } from "./src/screens/ProgrammeShareScreen";
+import { ProgramGenerateScreen } from "./src/screens/ProgramGenerateScreen";
+import { MusclePriorityScreen } from "./src/screens/MusclePriorityScreen";
 import { TodayScreen } from "./src/screens/TodayScreen";
 import { SyncScreen } from "./src/screens/SyncScreen";
 import { createAutoSync } from "./src/sync/auto";
@@ -180,6 +187,12 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="StoppedSuggestions" component={StoppedSuggestionsScreen} options={{ title: t("stop.title") }} />
           <Stack.Screen name="ShortWeek" component={ShortWeekScreen} options={{ title: t("short.title") }} />
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
+          <Stack.Screen name="Gyms" component={GymsScreen} options={{ title: t("gyms.title") }} />
+          <Stack.Screen name="GymEdit" component={GymEditScreen} options={{ title: t("gyms.edit") }} />
+          <Stack.Screen name="PlateCalc" component={PlateCalcScreen} options={{ title: t("plates.title") }} />
+          <Stack.Screen name="ProgrammeShare" component={ProgrammeShareScreen} options={{ title: t("prog.share.title") }} />
+          <Stack.Screen name="ProgramGenerate" component={ProgramGenerateScreen} options={{ title: t("coach.build") }} />
+          <Stack.Screen name="MusclePriority" component={MusclePriorityScreen} options={{ title: t("coach.priority.title") }} />
         </Stack.Navigator>
       </NavigationContainer>
       <StatusBar style={isDark ? "light" : "dark"} />
@@ -258,6 +271,7 @@ export default function App() {
       setAppearance(parseAppearance(await repos.getSetting("appearance")));
       const rejections = createRejectionRepo(db, deps);
       const history = createHistoryRepo(db, deps, repos, finish);
+      const deload = createDeloadRepo(db, deps, repos, programmes, history, finish, shortWeek);
       const decisions = createDecisionRepo(db);
       const maint = maintRef.current ?? (maintRef.current = await openExpoMaintenanceDb());
       // Capture transactions must not encompass a concurrent workout save on the UI connection.
@@ -273,7 +287,7 @@ export default function App() {
         if (rs.on) await syncReminders(reminders, rs, reminderText(await repos.getLanguage()));
       })().catch(() => undefined);
       autoSync(true); // does one local read and nothing else unless the lifter turned Back up and sync on
-      setBoot({ services: { db, repos, workout, mlEvaluation, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, rejections, history, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), showSecond: (await repos.getSetting("second_name")) === "1", needsOnboarding: (await onboarding.getState()) === null });
+      setBoot({ services: { db, repos, workout, mlEvaluation, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, deload, rejections, history, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), showSecond: (await repos.getSetting("second_name")) === "1", needsOnboarding: (await onboarding.getState()) === null });
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
       setBoot("error");

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  addSeconds, classifyTitle, detectSource, guessPattern, ImportParseError, lbToKg, matchLibrary, nameKey, parseDurationSeconds, parseImport, parseStrongDate, toKilograms, workoutKey,
+  addSeconds, classifyTitle, detectSource, guessPattern, ImportParseError, lbToKg, matchLibrary, nameKey, parseDurationSeconds, parseFlexibleDate, parseImport, parseMappedCsv, parseStrongDate, suggestCsvMapping, toKilograms, workoutKey,
   type LibraryEntry,
 } from "./importer";
 
@@ -17,6 +17,54 @@ describe("source detection", () => {
     expect(detectSource(strong6)).toBe("strong");
     expect(detectSource("a,b\n1,2")).toBeNull();
     expect(() => parseImport("a,b\n1,2")).toThrow(ImportParseError);
+  });
+  it("recognises FitNotes and a generic exercise/date/weight/reps CSV", () => {
+    expect(detectSource("Date,Exercise,Category,Weight (kg),Reps\n2026-01-02,Bench,Chest,60,8\n")).toBe("fitnotes");
+    expect(detectSource("exercise,date,set,weight,reps\nBench,2026-01-02,1,60,8\n")).toBe("csv");
+  });
+});
+
+describe("parseFlexibleDate", () => {
+  it("accepts ISO dates and datetimes; refuses impossible calendar values", () => {
+    expect(parseFlexibleDate("2026-09-29")).toBe("2026-09-29T00:00:00");
+    expect(parseFlexibleDate("2026-09-29 15:15:00")).toBe("2026-09-29T15:15:00");
+    expect(parseFlexibleDate("13/01/2026")).toBe("2026-01-13T00:00:00");
+    expect(parseFlexibleDate("1/13/2026")).toBe("2026-01-13T00:00:00");
+    expect(parseFlexibleDate("32/13/2026")).toBeNull();
+    expect(parseFlexibleDate("not-a-date")).toBeNull();
+    expect(parseFlexibleDate("")).toBeNull();
+  });
+});
+
+describe("FitNotes CSV", () => {
+  const csv = "Date,Exercise,Category,Weight (kg),Reps,Distance,Distance Unit,Time,Comment\n2026-01-02,Bench Press,Chest,80,5,,,\n2026-01-02,Bench Press,Chest,80,5,,,\n2026-01-03,Squat,Legs,100,5,,,\nbad-date,Row,Back,60,8,,,\n";
+  it("groups by date, keeps kg, and warns on invalid dates instead of shifting them", () => {
+    const r = parseImport(csv);
+    expect(r.source).toBe("fitnotes");
+    expect(r.unit).toBe("kg");
+    expect(r.workouts.map((w) => [w.title, w.startTime, w.exercises[0]!.title, w.exercises[0]!.sets])).toEqual([
+      ["Workout 2026-01-02", "2026-01-02T00:00:00", "Bench Press", [{ load: 80, reps: 5 }, { load: 80, reps: 5 }]],
+      ["Workout 2026-01-03", "2026-01-03T00:00:00", "Squat", [{ load: 100, reps: 5 }]],
+    ]);
+    expect(r.warnings.some((w) => /row 5:.*date/i.test(w))).toBe(true);
+  });
+});
+
+describe("generic CSV mapping", () => {
+  it("reads mapped columns; invalid dates are warnings", () => {
+    const text = "movement,when,kg,reps,set\nSquat,2026-02-01,120,5,1\nSquat,nope,120,5,2\n";
+    const mapping = suggestCsvMapping(["movement", "when", "kg", "reps", "set"]);
+    expect(mapping).toBeNull();
+    const r = parseMappedCsv(text, { exercise: 0, date: 1, weight: 2, reps: 3, set: 4 });
+    expect(r.source).toBe("csv");
+    expect(r.workouts).toHaveLength(1);
+    expect(r.workouts[0]!.exercises[0]!.sets).toEqual([{ load: 120, reps: 5 }]);
+    expect(r.warnings.some((w) => /row 3:.*date/i.test(w))).toBe(true);
+  });
+  it("auto-detects exercise,date,weight,reps headers", () => {
+    const r = parseImport("exercise,date,weight,reps\nBench,2026-03-04,60,8\n");
+    expect(r.source).toBe("csv");
+    expect(r.workouts[0]!.exercises[0]!.sets[0]).toEqual({ load: 60, reps: 8 });
   });
 });
 

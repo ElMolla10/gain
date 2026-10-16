@@ -1,7 +1,7 @@
-import { isTimedMeasure, isTrustedWorkingSet, quantityOf, type LoggedSet, type Measure, type SetupType } from "@gain/engine";
+import { isTimedMeasure, isTrustedWorkingSet, quantityOf, sessionFacts, type LoggedSet, type Measure, type SetupType } from "@gain/engine";
 
-/** `quantity_at_load`: a longer hold / carry than ever at that same load (time and distance exercises). */
-export type RecordKind = "load" | "reps_at_load" | "quantity_at_load";
+/** `quantity_at_load`: a longer hold / carry than ever at that same load (time and distance exercises). `e1rm` is estimated. */
+export type RecordKind = "load" | "reps_at_load" | "quantity_at_load" | "rep" | "e1rm";
 
 export interface ExerciseSummary {
   /** Working sets that count: not warm-ups, not drop sets, not unconfirmed/rejected outliers. */
@@ -17,6 +17,10 @@ export interface ExerciseSummary {
   /** Records versus earlier sessions on the SAME line. Empty on the first time: no history, no record claim. */
   records: RecordKind[];
   firstTime: boolean;
+  /** Exact-rep PR (heavier at the same rep count). */
+  repPr?: { load: number; reps: number };
+  /** Today's best Epley when it is a new estimated-strength PR. Never the primary "best". */
+  estimated1rm?: number;
 }
 
 const harder = (setup: SetupType, a: number, b: number) => (setup === "assisted" ? a < b : a > b);
@@ -45,6 +49,11 @@ export function summarizeExercise(setup: SetupType, today: LoggedSet[], prior: L
       if (sameLoad.length > 0 && topReps > Math.max(...sameLoad.map((s) => s.reps))) records.push("reps_at_load");
     }
   }
+  const extra = firstTime ? [] : sessionFacts(setup, today, prior);
+  const rep = extra.find((f) => f.kind === "rep");
+  const e1rm = extra.find((f) => f.kind === "e1rm");
+  if (rep) records.push("rep");
+  if (e1rm) records.push("e1rm");
   return {
     counted: counted.length,
     warmups: today.filter((s) => s.warmup).length,
@@ -53,6 +62,8 @@ export function summarizeExercise(setup: SetupType, today: LoggedSet[], prior: L
     top: top && topReps !== null ? { load: top.load, reps: topReps } : null,
     records,
     firstTime,
+    ...(rep ? { repPr: { load: rep.load, reps: rep.reps } } : {}),
+    ...(e1rm?.e1rm != null ? { estimated1rm: e1rm.e1rm } : {}),
   };
 }
 

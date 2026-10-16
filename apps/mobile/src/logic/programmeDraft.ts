@@ -100,6 +100,18 @@ export const reorderExercises = (d: ProgrammeDraft, dayIndex: number, exerciseId
   if (day.exercises.every((ex, i) => ex.exerciseId === exerciseIds[i])) return d;
   return mapDay(d, dayIndex, original => ({ ...original, exercises: exerciseIds.map(id => lookup.get(id)!) }));
 };
+/** One fewer working set on every exercise, never below 1. Same exercises, same order. */
+export const reduceDraftSetsByOne = (d: ProgrammeDraft): ProgrammeDraft => ({
+  ...d,
+  days: d.days.map((day) => ({
+    ...day,
+    exercises: day.exercises.map((e) => {
+      const sets = Math.max(1, e.sets - 1);
+      return { ...e, sets, topSets: normTopSets(sets, e.topSets) };
+    }),
+  })),
+});
+
 export const updateExercise = (d: ProgrammeDraft, dayIndex: number, exIndex: number, patch: Partial<DraftExercise>): ProgrammeDraft =>
   mapDay(d, dayIndex, (day) => ({
     ...day,
@@ -109,6 +121,15 @@ export const updateExercise = (d: ProgrammeDraft, dayIndex: number, exIndex: num
       return { ...n, topSets: normTopSets(n.sets, n.topSets) }; // fewer sets than top sets + 1 turns it back into straight sets
     }),
   }));
+
+/** Swap one slot to another library exercise. Keeps sets/reps. No-op when the replacement is already on that day. */
+export const swapExercise = (d: ProgrammeDraft, dayIndex: number, exIndex: number, exerciseId: string): ProgrammeDraft => {
+  const day = d.days[dayIndex];
+  const cur = day?.exercises[exIndex];
+  if (!cur || cur.exerciseId === exerciseId) return d;
+  if (day.exercises.some((e) => e.exerciseId === exerciseId)) return d;
+  return updateExercise(d, dayIndex, exIndex, { exerciseId });
+};
 
 export type DraftProblemCode = "name_empty" | "no_days" | "day_name_empty" | "day_empty" | "sets_bad" | "reps_bad" | "ceiling_bad" | "topsets_bad" | "duplicate_exercise";
 export interface DraftProblem {

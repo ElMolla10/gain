@@ -9,6 +9,7 @@ export type Disp = DayEx & { slot: string };
 export interface ExInfo {
   proposal: Proposal;
   line: LineIdentity;
+  lineId: string;
   last: { performedAt: string; sets: LoggedSet[] } | null;
   /** The target written when the previous workout was finished, if any. */
   stored: TargetRow | null;

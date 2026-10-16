@@ -39,6 +39,8 @@ export interface SavedSet {
 export interface Prefill {
   load: number | null;
   reps: number | null;
+  /** Ghost came from a labeled starting estimate, not from history. */
+  estimated?: boolean;
 }
 
 export const rowReady = (r: Pick<SetRowDraft, "load" | "reps">): r is Pick<SetRowDraft, "load" | "reps"> & { load: number; reps: number } => r.load !== null && r.reps !== null && r.reps >= 1 && r.load >= 0;

@@ -393,4 +393,25 @@ describe("switching program (v0.8.0)", () => {
     await expect(programmes.setActiveProgramme(active.programmeId)).rejects.toThrow();
     expect((await programmes.getActive())!.programmeId).toBe(made.programmeId);
   });
+  it("adding a shared program creates a new one and leaves the current program in place", async () => {
+    const { programmes, active } = await seeded();
+    const lib = await programmes.listExercises();
+    const draft = await programmes.loadDraft(active.versionId);
+    const { exportProgrammeShare, draftFromShare, parseProgrammeShare } = await import("../src/logic/programmeShare");
+    const payload = parseProgrammeShare(JSON.stringify(exportProgrammeShare(draft, new Map(lib.map((e) => [e.id, e])))));
+    const copy = draftFromShare(payload);
+    copy.days = copy.days.map((day) => ({
+      ...day,
+      exercises: day.exercises.map((ex) => {
+        const row = lib.find((l) => l.nameEn === ex.exerciseId);
+        return row ? { ...ex, exerciseId: row.id } : ex;
+      }),
+    }));
+    copy.name = "Shared copy";
+    const before = (await programmes.listProgrammes()).length;
+    await programmes.createProgramme(copy, { activate: false });
+    expect((await programmes.getActive())!.programmeId).toBe(active.programmeId);
+    expect(await programmes.listProgrammes()).toHaveLength(before + 1);
+    expect((await programmes.listProgrammes()).some((p) => p.name === "Shared copy" && !p.isActive)).toBe(true);
+  });
 });

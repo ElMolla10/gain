@@ -62,7 +62,7 @@ export function personalTop(sets: readonly LoggedSet[], setup: SetupType, measur
   const load = valid.reduce((b, s) => setup === "assisted" ? Math.min(b, s.load) : Math.max(b, s.load), valid[0]!.load);
   return { load, quantity: Math.max(...valid.filter(s => Math.abs(s.load - load) < 1e-6).map(s => quantity(s, measure)!)) };
 }
-export interface ConsistencyProgress { done: number; goal: number | null; achieved: boolean; activeDays: number; totalSessions: number; level: number }
+export interface ConsistencyProgress { done: number; goal: number | null; achieved: boolean; activeDays: number; totalSessions: number; level: number; startsOn: number }
 /** Distinct local training days; calendar boundaries follow the device, including DST. */
 export function consistencyProgress(sessions: { finishedAt: number }[], now: number, goal: number | null, startsOn = 1): ConsistencyProgress {
   const start = new Date(now); start.setHours(0, 0, 0, 0);
@@ -75,5 +75,5 @@ export function consistencyProgress(sessions: { finishedAt: number }[], now: num
   }
   const validGoal = goal !== null && Number.isInteger(goal) && goal >= 1 && goal <= 7 ? goal : null;
   const level = [1, 5, 10, 25, 50, 100, 250, 500].filter(n => allDays.size >= n).at(-1) ?? 0;
-  return { done: days.size, goal: validGoal, achieved: validGoal !== null && days.size >= validGoal, activeDays: allDays.size, totalSessions: sessions.filter(s => Number.isFinite(s.finishedAt) && s.finishedAt <= now).length, level };
+  return { done: days.size, goal: validGoal, achieved: validGoal !== null && days.size >= validGoal, activeDays: allDays.size, totalSessions: sessions.filter(s => Number.isFinite(s.finishedAt) && s.finishedAt <= now).length, level, startsOn };
 }

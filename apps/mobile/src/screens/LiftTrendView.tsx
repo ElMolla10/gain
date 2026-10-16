@@ -23,6 +23,7 @@ import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { directionKey, filterTrendPoints, groupSessionsByDate, localDateText, metricTrendPoints, type ChartMetric, type ChartRange } from "../logic/trendChart";
 import { loadsSummaryText, matchingJumpKg, TREND_LOAD_JUMPS_KG } from "../logic/exerciseLoads";
+import { exercisePath } from "../logic/exercisePath";
 import { kgToUnit, weightText } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Screen } from "../ui";
@@ -88,6 +89,7 @@ export function LiftTrendView({
     const reps = timed ? [] : repMaxes(sessions, lift.setup);
     return { heaviest, setVol, sessionVol, e1rm, reps };
   }, [sessions, lift.setup, timed]);
+  const path = useMemo(() => timed ? null : exercisePath(sessions, lift.setup), [sessions, lift.setup, timed]);
 
   const sections = useMemo(() => groupSessionsByDate(sortNewestFirst(sessions)), [sessions]);
   const recent = [...trend.points].reverse().slice(0, 10);
@@ -101,6 +103,20 @@ export function LiftTrendView({
 
   const summary = (
     <>
+      {path ? <Card>
+        <AppText style={{ fontWeight: "600", fontSize: ty.section }}>{t("path.title")}</AppText>
+        <AppText style={{ fontSize: ty.load, fontWeight: "600", color: p.accent }}>
+          {t(`path.tier.${path.tier}`)} · {path.score}
+        </AppText>
+        <AppText>{t("path.from", { start: fmt(path.baseline), best: fmt(path.best) })}</AppText>
+        <AppText style={{ color: p.muted }}>{path.next && path.nextScore !== null ? t("path.next", { tier: t(`path.tier.${path.next}`), score: path.nextScore }) : t("path.top")}</AppText>
+        <View accessible accessibilityRole="progressbar" accessibilityLabel={t("path.progress", { score: path.score })}
+          accessibilityValue={{ min: 0, max: 100, now: Math.round(path.progress * 100) }}
+          style={{ height: 8, borderRadius: 4, backgroundColor: p.border, overflow: "hidden" }}>
+          <View style={{ height: 8, width: `${Math.round(path.progress * 100)}%`, backgroundColor: p.accent }} />
+        </View>
+        <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("path.rule")}</AppText>
+      </Card> : null}
       {paceHeadline ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("trend.pace")}</AppText>

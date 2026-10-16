@@ -38,6 +38,7 @@ export function HistoryScreen() {
       </View>
 
       <PersonalProgressCard />
+      <BigButton variant="secondary" label={t("achievements.open")} onPress={() => nav.navigate("Achievements", {})} />
       {state.failed ? <View accessibilityLiveRegion="polite">
         <InlineStatus kind="error" text={t("history.error.body")} />
         <BigButton variant="secondary" label={t("history.error.retry")} disabled={state.loading} onPress={() => void loader.load()} />

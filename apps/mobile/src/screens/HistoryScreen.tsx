@@ -38,6 +38,10 @@ export function HistoryScreen() {
       </View>
 
       <PersonalProgressCard />
+      <View style={{ gap: space.sm }}>
+        <BigButton variant="secondary" label={t("world.personalTitle")} onPress={() => nav.navigate("YouVsYou", {})} />
+        <BigButton variant="secondary" label={t("world.title")} onPress={() => nav.navigate("YouVsWorld", {})} />
+      </View>
       <BigButton variant="secondary" label={t("achievements.open")} onPress={() => nav.navigate("Achievements", {})} />
       {state.failed ? <View accessibilityLiveRegion="polite">
         <InlineStatus kind="error" text={t("history.error.body")} />

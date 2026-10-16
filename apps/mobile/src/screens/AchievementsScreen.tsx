@@ -7,7 +7,6 @@ import type { LiftItem } from "../db/historyRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels, formatLoad } from "../i18n/format";
 import { badgeStatus, BREAKTHROUGH_BADGES, consistencyAchievementStats, GOAL_BADGES, MONTH_BADGES, TRAINING_BADGES, WEEK_BADGES, YEAR_BADGES, type Breakthrough } from "../logic/achievementProgress";
-import type { pathFromSessionStrengths } from "../logic/exercisePath";
 import type { ConsistencyProgress, PersonalMilestone } from "../logic/personalProgress";
 import { targetPhrase } from "../logic/quantity";
 import { localDateText } from "../logic/trendChart";
@@ -20,7 +19,6 @@ interface Data {
   trainingDates: number[];
   reachedGoals: { id: string; exerciseId: string; nameEn: string; nameAr: string; load: number; reps: number; reachedAt: number }[];
   goals: { lift: LiftItem; goal: PersonalMilestone }[];
-  paths: { lift: LiftItem; path: NonNullable<ReturnType<typeof pathFromSessionStrengths>> }[];
 }
 
 /** A separate Progress destination: every reward is rebuilt from trusted saved history. */
@@ -37,18 +35,14 @@ export function AchievementsScreen() {
     let alive = true;
     setFailed(false);
     void (async () => {
-      const [consistency, breakthroughs, lifts, trainingDates, reachedGoals, exercisePaths] = await Promise.all([
+      const [consistency, breakthroughs, lifts, trainingDates, reachedGoals] = await Promise.all([
         history.getPersonalProgress(), history.getStrengthBreakthroughs(), history.listLifts(),
-        history.getAchievementDays(), history.getReachedWeightGoals(), history.getExercisePaths(),
+        history.getAchievementDays(), history.getReachedWeightGoals(),
       ]);
       const candidates = lifts.filter(lift => lift.setup !== "assisted").slice(0, 8);
       const results = await Promise.all(candidates.map(async lift => ({ lift, goal: await history.getLiftGoal(lift.lineId) })));
       if (alive) setData({ consistency, breakthroughs, trainingDates, reachedGoals,
         goals: results.filter((row): row is { lift: LiftItem; goal: PersonalMilestone } => row.goal !== null).slice(0, 3),
-        paths: exercisePaths.flatMap(path => {
-          const lift = lifts.find(l => l.lineId === path.lineId);
-          return lift ? [{ lift, path }] : [];
-        }).sort((a, b) => b.path.score - a.path.score),
       });
     })().catch(error => { diagnostics.record("warn", "achievements", error); if (alive) setFailed(true); });
     return () => { alive = false; };
@@ -57,7 +51,7 @@ export function AchievementsScreen() {
   if (failed) return <ErrorState title={t("achievements.error")} body={t("progress.loadingFailed")}
     retryLabel={t("history.error.retry")} onRetry={() => setAttempt(n => n + 1)} />;
   if (!data) return <LoadingState />;
-  const { consistency, breakthroughs, goals, reachedGoals, paths } = data;
+  const { consistency, breakthroughs, goals, reachedGoals } = data;
   const cadence = consistencyAchievementStats(data.trainingDates, Date.now(), consistency.startsOn);
   const days = badgeStatus(consistency.activeDays, TRAINING_BADGES);
   const strength = badgeStatus(breakthroughs.length, BREAKTHROUGH_BADGES);
@@ -76,17 +70,6 @@ export function AchievementsScreen() {
       </AppText>
       <AppText>{t(consistency.achieved ? "progress.goalDone" : "progress.rest")}</AppText>
       {consistency.goal !== null ? <ProgressBar value={Math.min(1, consistency.done / consistency.goal)} label={t("progress.weekCount", { done: consistency.done, goal: consistency.goal })} /> : null}
-    </Card>
-
-    <Card>
-      <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{t("path.title")}</AppText>
-      <AppText style={{ color: p.muted }}>{t("path.listRule")}</AppText>
-      {paths.length ? paths.map(({ lift, path }, i) => <ListRow key={lift.lineId}
-        title={exerciseLabels(lift, lang).primary}
-        note={`${t(`path.tier.${path.tier}`)} · ${path.score}`}
-        last={i === paths.length - 1}
-        onPress={() => nav.navigate("LiftTrend", { lineId: lift.lineId })} />)
-        : <AppText style={{ color: p.muted }}>{t("path.empty")}</AppText>}
     </Card>
 
     <Card>

@@ -13,6 +13,11 @@ export interface SetContext {
   readiness?:number|null; previousSetRpe?:number|null;
   priorWorkingReps:number; priorWorkoutsOnEquipment:number|null;
   previousWorkoutFirstReps?:number|null; daysSincePreviousWorkout?:number|null;
+  /**
+   * Policy-only: 1–2 fewer expected reps when this lift is not the first for its muscle today.
+   * Never a trained model feature; never changes the load action.
+   */
+  sessionFatigueReps?:number;
 }
 export const LOAD_CONVENTION_CODES:Record<SetContext['loadConvention'],number>={
   displayed_machine_load:0,per_dumbbell:1,total_barbell_load:2,unknown:-1

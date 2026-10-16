@@ -54,9 +54,12 @@ describe("turning it on", () => {
     expect(rows).toBe(expected);
     expect(await a.repos.getSetting("language")).toBeNull(); // sanity: nothing device-only was required
     await a.repos.setSetting("language", "ar");
-    await a.repos.setSetting("rest_seconds", "120");
     await sync(a);
     expect((await w.call("GET", "/v1/me", { token: (await a.engine.token())! })).body.rows).toBe(expected);
+    await a.repos.setSetting("rest_seconds", "120");
+    await a.repos.setSetting("appearance", "light");
+    await sync(a);
+    expect((await w.call("GET", "/v1/me", { token: (await a.engine.token())! })).body.rows).toBe(expected + 2);
   });
 
   it("a new phone with the recovery code gets exactly the same data (no duplicate seed rows)", async () => {

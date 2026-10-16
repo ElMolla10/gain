@@ -4,6 +4,7 @@ import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { ProgrammeRepo } from "./programmeRepo";
 import type { Repos } from "./repos";
+import { syncAchievements } from "./achievementRepo";
 import type { WorkoutRepo } from "./workoutRepo";
 
 /** The lifter's decision for one exported title. */
@@ -393,6 +394,10 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
   async function resync(): Promise<void> {
     const active = await repos.getActiveGymId();
     if (active) await finish.refreshPlannedSessions(active);
+    const raw = await repos.getSetting("week_starts_on");
+    const v = raw === null || raw === "" ? Number.NaN : Number(raw);
+    const startsOn = Number.isInteger(v) && v >= 0 && v <= 6 ? v : 1;
+    await syncAchievements(db, deps, { weekStartsOn: startsOn, backfill: false, repos });
   }
 
   async function listBatches(): Promise<BatchInfo[]> {

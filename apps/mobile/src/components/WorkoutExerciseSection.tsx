@@ -14,6 +14,7 @@ import { workingIndexes } from "../logic/liveSummary";
 import { focusedRowKey } from "../logic/workoutFocus";
 import { rowLabels, type SetRowDraft } from "../logic/workoutRows";
 import { LIVE_MISSING_FEATURES, nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
+import { nextSetState } from "../logic/nextSetCard";
 import { describeWhyWeight, sessionPosition } from "../logic/why";
 import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
@@ -23,15 +24,21 @@ import { Icon } from "./Icon";
 import { LiveSuggestion } from "./LiveSuggestion";
 import { WorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
 
-export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string }
+export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string; starting?: boolean }
 interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
   active?: boolean; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
   ex: Disp; position: number; info: ExInfo; list: SetRowDraft[]; st: ExerciseState;
   gym: GymFingerprint; exSets: SetRow[]; outliers: Record<string, OutlierResult>;
   candidate?: LiveCard; card?: LiveCard; expanded: boolean; supersetLabel?: string;
+  /** Earlier same-muscle exercise when a later-in-session reduction was applied. */
+  afterExercise?: string | null;
+  /** Session readiness when a modest reduction was applied. */
+  readiness?: "fatigued" | "returning" | null;
   restDurationMs: number; busy: boolean; warmOpen: boolean; warmDone: boolean;
   onOpenProgress: () => void; onToggleRest: () => void; onMenu: () => void; onWhy: () => void; onWhyLong: () => void;
-  onLiveApply: () => void; onLiveReport: (symptom: ReportedSymptom) => void; onLiveKeep: () => void;
+  onLiveApply: () => void; onLiveOwn: () => void; onLiveReport: (symptom: ReportedSymptom) => void; onLiveKeep: () => void;
+  onPickJump?: (kg: number) => void; listText?: string; onListChange?: (text: string) => void; onSaveList?: () => void;
+  focusRow?: { key: string; nonce: number } | null;
   onOutlierConfirm: (set: SetRow) => Promise<void>; onOutlierReject: (set: SetRow) => Promise<void>;
   onWarmConfirm: (steps: { load: number; reps: number }[]) => Promise<void>;
   onWarmOpen: () => void; onWarmClose: () => void; onAddSet: () => void;
@@ -39,7 +46,7 @@ interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDe
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
+export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
@@ -66,6 +73,8 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
         {
           trigger: basis ? { load: basis.load, reps: basis.reps, rir: basis.rir } : null,
           position: sessionPosition(trusted.length > 0 ? trusted.length - 1 : null),
+          afterExercise: afterExercise ?? null,
+          readiness: readiness ?? null,
           action: card.decision.action,
           loadSpec: spec,
           loadSource: ex.loadSource ?? (ex.loadSpec ? "exercise" : "gym"),
@@ -97,10 +106,12 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   // At large font sizes the five columns no longer fit side by side: the row becomes two lines (set, previous, tick / weight, reps).
   const stacked = fontScale > 1.3;
 
-  const live = card ? <LiveSuggestion decision={card.decision} basis={basis} repMin={ex.repMin} repMax={ex.repMax}
+  const live = card ? <LiveSuggestion decision={card.decision} state={nextSetState({ decision: card.decision, starting: card.starting, spec })}
+    basis={basis} repMin={ex.repMin} repMax={ex.repMax} equipment={ex.equipment} loadSpec={spec}
     detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
     manualLoad={nextAdaptiveRow(list)?.load !== null || nextAdaptiveRow(list)?.reps !== null} busy={busy}
-    onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep} whySentence={whySentence} /> : null;
+    onApply={onLiveApply} onOwn={onLiveOwn} onReport={onLiveReport} onKeep={onLiveKeep} whySentence={whySentence}
+    onPickJump={onPickJump} listText={listText} onListChange={onListChange} onSaveList={onSaveList} /> : null;
 
   return (
     <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
@@ -139,6 +150,8 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
           onWhy={() => onWhy()}
           onWhyLong={() => onWhyLong()}
         />
+        {!why && afterExercise ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("why.weight.afterExercise", { exercise: afterExercise })}</AppText> : null}
+        {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}
         {plates ? <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>{plates.text}</AppText> : null}
         {suggestedPlates && suggestedPlates.text !== plates?.text ? <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>{suggestedPlates.text}</AppText> : null}
         {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
@@ -169,6 +182,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
             <WorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
               workingIndex={widx[i] ?? null} lastSets={info.last?.sets ?? null}
               current={active && currentKey === row.key} stacked={stacked} busy={busy}
+              autoFocus={focusRow?.key === row.key} focusNonce={focusRow?.nonce}
               onPatch={onPatch} onKind={onKind} onAskDelete={onAskDelete}
               onDelete={onDelete} onLog={onLog} onUntick={onUntick} />
           </React.Fragment>

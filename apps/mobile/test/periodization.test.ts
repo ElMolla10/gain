@@ -13,6 +13,7 @@ describe("periodization reminder", () => {
     expect(parsePeriodization(null)).toEqual(DEFAULT_PERIODIZATION);
     expect(DEFAULT_PERIODIZATION.enabled).toBe(false);
     expect(periodizationDue(DEFAULT_PERIODIZATION, "2026-01-05", 12, false)).toBe(false);
+    expect(periodizationDue({ enabled: false, weeks: 4, startedWeek: "2026-01-05", lastPromptWeek: null }, "2026-02-02", 4, false)).toBe(false);
   });
   it("fires after the chosen number of training weeks and not before", () => {
     const on = { enabled: true, weeks: 4 as const, startedWeek: "2026-01-05", lastPromptWeek: null };

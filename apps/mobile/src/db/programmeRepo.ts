@@ -129,6 +129,39 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
   }
 
   /**
+   * In-place edit of a custom exercise's name, movement, and equipment. Setup and id stay so the line, history and PRs remain.
+   * Library (seeded) rows cannot be rewritten this way. A colliding name+equipment+setup+measure is refused, not merged.
+   */
+  async function updateExercise(id: string, patch: { nameEn: string; nameAr?: string; pattern: string; equipment: EquipmentType }): Promise<void> {
+    const nameEn = patch.nameEn.trim();
+    if (nameEn === "") throw new Error("Exercise name is empty");
+    const row = await db.get<{ seed_key: string | null; setup: SetupType; measure: Measure; equipment: EquipmentType }>(
+      "SELECT seed_key, setup, measure, equipment FROM exercise WHERE id = ? AND deleted_at IS NULL",
+      [id],
+    );
+    if (!row) throw new Error("Unknown exercise");
+    if (row.seed_key !== null) throw new Error("Library exercises keep their name, movement and equipment");
+    const nameAr = (patch.nameAr ?? "").trim() || nameEn;
+    const dup = await db.get<{ id: string }>(
+      "SELECT id FROM exercise WHERE lower(name_en) = lower(?) AND equipment = ? AND setup = ? AND measure = ? AND deleted_at IS NULL AND id != ?",
+      [nameEn, patch.equipment, row.setup, row.measure, id],
+    );
+    if (dup) throw new Error("An exercise with this name and equipment already exists");
+    const t = now();
+    if (patch.equipment !== row.equipment) {
+      await db.run(
+        "UPDATE exercise SET name_en = ?, name_ar = ?, pattern = ?, equipment = ?, load_spec_json = NULL, updated_at = ? WHERE id = ? AND seed_key IS NULL",
+        [nameEn, nameAr, patch.pattern, patch.equipment, t, id],
+      );
+    } else {
+      await db.run(
+        "UPDATE exercise SET name_en = ?, name_ar = ?, pattern = ?, equipment = ?, updated_at = ? WHERE id = ? AND seed_key IS NULL",
+        [nameEn, nameAr, patch.pattern, patch.equipment, t, id],
+      );
+    }
+  }
+
+  /**
    * Counts an exercise in reps, seconds or metres. Refused once any set was logged for it (the numbers already stored would change meaning).
    * Program slots that use it get the new unit's starting range (a reps range such as 8-12 would read as 8-12 seconds), in every saved
    * version, so the Today list and the next target stay consistent; sessions already finished are untouched. Planned targets are rewritten.
@@ -410,6 +443,6 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     await replan();
   }
 
-  return { listExercises, createExercise, setExerciseMeasure, setExerciseLoads, setLineLoads, getExercisePrescription, setExercisePrescription, setMachineLoadKind, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
+  return { listExercises, createExercise, updateExercise, setExerciseMeasure, setExerciseLoads, setLineLoads, getExercisePrescription, setExercisePrescription, setMachineLoadKind, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
 }
 export type ProgrammeRepo = ReturnType<typeof createProgrammeRepo>;

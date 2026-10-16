@@ -134,4 +134,47 @@ describe("Why this weight? from a logged set", () => {
     expect(ar.details.join(" ")).toMatch(/[\u0600-\u06FF]/);
     expect(ar.details.join(" ")).toContain("rir");
   });
+  it("names earlier same-muscle work when a later-in-session reduction was applied", () => {
+    const en = describeWhyWeight(
+      { trigger: { load: 20, reps: 12 }, action: "maintain", afterExercise: "Bench Press" },
+      L("en"),
+      "en",
+    );
+    expect(clean(en.sentence)).toContain("Later in the session after Bench Press");
+    const ar = describeWhyWeight(
+      { trigger: { load: 20, reps: 12 }, action: "maintain", afterExercise: "بنش" },
+      L("ar"),
+      "ar",
+    );
+    expect(ar.sentence).toMatch(/[\u0600-\u06FF]/);
+    expect(ar.sentence).toContain("بنش");
+  });
+  it("names a fatigued or returning flag and omits it when cleared", () => {
+    const fatigued = describeWhyWeight(
+      { trigger: { load: 60, reps: 8 }, action: "maintain", readiness: "fatigued" },
+      L("en"),
+      "en",
+    );
+    expect(clean(fatigued.sentence)).toContain("Adjusted because you marked unusually fatigued");
+    expect(fatigued.sentence).not.toMatch(/recovery|%/i);
+    const returning = describeWhyWeight(
+      { trigger: { load: 60, reps: 8 }, action: "maintain", readiness: "returning" },
+      L("en"),
+      "en",
+    );
+    expect(clean(returning.sentence)).toContain("Adjusted because you marked returning after a break");
+    const normal = describeWhyWeight(
+      { trigger: { load: 60, reps: 8 }, action: "maintain" },
+      L("en"),
+      "en",
+    );
+    expect(clean(normal.sentence)).not.toContain("unusually fatigued");
+    expect(clean(normal.sentence)).not.toContain("returning after a break");
+    const ar = describeWhyWeight(
+      { trigger: { load: 60, reps: 8 }, action: "maintain", readiness: "fatigued" },
+      L("ar"),
+      "ar",
+    );
+    expect(ar.sentence).toMatch(/[\u0600-\u06FF]/);
+  });
 });

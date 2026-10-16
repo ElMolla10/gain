@@ -352,6 +352,19 @@ describe("custom exercises", () => {
     expect(other).not.toBe(id);
     await expect(programmes.createExercise({ nameEn: "  ", pattern: "squat", equipment: "machine", setup: "free" })).rejects.toThrow(/empty/);
   });
+  it("edits a custom exercise in place and keeps its line", async () => {
+    const { programmes, workout, repos } = await freshDb();
+    await repos.seedIfNeeded();
+    const gymId = (await repos.getActiveGymId())!;
+    const id = await programmes.createExercise({ nameEn: "My Press", pattern: "horizontal_push", equipment: "barbell", setup: "free" });
+    const lineId = await workout.ensureLine(id, gymId, "free");
+    await programmes.updateExercise(id, { nameEn: "Floor Press", nameAr: "ضغط أرضي", pattern: "incline_push", equipment: "dumbbell" });
+    const ex = (await programmes.listExercises()).find((e) => e.id === id)!;
+    expect(ex).toMatchObject({ id, nameEn: "Floor Press", nameAr: "ضغط أرضي", pattern: "incline_push", equipment: "dumbbell", setup: "free", isCustom: true });
+    expect(await workout.ensureLine(id, gymId, "free")).toBe(lineId);
+    const bench = (await programmes.listExercises()).find((e) => e.seedKey === "bench_press")!;
+    await expect(programmes.updateExercise(bench.id, { nameEn: "Nope", pattern: "horizontal_push", equipment: "barbell" })).rejects.toThrow(/Library/);
+  });
 });
 
 describe("switching program (v0.8.0)", () => {

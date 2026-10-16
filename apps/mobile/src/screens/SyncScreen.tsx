@@ -25,6 +25,8 @@ export function SyncScreen() {
   const [step, setStep] = useState<Step>("idle");
   const [code, setCode] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailCode, setEmailCode] = useState("");
   const [askDelete, setAskDelete] = useState(false);
 
   const reload = useCallback(async () => {
@@ -121,6 +123,42 @@ export function SyncScreen() {
     setStep("code");
   }
 
+  async function sendEmailCode() {
+    clear();
+    setBusy("sync.connecting");
+    try {
+      const r = await sync.startEmail(email);
+      if (!r.ok) return fail(r.error);
+      setMsg(t("sync.email.sent"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function verifyEmail() {
+    clear();
+    setBusy("sync.connecting");
+    try {
+      const r = await sync.verifyEmail({ email, code: emailCode.trim() });
+      if (!r.ok) return fail(r.error);
+      if (r.needsChoice) {
+        setStep("choice");
+        return;
+      }
+      setBusy("sync.syncing");
+      const s = await sync.syncNow();
+      if (!s.ok) fail(s.error);
+      else setMsg(t("sync.synced"));
+      if (r.recoveryCode) {
+        setCode(r.recoveryCode);
+        setStep("code");
+      }
+    } finally {
+      setBusy(null);
+      void reload();
+    }
+  }
+
   const status = info?.status ?? "off";
   return (
     <Screen>
@@ -132,6 +170,7 @@ export function SyncScreen() {
       </Card>
 
       <InlineStatus kind={status === "on" && info && info.pendingOut === 0 && !info.lastError ? "success" : "info"} text={t(`sync.status.${status}` as StringKey)} />
+      {status === "on" && !busy && !err && !(info?.lastError) ? <InlineStatus kind="info" text={t("sync.status.idle")} /> : null}
       {busy ? <InlineStatus kind="info" text={t(busy)} /> : null}
       {msg ? <InlineStatus kind="success" text={msg} /> : null}
       {err ? <Notice kind="error">{err}</Notice> : null}
@@ -166,6 +205,14 @@ export function SyncScreen() {
             <Field label={t("sync.codeField")} hint={t("sync.codeHint")} value={typed} onChangeText={setTyped} />
             <BigButton label={t("sync.restore")} variant="secondary" disabled={!!busy || typed.trim().length < 10} onPress={() => turnOn(typed)} />
           </Card>
+          <Card>
+            <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.email.title")}</AppText>
+            <AppText style={{ color: p.muted }}>{t("sync.email.body")}</AppText>
+            <Field label={t("sync.email.field")} hint={t("sync.email.hint")} value={email} onChangeText={setEmail} keyboardType="email-address" />
+            <BigButton label={t("sync.email.send")} variant="secondary" disabled={!!busy || !email.includes("@")} onPress={sendEmailCode} />
+            <Field label={t("sync.email.code")} hint={t("sync.email.codeHint")} value={emailCode} onChangeText={setEmailCode} keyboardType="number-pad" />
+            <BigButton label={t("sync.email.verify")} disabled={!!busy || emailCode.trim().length !== 8} onPress={verifyEmail} />
+          </Card>
         </>
       ) : null}
 
@@ -187,6 +234,17 @@ export function SyncScreen() {
             {info && info.rejectedTotal > 0 ? <AppText>{t("sync.rejected", { n: info.rejectedTotal })}</AppText> : null}
             {info?.lastError ? <Notice kind="error" actionLabel={t("sync.syncNow")} onAction={syncNow}>{t(`sync.err.${info.lastError.split(":")[0]}` as StringKey)}</Notice> : null}
             <BigButton icon="cloud" label={t("sync.syncNow")} disabled={!!busy} onPress={syncNow} />
+          </Card>
+          <Card>
+            {info?.email ? <AppText ltr>{t("sync.email.linked", { email: info.email })}</AppText> : <AppText>{t("sync.email.none")}</AppText>}
+            {!info?.email ? (
+              <>
+                <Field label={t("sync.email.field")} hint={t("sync.email.hint")} value={email} onChangeText={setEmail} keyboardType="email-address" />
+                <BigButton label={t("sync.email.send")} variant="secondary" disabled={!!busy || !email.includes("@")} onPress={sendEmailCode} />
+                <Field label={t("sync.email.code")} hint={t("sync.email.codeHint")} value={emailCode} onChangeText={setEmailCode} keyboardType="number-pad" />
+                <BigButton label={t("sync.email.link")} disabled={!!busy || emailCode.trim().length !== 8} onPress={verifyEmail} />
+              </>
+            ) : null}
           </Card>
           <Card>
             {step === "code" ? (

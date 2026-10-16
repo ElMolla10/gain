@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { applyLiveTarget, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow, suggestedNextLoad } from "../src/logic/liveAdaptation";
+import { applyExpectedReps, applyLiveTarget, takeLiveTarget, clearLiveTarget, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow, suggestedNextLoad } from "../src/logic/liveAdaptation";
+import { nextSetState } from "../src/logic/nextSetCard";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
 import type { SetRow } from "../src/db/workoutRepo";
 const saved = (extra: Partial<SetRow> = {}): SetRow => ({ id:"s1", sessionId:"session", exerciseId:"bench", lineId:"line", position:1, load:60, reps:10, durationS:null, distanceM:null, rir:2, warmup:false, tags:[], outlierStatus:"none", createdAt:100, ...extra });
@@ -56,6 +57,23 @@ describe("live logger adapter", () => {
     expect(livePerformanceKey([],"bench")).not.toBe(before);
     expect(livePerformanceKey([saved({outlierStatus:"unconfirmed"})],"bench")).not.toBe(before);
   });
+  it("carries session-order fatigue into context and only changes expected reps", () => {
+    expect(context()!.sessionFatigueReps).toBeUndefined();
+    expect(context({ sessionFatigueReps: 1 })!.sessionFatigueReps).toBe(1);
+    const decision = tryLiveRecommendation(context({ sessionFatigueReps: 1 })!, 6, 10, { equipment: "barbell", increment: 2.5, min: 20, max: 200 }, () => 8);
+    expect(decision).toMatchObject({ action: "maintain", suggestedWeightKg: 60, suggestedReps: 7 });
+    const pr = tryLiveRecommendation(context({ sessionFatigueReps: 1, last: { performedAt: "2026-01-01", sets: [{ load: 55, reps: 12 }] } })!, 6, 10, { equipment: "barbell", increment: 2.5, min: 20, max: 200 }, () => 8);
+    expect(pr!.suggestedWeightKg).toBe(60);
+  });
+  it("fills expected reps without touching a typed load", () => {
+    const original = rows();
+    const changed = applyExpectedReps(original, "draft1", 6);
+    expect(changed[0]).toMatchObject({ ghostLoad: 60, ghostReps: 6, load: null, reps: null });
+    const typedLoad = editRow(original, "draft1", { load: 65 });
+    expect(applyExpectedReps(typedLoad, "draft1", 6)[0]).toMatchObject({ load: 65, ghostReps: 6 });
+    const typedReps = editRow(original, "draft1", { reps: 11 });
+    expect(applyExpectedReps(typedReps, "draft1", 6)[0]).toMatchObject({ reps: 11, ghostReps: 8 });
+  });
   it("fills both parts of only the next working target without overwriting typed values", () => {
     const original=rows();
     const changed=applyLiveTarget(original,"draft1",57.5,7);
@@ -73,6 +91,28 @@ describe("live logger adapter", () => {
     const failure=editRow(original,"draft1",{tags:["failure"]});
     expect(nextAdaptiveRow(failure)?.key).toBe("draft1");
     expect(applyLiveTarget(failure,"draft1",57.5,7)[0]).toMatchObject({ghostLoad:57.5,ghostReps:7});
+  });
+  it("Use this fills the next row and leaves a logged set's weight valid", () => {
+    const original = rows();
+    const filled = takeLiveTarget(original, "draft1", 82.5, 7);
+    expect(filled[0]).toMatchObject({ load: null, reps: null, ghostLoad: 82.5, ghostReps: 7 });
+    const typed = editRow(original, "draft1", { load: 90, reps: 5 });
+    expect(takeLiveTarget(typed, "draft1", 82.5, 7)[0]).toMatchObject({ load: null, reps: null, ghostLoad: 82.5, ghostReps: 7 });
+    const logged = markSaved(editRow(original, "draft1", { load: 61, reps: 8 }), "draft1");
+    expect(takeLiveTarget(logged, "draft2", 65, 8)[0]).toMatchObject({ load: 61, reps: 8, saved: true });
+    expect(takeLiveTarget(logged, "draft2", 65, 8)[1]).toMatchObject({ ghostLoad: 65, ghostReps: 8, load: null });
+    expect(clearLiveTarget(filled, "draft1")[0]).toMatchObject({ ghostLoad: null, ghostReps: null });
+  });
+  it("changing the available step recalculates increase vs no-heavier", () => {
+    const list = initialRows([], 3, { load: 80, reps: 8 }, (() => { let n = 0; return () => `row${++n}`; })());
+    const ctx = context({ sets: [saved({ load: 80, reps: 12 })], rows: list, equipment: "barbell" })!;
+    const predict = (f: { relative_load_change?: unknown }) => Number(f.relative_load_change) > 0 ? 8.6 : 13;
+    const fine = tryLiveRecommendation(ctx, 6, 10, { equipment: "barbell", increment: 2.5, min: 20 }, predict);
+    expect(fine).toMatchObject({ action: "increase", suggestedWeightKg: 82.5 });
+    expect(nextSetState({ decision: fine!, spec: { equipment: "barbell", increment: 2.5, min: 20 } })).toBe("increase");
+    const coarse = tryLiveRecommendation(ctx, 6, 10, { equipment: "barbell", increment: 5, min: 20 }, predict as never);
+    expect(coarse).toMatchObject({ action: "maintain", reason: "no_suitable_increase", suggestedWeightKg: 80 });
+    expect(nextSetState({ decision: coarse!, spec: { equipment: "barbell", increment: 5, min: 20 } })).toBe("no_heavier");
   });
   it("evaluates the real bundled offline model with missing optional inputs", () => {
     const features = { previous_reps:10, relative_load_change:0, load_convention:2, first_working_set_reps:10, working_sets_before:1, set_index:2, target_reps:8 };

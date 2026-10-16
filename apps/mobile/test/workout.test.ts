@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createWorkoutRepo, ExerciseAlreadyInWorkout } from "../src/db/workoutRepo";
+import { addExercise, newExercise } from "../src/logic/programmeDraft";
 import { sessionMinutes } from "../src/logic/historyRows";
 import { freshDb } from "./helpers";
 
@@ -62,6 +63,24 @@ describe("sessions: no duplicates on re-open", () => {
   it("an unknown day is an error", async () => {
     const { workout, gymId } = await setup();
     await expect(workout.startOrResumeSession("nope", gymId)).rejects.toThrow();
+  });
+  it("session readiness persists until cleared, and a new session starts unset", async () => {
+    const { workout, next, gymId } = await setup();
+    const { id } = await workout.startOrResumeSession(next.day.id, gymId);
+    expect((await workout.getSession(id))!.readiness).toBeNull();
+    await workout.setSessionReadiness(id, "normal");
+    expect((await workout.getSession(id))!.readiness).toBeNull();
+    await workout.setSessionReadiness(id, "fatigued");
+    expect((await workout.getSession(id))!.readiness).toBe("fatigued");
+    await workout.setSessionReadiness(id, "returning");
+    expect((await workout.getSession(id))!.readiness).toBe("returning");
+    await workout.setSessionReadiness(id, null);
+    expect((await workout.getSession(id))!.readiness).toBeNull();
+    await workout.setSessionReadiness(id, "fatigued");
+    await workout.finishSession(id);
+    const again = await workout.startOrResumeSession(next.day.id, gymId);
+    expect(again.id).not.toBe(id);
+    expect((await workout.getSession(again.id))!.readiness).toBeNull();
   });
 });
 
@@ -168,6 +187,31 @@ describe("history, last performance and the live target", () => {
     expect(h).toHaveLength(1); // the open session is not history yet
     const last = await workout.lastPerformance(line, lineId);
     expect(last!.sets.map((s) => s.load)).toEqual([40, 60]);
+  });
+  it("a custom exercise gets a next-set suggestion after two sessions", async () => {
+    const ctx = await freshDb();
+    await ctx.repos.seedIfNeeded();
+    const gymId = (await ctx.repos.getActiveGymId())!;
+    const gym = await ctx.repos.loadGymFingerprint(gymId);
+    const id = await ctx.programmes.createExercise({ nameEn: "My Press", pattern: "horizontal_push", equipment: "barbell", setup: "free" });
+    const active = (await ctx.programmes.getActive())!;
+    const draft = await ctx.programmes.loadDraft(active.versionId);
+    await ctx.programmes.saveNewVersion(active.programmeId, addExercise(draft, 0, newExercise(id)));
+    const next = (await ctx.repos.getNextDay())!;
+    const ex = (await ctx.repos.listDayExercises(next.day.id)).find((e) => e.exerciseId === id)!;
+    const spec = { exerciseId: id, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, isGoalLift: false, trackEffort: false, sets: ex.sets };
+    const dctx = { gym, equipment: ex.equipment, setup: ex.setup };
+    for (let s = 0; s < 2; s++) {
+      const { id: sid } = await ctx.workout.startOrResumeSession(next.day.id, gymId);
+      for (let i = 0; i < 3; i++) await ctx.workout.logSet({ sessionId: sid, exerciseId: id, load: 60, reps: 8 }, dctx);
+      ctx.deps.tick(1000);
+      await ctx.workout.finishSession(sid);
+      ctx.deps.tick(3 * 86_400_000);
+    }
+    const { proposal } = await ctx.workout.liveProposal(spec, gym);
+    expect(proposal.status).not.toBe("no_history");
+    expect(proposal.load).toBeGreaterThan(0);
+    expect(proposal.reps).toBeGreaterThan(0);
   });
   it("three finished sessions give a high-confidence target from real loads", async () => {
     const { finished, workout, spec, gym } = await setup();

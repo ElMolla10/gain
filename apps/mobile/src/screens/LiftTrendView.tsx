@@ -50,6 +50,7 @@ export function LiftTrendView({
   paceHeadline,
   paceDetails,
   nextTarget,
+  whySentence,
   setups,
   onPickSetup,
   extras,
@@ -62,6 +63,7 @@ export function LiftTrendView({
   paceHeadline?: string | null;
   paceDetails?: string[];
   nextTarget?: string | null;
+  whySentence?: string | null;
   setups?: { lineId: string; label: string; selected: boolean }[];
   onPickSetup?: (lineId: string) => void;
   extras?: React.ReactNode;
@@ -128,7 +130,10 @@ export function LiftTrendView({
           ))}
         </Card>
       ) : null}
-      {extras}
+      <Card>
+        <AppText style={{ fontWeight: "600" }}>{nextTarget ? t("trend.next", { target: nextTarget }) : t("trend.nextNone")}</AppText>
+        {whySentence ? <AppText style={{ color: p.muted }}>{whySentence}</AppText> : null}
+      </Card>
       {setups && setups.length > 1 ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
           {setups.map((s) => (
@@ -158,6 +163,27 @@ export function LiftTrendView({
         {trend.latest ? <AppText>{t("trend.latest", { set: setText(trend.latest), date: localDateText(trend.latest.at) })}</AppText> : null}
         {trend.best ? <AppText>{t("trend.best", { set: setText(trend.best), date: localDateText(trend.best.at) })}</AppText> : null}
       </Card>
+      {records.heaviest ? (
+        <Card>
+          <AppText style={{ fontWeight: "600" }}>{t("trend.pr.title")}</AppText>
+          <AppText>{t("trend.pr.heaviest", { set: setText(records.heaviest), date: localDateText(records.heaviest.at) })}</AppText>
+          {records.e1rm ? <AppText>{t("trend.pr.e1rm", { load: fmt(records.e1rm.e1rm), set: setText(records.e1rm.set) })}</AppText> : null}
+          {records.setVol ? <AppText>{t("trend.pr.setVolume", { volume: String(Math.round(records.setVol.volume)), set: setText(records.setVol.set) })}</AppText> : null}
+          {records.sessionVol ? <AppText>{t("trend.pr.sessionVolume", { volume: String(Math.round(records.sessionVol.volume)), date: localDateText(records.sessionVol.at) })}</AppText> : null}
+        </Card>
+      ) : null}
+      {recent.length > 0 ? (
+        <Card>
+          <AppText style={{ fontWeight: "600" }}>{t("trend.recent")}</AppText>
+          {recent.map((pt) => (
+            <AppText key={pt.at} ltr style={{ textAlign: "left" /* a11y-ok: LTR figures stay left-aligned */ }}>
+              {localDateText(pt.at)}  {setText(pt)}
+              {pt.imported ? `  (${t("trend.imported")})` : ""}
+            </AppText>
+          ))}
+        </Card>
+      ) : null}
+      {extras}
       {loads ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("loads.title")}</AppText>
@@ -203,35 +229,12 @@ export function LiftTrendView({
         )}
         {chartPoints.length > 0 ? <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("trend.chartHint")}</AppText> : null}
       </Card>
-      {records.heaviest ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("trend.pr.title")}</AppText>
-          <AppText>{t("trend.pr.heaviest", { set: setText(records.heaviest), date: localDateText(records.heaviest.at) })}</AppText>
-          {records.e1rm ? <AppText>{t("trend.pr.e1rm", { load: fmt(records.e1rm.e1rm), set: setText(records.e1rm.set) })}</AppText> : null}
-          {records.setVol ? <AppText>{t("trend.pr.setVolume", { volume: String(Math.round(records.setVol.volume)), set: setText(records.setVol.set) })}</AppText> : null}
-          {records.sessionVol ? <AppText>{t("trend.pr.sessionVolume", { volume: String(Math.round(records.sessionVol.volume)), date: localDateText(records.sessionVol.at) })}</AppText> : null}
-        </Card>
-      ) : null}
       {records.reps.length > 0 ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("trend.repMaxes")}</AppText>
           {records.reps.map((row) => (
             <AppText key={row.reps}>
               {t("trend.repMax", { reps: row.reps, load: fmt(row.set.load) })}
-            </AppText>
-          ))}
-        </Card>
-      ) : null}
-      <Card>
-        <AppText style={{ fontWeight: "600" }}>{nextTarget ? t("trend.next", { target: nextTarget }) : t("trend.nextNone")}</AppText>
-      </Card>
-      {recent.length > 0 ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("trend.recent")}</AppText>
-          {recent.map((pt) => (
-            <AppText key={pt.at} ltr style={{ textAlign: "left" /* a11y-ok: LTR figures stay left-aligned */ }}>
-              {localDateText(pt.at)}  {setText(pt)}
-              {pt.imported ? `  (${t("trend.imported")})` : ""}
             </AppText>
           ))}
         </Card>

@@ -75,8 +75,8 @@ describe("the form", () => {
 });
 
 describe("quick jump presets on a lift", () => {
-  it("is 2.5, 2, 5 and 10 kg", () => {
-    expect(TREND_LOAD_JUMPS_KG).toEqual([2.5, 2, 5, 10]);
+  it("is 1, 2, 2.5, 5 and 10 kg", () => {
+    expect(TREND_LOAD_JUMPS_KG).toEqual([1, 2, 2.5, 5, 10]);
   });
   it("matches the selected jump on a step grid, not a list or a custom step", () => {
     expect(matchingJumpKg({ equipment: "barbell", increment: 2.5, min: 20 })).toBe(2.5);
@@ -107,7 +107,7 @@ describe("migration 11: weights set per exercise (upgrade from schema 10 with re
     delete before.user_quest;
     delete before.lift_pin;
     before.exercise_line = (before.exercise_line as Record<string, unknown>[]).map(({ load_spec_json: _l, ...rest }) => rest);
-    before.session = (before.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, local_calendar_date: _d, ...rest }) => rest);
+    before.session = (before.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, local_calendar_date: _d, readiness: _r, ...rest }) => rest);
     before.import_batch = (before.import_batch as Record<string, unknown>[]).map(({ source_kind: _s, ...rest }) => rest);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);
     const old = await copyAtVersion(cur.db, 10);

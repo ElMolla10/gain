@@ -262,3 +262,44 @@ describe("FitNotes import", () => {
     expect(await count(db, "SELECT COUNT(*) AS n FROM session WHERE import_key IS NOT NULL AND deleted_at IS NULL")).toBe(0);
   });
 });
+
+describe("imported custom exercises", () => {
+  it("participates in Verified Strength PR after import", async () => {
+    const { imports, gymId, programmes, achievements } = await setup();
+    const title = "My Floor Press";
+    const loads = [60, 62.5, 65];
+    const parse: ImportParse = {
+      source: "hevy",
+      unit: "kg",
+      warnings: [],
+      rowCount: 9,
+      workouts: loads.map((load, i) => {
+        const startTime = `2026-01-0${i + 1}T12:00:00`;
+        return {
+          source: "hevy" as const,
+          title,
+          startTime,
+          endTime: null,
+          key: `hevy|${startTime}|${title}`,
+          exercises: [{ title, skippedRows: 0, sets: [{ load, reps: 8 }, { load, reps: 8 }, { load, reps: 8 }] }],
+        };
+      }),
+    };
+    const r = await imports.importHistory({
+      parse,
+      gymId,
+      mappings: { [title]: { kind: "new", nameEn: title, pattern: "horizontal_push", equipment: "barbell", setup: "free" } },
+    });
+    expect(r.workouts).toBe(3);
+    expect(r.newExercises).toBe(1);
+    const ex = (await programmes.listExercises()).find((e) => e.nameEn === title)!;
+    expect(ex.isCustom).toBe(true);
+    const earned = (await achievements.listEarned()).find((row) => row.badgeId === "strength_pr");
+    expect(earned?.status).toBe("earned");
+    expect(earned?.evidence?.kind).toBe("strength_pr");
+    if (earned?.evidence?.kind === "strength_pr") {
+      expect(earned.evidence.identity.exerciseId).toBe(ex.id);
+      expect(earned.evidence.newBest).toMatchObject({ load: 65, reps: 8 });
+    }
+  });
+});

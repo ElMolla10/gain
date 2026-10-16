@@ -43,8 +43,15 @@ describe("validateEvent", () => {
   it("only whitelisted settings sync", () => {
     const row = (id: string) => canonicalRow({ id, value: "x", created_at: 1, updated_at: NOW, deleted_at: null });
     expect(validateEvent(good({ table: "setting", rowId: "units", data: row("units") }), NOW)).toBeNull();
+    expect(validateEvent(good({ table: "setting", rowId: "appearance", data: row("appearance") }), NOW)).toBeNull();
+    expect(validateEvent(good({ table: "setting", rowId: "rest_seconds", data: row("rest_seconds") }), NOW)).toBeNull();
     expect(validateEvent(good({ table: "setting", rowId: "language", data: row("language") }), NOW)).toBe("setting_not_synced");
     expect(validateEvent(good({ table: "setting", rowId: "sync_token", data: row("sync_token") }), NOW)).toBe("setting_not_synced");
+  });
+  it("earned badges sync; quests and pins stay local", () => {
+    const data = canonicalRow({ id: "a1", badge_id: "first_session", updated_at: NOW, deleted_at: null, created_at: 1 });
+    expect(validateEvent(good({ table: "user_achievements", rowId: "a1", data }), NOW)).toBeNull();
+    expect(validateEvent(good({ table: "user_quest" as never, rowId: "q1" }), NOW)).toBe("unknown_table");
   });
 });
 

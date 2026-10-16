@@ -29,6 +29,7 @@ export const SYNC_TABLES = [
   "session",
   "session_exercise",
   "workout_set",
+  "user_achievements",
   "goal",
   "bodyweight_entry",
   "target",
@@ -39,11 +40,15 @@ export const SYNC_TABLES = [
 ] as const;
 export type SyncTable = (typeof SYNC_TABLES)[number];
 
-/** Settings that describe the lifter's data and follow them to a new phone. Device-only settings (language, RTL, rest timer, update checks) do not. */
+/** Settings that describe the lifter's data and follow them to a new phone. Device-only settings (language, RTL, update checks) do not. */
 export const SYNCED_SETTING_KEYS = [
   "active_gym_id",
   "active_programme_id",
   "units",
+  "appearance",
+  "rest_seconds",
+  "rest_vibrate",
+  "rest_notify",
   "rep_ceilings",
   "use_gain_ceilings",
   "days_per_week",

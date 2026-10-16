@@ -29,10 +29,13 @@ export function CellInput<T extends number>(props: {
   /** A small caption above the box (unit or column name); used when the row is laid out in two lines at large font sizes. */
   unitLabel?: string;
   style?: StyleProp<ViewStyle>;
+  autoFocus?: boolean;
+  focusNonce?: number;
 }) {
   const p = useLogPalette();
   const font = useInputFont("600");
   const { t } = useI18n();
+  const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState(props.value === null ? "" : props.format(props.value));
   const seen = useRef<T | null>(props.value);
@@ -43,11 +46,15 @@ export function CellInput<T extends number>(props: {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.value]);
+  useEffect(() => {
+    if (props.autoFocus) inputRef.current?.focus();
+  }, [props.autoFocus, props.focusNonce]);
   const bad = text.trim() !== "" && props.parse(text, props.value) === null;
   return (
     <View style={[{ flex: 1, gap: 2 }, props.style]}>
       {props.unitLabel ? <AppText style={{ color: p.muted, fontSize: 13, textAlign: "center" }}>{props.unitLabel}</AppText> : null}
       <TextInput
+        ref={inputRef}
         accessibilityLabel={props.a11y}
         accessibilityHint={bad ? t("workout.input.invalid") : props.placeholder ? t("workout.input.target", { value: props.placeholder }) : undefined}
         value={text}

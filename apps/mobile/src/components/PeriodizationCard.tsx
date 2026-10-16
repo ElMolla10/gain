@@ -10,7 +10,7 @@ import { AppText, BigButton, Card } from "../ui";
 
 /** End-of-block reminder. Off until the lifter enables it. Reuses the existing lighter-week actions. */
 export function PeriodizationCard() {
-  const { repos, history, deload, weekly } = useServices();
+  const { repos, history, deload, weekly, achievements } = useServices();
   const { t } = useI18n();
   const p = usePalette();
   const [due, setDue] = useState(false);
@@ -22,11 +22,12 @@ export function PeriodizationCard() {
     let alive = true;
     void (async () => {
       const tz = -new Date().getTimezoneOffset() * 60_000;
-      const [raw, startsOn, deloadState, sessions] = await Promise.all([
+      const [raw, startsOn, deloadState, sessions, pins] = await Promise.all([
         repos.getSetting("periodization"),
         weekly.weekStartsOn(),
         deload.getState(Date.now(), tz),
         history.listSessions(200),
+        achievements.listPins(),
       ]);
       const state = parsePeriodization(raw);
       const nowWeek = weekStartOf(Date.now() + tz, startsOn);
@@ -35,17 +36,21 @@ export function PeriodizationCard() {
         startsOn,
         tz,
       );
-      const progress = countProgressWeeks(sessionWeeks, state.startedWeek);
+      const focus = [...pins]
+        .filter((p) => p.startedWeek && (p.weeks === 4 || p.weeks === 5 || p.weeks === 6))
+        .sort((a, b) => a.startedWeek!.localeCompare(b.startedWeek!))[0];
+      const block = focus ? { ...state, weeks: focus.weeks!, startedWeek: focus.startedWeek! } : state;
+      const progress = countProgressWeeks(sessionWeeks, block.startedWeek);
       const busyDeload = deloadState.status !== "none" && deloadState.status !== "dismissed";
       if (alive) {
-        setWeeks(state.weeks);
-        setDue(periodizationDue(state, nowWeek, progress, busyDeload));
+        setWeeks(block.weeks);
+        setDue(periodizationDue(block, nowWeek, progress, busyDeload));
       }
     })();
     return () => {
       alive = false;
     };
-  }, [repos, history, deload, weekly]);
+  }, [repos, history, deload, weekly, achievements]);
 
   useFocusEffect(refresh);
 

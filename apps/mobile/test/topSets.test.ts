@@ -24,7 +24,7 @@ describe("migration 10: top set + back-offs (upgrade from schema 9 with real dat
     // columns added by later migrations do not exist at schema 10
     before.exercise = (before.exercise as Record<string, unknown>[]).map(({ load_spec_json: _l, ...rest }) => rest);
     before.exercise_line = (before.exercise_line as Record<string, unknown>[]).map(({ load_spec_json: _l, ...rest }) => rest);
-    before.session = (before.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, local_calendar_date: _d, ...rest }) => rest);
+    before.session = (before.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, local_calendar_date: _d, readiness: _r, ...rest }) => rest);
     before.import_batch = (before.import_batch as Record<string, unknown>[]).map(({ source_kind: _s, ...rest }) => rest);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000); // the real 70-workout export is in there
     const old = await copyAtVersion(cur.db, 9);

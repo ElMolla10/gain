@@ -15,7 +15,7 @@ export function replacementDisplay(slot: DayEx, exercise: LibraryExercise): Disp
   const range = replacementRange({...slot,repMin:slot.programmeRepMin ?? slot.repMin,repMax:slot.programmeRepMax ?? slot.repMax}, exercise.measure);
   return { ...slot, ...range, programmeRepMin:range.repMin, programmeRepMax:range.repMax,
     exerciseId:exercise.id,nameEn:exercise.nameEn,nameAr:exercise.nameAr,aliasesAr:exercise.aliasesAr,
-    pattern:exercise.pattern,equipment:exercise.equipment,setup:exercise.setup,measure:exercise.measure,
+    pattern:exercise.pattern,seedKey:exercise.seedKey,equipment:exercise.equipment,setup:exercise.setup,measure:exercise.measure,
     loadSpec:exercise.loadSpec ?? null,isGoalLift:false,repCeiling:range.repMax,repCeilingIsCustom:false,
     trackEffort:exercise.measure === "reps" && slot.trackEffort,
     topSets:exercise.measure === "reps" && slot.measure === "reps" ? slot.topSets : null,slot:slot.exerciseId };

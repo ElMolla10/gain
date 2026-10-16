@@ -175,6 +175,7 @@ describe("LiftTrendView tabs", () => {
       paceHeadline: "Bench 100 kg x 5: on pace",
       paceDetails: ["Target date: 2026-12-01"],
       nextTarget: "62.5 kg × 8",
+      whySentence: "After 60 kg × 8, the rule kept the load",
       setups: [
         { lineId: "l1", label: "Gym · Free", selected: true },
         { lineId: "l2", label: "Home · Free", selected: false },
@@ -186,6 +187,8 @@ describe("LiftTrendView tabs", () => {
     expect(copy).toContain("on pace");
     expect(copy).toContain("Next workout:");
     expect(copy).toContain("62.5 kg");
+    expect(copy).toContain("After 60 kg");
+    expect(copy).toContain("kept the load");
     const labels = tree.filter((n) => n.type === "Chip").map((n) => n.props.label);
     expect(labels).toContain("Gym · Free");
     expect(labels).toContain("Home · Free");
@@ -193,7 +196,7 @@ describe("LiftTrendView tabs", () => {
     expect(onPickSetup).toHaveBeenCalledWith("l2");
   });
 
-  it("shows available weights and the four jump chips, and picking one asks to save", () => {
+  it("shows available weights and the jump chips, and picking one asks to save", () => {
     const onPickJump = vi.fn();
     slots.i = 0;
     const tree = nodes(LiftTrendView({
@@ -211,6 +214,7 @@ describe("LiftTrendView tabs", () => {
     expect(copy).toContain("steps of 2.5 kg");
     const strip = (s: unknown) => String(s).replace(/\u2066|\u2069/g, "");
     const labels = tree.filter((n) => n.type === "Chip").map((n) => strip(n.props.label));
+    expect(labels).toContain("1 kg jumps");
     expect(labels).toContain("2.5 kg jumps");
     expect(labels).toContain("2 kg jumps");
     expect(labels).toContain("5 kg jumps");

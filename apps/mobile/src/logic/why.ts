@@ -38,6 +38,10 @@ export interface WhyTrigger {
 export interface WhyWeightInput {
   trigger?: WhyTrigger | null;
   position?: WhyPosition | null;
+  /** Earlier same-muscle work today, when a later-in-session reduction was applied. */
+  afterExercise?: string | null;
+  /** Session readiness flag when a modest reduction was applied. Never a recovery percentage. */
+  readiness?: "fatigued" | "returning" | null;
   action: WhyAction;
   loadSpec?: GymLoadSpec | null;
   loadSource?: "line" | "exercise" | "gym";
@@ -69,6 +73,9 @@ export function describeWhyWeight(
     if (input.position) set += L(`why.weight.${input.position}`);
     parts.push(set);
   }
+  if (input.afterExercise) parts.push(L("why.weight.afterExercise", { exercise: input.afterExercise }));
+  if (input.readiness === "fatigued") parts.push(L("why.weight.fatigued"));
+  if (input.readiness === "returning") parts.push(L("why.weight.returning"));
   parts.push(L(`why.weight.action.${input.action}`));
   if (input.loadSpec) {
     const what = loadsSummaryText(input.loadSpec, unit, unitLabel(unit, locale), L);

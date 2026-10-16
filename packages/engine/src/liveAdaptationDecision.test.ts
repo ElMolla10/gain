@@ -46,6 +46,23 @@ describe('decision policy without candidate inference',()=>{
  it('never fabricates a lower load',()=>expect(decideNextSet({predictedReps:4,previousReps:8,targetMin:6,targetMax:10,currentWeightKg:80})).toMatchObject({action:'maintain',suggestedWeightKg:80}));
 });
 
+describe('session-order expectation', () => {
+ it('first for the muscle keeps the full prescription', () => {
+   expect(recommendLiveSet(input)).toMatchObject({action:'maintain', suggestedWeightKg:80, suggestedReps:8});
+   expect(recommendLiveSet({...input, context:{...context, sessionFatigueReps:0}}).suggestedReps).toBe(8);
+ });
+ it('second for the muscle expects one fewer rep and keeps the load', () => {
+   expect(recommendLiveSet({...input, context:{...context, sessionFatigueReps:1}}))
+     .toMatchObject({action:'maintain', suggestedWeightKg:80, suggestedReps:7, predictedReps:8});
+ });
+ it('a clear PR increase keeps its load; only expected reps drop', () => {
+   const pr = recommendLiveSet({...input, context:{...context, previousSetReps:12, firstWorkingSetReps:12, sessionFatigueReps:1}, predict: f => Number(f.relative_load_change) > 0 ? 8.6 : 13});
+   expect(pr).toMatchObject({action:'increase', suggestedWeightKg:82.5, suggestedReps:8, predictedReps:8.6});
+   expect(recommendLiveSet({...input, context:{...context, previousSetReps:12, firstWorkingSetReps:12}, predict: f => Number(f.relative_load_change) > 0 ? 8.6 : 13}))
+     .toMatchObject({action:'increase', suggestedWeightKg:82.5, suggestedReps:9});
+ });
+});
+
 // Both public decision paths must apply the same observed-performance vetoes.
 describe('observed performance before increasing load', () => {
  const base = { predictedReps: 15, previousReps: 12, targetMin: 6, targetMax: 10, currentWeightKg: 80, nextAvailableWeightKg: 82.5, firstWorkingSetReps: 12 };

@@ -57,6 +57,7 @@ import { ImportScreen } from "./src/screens/ImportScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { GoalsScreen } from "./src/screens/GoalsScreen";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
+import { AchievementsScreen } from "./src/screens/AchievementsScreen";
 import { LiftTrendScreen } from "./src/screens/LiftTrendScreen";
 import { ExerciseLoadsScreen } from "./src/screens/ExerciseLoadsScreen";
 import { SessionDetailScreen } from "./src/screens/SessionDetailScreen";
@@ -185,6 +186,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           {developerMode ? <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} /> : null}
           <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: t("history.session.title") }} />
           <Stack.Screen name="LiftTrend" component={LiftTrendScreen} options={{ title: t("trend.title") }} />
+          <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: t("achievements.title") }} />
           <Stack.Screen name="ExerciseLoads" component={ExerciseLoadsScreen} options={{ title: t("loads.title") }} />
           <Stack.Screen name="StoppedSuggestions" component={StoppedSuggestionsScreen} options={{ title: t("stop.title") }} />
           <Stack.Screen name="ShortWeek" component={ShortWeekScreen} options={{ title: t("short.title") }} />

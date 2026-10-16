@@ -152,12 +152,12 @@ describe("end to end: back-off sets do not block progression", () => {
   }
   const plan = [{ load: 60, reps: 10 }, { load: 50, reps: 12 }, { load: 50, reps: 12 }, { load: 50, reps: 12 }];
 
-  it("straight sets: one top set plus lighter sets does NOT earn more weight (the lighter sets are the weakest)", async () => {
+  it("straight sets: one qualifying top set earns more weight even with lighter sets", async () => {
     const s = await bench(null);
     await s.trainRotation(plan);
     const t = await s.trainRotation(plan);
-    expect(t.currency).not.toBe("load");
-    expect(t.load).toBe(60);
+    expect(t.currency).toBe("load");
+    expect(t.load).toBeGreaterThan(60);
   });
   it("top set + back-offs: the same session earns more weight, and the Why text says only the top set counts", async () => {
     const s = await bench(1);
@@ -169,7 +169,7 @@ describe("end to end: back-off sets do not block progression", () => {
     expect(d.payload.inputs.topSets).toBe(1);
     expect(d.payload.inputs.readiness.requiredSetsAtTop).toBe(1);
     const lines = describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, L, "en").find((x) => x.title === en["why.rule"])!.lines.join("\n");
-    expect(lines).toContain("Top set + back-offs: only your 1 heaviest set(s) decide whether weight goes up. The lighter back-off sets after them are ignored for progression.");
+    expect(lines).toContain("One trusted working set at the heaviest load reaching the rep target is enough");
   });
   it("top set + back-offs still needs the top set itself to reach the top of the range", async () => {
     const s = await bench(1);

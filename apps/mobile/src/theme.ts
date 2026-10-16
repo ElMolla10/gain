@@ -74,3 +74,6 @@ export const type = {
 };
 /** Every font size the app may draw (kit scale + Arabic body 17). Enforced by test/design.test.ts. */
 export const TYPE_SIZES: readonly number[] = [13, 14, 16, 17, 20, 28, 36, 48];
+
+/** Stable brand palette for exported achievement images, independent of the screen appearance. */
+export const achievementPalette = darkPalette;

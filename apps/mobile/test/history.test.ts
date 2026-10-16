@@ -109,6 +109,19 @@ describe("history: correcting a set", () => {
 });
 
 describe("history: lifts and trend", () => {
+  it("shows a monthly exercise goal from the same finished line and updates after a qualifying set", async () => {
+    const { history, train } = await setup();
+    expect(await history.getLiftGoal("missing")).toBeNull();
+    await train({ [BENCH]: [[60, 8]] });
+    const lift = (await history.listLifts()).find((l) => l.nameEn === BENCH)!;
+    const first = await history.getLiftGoal(lift.lineId);
+    expect(first).toMatchObject({ baselineLoad: 60, previous: 8, reached: false });
+    expect(first!.load).toBeGreaterThan(60);
+    await train({ [BENCH]: [[first!.load, first!.quantity]] });
+    expect(await history.getLiftGoal(lift.lineId)).toMatchObject({
+      baselineLoad: 60, load: first!.load, quantity: first!.quantity, progress: 1, reached: true,
+    });
+  });
   it("one entry per exercise + gym + setup; trend uses the top working set; warm-ups never count", async () => {
     const { history, train, deps } = await setup();
     await train({ [BENCH]: [[40, 10, true], [60, 8], [65, 5]] });

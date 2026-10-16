@@ -95,6 +95,15 @@ describe("low confidence gives a smaller suggestion", () => {
 });
 
 describe("currency 1: reps inside the range", () => {
+  it("earns the next weight when one trusted set reaches the ceiling, even if another set does fewer reps", () => {
+    const h = [session(dbLine, "2026-09-28", sets(30, 9)),
+      session(dbLine, "2026-09-30", [S(30, 12), S(30, 8)])];
+    const p = P({ exercise: exDb({ progression: { preset: "acsm_2009" } }), history: h });
+    expect(p.currency).toBe("load");
+    expect(p.load).toBe(32.5);
+    expect(p.inputs.readiness).toMatchObject({ requiredSetsAtTop: 1, qualifyingSessions: 1 });
+    expect(p.inputs.sessions[0]).toMatchObject({ repsAtTop: 8, bestRepsAtTop: 12 });
+  });
   it("one more rep, and the next real dumbbell is named", () => {
     const p = P({ history: run(dbLine, 30, [10, 10, 11]) });
     expect(p.currency).toBe("reps");
@@ -102,9 +111,9 @@ describe("currency 1: reps inside the range", () => {
     expect(p.reps).toBe(12);
     expect(renderReason(p.reason)).toBe("Stay at 30 kg, aim for 12, the next dumbbell is 32.5.");
   });
-  it("uses the minimum reps across the sets at the top load (conservative)", () => {
+  it("uses the best trusted set for the next rep target", () => {
     const h = [session(dbLine, "2026-09-28", sets(30, 9)), session(dbLine, "2026-09-30", [S(30, 12), S(30, 12), S(30, 10)])];
-    expect(P({ history: h }).reps).toBe(11);
+    expect(P({ exercise: exDb({ progression: { preset: "acsm_2009" } }), history: h }).currency).toBe("load");
   });
   it("the anchor is the heaviest working load of the session", () => {
     const h = [session(dbLine, "2026-09-28", sets(27.5, 10)), session(dbLine, "2026-09-30", [S(27.5, 12), S(30, 9)])];
@@ -328,11 +337,26 @@ describe("what does not drive the target", () => {
 });
 
 describe("gym-aware anchors", () => {
-  it("a load that does not exist here (21 kg) is snapped to the lighter real load and flagged", () => {
-    const p = P({ history: run(dbLine, 21, [10, 10, 10]) });
-    expect(p.load).toBe(20);
+  it("a trusted load omitted from the gym grid is kept for a repeat and flagged", () => {
+    const p = P({ history: run(dbLine, 21, [8, 8, 8]) });
+    expect(p.load).toBe(21);
+    expect(p.inputs.gym.anchorOnGymLoads).toBe(false);
     expect(p.warnings).toContain("anchor_off_gym_loads");
     expect(p.needsModel.reasons).toContain("anchor_off_gym_loads");
+  });
+  it("uses the real next grid load once an off-grid top set earns an increase", () => {
+    const p = P({ exercise: exDb({ qualityOptions: [] }), history: run(dbLine, 21, [12, 12, 12]) });
+    expect(p.inputs.gym.anchorLoad).toBe(21);
+    expect(p.inputs.gym.nextHarderLoad).toBe(22.5);
+    expect(p.load).toBe(22.5);
+  });
+  it("a 12 kg x 14 then 14 kg x 10 preacher curl does not get rounded below the logged 14 kg", () => {
+    const ex = exDb({ name: "Preacher Curl (Dumbbell)", repRange: { min: 8, max: 10 }, plannedSets: 2 });
+    const history = [session(dbLine, "2026-10-10T21:20:00", [S(12, 14), S(14, 10)])];
+    const p = P({ exercise: ex, history });
+    expect(p.load).toBe(14);
+    expect(p.inputs.sessions[0]).toMatchObject({ topLoad: 14, repsAtTop: 10, setsAtTop: 1 });
+    expect(p.warnings).not.toContain("fewer_sets_than_planned");
   });
   it("every proposed load exists in the gym across many starting points", () => {
     for (const load of [10, 12.5, 17.5, 22.5, 27.5, 35, 37.5]) {
@@ -380,9 +404,10 @@ describe("assisted and bodyweight lines", () => {
     const p = proposeNext({ exercise: aEx(), gym: gymA, asOf: ASOF, history: h });
     expect(p.inputs.gym.anchorLoad).toBe(30);
   });
-  it("an assistance logged off the stack snaps to MORE assistance (the easier side)", () => {
+  it("an assistance logged off the stack is kept as the trusted anchor", () => {
     const p = proposeNext({ exercise: aEx(), gym: gymA, asOf: ASOF, history: run(aLine, 32, [8, 8, 8]) });
-    expect(p.inputs.gym.anchorLoad).toBe(35);
+    expect(p.inputs.gym.anchorLoad).toBe(32);
+    expect(p.inputs.gym.anchorOnGymLoads).toBe(false);
   });
   it("zero assistance is the floor: says so instead of proposing a heavier load", () => {
     const p = proposeNext({ exercise: aEx({ qualityOptions: [] }), gym: gymA, asOf: ASOF, history: run(aLine, 0, [10, 10, 10]) });
@@ -408,7 +433,7 @@ describe("assisted and bodyweight lines", () => {
 describe("result shape", () => {
   it("carries rule version, inputs, reason key + params and is JSON-safe", () => {
     const p = P({ history: run(dbLine, 30, [10, 10, 11]) });
-    expect(p.ruleVersion).toBe("rule-v0.4");
+    expect(p.ruleVersion).toBe("rule-v0.5");
     expect(p.reason.key).toBe("reps_in_range");
     expect(p.reason.params).toMatchObject({ load: 30, reps: 12, nextLoad: 32.5, equipment: "dumbbell" });
     expect(p.inputs.sessions[0]).toMatchObject({ topLoad: 30, repsAtTop: 11 });

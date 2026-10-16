@@ -104,8 +104,8 @@ export interface TriggerConfig {
   extraReps: number;
   /** Consecutive qualifying sessions at the same load before load goes up (ACSM and 2-for-2: 2). */
   sessions: number;
-  /** all_sets: the weakest working set at the top load must qualify. last_set: only the final set (the published 2-for-2 wording). */
-  repsBasis: "all_sets" | "last_set";
+  /** best_set: one working set at the top load must qualify. all_sets: the weakest set must qualify. last_set: only the final set. */
+  repsBasis: "all_sets" | "last_set" | "best_set";
   /** If reps in reserve are logged and the qualifying session left at least this many in reserve, one session is enough. null = off. */
   fastTrackRir: number | null;
 }
@@ -141,7 +141,7 @@ export interface LiftProgressionConfig {
   /** Partial overrides, or null to switch stall handling off for this lift (default: off). */
   stall?: Partial<StallConfig> | null;
   /**
-   * THE REP CEILING for this lift: the reps the weakest working set must reach before load goes up. Replaces the top of `repRange`.
+   * THE REP CEILING for this lift: the reps one working set must reach by default before load goes up. Replaces the top of `repRange`.
    * Omitted = the default for the kind of lift (upper 10, legs 12, lateral raises 15; see `DEFAULT_REP_CEILINGS`).
    */
   repCeiling?: number;
@@ -152,7 +152,7 @@ export interface LiftProgression {
   bodyRegion: BodyRegion;
   /** Which default ceiling applies (lateral raises are an upper-body exception). */
   ceilingClass: CeilingClass;
-  /** The resolved rep ceiling: reps the weakest working set must reach to earn more load. */
+  /** The resolved rep ceiling: reps one working set must reach by default to earn more load. */
   repCeiling: number;
   /** "lift" = set on this lift; "default" = the GAIN default for its kind of lift; "program" = the program's own top (rule-v0.4 default). Decisions stored before rule-v0.4 only have lift / default. */
   ceilingSource: "lift" | "default" | "program";
@@ -263,6 +263,8 @@ export interface SessionSummary {
   topLoad: number;
   /** Minimum reps across working sets at the top load (conservative). */
   repsAtTop: number;
+  /** Most reps in one trusted working set at the top load. */
+  bestRepsAtTop: number;
   /** Reps of the final working set at the top load (the 2-for-2 rule is worded on the last set). */
   lastSetReps: number;
   setsAtTop: number;
@@ -322,7 +324,7 @@ export interface DecisionInputs {
     targetReps: number;
     qualifyingSessions: number;
     requiredSessions: number;
-    /** Working sets that must be done at the top load for a session to count (planned sets, or the top sets of a top-set/back-off prescription). */
+    /** Working sets needed at the top load (one by default; opt-in all-sets rules may require more). */
     requiredSetsAtTop?: number;
     fastTracked: boolean;
     stalled: boolean;

@@ -92,6 +92,7 @@ function summarize(
     performedAt: s.performedAt,
     topLoad: top,
     repsAtTop: Math.min(...atTop.map((x) => x.reps)),
+    bestRepsAtTop: Math.max(...atTop.map((x) => x.reps)),
     lastSetReps: atTop[atTop.length - 1]!.reps,
     setsAtTop: atTop.length,
     workingSets: trusted.length,
@@ -231,9 +232,11 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     for (const t of s.tags) streakTags.add(t);
   }
 
-  // 2. Snap the last load to a load that exists here (towards the easier side when it does not).
+  // 2. A trusted logged load is evidence that the lifter used it, even when the saved gym grid is incomplete.
+  // Keep that load for a repeat; use the grid only to choose a NEW load. Otherwise a 14 kg set can become
+  // a 12.5 kg target solely because the rack configuration omitted 14 kg.
   const snap = roundToGymLoad(spec, last.topLoad, { mode: setup === "assisted" ? "up" : "down", zero });
-  const anchor = snap.load ?? last.topLoad;
+  const anchor = last.topLoad;
   const warnings: string[] = [];
   if (!snap.exact) warnings.push("anchor_off_gym_loads");
   if (pendingOutlier) warnings.push("pending_outlier");
@@ -294,9 +297,9 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   // Readiness for more load: consecutive qualifying sessions at the SAME load (see TriggerConfig).
   const trig = cfg.trigger;
   const targetReps = hi + trig.extraReps;
-  const basisReps = (s: SessionSummary) => (trig.repsBasis === "last_set" ? s.lastSetReps : s.repsAtTop);
-  // Sets that must be done at the top load for a session to count: the top sets of a top-set/back-off prescription, else every planned set.
-  const needSets = Math.max(1, exercise.topSets ?? exercise.plannedSets ?? 1);
+  const basisReps = (s: SessionSummary) => trig.repsBasis === "best_set" ? s.bestRepsAtTop : trig.repsBasis === "last_set" ? s.lastSetReps : s.repsAtTop;
+  // The default earns an increase with one qualifying set. Opt-in all-sets conventions retain their planned-set requirement.
+  const needSets = trig.repsBasis === "best_set" ? 1 : Math.max(1, exercise.topSets ?? exercise.plannedSets ?? 1);
   const complete = (s: SessionSummary) => s.setsAtTop >= needSets;
   const qualifies = (s: SessionSummary) => Math.abs(s.topLoad - last.topLoad) < 1e-6 && basisReps(s) >= targetReps && complete(s);
   if (needSets > 1 && !complete(last)) warnings.push("fewer_sets_than_planned");
@@ -340,7 +343,7 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     confidenceFactors: factors,
   };
 
-  const r = last.repsAtTop;
+  const r = basisReps(last);
   const baseParams = { load: anchor, unit: "kg", equipment: exercise.equipment, lo, hi, lastReps: r };
   const make = (p: {
     load: number;

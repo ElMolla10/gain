@@ -4,7 +4,7 @@ import { metaOf } from "./exerciseSearch";
 import { isIsolationPattern } from "./warmups";
 
 export interface SubstitutionQuery {
-  current: Pick<LibraryExercise, "id" | "pattern" | "equipment" | "seedKey">;
+  current: Pick<LibraryExercise, "id" | "pattern" | "equipment" | "seedKey"> & Partial<Pick<LibraryExercise, "measure" | "setup">>;
   library: readonly LibraryExercise[];
   gymEquipment: readonly EquipmentType[];
   /** Same muscle, prefer isolation / a different pattern (the current compound feels off). */
@@ -18,16 +18,19 @@ function available(eq: EquipmentType, gym: ReadonlySet<EquipmentType>): boolean 
 
 /**
  * Exercises that can stand in for the current one on this gym: same movement pattern or same muscle,
- * and equipment that exists here. Never auto-applied; the caller still asks.
+ * and equipment that exists here (or the candidate carries its own load grid). Never auto-applied; the caller still asks.
  */
 export function substitutionCandidates(q: SubstitutionQuery): LibraryExercise[] {
+  if (q.current.pattern === "other") return [];
   const gym = new Set(q.gymEquipment);
   const skip = new Set([q.current.id, ...(q.exclude ?? [])]);
   const cur = metaOf(q.current);
   const out: { ex: LibraryExercise; score: number }[] = [];
   for (const ex of q.library) {
     if (skip.has(ex.id)) continue;
-    if (!available(ex.equipment, gym)) continue;
+    if (!available(ex.equipment, gym) && !ex.loadSpec) continue;
+    if (q.current.measure && ex.measure !== q.current.measure) continue;
+    if (q.current.setup && ex.setup !== q.current.setup) continue;
     const meta = metaOf(ex);
     const samePattern = ex.pattern === q.current.pattern;
     const sameMuscle = cur.group !== null && meta.group === cur.group;

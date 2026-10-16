@@ -77,6 +77,15 @@ describe("Hevy through the common parser (real export fixture)", () => {
     expect(r.rowCount).toBe(1049);
     expect(r.warnings).toEqual([]);
   });
+  it("imports an alternate day-first Hevy date without dropping its rows", () => {
+    const header = hevyReal.split("\n")[0]!;
+    const row = '"Push","29 Sep 2026, 15:15","29 Sep 2026, 16:00","","Bench Press (Barbell)",,"",0,"normal",60,8,,,';
+    const parsed = parseImport(`${header}\n${row}\n`);
+    expect(parsed.workouts).toHaveLength(1);
+    expect(parsed.workouts[0]!.startTime).toBe("2026-09-29T15:15:00");
+    expect(parsed.workouts[0]!.exercises[0]!.sets).toEqual([{ load: 60, reps: 8 }]);
+    expect(parsed.warnings).toEqual([]);
+  });
   it("keeps the exercise titles exactly as exported and tags drop sets", () => {
     const titles = new Set(r.workouts.flatMap((w) => w.exercises.map((e) => e.title)));
     expect(titles.size).toBe(55);

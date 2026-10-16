@@ -4,6 +4,7 @@ import type { Db, Deps } from "./driver";
 import { normTopSets } from "../logic/programmeDraft";
 import { parseStoredLoads, serializeLoads } from "../logic/exerciseLoads";
 import { parseLoadsJson } from "../logic/gymInput";
+import { loadsJsonWithKind, machineLoads } from "../logic/machineLoadKind";
 import { hasLoggedSets } from "./sessionSql";
 import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
 import { DEFAULT_TIMED_RANGE, measureOfKey } from "./library/measures";
@@ -210,11 +211,12 @@ export function createRepos(db: Db, deps: Deps) {
   /** The weights the lifter set for this exercise, or null (the gym's grid applies). Damaged stored text reads as null. */
   async function getExerciseLoads(exerciseId: string): Promise<{ equipment: GymLoadSpec["equipment"]; spec: GymLoadSpec | null } | null> {
     const r = await db.get<{ equipment: GymLoadSpec["equipment"]; load_spec_json: string | null }>("SELECT equipment, load_spec_json FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
-    return r ? { equipment: r.equipment, spec: parseStoredLoads(r.load_spec_json, r.equipment) } : null;
+    return r ? { equipment: r.equipment, spec: r.equipment === "machine" ? machineLoads(r.load_spec_json) : parseStoredLoads(r.load_spec_json, r.equipment) } : null;
   }
   /** Sets (or, with null, clears) this exercise's own weights. The row's updated_at moves so the change syncs. Changes no history. */
   async function setExerciseLoads(exerciseId: string, spec: GymLoadSpec | null): Promise<void> {
-    const json = spec ? serializeLoads(spec) : null;
+    const existing = await db.get<{ equipment: GymLoadSpec["equipment"]; load_spec_json: string | null }>("SELECT equipment, load_spec_json FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+    const json = existing?.equipment === "machine" ? loadsJsonWithKind(spec, existing.load_spec_json) : spec ? serializeLoads(spec) : null;
     await db.run("UPDATE exercise SET load_spec_json = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [json, now(), exerciseId]);
   }
 

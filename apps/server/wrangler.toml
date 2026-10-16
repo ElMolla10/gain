@@ -16,7 +16,7 @@ migrations_dir = "migrations"
 crons = ["23 3 * * *"]
 
 [vars]
-# Email sign-in codes are only printed in the API response when this is "1". NEVER set it on a deployed Worker.
+# Retired response-code mode: "1" now fails closed with 503. Keep disabled; configure Resend for email.
 DEV_EMAIL_CODES = "0"
 EMAIL_FROM = ""
 # Optional limits and the kill switch (set in the dashboard, no deploy needed):

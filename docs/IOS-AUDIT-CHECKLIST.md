@@ -1,10 +1,10 @@
-# Six-batch iPhone validation
+# iPhone release validation
 
-Status: **NOT RUN on a Mac or iPhone by this workspace.** This is a focused execution sheet, not a passed release gate. Complete it against one source commit after the stacked audit PRs are merged. The broader checklist remains [NATIVE-CHECKLIST.md](NATIVE-CHECKLIST.md).
+Status: **NOT RUN on a Mac or iPhone by this workspace.** This is a focused execution sheet, not a passed release gate. Complete it against one source commit after the relevant changes are merged. The broader checklist remains [NATIVE-CHECKLIST.md](NATIVE-CHECKLIST.md).
 
 ## Install the local Release build
 
-In the existing Mac checkout, after merging the audit branches:
+In the existing Mac checkout, against current main:
 
 ```bash
 git switch main
@@ -44,11 +44,24 @@ The helper prints the commit/configuration. Release is the default and should ru
 | Hevy/Strong import | Valid dates preserved; impossible rows warn; use a real Strong export | NOT RUN |
 | JSON backup/restore | Native save/reopen works; safety copy exists; history/targets recover; shared file has no sync credentials | NOT RUN |
 | Rejected backup | Missing core tables or sync bookkeeping refused before replacement | NOT RUN; test copies only |
-| Evaluation export | iOS shares JSON; file replays; edits/skips excluded | NOT RUN |
+| Developer Mode | Off by default; version unlock works; mode survives restart and can be disabled; technical routes disappear | NOT RUN on updated build |
+| Focus and AI Details | Focus follows edits/completion; no keyboard loss; stop warnings remain visible; Details and manual Apply work in both languages | NOT RUN on updated build |
+| Replacement suggestions | Similar choices respect measurement/setup and recorded equipment category; full library remains searchable | NOT RUN on updated build |
+| Replacement settings | Today-only/permanent swaps use their own grid/history; reps-to-time/distance gets a sensible range and keeps set count | NOT RUN on updated build |
+| Observed fatigue | Same/lighter-load collapse warns without a forecast; deliberately heavier sets and low-rep targets do not get that warning | NOT RUN on updated build |
+| Evaluation export | Enable Developer Mode; iOS shares JSON; file replays; edits/skips excluded | NOT RUN |
 | History read/page retry | Failure is not empty history; failed page preserves last good page | NOT RUN; controlled read failure needed |
 
 ## Delivery still open
 
-Batches 3–6 are separate stacked PRs; `main` includes them only after merge. Batch 5's auth fix needs a separate Worker deployment and smoke check using the existing [script](../apps/server/scripts/deploy.sh). It has not been deployed here.
+The six audit batches and phases 1–4 are merged. The auth fix still needs a verified Worker deployment and smoke check using the existing [script](../apps/server/scripts/deploy.sh). It has not been deployed here.
 
-TestFlight/App Store delivery is separate from local installation. Apple account/team setup, signing, a native archive, submission metadata, privacy information and real iPhone screenshots have not been completed here. A JS export or Linux tests do not establish store readiness.
+Phase-5 release preparation is in [IOS-RELEASE.md](IOS-RELEASE.md), with draft metadata and privacy answers. TestFlight/App Store delivery is separate from local installation. Apple account/team setup, signing, a native archive, submission metadata, privacy information and real iPhone screenshots have not been completed here. A JS export or Linux tests do not establish store readiness.
+
+## Phase 4 — real-workout evaluation (NOT RUN for this build)
+
+- [ ] Developer Mode accuracy card counts represented workouts rather than suggesting each set is an independent session; English/Arabic and large text remain readable.
+- [ ] Capture a forecast before saving an eligible set; export after confirming it. Recompute the JSON with the offline CLI and verify model/baseline counts match the card.
+- [ ] Confirm edits/skips/outlier confirmation and offline force-close/resume retain correct frozen forecasts and current-state exclusions in the export.
+- [ ] Share the JSON locally and inspect the exercise/input fields. No upload occurs without the user's chosen share action.
+- [ ] With fewer than five grouped paired sessions, offline uncertainty bounds are null. Record real device, OS, build and collection period; synthetic tests do not satisfy this check.

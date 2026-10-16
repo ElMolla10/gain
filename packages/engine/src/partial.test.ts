@@ -5,7 +5,7 @@ import { ASOF, exBar, gymA, lineOf, S, session } from "./testkit";
 
 const line = lineOf("bench");
 const day = (n: number) => `2026-09-${String(n).padStart(2, "0")}T10:00:00Z`;
-const P = (history: ReturnType<typeof session>[], over = {}) => proposeNext({ exercise: exBar({ plannedSets: 3, ...over }), gym: gymA, asOf: ASOF, history });
+const P = (history: ReturnType<typeof session>[], over = {}) => proposeNext({ exercise: exBar({ plannedSets: 3, progression: { preset: "double_progression" }, ...over }), gym: gymA, asOf: ASOF, history });
 // exBar: range 6-10, ceiling pinned to 10, one session at the ceiling is enough (default trigger is NOT used: pinned legacy keeps it 1 session).
 
 describe("P21 partial completion", () => {

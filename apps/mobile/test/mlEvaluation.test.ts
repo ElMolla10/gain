@@ -346,7 +346,7 @@ describe("production forecast capture", () => {
     const sources = await c.workout.listSessionSets(c.sessionId);
     const rows = initialRows([], 2, { load: 60, reps: 8 }, () => "target");
     const context = liveContext({ exerciseId: c.ex.exerciseId, equipment: c.ex.equipment, setup: "free", measure: "reps", rows, sets: sources, targetReps: 8 })!;
-    const decision = { action: "decrease", reason: "below_range", predictedReps: 8.25, suggestedWeightKg: 57.5 } as const;
+    const decision = { action: "decrease", reason: "below_range", predictedReps: 8.25, suggestedWeightKg: 57.5, suggestedReps: 8 } as const;
     const p = evaluationPrediction(c.sessionId, c.ex.exerciseId, rows, sources, context, decision)!;
     expect(p).toMatchObject({ modelVersion: LIVE_MODEL_VERSION, targetSetId: "target", predictedReps: 8.25, proposedWeight: 57.5 });
     expect(p.features.relative_load_change).toBe((57.5 - 60) / 60);

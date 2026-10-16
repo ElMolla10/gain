@@ -1,5 +1,7 @@
 import type { EquipmentType, GymLoadSpec, Measure, SetupType } from "@gain/engine";
+import { parseStoredLoads } from "../logic/exerciseLoads";
 import { validateGym } from "../logic/gymInput";
+import { machineKind, machineKindJson, machinePinStep, type MachineLoadKind, type PinMachineStep } from "../logic/machineLoadKind";
 import { DEFAULT_TIMED_RANGE } from "./library/measures";
 import { computeExposure, type ExposureRow } from "../logic/exposure";
 import { draftFingerprint, normTopSets, validateDraft, type DraftProblem, type ProgrammeDraft } from "../logic/programmeDraft";
@@ -21,6 +23,9 @@ export class SessionInProgress extends Error {
 }
 
 export interface LibraryExercise {
+  loadSpec?: GymLoadSpec | null;
+  machineLoadKind?: MachineLoadKind;
+  machinePinStep?: PinMachineStep;
   id: string;
   seedKey: string | null;
   nameEn: string;
@@ -86,8 +91,8 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
 
   // ---- exercise library -----------------------------------------------------------------------------------
   async function listExercises(): Promise<LibraryExercise[]> {
-    const rows = await db.all<{ id: string; seed_key: string | null; name_en: string; name_ar: string; aliases_ar_json: string; pattern: string; equipment: EquipmentType; setup: SetupType; measure: Measure; is_sample: number }>(
-      "SELECT id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, measure, is_sample FROM exercise WHERE deleted_at IS NULL ORDER BY name_en",
+    const rows = await db.all<{ id: string; seed_key: string | null; name_en: string; name_ar: string; aliases_ar_json: string; pattern: string; equipment: EquipmentType; setup: SetupType; measure: Measure; is_sample: number; load_spec_json: string | null }>(
+      "SELECT id, seed_key, name_en, name_ar, aliases_ar_json, pattern, equipment, setup, measure, is_sample, load_spec_json FROM exercise WHERE deleted_at IS NULL ORDER BY name_en",
     );
     return rows.map((r) => ({
       id: r.id,
@@ -100,6 +105,9 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       setup: r.setup,
       measure: r.measure,
       isCustom: r.seed_key === null,
+      loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
+      machineLoadKind: r.equipment === "machine" ? machineKind(r.load_spec_json, r.name_en) : undefined,
+      machinePinStep: r.equipment === "machine" ? machinePinStep(r.load_spec_json) : undefined,
     }));
   }
 
@@ -157,6 +165,17 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     if (spec && spec.equipment !== cur.equipment) throw new Error("Weights do not match the exercise's equipment");
     if (spec && validateGym("x", [spec]).length > 0) throw new Error("Weights are not valid");
     await repos.setExerciseLoads(exerciseId, spec);
+    const gymId = await repos.getActiveGymId();
+    if (gymId) await finish.refreshPlannedSessions(gymId);
+  }
+
+  /** Select the machine's loading mechanism; this sets its default weights and refreshes future targets. */
+  async function setMachineLoadKind(exerciseId: string, kind: MachineLoadKind, pinStep?: PinMachineStep): Promise<void> {
+    if (kind !== "pin" && kind !== "plate") throw new Error("Unknown machine type");
+    if (pinStep !== undefined && pinStep !== 2.5 && pinStep !== 5) throw new Error("Unknown pin step");
+    const row = await db.get<{ equipment: EquipmentType; load_spec_json: string | null }>("SELECT equipment, load_spec_json FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+    if (row?.equipment !== "machine") throw new Error("Not a machine exercise");
+    await db.run("UPDATE exercise SET load_spec_json = ?, updated_at = ? WHERE id = ?", [machineKindJson(kind, pinStep ?? machinePinStep(row.load_spec_json)), now(), exerciseId]);
     const gymId = await repos.getActiveGymId();
     if (gymId) await finish.refreshPlannedSessions(gymId);
   }
@@ -350,6 +369,6 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     await replan();
   }
 
-  return { listExercises, createExercise, setExerciseMeasure, setExerciseLoads, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
+  return { listExercises, createExercise, setExerciseMeasure, setExerciseLoads, setMachineLoadKind, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
 }
 export type ProgrammeRepo = ReturnType<typeof createProgrammeRepo>;

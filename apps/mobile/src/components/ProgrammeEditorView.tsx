@@ -2,6 +2,7 @@ import type { EquipmentType, Measure } from "@gain/engine";
 import React, { useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
+import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { computeExposure } from "../logic/exposure";
@@ -40,6 +41,7 @@ export function ProgrammeEditorView(props: {
   onOpenLoads?: (exerciseId: string) => void;
   /** Equipment in the current gym. Substitutions are offered only when this is set. */
   gymEquipment?: EquipmentType[];
+  onSetMachineLoadKind?: (exerciseId: string, kind: MachineLoadKind, pinStep?: PinMachineStep) => Promise<void>;
 }) {
   const { t, lang } = useI18n();
   const p = usePalette();
@@ -194,14 +196,28 @@ export function ProgrammeEditorView(props: {
                   <Chip label={t("prog.ex.effort")} selected={e.trackEffort} onPress={() => props.onChange(updateExercise(d, di, ei, { trackEffort: !e.trackEffort }))} />
                 </View>
               )}
-              {props.onOpenLoads || (props.gymEquipment && props.gymEquipment.length > 0) ? (
+              {props.gymEquipment && props.gymEquipment.length > 0 ? (
                 <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-                  {props.onOpenLoads ? <Chip label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} /> : null}
-                  {props.gymEquipment && props.gymEquipment.length > 0 ? (
-                    <Chip label={t("coach.sub.title")} onPress={() => setSwapFor({ day: di, index: ei, fatigue: false })} />
-                  ) : null}
+                  <Chip label={t("coach.sub.title")} onPress={() => setSwapFor({ day: di, index: ei, fatigue: false })} />
                 </View>
               ) : null}
+              {byId.get(e.exerciseId)?.equipment === "machine" && props.onSetMachineLoadKind ? (
+                <View style={{ gap: space.xs }}>
+                  <AppText style={{ fontWeight: "600" }}>{t("loads.machine.title")}</AppText>
+                  <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                    {(["pin", "plate"] as const).map(kind => (
+                      <Chip key={kind} label={t(`loads.machine.${kind}`)} selected={byId.get(e.exerciseId)?.machineLoadKind === kind} onPress={() => void props.onSetMachineLoadKind!(e.exerciseId, kind)} />
+                    ))}
+                  </View>
+                  {byId.get(e.exerciseId)?.machineLoadKind === "pin" ? (
+                    <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
+                      {([2.5, 5] as const).map(step => <Chip key={step} label={t("loads.machine.step", { step })} selected={byId.get(e.exerciseId)?.machinePinStep === step} onPress={() => void props.onSetMachineLoadKind!(e.exerciseId, "pin", step)} />)}
+                    </View>
+                  ) : null}
+                  <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.machine.hint")}</AppText>
+                </View>
+              ) : null}
+              {props.onOpenLoads ? <BigButton variant="secondary" label={t("loads.open")} onPress={() => props.onOpenLoads!(e.exerciseId)} /> : null}
                 </View>
               ) : null}
             </View>

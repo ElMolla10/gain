@@ -1,3 +1,4 @@
+import { personalTop } from "./personalProgress";
 import { isTimedMeasure, isTrustedWorkingSet, quantityOf, sessionFacts, type LoggedSet, type Measure, type SetupType } from "@gain/engine";
 
 /** `quantity_at_load`: a longer hold / carry than ever at that same load (time and distance exercises). `e1rm` is estimated. */
@@ -6,6 +7,8 @@ export type RecordKind = "load" | "reps_at_load" | "quantity_at_load" | "rep" | 
 export interface ExerciseSummary {
   /** Working sets that count: not warm-ups, not drop sets, not unconfirmed/rejected outliers. */
   counted: number;
+  previousTop?: { load: number; quantity: number } | null;
+  previousAtLoad?: number | null;
   warmups: number;
   dropSets: number;
   /** Logged but waiting for a confirm: shown, but they do not count and do not move the next target. */
@@ -55,6 +58,8 @@ export function summarizeExercise(setup: SetupType, today: LoggedSet[], prior: L
   if (rep) records.push("rep");
   if (e1rm) records.push("e1rm");
   return {
+    previousTop: personalTop(prior, setup, measure),
+    previousAtLoad: topLoad === null ? null : personalTop(prior.filter(s => Math.abs(s.load - topLoad) < 1e-6), setup, measure)?.quantity ?? null,
     counted: counted.length,
     warmups: today.filter((s) => s.warmup).length,
     dropSets: today.filter((s) => !s.warmup && s.tags?.includes("drop")).length,
@@ -86,6 +91,8 @@ function summarizeTimedExercise(setup: SetupType, today: LoggedSet[], prior: Log
     }
   }
   return {
+    previousTop: personalTop(prior, setup, measure),
+    previousAtLoad: topLoad === null ? null : personalTop(prior.filter(s => Math.abs(s.load - topLoad) < 1e-6), setup, measure)?.quantity ?? null,
     counted: counted.length,
     warmups: today.filter((s) => s.warmup).length,
     dropSets: today.filter((s) => !s.warmup && s.tags?.includes("drop")).length,

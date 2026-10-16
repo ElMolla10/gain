@@ -10,7 +10,6 @@ import { diagnostics } from "../diagnostics";
 import { MenuSheet } from "../components/LogParts";
 import { Icon } from "../components/Icon";
 import { ExercisePicker } from "../components/ExercisePicker";
-import { substitutionCandidates } from "../logic/substitutions";
 import { ExerciseReorderModal } from "../components/ExerciseReorderModal";
 import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
 import { RestClock, LiveDuration, Stat } from "../components/WorkoutStats";
@@ -19,24 +18,30 @@ import type { LibraryExercise } from "../db/programmeRepo";
 import { DEFAULT_EXERCISE_REST_OFF, type ExerciseState, type SetRow } from "../db/workoutRepo";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { weightText } from "../logic/units";
+import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { joinSuperset, leaveSuperset, orderSlots, reorderBlocks, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
+import { upgradeLegacyKgDumbbells } from "../logic/defaultGym";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
 import { checkJump, jumpOptions, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
 import { isTimed, parseQuantityInput, quantityFields, setQuantity } from "../logic/quantity";
+import { replacementDisplay } from "../logic/replacement";
+import { substitutionCandidates } from "../logic/substitutions";
+import { focusedExercise, livePromptVisible } from "../logic/workoutFocus";
 import { liveSummary, volumeText } from "../logic/liveSummary";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, kindOf, kindPatch, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, SET_KINDS, type SetKind, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
-import { applyLiveLoad, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
+import { applyLiveTarget, liveContext, livePerformanceKey, tryLiveRecommendation, reportedSymptomDecision, nextAdaptiveRow } from "../logic/liveAdaptation";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { evaluationPrediction, LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
+import { staleOffGridTarget } from "../logic/targetRefresh";
 import { adjustTimer, formatClock, isDone, newTimer, startTimer, stopTimer, type RestTimer } from "../logic/restTimer";
 import { pauseClock, resumeClock } from "../logic/workoutClock";
 import { radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
+import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 
 import type { DayEx, Disp, ExInfo } from "../logic/workoutTypes";
 
@@ -67,7 +72,7 @@ const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, repla
  * today's target, so one tap on the tick accepts it. A set is saved on the phone the moment it is ticked (offline); nothing waits for the finish.
  */
 export function WorkoutScreen() {
-  const { repos, workout, finish, programmes, restAlerts, mlEvaluation } = useServices();
+  const { repos, gyms, workout, finish, programmes, restAlerts, mlEvaluation } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const insets = useSafeAreaInsets();
@@ -97,8 +102,12 @@ export function WorkoutScreen() {
   const [resumeNote, setResumeNote] = useState(false);
   const [warmOpen, setWarmOpen] = useState<string | null>(null);
   const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
+  const [preferredExercise, setPreferredExercise] = useState<string | null>(null);
+  const [liveDetails, setLiveDetails] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState<Record<string, boolean>>({});
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [machineFor, setMachineFor] = useState<string | null>(null);
   const [pickFor, setPickFor] = useState<string | null>(null);
   /** Replace-with sheet: program slot plus optional "feels off" filter. Null until the lifter asks. */
   const [subFor, setSubFor] = useState<{ slot: string; fatigue: boolean } | null>(null);
@@ -129,7 +138,7 @@ export function WorkoutScreen() {
   /** The exercise shown for a program slot today. */
   const makeDisp = useCallback((slotEx: DayEx, st?: ExerciseState): Disp => {
     const lib = st?.replacedBy ? libRef.current.find((l) => l.id === st.replacedBy) : undefined;
-    if (lib) return { ...slotEx, exerciseId: lib.id, nameEn: lib.nameEn, nameAr: lib.nameAr, aliasesAr: lib.aliasesAr, equipment: lib.equipment, setup: lib.setup, measure: lib.measure, pattern: lib.pattern, isGoalLift: false, repCeilingIsCustom: false, slot: slotEx.exerciseId };
+    if (lib) return replacementDisplay(slotEx, lib);
     return { ...slotEx, slot: slotEx.exerciseId };
   }, []);
 
@@ -140,8 +149,11 @@ export function WorkoutScreen() {
         { exerciseId: ex.exerciseId, name: ex.nameEn, measure: ex.measure, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, programmeRepMin: ex.programmeRepMin, programmeRepMax: ex.programmeRepMax, repCeiling: ex.repCeiling, repCeilingIsCustom: ex.repCeilingIsCustom, isGoalLift: ex.isGoalLift, trackEffort: ex.trackEffort, sets: ex.sets, topSets: ex.topSets },
         gym,
       );
-      const last = await workout.lastPerformance(line, lineId);
-      const stored = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
+      const personalHistory = await workout.getHistory(line, lineId);
+      const latest = personalHistory.at(-1);
+      const last = latest ? { performedAt: latest.performedAt, sets: latest.sets.filter(s => !s.warmup && !s.tags?.includes("drop")) } : null;
+      const savedTarget = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
+      const stored = staleOffGridTarget(savedTarget, proposal) ? null : savedTarget;
       const lastTop = last?.sets.reduce<LoggedSet | null>((a, s) => (a === null || s.load > a.load ? s : a), null) ?? null;
       // Never invented: today's target, else last time's top set, else empty.
       const m = ex.measure;
@@ -152,7 +164,8 @@ export function WorkoutScreen() {
         target: stored ? (stored.effectiveLoad !== null && storedQ !== null && stored.status !== "rejected" ? { load: stored.effectiveLoad, reps: storedQ } : null) : proposal.status === "proposed" && proposedQ !== null ? { load: proposal.load, reps: proposedQ } : null,
         last: lastTop ? { load: lastTop.load, reps: setQuantity(lastTop, m) } : null,
       });
-      if (d.load !== null || isTimed(m)) return { proposal, line, lineId, last, stored, prefill: { load: d.load, reps: d.reps } };
+      const history = personalHistory.map((h) => ({ performedAt: h.performedAt, sets: h.sets }));
+      if (d.load !== null || isTimed(m)) return { proposal, line, lineId, last, stored, personalHistory: history, prefill: { load: d.load, reps: d.reps } };
       const bwRaw = await repos.getSetting("bodyweight_kg");
       const bw = bwRaw ? Number(bwRaw) : NaN;
       const est = estimateStartingLoad({
@@ -162,7 +175,7 @@ export function WorkoutScreen() {
         bodyweightKg: Number.isFinite(bw) ? bw : null,
         spec: findSpec(gym, ex.equipment),
       });
-      return { proposal, line, lineId, last, stored, prefill: est ? { load: est.load, reps: ex.repMin, estimated: true } : { load: d.load, reps: d.reps } };
+      return { proposal, line, lineId, last, stored, personalHistory: history, prefill: est ? { load: est.load, reps: ex.repMin, estimated: true } : { load: d.load, reps: d.reps } };
     },
     [workout, finish, repos],
   );
@@ -175,7 +188,17 @@ export function WorkoutScreen() {
     (async () => {
       const gymId = await repos.getActiveGymId();
       if (!gymId) return setLoaded("nogym");
-      const gym = await repos.loadGymFingerprint(gymId);
+      let gym = await repos.loadGymFingerprint(gymId);
+      if (unit === "kg") {
+        const upgraded = upgradeLegacyKgDumbbells(gym.loads);
+        if (upgraded) {
+          const detail = await gyms.getGym(gymId);
+          if (detail && !detail.isSample) {
+            await gyms.updateGym(gymId, { name: detail.name, loads: upgraded });
+            gym = await repos.loadGymFingerprint(gymId);
+          }
+        }
+      }
       const { id, resumed } = await workout.startOrResumeSession(dayId, gymId);
       sessionRef.current = id;
       const programmeSlots = await repos.listDayExercises(dayId);
@@ -215,7 +238,7 @@ export function WorkoutScreen() {
       startedRef.current = false;
       setLoadError(true);
     });
-  }, [repos, workout, programmes, mlEvaluation, dayId, makeDisp, buildInfo, attempt]);
+  }, [repos, gyms, workout, programmes, mlEvaluation, dayId, unit, makeDisp, buildInfo, attempt]);
 
   useEffect(() => {
     if (!resumeNote) return;
@@ -299,6 +322,7 @@ export function WorkoutScreen() {
     let cancelled = false;
     const handle = setTimeout(async () => {
       const cards: typeof liveCards = {};
+      const rowUpdates: Record<string, { before: string; after: SetRowDraft[] }> = {};
       const supportedExerciseIds = loaded.slots
         .map(slot => makeDisp(slot, exState[slot.exerciseId]))
         .filter(ex => ex.measure === "reps" && ex.setup === "free" && ex.equipment !== "assisted")
@@ -314,12 +338,26 @@ export function WorkoutScreen() {
           cards[ex.exerciseId] = { decision: reported, key: nextAdaptiveRow(list)?.key ?? "", performance, snapshot: JSON.stringify(list) };
           continue;
         }
+        const next = nextAdaptiveRow(list);
+        const existing = liveCards[ex.exerciseId];
+        // A target filled by this exact saved performance is still the same
+        // recommendation. Do not feed it back into the model as new user input.
+        if (next && existing?.performance === performance && existing.key === next.key
+            && next.load === null && next.reps === null
+            && next.ghostLoad === existing.decision.suggestedWeightKg
+            && next.ghostReps === existing.decision.suggestedReps) {
+          cards[ex.exerciseId] = { ...existing, snapshot: JSON.stringify(list) };
+          continue;
+        }
         const spec = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
-        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: loaded.info[ex.exerciseId]?.last, targetReps: effectiveOf(nextAdaptiveRow(list) ?? { load:null, reps:null, ghostLoad:null, ghostReps:null }).reps ?? ex.repMin });
-        if (!context || !spec) continue;
+        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: loaded.info[ex.exerciseId]?.last, targetReps: next?.reps ?? loaded.info[ex.exerciseId]?.prefill.reps ?? ex.repMax });
+        if (!context) continue;
         const decision = tryLiveRecommendation(context, ex.repMin, ex.repMax, spec, undefined, e => diagnostics.record("warn", "live adaptation", e));
         if (decision) {
-          cards[ex.exerciseId] = { decision, key: nextAdaptiveRow(list)!.key, performance, snapshot: JSON.stringify(list) };
+          const key = nextAdaptiveRow(list)!.key;
+          const filled = decision.action === "stop" ? list : applyLiveTarget(list, key, decision.suggestedWeightKg, decision.suggestedReps);
+          cards[ex.exerciseId] = { decision, key, performance, snapshot: JSON.stringify(filled) };
+          if (filled !== list) rowUpdates[ex.exerciseId] = { before: JSON.stringify(list), after: filled };
           const prediction = evaluationPrediction(loaded.sessionId, ex.exerciseId, list, sets, context, decision);
           if (prediction && !cancelled) {
             try { await mlEvaluation.record(prediction); }
@@ -327,12 +365,27 @@ export function WorkoutScreen() {
           }
         }
       }
-      if (!cancelled) setLiveCards(cards);
+      if (!cancelled) {
+        if (Object.keys(rowUpdates).length) setRows(current => {
+          let changed = false;
+          const nextRows = { ...current };
+          for (const [exerciseId, update] of Object.entries(rowUpdates)) {
+            if (JSON.stringify(current[exerciseId] ?? []) !== update.before) continue;
+            nextRows[exerciseId] = update.after;
+            changed = true;
+          }
+          return changed ? nextRows : current;
+        });
+        setLiveCards(cards);
+      }
     }, 0);
     return () => { cancelled = true; clearTimeout(handle); };
   }, [loaded, rows, sets, exState, liveDismissed, reportedSymptoms, makeDisp, mlEvaluation]);
 
-  const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
+  const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => {
+    setPreferredExercise(exId);
+    setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
+  };
 
   async function logRow(ex: Disp, row: SetRowDraft) {
     if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
@@ -697,19 +750,34 @@ export function WorkoutScreen() {
     ]);
   }
 
+  const focus = focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise);
+
+  const replacing = shown.find(ex => ex.slot === pickFor);
+  const source = replacing ? library.find(ex => ex.id === replacing.exerciseId) : undefined;
+  const alternatives = source ? substitutionCandidates({
+    current: source,
+    library,
+    gymEquipment: loaded.gym.loads.map((spec) => spec.equipment),
+    exclude: shown.map((row) => row.exerciseId),
+  }) : [];
+
   const renderExercise = (ex: Disp, position: number) => {
     const info = loaded.info[ex.exerciseId];
     if (!info) return null;
     const list = rows[ex.exerciseId] ?? [];
     const candidate = liveCards[ex.exerciseId];
     const currentCandidate = candidate && candidate.snapshot === JSON.stringify(list) && candidate.performance === livePerformanceKey(sets, ex.exerciseId) ? candidate : undefined;
-    const card = currentCandidate && liveDismissed[ex.exerciseId] !== currentCandidate.performance ? currentCandidate : undefined;
+    const card = currentCandidate && liveDismissed[ex.exerciseId] !== currentCandidate.performance
+      && livePromptVisible(currentCandidate.decision.action, ex.exerciseId === focus) ? currentCandidate : undefined;
+    const detailKey = card ? `${ex.exerciseId}:${card.performance}:${card.key}` : null;
     return (
-      <WorkoutExerciseSection key={ex.id} ex={ex} position={position} info={info} list={list}
+      <WorkoutExerciseSection key={ex.id} active={ex.exerciseId === focus}
+        liveDetailsOpen={detailKey !== null && liveDetails === detailKey} onLiveDetails={() => setLiveDetails(current => current === detailKey ? null : detailKey)} ex={ex} position={position} info={info} list={list}
         st={exState[ex.slot] ?? NO_STATE(ex.slot)} gym={loaded.gym} exSets={setsByEx.get(ex.exerciseId) ?? []}
         outliers={outliers} candidate={currentCandidate} card={card} expanded={!!whyOpen[ex.exerciseId]}
         supersetLabel={ssLabel[ex.slot]} restDurationMs={timer.durationMs} busy={busy !== null}
         warmOpen={warmOpen === ex.exerciseId} warmDone={!!warmDone[ex.exerciseId]}
+        onOpenProgress={() => navigation.dispatch(StackActions.push("LiftTrend", { lineId: info.lineId }))}
         onToggleRest={() => void toggleRest(ex.slot)} onMenu={() => setMenuFor(ex.slot)}
         onOpenTrend={() => (navigation as { navigate: (name: string, params?: object) => void }).navigate("LiftTrend", { lineId: info.lineId })}
         onWhy={() => info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored.id })) : setWhyOpen(w => ({ ...w, [ex.exerciseId]: !whyOpen[ex.exerciseId] }))}
@@ -717,10 +785,10 @@ export function WorkoutScreen() {
         onPatch={(key, change) => patch(ex.exerciseId, key, change)}
         onKind={row => setKindFor({ exId: ex.exerciseId, key: row.key })}
         onAskDelete={row => askDrop(ex, row)} onDelete={row => void dropRow(ex, row)}
-        onLog={row => void logRow(ex, row)} onUntick={row => void untick(ex, row)}
+        onLog={row => { setPreferredExercise(ex.exerciseId); void logRow(ex, row); }} onUntick={row => void untick(ex, row)}
         onLiveApply={() => {
           if (!card) return;
-          setRows(r => ({ ...r, [ex.exerciseId]: applyLiveLoad(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg) }));
+          setRows(r => ({ ...r, [ex.exerciseId]: applyLiveTarget(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg, card.decision.suggestedReps) }));
           setLiveDismissed(d => ({ ...d, [ex.exerciseId]: card.performance }));
         }}
         onLiveReport={symptom => {
@@ -758,13 +826,37 @@ export function WorkoutScreen() {
   const subLib = subEx ? library.find((l) => l.id === subEx.exerciseId) : undefined;
   const subCands = subEx
     ? substitutionCandidates({
-        current: { id: subEx.exerciseId, pattern: subEx.pattern, equipment: subEx.equipment, seedKey: subLib?.seedKey ?? null },
+        current: { id: subEx.exerciseId, pattern: subEx.pattern, equipment: subEx.equipment, seedKey: subLib?.seedKey ?? null, measure: subEx.measure, setup: subEx.setup },
         library,
         gymEquipment: loaded.gym.loads.map((l) => l.equipment),
         fatigue: subFor?.fatigue,
         exclude: shown.map((e) => e.exerciseId),
       }).slice(0, 8)
     : [];
+  const machineEx = machineFor ? shown.find((e) => e.slot === machineFor) : undefined;
+  const machineChoice = machineEx ? library.find(e => e.id === machineEx.exerciseId) : undefined;
+  async function chooseMachineStep(ex: Disp, kind: MachineLoadKind, step?: PinMachineStep) {
+    if (busy || !loaded || loaded === "nogym") return;
+    setBusy("machine-weights");
+    try {
+      await programmes.setMachineLoadKind(ex.exerciseId, kind, step);
+      const updatedLibrary = await programmes.listExercises();
+      libRef.current = updatedLibrary;
+      setLibrary(updatedLibrary);
+      const spec = (await repos.getExerciseLoads(ex.exerciseId))?.spec ?? null;
+      const slots = loaded.slots.map(slot => slot.exerciseId === ex.exerciseId ? { ...slot, loadSpec: spec } : slot);
+      const currentSlot = slots.find(slot => slot.exerciseId === ex.slot);
+      if (!currentSlot) return;
+      const updatedEx = makeDisp(currentSlot, exState[ex.slot]);
+      const info = await buildInfo(updatedEx, loaded.sessionId, loaded.gym);
+      setLoaded(prev => prev && prev !== "nogym" ? { ...prev, slots, info: { ...prev.info, [ex.exerciseId]: info } } : prev);
+      setRows(prev => ({ ...prev, [ex.exerciseId]: (prev[ex.exerciseId] ?? []).map(row => row.saved || row.load !== null ? row : { ...row, ghostLoad: info.prefill.load, ghostReps: row.reps === null ? info.prefill.reps : row.ghostReps }) }));
+      setLiveDismissed(prev => { const { [ex.exerciseId]: _old, ...rest } = prev; return rest; });
+    } catch (e) {
+      diagnostics.record("error", "machine weight steps", e);
+      Alert.alert(t("loads.preset.failed"));
+    } finally { setBusy(null); }
+  }
   const dockVisible = timerOpen || timerRunning || restOver;
 
   return (
@@ -808,12 +900,15 @@ export function WorkoutScreen() {
           <Stat label={t("workout.stat.duration")}>
             <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} onToggle={() => void toggleDurationPause()} />
           </Stat>
-          <Stat label={t("workout.stat.volume")}>
-            <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
-          </Stat>
           <Stat label={t("workout.stat.sets")}>
             <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{summary.sets}</AppText>
           </Stat>
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
+            <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
+          </Pressable>
+          {summaryOpen ? <Stat label={t("workout.stat.volume")}>
+            <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
+          </Stat> : null}
         </View>
 
         {finishFailed ? (
@@ -826,7 +921,7 @@ export function WorkoutScreen() {
 
         {shown.length > 1 ? (
           <View style={{ paddingHorizontal: space.md, paddingBottom: space.sm }}>
-            <BigButton variant="secondary" icon="drag" label={t("workout.reorder.button")} onPress={() => setReorderOpen(true)} />
+            <QuietAction icon="drag" label={t("workout.reorder.button")} onPress={() => setReorderOpen(true)} />
           </View>
         ) : null}
 
@@ -926,6 +1021,7 @@ export function WorkoutScreen() {
           menuEx
             ? [
                 { label: t("workout.menu.notes"), onPress: () => setTimeout(() => noteInputs.current[menuEx.slot]?.focus(), 150) },
+                ...(menuEx.equipment === "machine" ? [{ label: t("workout.menu.machineSteps"), onPress: () => setMachineFor(menuEx.slot) }] : []),
                 ...(exState[menuEx.slot]?.added ? [] : [{ label: t("workout.menu.replace"), onPress: () => startReplace(menuEx) }]),
                 ...(shown.length > 1 ? [{ label: t("workout.menu.superset"), onPress: () => setSsFor(menuEx.slot) }] : []),
                 ...(ssLabel[menuEx.slot] ? [{ label: t("workout.menu.supersetLeave"), onPress: () => void applySuperset(leaveSuperset(menuEx.slot)) }] : []),
@@ -933,6 +1029,20 @@ export function WorkoutScreen() {
               ]
             : []
         }
+      />
+      <MenuSheet
+        visible={machineEx !== undefined}
+        title={t("workout.menu.machineSteps")}
+        onClose={() => setMachineFor(null)}
+        items={machineEx ? ([
+          { kind: "pin" as const, step: 2.5 as const, label: t("workout.machine.pin", { step: 2.5 }) },
+          { kind: "pin" as const, step: 5 as const, label: t("workout.machine.pin", { step: 5 }) },
+          { kind: "plate" as const, step: undefined, label: t("workout.machine.plate") },
+        ]).map(choice => ({
+          label: choice.label,
+          selected: machineChoice?.machineLoadKind === choice.kind && (choice.kind === "plate" || machineChoice?.machinePinStep === choice.step),
+          onPress: () => void chooseMachineStep(machineEx, choice.kind, choice.step),
+        })) : []}
       />
       <MenuSheet
         visible={kindFor !== null}
@@ -1008,6 +1118,7 @@ export function WorkoutScreen() {
       <ExercisePicker
         visible={pickFor !== null}
         exercises={library}
+        suggested={alternatives}
         exclude={shown.map((e) => e.exerciseId)}
         onClose={() => setPickFor(null)}
         onPick={(id) => pickFor && void replaceWith(pickFor, id)}

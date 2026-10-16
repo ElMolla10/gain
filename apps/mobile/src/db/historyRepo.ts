@@ -1,4 +1,5 @@
-import { isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
+import { consistencyProgress, personalMilestone } from "../logic/personalProgress";
+import { findSpec, weekStartOf, isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import { hasLoggedSets } from "./sessionSql";
 import type { FinishRepo } from "./finishRepo";
@@ -76,6 +77,32 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       [limit, offset],
     );
     return rows.map((r) => ({ id: r.id, dayName: r.day_name, gymName: r.gym_name, finishedAt: r.finished_at, startedAt: r.started_at, pausedMs: r.paused_ms ?? 0, exercises: r.exercises, workingSets: r.sets, imported: r.imported === 1 }));
+  }
+
+  /** Only days with trusted working sets qualify. Read all history, without the History screen's pagination limit. */
+  async function getPersonalProgress(at = now()) {
+    const sessions = await db.all<{ finishedAt: number }>(
+      `SELECT s.finished_at AS finishedAt FROM session s
+       WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM workout_set ws JOIN exercise e ON e.id = ws.exercise_id
+           WHERE ws.session_id = s.id AND ws.deleted_at IS NULL AND ws.is_warmup = 0
+             AND ws.outlier_status NOT IN ('unconfirmed', 'rejected')
+             AND NOT EXISTS (SELECT 1 FROM json_each(ws.tags_json) WHERE value = 'drop')
+             AND CASE e.measure WHEN 'time' THEN ws.duration_s > 0 WHEN 'distance' THEN ws.distance_m > 0 ELSE ws.reps > 0 END
+         )`,
+    );
+    const rawGoal = await repos.getSetting("days_per_week");
+    const rawStart = await repos.getSetting("week_starts_on");
+    const start = rawStart === null || rawStart === "" ? 1 : Number(rawStart);
+    const startsOn = Number.isInteger(start) && start >= 0 && start <= 6 ? start : 1;
+    const active = await repos.getLatestProgrammeVersion();
+    const short = active ? await db.get<{ days: number; week_start: string }>(
+      "SELECT days, week_start FROM short_week WHERE status = 'active' AND short_version_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1", [active.versionId],
+    ) : null;
+    const weekStart = weekStartOf(at - new Date(at).getTimezoneOffset() * 60_000, startsOn);
+    const goal = short?.week_start === weekStart ? short.days : rawGoal === null || rawGoal === "" ? null : Number(rawGoal);
+    return consistencyProgress(sessions, at, goal, startsOn);
   }
 
   async function countSessions(): Promise<number> {
@@ -156,6 +183,45 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       sessions,
       trend: isTimedMeasure(lift.measure) ? timedTrend(sessions, lift.setup, lift.measure, imported) : liftTrend(sessions, lift.setup, imported),
     };
+  }
+
+  /** The same monthly goal as the workout logger, using finished sets on this exact exercise/gym/setup line. */
+  async function getLiftGoal(lineId: string) {
+    const line = await db.get<{ exercise_id: string; gym_id: string; setup: SetupType; measure: Measure }>(
+      `SELECT l.exercise_id, l.gym_id, l.setup, e.measure FROM exercise_line l
+       JOIN exercise e ON e.id = l.exercise_id WHERE l.id = ? AND l.deleted_at IS NULL`, [lineId]);
+    if (!line || line.setup === "assisted") return null;
+    const rows = await db.all<{ sid: string; finished_at: number; load: number; reps: number; duration_s: number | null; distance_m: number | null; is_warmup: number; tags_json: string; outlier_status: OutlierStatus }>(
+      `SELECT s.id AS sid, s.finished_at, ws.load, ws.reps, ws.duration_s, ws.distance_m,
+              ws.is_warmup, ws.tags_json, ws.outlier_status
+         FROM workout_set ws JOIN session s ON s.id = ws.session_id
+        WHERE ws.line_id = ? AND s.status = 'finished' AND s.deleted_at IS NULL
+          AND ws.deleted_at IS NULL AND s.finished_at IS NOT NULL
+        ORDER BY s.finished_at, ws.position`, [lineId]);
+    const bySession = new Map<string, { performedAt: string; sets: LoggedSet[] }>();
+    for (const r of rows) {
+      let session = bySession.get(r.sid);
+      if (!session) {
+        session = { performedAt: new Date(r.finished_at).toISOString(), sets: [] };
+        bySession.set(r.sid, session);
+      }
+      session.sets.push({ load: r.load, reps: r.reps,
+        ...(r.duration_s !== null ? { durationS: r.duration_s } : {}),
+        ...(r.distance_m !== null ? { distanceM: r.distance_m } : {}),
+        warmup: r.is_warmup === 1, tags: JSON.parse(r.tags_json) as string[], outlierStatus: r.outlier_status });
+    }
+    const exerciseLoads = await repos.getExerciseLoads(line.exercise_id);
+    const gym = await repos.loadGymFingerprint(line.gym_id);
+    const spec = exerciseLoads?.spec ?? (exerciseLoads ? findSpec(gym, exerciseLoads.equipment) : null);
+    const active = await repos.getLatestProgrammeVersion();
+    const day = active ? await db.get<{ id: string }>(
+      `SELECT d.id FROM programme_day d JOIN programme_day_exercise pde ON pde.programme_day_id = d.id
+        WHERE d.programme_version_id = ? AND pde.exercise_id = ?
+          AND d.deleted_at IS NULL AND pde.deleted_at IS NULL LIMIT 1`,
+      [active.versionId, line.exercise_id]) : null;
+    // Use the same resolved rep ceiling as the logger, including the lifter's GAIN-ceilings setting.
+    const exercise = day ? (await repos.listDayExercises(day.id)).find(e => e.exerciseId === line.exercise_id) : null;
+    return personalMilestone([...bySession.values()], [], spec, line.measure, exercise?.repMin ?? 6, exercise?.repMax ?? 12, now());
   }
 
   async function resync(): Promise<void> {
@@ -292,6 +358,6 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     return [...byEx.values()];
   }
 
-  return { listSessions, countSessions, getSession, listLifts, getLiftTrend, weekExerciseSets, updateSet, removeSet, deleteWorkout };
+  return { getPersonalProgress, listSessions, countSessions, getSession, listLifts, getLiftTrend, getLiftGoal, weekExerciseSets, updateSet, removeSet, deleteWorkout };
 }
 export type HistoryRepo = ReturnType<typeof createHistoryRepo>;

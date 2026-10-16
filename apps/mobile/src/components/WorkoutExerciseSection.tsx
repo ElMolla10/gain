@@ -1,3 +1,4 @@
+import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
 import React from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import { findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
@@ -10,7 +11,8 @@ import { isIsolationPattern, warmupOffer, warmupsUsuallySkipped } from "../logic
 import { plateLine } from "../logic/plateText";
 import { isTimed, quantityText, setQuantity } from "../logic/quantity";
 import { workingIndexes } from "../logic/liveSummary";
-import { rowLabels, currentRowKey, type SetRowDraft } from "../logic/workoutRows";
+import { focusedRowKey } from "../logic/workoutFocus";
+import { rowLabels, type SetRowDraft } from "../logic/workoutRows";
 import { nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
 import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
@@ -22,11 +24,12 @@ import { WorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
 
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string }
 interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
+  active?: boolean; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
   ex: Disp; position: number; info: ExInfo; list: SetRowDraft[]; st: ExerciseState;
   gym: GymFingerprint; exSets: SetRow[]; outliers: Record<string, OutlierResult>;
   candidate?: LiveCard; card?: LiveCard; expanded: boolean; supersetLabel?: string;
   restDurationMs: number; busy: boolean; warmOpen: boolean; warmDone: boolean;
-  onToggleRest: () => void; onMenu: () => void; onWhy: () => void; onWhyLong: () => void;
+  onOpenProgress: () => void; onToggleRest: () => void; onMenu: () => void; onWhy: () => void; onWhyLong: () => void;
   onLiveApply: () => void; onLiveReport: (symptom: ReportedSymptom) => void; onLiveKeep: () => void;
   onOutlierConfirm: (set: SetRow) => Promise<void>; onOutlierReject: (set: SetRow) => Promise<void>;
   onWarmConfirm: (steps: { load: number; reps: number }[]) => Promise<void>;
@@ -35,7 +38,7 @@ interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDe
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
+export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveReport, onLiveKeep, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
@@ -44,7 +47,7 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
   const pr = info.proposal;
   const spec = ex.loadSpec ?? findSpec(gym, ex.equipment);
   const numbering = rowLabels(list);
-  const currentKey = currentRowKey(list);
+  const currentKey = focusedRowKey(list);
   const widx = workingIndexes(list);
   const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
   const timed = isTimed(ex.measure);
@@ -75,10 +78,16 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
   // At large font sizes the five columns no longer fit side by side: the row becomes two lines (set, previous, tick / weight, reps).
   const stacked = fontScale > 1.3;
 
+  const live = card ? <LiveSuggestion decision={card.decision} basis={basis} repMin={ex.repMin} repMax={ex.repMax}
+    detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
+    manualLoad={nextAdaptiveRow(list)?.load !== null || nextAdaptiveRow(list)?.reps !== null} busy={busy}
+    onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep} /> : null;
+
   return (
     <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, paddingStart: space.lg, paddingEnd: space.xs }}>
-        <View style={{ flex: 1 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("workout.openProgress", { exercise: labels.primary })}
+          onPress={onOpenProgress} style={{ flex: 1, minHeight: 48, justifyContent: "center" }}>
           {supersetLabel ? (
             <AppText style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}>{t("workout.superset.label", { letter: supersetLabel! })}</AppText>
           ) : null}
@@ -90,7 +99,7 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
             <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
           )}
           {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
-        </View>
+        </Pressable>
         {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
         <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} />
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
@@ -103,7 +112,7 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
           label={t("workout.nextTarget")}
           value={targetText}
           whyLabel={t("workout.whyShort")}
-          suggestedLabel={t("workout.suggestedWeight")}
+          suggestedLabel={suggestedWeight && !card ? t("workout.suggestedWeight") : undefined}
           suggestedValue={suggestedWeight}
           whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
           expanded={info.stored ? undefined : expanded}
@@ -115,6 +124,7 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
         {suggestedPlates && suggestedPlates.text !== plates?.text ? <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>{suggestedPlates.text}</AppText> : null}
         {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
         {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
+        <PersonalMilestoneLine onOpen={onOpenProgress} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
         {ex.topSets && !timed ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("workout.topset.note", { n: ex.topSets })}</AppText> : null}
       </View>
 
@@ -132,23 +142,19 @@ export function WorkoutExerciseSection({ ex, position, info, list, st, gym, exSe
         <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
       </View>
 
+      {card?.decision.action === "stop" ? live : null}
       <View>
         {list.map((row, i) => (
-          <WorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
-            workingIndex={widx[i] ?? null} lastSets={info.last?.sets ?? null}
-            current={currentKey === row.key} stacked={stacked} busy={busy}
-            onPatch={onPatch} onKind={onKind} onAskDelete={onAskDelete}
-            onDelete={onDelete} onLog={onLog} onUntick={onUntick} />
+          <React.Fragment key={row.key}>
+            {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
+            <WorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
+              workingIndex={widx[i] ?? null} lastSets={info.last?.sets ?? null}
+              current={active && currentKey === row.key} stacked={stacked} busy={busy}
+              onPatch={onPatch} onKind={onKind} onAskDelete={onAskDelete}
+              onDelete={onDelete} onLog={onLog} onUntick={onUntick} />
+          </React.Fragment>
         ))}
       </View>
-
-      {card ? (
-        <LiveSuggestion
-          decision={card.decision} basis={basis} repMin={ex.repMin} repMax={ex.repMax}
-          manualLoad={nextAdaptiveRow(list)?.load !== null} busy={busy}
-          onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep}
-        />
-      ) : null}
 
       {pending.map((s) => {
         const o = outliers[s.id];

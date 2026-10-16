@@ -7,6 +7,7 @@ import { AppState, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { navColors } from "./src/palettes";
 import { parseAppearance, setAppearance, space, useIsDark, usePalette } from "./src/theme";
+import { DeveloperModeProvider, useDeveloperMode } from "./src/DeveloperMode";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb, openExpoMaintenanceDb } from "./src/db/expoDriver";
 import { migrate } from "./src/db/migrations";
@@ -129,6 +130,7 @@ function SetupRoute() {
 }
 
 function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
+  const { enabled: developerMode } = useDeveloperMode();
   // "Import my workout history" on the first screen opens Import straight after setup is skipped.
   const [openImport, setOpenImport] = useState(false);
   const { t, direction, lang } = useI18n();
@@ -179,8 +181,8 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
           <Stack.Screen name="Sync" component={SyncScreen} options={{ title: t("sync.title") }} />
           <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: t("privacy.title") }} />
-          <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: t("diag.title") }} />
-          <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} />
+          {developerMode ? <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: t("diag.title") }} /> : null}
+          {developerMode ? <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} /> : null}
           <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: t("history.session.title") }} />
           <Stack.Screen name="LiftTrend" component={LiftTrendScreen} options={{ title: t("trend.title") }} />
           <Stack.Screen name="ExerciseLoads" component={ExerciseLoadsScreen} options={{ title: t("loads.title") }} />
@@ -328,10 +330,12 @@ export default function App() {
     <SafeAreaProvider>
       <ServicesProvider value={boot.services}>
         <I18nProvider initialLang={boot.lang} initialOverride={boot.override} initialUnit={boot.unit} initialShowSecond={boot.showSecond} onChange={onChange}>
-          <Guarded>
-            <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" && b !== "migration_blocked" ? { ...b, needsOnboarding: false } : b))} />
-          </Guarded>
-          <NumberPadDone />
+          <DeveloperModeProvider>
+            <Guarded>
+              <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" && b !== "migration_blocked" ? { ...b, needsOnboarding: false } : b))} />
+            </Guarded>
+            <NumberPadDone />
+          </DeveloperModeProvider>
         </I18nProvider>
       </ServicesProvider>
     </SafeAreaProvider>

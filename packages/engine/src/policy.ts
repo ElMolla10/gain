@@ -17,7 +17,7 @@ import type {
  * Healthy Adults", grade B): raise the load 2-10% when the lifter can do the target. It is not a literal implementation: the rep ceilings,
  * the one-session trigger and the snapping to standard steps are GAIN conventions.
  * The target is the lift's REP CEILING, which is the lifter's own configuration on top (10 upper, 12 legs, 15 lateral raises) and
- * a single session reaching it is enough. Everything else (RIR fast track, stall deload, step-down) is off by default and only
+ * a single working set reaching it in one session is enough. Everything else (RIR fast track, stall deload, step-down) is off by default and only
  * available as opt-in conventions. See docs/PROGRESSION-RULES.md.
  */
 
@@ -30,14 +30,14 @@ export const INCREMENT_BY_REGION: Record<BodyRegion, IncrementConfig> = {
   lower: { minPct: 0.05, maxPct: 0.1 },
 };
 
-/** The lifter's own ceilings: reps the weakest working set must reach before load goes up. Not from a study. */
+/** The lifter's own ceilings: reps one trusted working set must reach before load goes up. Not from a study. */
 export const DEFAULT_REP_CEILINGS: RepCeilings = { upper: 10, lower: 12, lateral_raise: 15 };
 
-/** Default trigger: the weakest working set at the current load reaches the ceiling, once. */
+/** Default trigger: one trusted working set at the current load reaches the ceiling, once. */
 export const DEFAULT_TRIGGER: TriggerConfig = {
   extraReps: 0,
   sessions: 1,
-  repsBasis: "all_sets",
+  repsBasis: "best_set",
   fastTrackRir: null,
 };
 
@@ -64,11 +64,11 @@ export const PRESETS: Record<PresetName, Preset> = {
    * DEFAULT. ACSM 2009: raise load 2-10% when the target is reached. Target = the lift's rep ceiling.
    * Deviation from the ACSM wording, by the lifter's choice: reaching the ceiling once is enough (ACSM: 1-2 reps over, two consecutive sessions).
    */
-  acsm_2009: { trigger: { extraReps: 0, sessions: 1, repsBasis: "all_sets", fastTrackRir: null } },
+  acsm_2009: { trigger: { extraReps: 0, sessions: 1, repsBasis: "best_set", fastTrackRir: null } },
   /** ACSM 2009 as literally worded: 1-2 reps over the desired number on two consecutive sessions (lower bound, 1 rep, used). */
   acsm_2009_strict: { trigger: { extraReps: 1, sessions: 2, repsBasis: "all_sets", fastTrackRir: null } },
-  /** Convention: add load the first time every set reaches the ceiling. Same trigger as the default; kept as a named alias. */
-  double_progression: { trigger: { extraReps: 0, sessions: 1 } },
+  /** Convention: add load the first time every set reaches the ceiling. */
+  double_progression: { trigger: { extraReps: 0, sessions: 1, repsBasis: "all_sets" } },
   /** The 2-for-2 rule as worded by Suchomel et al. 2021: >=2 reps over the goal on the LAST set, two consecutive sessions. */
   two_for_two: { trigger: { extraReps: 2, sessions: 2, repsBasis: "last_set" } },
   /**
@@ -192,7 +192,7 @@ export function resolveProgression(region: BodyRegion = "upper", cfg: LiftProgre
 }
 
 /**
- * The top of the rep range, i.e. the reps the weakest set must reach to earn more load (rule-v0.4). Order:
+ * The top of the rep range, i.e. the reps one working set must reach by default to earn more load. Order:
  *  1. a ceiling the lifter set on THIS lift (`liftCeiling`);
  *  2. "Use GAIN rep ceilings" is on: the GAIN ceiling for the kind of lift (`gainCeiling`);
  *  3. the program's own top (`programMax`), which is the default;

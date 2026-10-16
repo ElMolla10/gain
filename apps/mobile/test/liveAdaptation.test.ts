@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { applyLiveLoad, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow, suggestedNextLoad } from "../src/logic/liveAdaptation";
+import { describe, expect, it, vi } from "vitest";
+import { applyLiveTarget, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow, suggestedNextLoad } from "../src/logic/liveAdaptation";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
 import type { SetRow } from "../src/db/workoutRepo";
 const saved = (extra: Partial<SetRow> = {}): SetRow => ({ id:"s1", sessionId:"session", exerciseId:"bench", lineId:"line", position:1, load:60, reps:10, durationS:null, distanceM:null, rir:2, warmup:false, tags:[], outlierStatus:"none", createdAt:100, ...extra });
@@ -43,7 +43,8 @@ describe("live logger adapter", () => {
   it("excludes unsupported setups, quantities and special sets", () => {
     for (const measure of ["time","distance"] as const) expect(context({measure})).toBeNull();
     for (const setup of ["assisted","bodyweight_plus_added"] as const) expect(context({setup})).toBeNull();
-    for (const tags of [["drop"],["failure"]]) expect(context({sets:[saved({tags})]})).toBeNull();
+    expect(context({sets:[saved({tags:["drop"]})]})).toBeNull();
+    expect(context({sets:[saved({tags:["failure"]})]})?.previousSetWeightKg).toBe(60);
     expect(context({equipment:"assisted"})).toBeNull();
     expect(context({equipment:"plate"})!.loadConvention).toBe("unknown");
   });
@@ -55,17 +56,23 @@ describe("live logger adapter", () => {
     expect(livePerformanceKey([],"bench")).not.toBe(before);
     expect(livePerformanceKey([saved({outlierStatus:"unconfirmed"})],"bench")).not.toBe(before);
   });
-  it("applies only the next unsaved normal row and preserves manual load and every other row", () => {
+  it("fills both parts of only the next working target without overwriting typed values", () => {
     const original=rows();
-    const changed=applyLiveLoad(original,"draft1",57.5);
+    const changed=applyLiveTarget(original,"draft1",57.5,7);
     expect(changed[0]!.ghostLoad).toBe(57.5);
+    expect(changed[0]!.ghostReps).toBe(7);
     expect(changed[1]).toBe(original[1]);
-    expect(applyLiveLoad(original,"draft2",57.5)).toBe(original);
+    expect(applyLiveTarget(original,"draft2",57.5,7)).toBe(original);
     const manual=editRow(original,"draft1",{load:65});
-    expect(applyLiveLoad(manual,"draft1",57.5)).toBe(manual);
+    expect(applyLiveTarget(manual,"draft1",57.5,7)[0]).toMatchObject({load:65,ghostLoad:57.5,ghostReps:7});
+    const manualReps=editRow(original,"draft1",{reps:11});
+    expect(applyLiveTarget(manualReps,"draft1",57.5,7)[0]).toMatchObject({reps:11,ghostLoad:57.5,ghostReps:7});
     const warm=editRow(original,"draft1",{warmup:true});
     expect(nextAdaptiveRow(warm)).toBeUndefined();
-    expect(applyLiveLoad(warm,"draft1",57.5)).toBe(warm);
+    expect(applyLiveTarget(warm,"draft1",57.5,7)).toBe(warm);
+    const failure=editRow(original,"draft1",{tags:["failure"]});
+    expect(nextAdaptiveRow(failure)?.key).toBe("draft1");
+    expect(applyLiveTarget(failure,"draft1",57.5,7)[0]).toMatchObject({ghostLoad:57.5,ghostReps:7});
   });
   it("evaluates the real bundled offline model with missing optional inputs", () => {
     const features = { previous_reps:10, relative_load_change:0, load_convention:2, first_working_set_reps:10, working_sets_before:1, set_index:2, target_reps:8 };
@@ -108,7 +115,7 @@ describe("live adaptation with persisted sessions", () => {
     expect(await read()).toBeNull();
   });
   it("does not use an older normal set after an unsupported or unconfirmed latest set", () => {
-    for (const tail of [{outlierStatus:"unconfirmed" as const},{tags:["drop"]},{tags:["failure"]},{warmup:true}]) {
+    for (const tail of [{outlierStatus:"unconfirmed" as const},{tags:["drop"]},{warmup:true}]) {
       expect(context({sets:[saved(),saved({id:"latest",...tail})]})).toBeNull();
     }
   });
@@ -123,7 +130,7 @@ describe("live adaptation with persisted sessions", () => {
 
 describe("inline suggested load for each AI action", () => {
   it("displays the maintained weight as a valid suggestion", () => {
-    const maintain = { action: "maintain" as const, suggestedWeightKg: 24, predictedReps: 9, reason: "within_range" as const };
+    const maintain = { action: "maintain" as const, suggestedWeightKg: 24, suggestedReps: 9, predictedReps: 9, reason: "within_range" as const };
     expect(suggestedNextLoad(maintain, true)).toBe(24);
     expect(suggestedNextLoad({ ...maintain, action: "increase", suggestedWeightKg: 26 }, true)).toBe(26);
     expect(suggestedNextLoad({ ...maintain, action: "decrease", suggestedWeightKg: 22 }, true)).toBe(22);
@@ -136,7 +143,7 @@ describe("inline suggested load for each AI action", () => {
 describe("live card presentation and fallback", () => {
   it("overrides only explicitly reported symptoms without invoking or altering normal predictions", () => {
     for (const action of ["increase","maintain","decrease","stop"] as const) {
-      const normal = { action, suggestedWeightKg:60, predictedReps:8, reason:"within_range" as const };
+      const normal = { action, suggestedWeightKg:60, suggestedReps:8, predictedReps:8, reason:"within_range" as const };
       expect(reportedSymptomDecision(normal)).toBe(normal);
       for (const symptom of ["severe_pain","dizziness"] as const) {
         const stop=reportedSymptomDecision(normal,symptom);
@@ -148,8 +155,9 @@ describe("live card presentation and fallback", () => {
   it("applies kilograms internally while displaying a suggestion in pounds", async () => {
     const { weightText } = await import("../src/logic/units");
     const original=rows();
-    const applied=applyLiveLoad(original,"draft1",57.5);
+    const applied=applyLiveTarget(original,"draft1",57.5,7);
     expect(applied[0]!.ghostLoad).toBe(57.5);
+    expect(applied[0]!.ghostReps).toBe(7);
     expect(weightText(applied[0]!.ghostLoad!,"lb")).toBe("126.8");
     expect(original[0]!.ghostLoad).toBe(60);
   });
@@ -165,4 +173,23 @@ describe("live card presentation and fallback", () => {
     expect(plan.every(r=>!r.saved)).toBe(true);
     expect(remainingMs(timer,2000)).toBe(89000);
   });
+});
+
+it("uses recorded comparable loads for an observed fatigue stop even if inference fails", () => {
+  const sets = [saved({id:"first",load:60,reps:10}),saved({id:"second",load:60,reps:2,position:2})];
+  const draft = initialRows(sets,3,{load:60,reps:8},()=>"next");
+  const c = context({sets,rows:draft})!;
+  expect(c.firstWorkingSetWeightKg).toBe(60);
+  const predict = vi.fn(() => {throw Error("model offline");});
+  expect(tryLiveRecommendation(c,6,10,{equipment:"barbell",increment:2.5,min:20,max:200},predict)).toMatchObject({action:"stop",reason:"performance_stop",predictionAvailable:false});
+  expect(predict).not.toHaveBeenCalled();
+});
+
+it("counts repeated very-low sets from real rows, but keeps legitimate low-rep targets", () => {
+  const sets = [saved({id:"first-low",load:60,reps:2}),saved({id:"second-low",load:60,reps:2,position:2})];
+  const c = context({sets,rows:initialRows(sets,3,{load:60,reps:8},()=>"next")})!;
+  expect(c.consecutiveVeryLowSets).toBe(2);
+  const spec = {equipment:"barbell" as const,increment:2.5,min:20,max:200};
+  expect(tryLiveRecommendation(c,6,10,spec,()=>15)).toMatchObject({action:"stop",reason:"performance_stop",predictionAvailable:false});
+  expect(tryLiveRecommendation(c,1,3,spec,()=>2)?.action).not.toBe("stop");
 });

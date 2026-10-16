@@ -1,6 +1,6 @@
 export interface Env {
   DB: D1Database;
-  /** "1" = /v1/auth/email/start returns the code in the response instead of emailing it. Local development only. */
+  /** Retired development flag. "1" disables email sign-in with 503; codes are never returned over HTTP. */
   DEV_EMAIL_CODES?: string;
   /** Secret. When set (with EMAIL_FROM) email codes are sent through Resend. */
   RESEND_API_KEY?: string;

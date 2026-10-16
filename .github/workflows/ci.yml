@@ -54,6 +54,18 @@ jobs:
           ! grep -q "NSFaceIDUsageDescription" ios/GAIN/Info.plist
           grep -q 'TARGETED_DEVICE_FAMILY = "1"' ios/GAIN.xcodeproj/project.pbxproj
           grep -q "PrivacyInfo.xcprivacy" ios/GAIN.xcodeproj/project.pbxproj
-          GAIN_IOS_BUNDLE_ID=com.example.gain GAIN_IOS_SCENES=1 CI=1 npx expo prebuild --platform ios --no-install
+          GAIN_IOS_BUNDLE_ID=com.example.gain GAIN_IOS_BUILD_NUMBER=42 GAIN_IOS_SCENES=1 CI=1 npx expo prebuild --platform ios --no-install
           grep -q 'PRODUCT_BUNDLE_IDENTIFIER = "com.example.gain"' ios/GAIN.xcodeproj/project.pbxproj
           grep -q "UIApplicationSceneManifest" ios/GAIN/Info.plist
+          python3 - <<'PYTHON'
+          import json, plistlib
+          from pathlib import Path
+          info = plistlib.loads(Path("ios/GAIN/Info.plist").read_bytes())
+          privacy = plistlib.loads(Path("ios/GAIN/PrivacyInfo.xcprivacy").read_bytes())
+          expected = json.loads(Path("app.json").read_text())["expo"]["ios"]["privacyManifests"]
+          assert info["CFBundleVersion"] == "42", "Explicit iOS build number was lost"
+          assert privacy["NSPrivacyTracking"] is False
+          assert privacy["NSPrivacyTrackingDomains"] == []
+          for entry in expected["NSPrivacyCollectedDataTypes"]:
+              assert entry in privacy["NSPrivacyCollectedDataTypes"], entry
+          PYTHON

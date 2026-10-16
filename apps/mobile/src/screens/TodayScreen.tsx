@@ -1,3 +1,4 @@
+import { PersonalProgressCard } from "../components/PersonalProgressCard";
 import { quantityText } from "../logic/quantity";
 import { leadTarget, targetText } from "../logic/nextTarget";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
@@ -227,6 +228,7 @@ export function TodayScreen() {
         </Card>
       </View>
 
+      <PersonalProgressCard />
       <WeeklyReviewCard />
       <MuscleVolumeCard />
       <DeloadCard />

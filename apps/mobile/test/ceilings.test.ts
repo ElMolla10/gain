@@ -126,7 +126,7 @@ describe("end to end (rule-v0.4): the program's own 8-12 decides, the setting br
     const stay = (await a.rotation({ "Barbell Bench Press": [60, 10] })).find((t) => t.nameEn === "Barbell Bench Press")!;
     expect(stay).toMatchObject({ load: 60, reps: 11, currency: "reps" });
     const d = (await a.finish.getDecision(stay.id))!;
-    expect(d.ruleVersion).toBe("rule-v0.4");
+    expect(d.ruleVersion).toBe("rule-v0.5");
     expect(d.payload.inputs).toMatchObject({ repTopBasis: "program", programmeRepRange: { min: 8, max: 12 }, repRange: { min: 8, max: 12 } });
 
     const b = await setup();
@@ -146,9 +146,9 @@ describe("end to end (rule-v0.4): the program's own 8-12 decides, the setting br
     await a.rotation({ "Barbell Bench Press": [60, 10] }, 2);
     const rows = await a.db.all<{ rule_version: string }>("SELECT rule_version FROM target WHERE deleted_at IS NULL");
     expect(rows.filter((r) => r.rule_version === "rule-v0.3").length).toBeGreaterThan(0);
-    expect(rows.filter((r) => r.rule_version === "rule-v0.4").length).toBeGreaterThan(0);
+    expect(rows.filter((r) => r.rule_version === "rule-v0.5").length).toBeGreaterThan(0);
     const logs = await a.db.all<{ rule_version: string }>("SELECT DISTINCT rule_version FROM decision_log");
-    expect(logs.map((l) => l.rule_version).sort()).toEqual(["rule-v0.3", "rule-v0.4"]);
+    expect(logs.map((l) => l.rule_version).sort()).toEqual(["rule-v0.3", "rule-v0.5"]);
   });
   it("12 reps on an 8-12 bench press raises the load with the setting off", async () => {
     const a = await setup();

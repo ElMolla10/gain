@@ -18,13 +18,11 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
     // UpdateCard hands the platform fetch to updateCheck.ts (which only builds the GitHub URL and is otherwise pure) and downloads the APK.
     expect(users).toEqual(["src/components/UpdateCard.tsx"]);
   });
-  it("source hosts stay limited to GitHub, the user-opened attribution link and the opt-in Cloudflare transport", () => {
+  it("source hosts stay limited to GitHub, the opt-in Cloudflare transport", () => {
     const hosts = new Set<string>();
     for (const f of src) for (const m of text(f).matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) if (!f.endsWith("src/sync/transport.ts")) hosts.add(m[1]!.toLowerCase());
     expect(hosts.has("api.github.com")).toBe(true);
-    expect([...hosts].every((h) => h === "github.com" || h.endsWith(".github.com") || h === "www.w3.org" || h === "fitnessvolt.com")).toBe(true);
-    // Attribution opens the browser only after a tap; model evaluation never sends profile/history to the publisher.
-    expect(text(join(root, "src/screens/YouVsWorldScreen.tsx"))).toContain('Linking.openURL("https://fitnessvolt.com/strength-standards/")');
+    expect([...hosts].every((h) => h === "github.com" || h.endsWith(".github.com") || h === "www.w3.org")).toBe(true);
     // The backup/sync server: one fixed host, in one file, reachable only through the opt-in sync engine.
     const tr = text(join(root, "src/sync/transport.ts"));
     expect([...tr.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map((m) => m[1])).toEqual(["gain-sync.elmolla10.workers.dev"]);

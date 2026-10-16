@@ -31,6 +31,33 @@ async function setup() {
 }
 
 describe("achievement persistence", () => {
+  it("previews a checked PR without awarding or consuming its finish hero", async () => {
+    const c = await setup();
+    await c.train(); c.deps.tick(DAY);
+    await c.train(); c.deps.tick(DAY);
+    await c.achievements.ensureBackfill();
+    const { id } = await c.workout.startOrResumeSession(c.day.id, c.gymId);
+    const log = (reps: number, warmup = false) => c.workout.logSet({ sessionId: id, exerciseId: c.ex.exerciseId, load: 60, reps, warmup }, { gym: c.gym, equipment: c.ex.equipment, setup: c.ex.setup });
+    const normal = await log(8);
+    expect(await c.achievements.previewStrengthPr(id, normal.id)).toBe(false);
+    const warm = await log(10, true);
+    expect(await c.achievements.previewStrengthPr(id, warm.id)).toBe(false);
+    const pr = await log(9);
+    expect(await c.achievements.previewStrengthPr(id, pr.id)).toBe(true);
+    // Each checked set is evaluated, even if another set would win the session hero.
+    const stronger = await log(10);
+    expect(await c.achievements.previewStrengthPr(id, pr.id)).toBe(true);
+    expect(await c.achievements.previewStrengthPr(id, stronger.id)).toBe(true);
+    expect((await c.achievements.listForSession(id))).toEqual([]);
+    await c.db.run("UPDATE workout_set SET outlier_status = 'unconfirmed' WHERE id = ?", [pr.id]);
+    expect(await c.achievements.previewStrengthPr(id, pr.id)).toBe(false);
+    await c.workout.finishSession(id);
+    await c.achievements.sync();
+    const badges = await c.achievements.listForSession(id);
+    const hero = badges.find(b => b.badgeId === "strength_pr")!;
+    expect(hero.primarySetId).toBe(stronger.id);
+    expect(hero.celebratedAtUtc).toBeNull();
+  });
   it("backfills existing finished history once and shows a single banner count", async () => {
     const c = await setup();
     await c.train();

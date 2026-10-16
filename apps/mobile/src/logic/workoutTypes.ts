@@ -14,6 +14,8 @@ export interface ExInfo {
   line: LineIdentity;
   lineId: string;
   last: { performedAt: string; sets: LoggedSet[] } | null;
+  /** Display history is independent of the comparable line used by the coach. */
+  previous?: { any: ExInfo["last"]; routine: ExInfo["last"] };
   /** The target written when the previous workout was finished, if any. */
   stored: TargetRow | null;
   prefill: Prefill;

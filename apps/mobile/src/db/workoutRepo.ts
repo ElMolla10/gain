@@ -3,6 +3,7 @@ import {
   checkOutlier,
   checkTimedOutlier,
   isTimedMeasure,
+  isTrustedWorkingSet,
   lineKey,
   logicalTrainingDateFromMs,
   MAX_METRES,
@@ -323,6 +324,32 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       h.sets.push(toLogged(toSetRow(r)));
     }
     return [...bySession.values()];
+  }
+
+  /** Display-only history across gyms/days; never used for targets or draft values. */
+  async function previousPerformances(exerciseId: string, dayId: string) {
+    const rows = await db.all<RawSet & { sid: string; finished_at: number; programme_day_id: string }>(
+      `SELECT ws.*, s.id AS sid, s.finished_at, s.programme_day_id
+       FROM workout_set ws JOIN session s ON s.id = ws.session_id
+       WHERE ws.exercise_id = ? AND s.status = 'finished' AND s.finished_at IS NOT NULL
+         AND ws.deleted_at IS NULL AND s.deleted_at IS NULL
+       ORDER BY s.finished_at DESC, s.id, ws.position`, [exerciseId],
+    );
+    type Previous = { performedAt: string; sets: LoggedSet[] };
+    const sessions = new Map<string, Previous & { dayId: string }>();
+    for (const r of rows) {
+      const set = toLogged(toSetRow(r));
+      if (!isTrustedWorkingSet(set)) continue;
+      let session = sessions.get(r.sid);
+      if (!session) {
+        session = { performedAt: new Date(r.finished_at).toISOString(), sets: [], dayId: r.programme_day_id };
+        sessions.set(r.sid, session);
+      }
+      session.sets.push(set);
+    }
+    const history = [...sessions.values()];
+    const display = (s: typeof history[number] | undefined): Previous | null => s ? { performedAt: s.performedAt, sets: s.sets } : null;
+    return { any: display(history[0]), routine: display(history.find(s => s.dayId === dayId)) };
   }
 
   /** The last finished session of this line: what the lifter did last time, for display. */
@@ -697,6 +724,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     listSessionSets,
     getHistory,
     lastPerformance,
+    previousPerformances,
     loadRejectionMemory,
     liveProposal,
     logSet,

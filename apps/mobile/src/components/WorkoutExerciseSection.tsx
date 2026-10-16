@@ -23,6 +23,7 @@ import { RestToggle, TargetLine } from "./LogParts";
 import { Icon } from "./Icon";
 import { LiveSuggestion } from "./LiveSuggestion";
 import { WorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
+import type { PreviousSource } from "./PreviousSourceToggle";
 
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string; starting?: boolean }
 interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
@@ -43,10 +44,12 @@ interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDe
   onWarmConfirm: (steps: { load: number; reps: number }[]) => Promise<void>;
   onWarmOpen: () => void; onWarmClose: () => void; onAddSet: () => void;
   onOpenTrend?: () => void;
+  previousSource?: PreviousSource;
+  strengthPrSetId?: string | null;
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick }: Props) {
+export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId }: Props) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
@@ -180,7 +183,8 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
           <React.Fragment key={row.key}>
             {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
             <WorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
-              workingIndex={widx[i] ?? null} lastSets={info.last?.sets ?? null}
+              workingIndex={widx[i] ?? null} lastSets={(info.previous ? info.previous[previousSource] : info.last)?.sets ?? null}
+              strengthPr={strengthPrSetId === row.key}
               current={active && currentKey === row.key} stacked={stacked} busy={busy}
               autoFocus={focusRow?.key === row.key} focusNonce={focusRow?.nonce}
               onPatch={onPatch} onKind={onKind} onAskDelete={onAskDelete}

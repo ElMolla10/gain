@@ -7,12 +7,13 @@ import type { LiftItem } from "../db/historyRepo";
 import { CATALOG_BY_KEY } from "../db/libraryDraft";
 import { useI18n } from "../i18n";
 import { exerciseLabels, formatLoad } from "../i18n/format";
-import { modeledBodyweightIndex, modeledStrengthIndex, type ComparisonSex } from "../logic/worldStrength";
+import { modeledAlternativeIndex, modeledBodyweightIndex, modeledStrengthIndex, type ComparisonSex } from "../logic/worldStrength";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, EmptyState, ErrorState, Field, InlineStatus, ListRow, LoadingState, Screen } from "../ui";
 
 type Performance = Awaited<ReturnType<ReturnType<typeof useServices>["history"]["getWorldLiftPerformances"]>>[number];
 type BodyweightPerformance = Awaited<ReturnType<ReturnType<typeof useServices>["history"]["getWorldBodyweightPerformances"]>>[number];
+type AlternativePerformance = Awaited<ReturnType<ReturnType<typeof useServices>["history"]["getWorldAlternativePerformances"]>>[number];
 export function YouVsWorldScreen() {
   const { history, repos } = useServices();
   const { t, lang, unit } = useI18n();
@@ -20,6 +21,7 @@ export function YouVsWorldScreen() {
   const nav = useNavigation<{ navigate: (name: string, params: object) => void }>();
   const [rows, setRows] = useState<{ lift: LiftItem; performance: Performance }[] | null>(null);
   const [bodyweightRows, setBodyweightRows] = useState<{ lift: LiftItem; performance: BodyweightPerformance }[]>([]);
+  const [alternativeRows, setAlternativeRows] = useState<{ lift: LiftItem; performance: AlternativePerformance }[]>([]);
   const [sex, setSex] = useState<ComparisonSex | null>(null);
   const [bodyweight, setBodyweight] = useState("");
   const [age, setAge] = useState("");
@@ -30,8 +32,8 @@ export function YouVsWorldScreen() {
   useFocusEffect(useCallback(() => {
     let alive = true;
     setFailed(false);
-    void Promise.all([history.getWorldLiftPerformances(), history.listLifts(), repos.getSetting("world_comparison_sex"), repos.getSetting("world_comparison_bodyweight_kg"), repos.getSetting("bodyweight_kg"), repos.getSetting("world_comparison_age"), repos.getSetting("birth_date"), repos.getSetting("world_comparison_height_cm"), repos.getSetting("height_cm"), history.getWorldBodyweightPerformances()])
-      .then(([performances, lifts, savedSex, savedWeight, profileWeight, savedAge, birthDate, savedHeight, profileHeight, bodyweightSets]) => {
+    void Promise.all([history.getWorldLiftPerformances(), history.listLifts(), repos.getSetting("world_comparison_sex"), repos.getSetting("world_comparison_bodyweight_kg"), repos.getSetting("bodyweight_kg"), repos.getSetting("world_comparison_age"), repos.getSetting("birth_date"), repos.getSetting("world_comparison_height_cm"), repos.getSetting("height_cm"), history.getWorldBodyweightPerformances(), history.getWorldAlternativePerformances()])
+      .then(([performances, lifts, savedSex, savedWeight, profileWeight, savedAge, birthDate, savedHeight, profileHeight, bodyweightSets, alternativeSets]) => {
         if (!alive) return;
         setSex(savedSex === "male" || savedSex === "female" ? savedSex : null);
         setBodyweight(savedWeight ?? profileWeight ?? "");
@@ -49,6 +51,10 @@ export function YouVsWorldScreen() {
         setBodyweightRows(bodyweightSets.flatMap(performance => {
           const lift = liftsById.get(performance.lineId);
           return lift && performance.seedKey ? [{ lift, performance }] : [];
+        }));
+        setAlternativeRows(alternativeSets.flatMap(performance => {
+          const lift = liftsById.get(performance.lineId);
+          return lift && performance.seedKey && CATALOG_BY_KEY.get(performance.seedKey)?.equipment === performance.equipment ? [{ lift, performance }] : [];
         }));
       }).catch(e => { diagnostics.record("warn", "you vs world", e); if (alive) setFailed(true); });
     return () => { alive = false; };
@@ -74,6 +80,14 @@ export function YouVsWorldScreen() {
     if ((bestBodyweight.get(key)?.model.score ?? -1) < model.score) bestBodyweight.set(key, { lift: r.lift, model });
   }
   const bodyweightRanked = [...bestBodyweight.entries()].sort((a, b) => b[1].model.score - a[1].model.score);
+  const bestAlternative = new Map<string, { lift: LiftItem; model: NonNullable<ReturnType<typeof modeledAlternativeIndex>> }>();
+  if (ready) for (const r of alternativeRows) {
+    const model = modeledAlternativeIndex(r.performance.seedKey, r.performance, sex!, years, validWeight!, cm);
+    if (!model) continue;
+    const key = `${r.lift.lineId}:${model.metric}`;
+    if ((bestAlternative.get(key)?.model.score ?? -1) < model.score) bestAlternative.set(key, { lift: r.lift, model });
+  }
+  const alternativeRanked = [...bestAlternative.entries()].sort((a, b) => b[1].model.score - a[1].model.score);
   const saveProfile = async () => {
     if (!ready || saveState === "saving") return;
     setSaveState("saving");
@@ -111,6 +125,15 @@ export function YouVsWorldScreen() {
         note={`${t("world.index", { score: model.score })} · ${model.metric === "weighted_bodyweight" ? t("world.weightedBodyweight", { value: formatLoad(model.value, lang, unit) }) : t(model.metric === "seconds" ? "world.holdResult" : "world.repResult", { n: model.value })}`}
         last={i === bodyweightRanked.length - 1} onPress={() => nav.navigate("LiftTrend", { lineId: lift.lineId })} />)
         : <AppText style={{ color: p.muted }}>{t("world.bodyweightEmpty")}</AppText>}
+    </Card> : null}
+    {ready ? <Card>
+      <AppText accessibilityRole="header">{t("world.alternativeTitle")}</AppText>
+      <AppText style={{ color: p.muted }}>{t("world.alternativeRule")}</AppText>
+      {alternativeRanked.length ? alternativeRanked.map(([key, { lift, model }], i) => <ListRow key={key}
+        title={exerciseLabels(lift, lang).primary}
+        note={`${t("world.index", { score: model.score })} · ${t(`world.metric.${model.metric}`)}`}
+        last={i === alternativeRanked.length - 1} onPress={() => nav.navigate("LiftTrend", { lineId: lift.lineId })} />)
+        : <AppText style={{ color: p.muted }}>{t("world.alternativeEmpty")}</AppText>}
     </Card> : null}
     <Card><AppText style={{ color: p.muted }}>{t("world.source")}</AppText>
       <BigButton variant="secondary" label="Powered by FitnessVolt ↗" onPress={() => void Linking.openURL("https://fitnessvolt.com/strength-standards/")} />

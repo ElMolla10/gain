@@ -211,6 +211,23 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     );
   }
 
+  async function getWorldAlternativePerformances(at = now()) {
+    return db.all<{ lineId: string; seedKey: string; setup: SetupType; equipment: string; load: number; reps: number; seconds: number | null; distance: number | null }>(
+      `SELECT ws.line_id AS lineId, e.seed_key AS seedKey, l.setup, e.equipment, ws.load, ws.reps,
+              ws.duration_s AS seconds, ws.distance_m AS distance
+         FROM workout_set ws JOIN session s ON s.id = ws.session_id
+         JOIN exercise_line l ON l.id = ws.line_id JOIN exercise e ON e.id = ws.exercise_id
+        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at BETWEEN ? AND ?
+          AND l.deleted_at IS NULL AND e.deleted_at IS NULL AND ws.deleted_at IS NULL
+          AND ws.is_warmup = 0 AND ws.outlier_status NOT IN ('unconfirmed', 'rejected')
+          AND NOT EXISTS (SELECT 1 FROM json_each(ws.tags_json) WHERE value = 'drop')
+          AND ((l.setup = 'assisted' AND e.measure = 'reps' AND ws.reps BETWEEN 1 AND 10 AND ws.load >= 0)
+            OR (e.measure = 'distance' AND ws.distance_m > 0 AND ws.load > 0)
+            OR (e.seed_key = 'weighted_plank' AND e.measure = 'time' AND ws.duration_s > 0 AND ws.load > 0))`,
+      [at - 365 * 86_400_000, at],
+    );
+  }
+
   async function countSessions(): Promise<number> {
     return (await db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM session s WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL AND ${hasLoggedSets("s")}`))!.n;
   }
@@ -464,6 +481,6 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     return [...byEx.values()];
   }
 
-  return { getPersonalProgress, getAchievementDays, getStrengthBreakthroughs, getReachedWeightGoals, getExercisePaths, getWorldLiftPerformances, getWorldBodyweightPerformances, listSessions, countSessions, getSession, listLifts, getLiftTrend, getLiftGoal, weekExerciseSets, updateSet, removeSet, deleteWorkout };
+  return { getPersonalProgress, getAchievementDays, getStrengthBreakthroughs, getReachedWeightGoals, getExercisePaths, getWorldLiftPerformances, getWorldBodyweightPerformances, getWorldAlternativePerformances, listSessions, countSessions, getSession, listLifts, getLiftTrend, getLiftGoal, weekExerciseSets, updateSet, removeSet, deleteWorkout };
 }
 export type HistoryRepo = ReturnType<typeof createHistoryRepo>;

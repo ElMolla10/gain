@@ -33,5 +33,5 @@
   "model": "baseline = age-file-sex-median * (bodyweight/reference-bodyweight)^0.2 * (height/reference-height)^0.08; index = clamp(round(500 + 250*log2(best-estimated-1RM/baseline)),0,1000)",
   "ageAssumptions": "Youth ages 12–17: factors 0.50 to 0.875 of adult reference; adult ages 18–24: 0.90 to 0.986; 25–40: 1.0; 41–100: declines 0.008 per year to 0.52. These are product hypotheses, not measured age effects.",
   "bodyweightModel": "Unweighted reps and holds use independent synthetic reps/seconds baselines scaled by sqrt(age-factor), inverse bodyweight^0.2 and inverse height^0.08. Weighted vertical pulls and dips use (bodyweight+added-load) estimated 1RM for 1–10 reps; other loaded bodyweight variations are withheld. Metrics remain separate.",
-  "limitation": "Synthetic estimates are not measured population percentiles. Bodyweight and height are evaluated continuously, not stored as bins. Assisted, bands and distance exercises have no modeled comparison."
+  "limitation": "Synthetic estimates are not measured population percentiles. Bodyweight and height are evaluated continuously, not stored as bins. Bands lack a calibrated resistance measurement and are withheld."
 }

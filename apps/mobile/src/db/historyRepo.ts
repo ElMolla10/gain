@@ -1,6 +1,5 @@
 import { consistencyProgress, personalMilestone } from "../logic/personalProgress";
 import { strengthBreakthroughs, type BreakthroughInput } from "../logic/achievementProgress";
-import { pathFromSessionStrengths } from "../logic/exercisePath";
 import { findSpec, weekStartOf, isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import { hasLoggedSets } from "./sessionSql";
@@ -151,81 +150,6 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
         ORDER BY s.finished_at, s.rowid, ws.position, ws.rowid`, [at],
     );
     return strengthBreakthroughs(rows, at);
-  }
-
-  /** Per-line personal strength paths; one aggregated query avoids loading every set into the screen. */
-  async function getExercisePaths(at = now()) {
-    const rows = await db.all<{ lineId: string; at: number; strength: number }>(
-      `SELECT ws.line_id AS lineId, s.finished_at AS at,
-              MAX(ws.load * CASE WHEN ws.reps = 1 THEN 1 ELSE 1 + ws.reps / 30.0 END) AS strength
-         FROM workout_set ws JOIN session s ON s.id = ws.session_id
-         JOIN exercise_line l ON l.id = ws.line_id JOIN exercise e ON e.id = ws.exercise_id
-        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL AND s.finished_at <= ?
-          AND l.deleted_at IS NULL AND l.setup = 'free' AND e.measure = 'reps'
-          AND ws.deleted_at IS NULL AND ws.is_warmup = 0 AND ws.load > 0 AND ws.reps BETWEEN 1 AND 12
-          AND ws.outlier_status NOT IN ('unconfirmed', 'rejected')
-          AND NOT EXISTS (SELECT 1 FROM json_each(ws.tags_json) WHERE value = 'drop')
-        GROUP BY ws.line_id, s.id ORDER BY s.finished_at, s.rowid`, [at],
-    );
-    const byLine = new Map<string, { at: number; strength: number }[]>();
-    for (const row of rows) {
-      const values = byLine.get(row.lineId) ?? [];
-      values.push(row);
-      byLine.set(row.lineId, values);
-    }
-    return [...byLine].flatMap(([lineId, values]) => {
-      const path = pathFromSessionStrengths(values);
-      return path ? [{ lineId, ...path }] : [];
-    });
-  }
-
-  /** Best trusted 1–10 rep working set per exact catalogue exercise and gym setup, from the past year. */
-  async function getWorldLiftPerformances(at = now()) {
-    return db.all<{ lineId: string; seedKey: string; equipment: string; setup: SetupType; strength: number }>(
-      `SELECT ws.line_id AS lineId, e.seed_key AS seedKey, e.equipment,
-              l.setup, MAX(ws.load * CASE WHEN ws.reps = 1 THEN 1 ELSE 1 + ws.reps / 30.0 END) AS strength
-         FROM workout_set ws JOIN session s ON s.id = ws.session_id
-         JOIN exercise_line l ON l.id = ws.line_id JOIN exercise e ON e.id = ws.exercise_id
-        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at BETWEEN ? AND ?
-          AND l.deleted_at IS NULL AND e.deleted_at IS NULL AND e.measure = 'reps'
-          AND ws.deleted_at IS NULL AND ws.is_warmup = 0 AND ws.load > 0 AND ws.reps BETWEEN 1 AND 10
-          AND ws.outlier_status NOT IN ('unconfirmed', 'rejected')
-          AND NOT EXISTS (SELECT 1 FROM json_each(ws.tags_json) WHERE value = 'drop')
-        GROUP BY ws.line_id`, [at - 365 * 86_400_000, at],
-    );
-  }
-
-  /** Raw bodyweight candidates retain their load: weighted reps must never overwrite unweighted reps or holds. */
-  async function getWorldBodyweightPerformances(at = now()) {
-    return db.all<{ lineId: string; seedKey: string; setup: SetupType; load: number; reps: number; seconds: number | null }>(
-      `SELECT ws.line_id AS lineId, e.seed_key AS seedKey, l.setup, ws.load, ws.reps, ws.duration_s AS seconds
-         FROM workout_set ws JOIN session s ON s.id = ws.session_id
-         JOIN exercise_line l ON l.id = ws.line_id JOIN exercise e ON e.id = ws.exercise_id
-        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at BETWEEN ? AND ?
-          AND l.deleted_at IS NULL AND e.deleted_at IS NULL AND l.setup = 'bodyweight_plus_added' AND e.equipment = 'plate'
-          AND ws.deleted_at IS NULL AND ws.is_warmup = 0 AND ws.load >= 0
-          AND ws.outlier_status NOT IN ('unconfirmed', 'rejected')
-          AND NOT EXISTS (SELECT 1 FROM json_each(ws.tags_json) WHERE value = 'drop')
-          AND ((e.measure = 'reps' AND ws.reps > 0) OR (e.measure = 'time' AND ws.duration_s > 0))`,
-      [at - 365 * 86_400_000, at],
-    );
-  }
-
-  async function getWorldAlternativePerformances(at = now()) {
-    return db.all<{ lineId: string; seedKey: string; setup: SetupType; equipment: string; load: number; reps: number; seconds: number | null; distance: number | null }>(
-      `SELECT ws.line_id AS lineId, e.seed_key AS seedKey, l.setup, e.equipment, ws.load, ws.reps,
-              ws.duration_s AS seconds, ws.distance_m AS distance
-         FROM workout_set ws JOIN session s ON s.id = ws.session_id
-         JOIN exercise_line l ON l.id = ws.line_id JOIN exercise e ON e.id = ws.exercise_id
-        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at BETWEEN ? AND ?
-          AND l.deleted_at IS NULL AND e.deleted_at IS NULL AND ws.deleted_at IS NULL
-          AND ws.is_warmup = 0 AND ws.outlier_status NOT IN ('unconfirmed', 'rejected')
-          AND NOT EXISTS (SELECT 1 FROM json_each(ws.tags_json) WHERE value = 'drop')
-          AND ((l.setup = 'assisted' AND e.measure = 'reps' AND ws.reps BETWEEN 1 AND 10 AND ws.load >= 0)
-            OR (e.measure = 'distance' AND ws.distance_m > 0 AND ws.load > 0)
-            OR (e.seed_key = 'weighted_plank' AND e.measure = 'time' AND ws.duration_s > 0 AND ws.load > 0))`,
-      [at - 365 * 86_400_000, at],
-    );
   }
 
   async function countSessions(): Promise<number> {
@@ -481,6 +405,6 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
     return [...byEx.values()];
   }
 
-  return { getPersonalProgress, getAchievementDays, getStrengthBreakthroughs, getReachedWeightGoals, getExercisePaths, getWorldLiftPerformances, getWorldBodyweightPerformances, getWorldAlternativePerformances, listSessions, countSessions, getSession, listLifts, getLiftTrend, getLiftGoal, weekExerciseSets, updateSet, removeSet, deleteWorkout };
+  return { getPersonalProgress, getAchievementDays, getStrengthBreakthroughs, getReachedWeightGoals, listSessions, countSessions, getSession, listLifts, getLiftTrend, getLiftGoal, weekExerciseSets, updateSet, removeSet, deleteWorkout };
 }
 export type HistoryRepo = ReturnType<typeof createHistoryRepo>;

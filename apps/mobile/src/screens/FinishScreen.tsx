@@ -1,6 +1,6 @@
 import { liftPace } from "@gain/engine";
 import { AchievementCard } from "../components/AchievementCard";
-import { PersonalProgressCard } from "../components/PersonalProgressCard";
+import { HeroAchievement } from "../components/HeroAchievement";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -13,6 +13,7 @@ import { exerciseLabels, formatLoad } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { buildCardModel, cardHtml, cardPaceLine, toCoachPayload } from "../logic/coachCard";
 import { sessionMilestones, type Milestone } from "../logic/sessionMilestones";
+import { pickHero, type SurfaceBadge } from "../logic/achievementSurface";
 import { formatWorkoutShareText, improvementLines, personalBestLines, workoutRecapStats } from "../logic/workoutRecap";
 import { volumeText } from "../logic/liveSummary";
 import type { StringKey } from "../i18n/strings";
@@ -24,7 +25,7 @@ import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 
 export function FinishScreen() {
-  const { workout, finish, history, goals, programmes, coachLinks, autoSync } = useServices();
+  const { workout, finish, history, goals, programmes, coachLinks, autoSync, achievements } = useServices();
   const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (n: string, params?: object) => void; popToTop: () => void }>();
@@ -44,6 +45,8 @@ export function FinishScreen() {
   const [attempt, setAttempt] = useState(0);
   const [finishedAt, setFinishedAt] = useState(0);
   const [milestones, setMilestones] = useState<string[]>([]);
+  const [hero, setHero] = useState<SurfaceBadge | null>(null);
+  const [heroRest, setHeroRest] = useState<SurfaceBadge[]>([]);
 
   // Continue planning the rotation; preview this finished day separately.
   useEffect(() => {
@@ -98,14 +101,25 @@ export function FinishScreen() {
       catch (e) { diagnostics.record("warn", "finish recap detail", e); }
       await finish.writeNextSessionTargets(sessionId);
       autoSync(true);
-      setNext((await finish.previewFinishedDay(sessionId)) ?? "none");
+      const preview = (await finish.previewFinishedDay(sessionId)) ?? "none";
+      try {
+        await achievements.sync();
+        const fresh = await achievements.listForSession(sessionId);
+        const picked = pickHero(fresh);
+        setHero(picked.hero);
+        setHeroRest(picked.rest);
+        if (picked.hero) await achievements.markCelebrated(fresh.map((r) => r.id));
+      } catch (e) {
+        diagnostics.record("warn", "finish hero", e);
+      }
+      setNext(preview);
     })().catch((e) => {
       // The workout itself is already finished and saved; only the summary could not be built. Retry instead of loading forever.
       diagnostics.record("error", "finish summary", e);
       started.current = false;
       setFailed(true);
     });
-  }, [finish, history, workout, sessionId, autoSync, attempt]);
+  }, [achievements, finish, history, workout, sessionId, autoSync, attempt]);
 
   if (failed && (!summary || next === null)) {
     return (
@@ -217,6 +231,8 @@ export function FinishScreen() {
         <SaveStatusLine since={finishedAt} />
       </View>
 
+      {hero ? <HeroAchievement hero={hero} rest={heroRest} /> : null}
+
       <Card>
         {noSets ? (
           <AppText>{t("finish.noSets")}</AppText>
@@ -263,7 +279,6 @@ export function FinishScreen() {
         {improvements.length ? improvements.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText>{t("progress.steady")}</AppText>}
         <AppText style={{ color: p.muted }}>{t("progress.note")}</AppText>
       </Card>
-      <PersonalProgressCard />
       {detail ? <AchievementCard detail={detail} summary={summary} /> : null}
 
       {/* Forecast the next occurrence of this particular day, not the next day in the rotation. */}

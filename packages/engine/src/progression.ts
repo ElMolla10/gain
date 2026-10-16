@@ -157,7 +157,9 @@ export function proposeNext(ctx: ProposeContext): Proposal {
   const pendingOutlier = !!newestSession?.sets.some((x) => !x.warmup && x.outlierStatus === "unconfirmed");
 
   const spec = specForExercise(gym, exercise);
-  const loadRec: Pick<DecisionInputs["gym"], "loadSource" | "loadSpec"> = exercise.loadOverride ? { loadSource: "exercise", loadSpec: exercise.loadOverride } : {};
+  const loadRec: Pick<DecisionInputs["gym"], "loadSource" | "loadSpec"> = exercise.loadOverride
+    ? { loadSource: exercise.loadSource ?? "exercise", loadSpec: exercise.loadOverride }
+    : {};
   const emptyGym: DecisionInputs["gym"] = {
     equipment: exercise.equipment,
     anchorLoad: null,

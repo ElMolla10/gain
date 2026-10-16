@@ -71,6 +71,7 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
     expect(wipe).toMatch(/PRE_RESTORE_FILE/);
     expect(wipe).toMatch(/\.delete\(\)/);
     expect(wipe).toMatch(/diagnostics\.clear\(\)/);
+    expect(wipe).toMatch(/telemetry\.wipe\(\)/);
   });
   it("a failed set save is shown to the lifter, not swallowed", () => {
     const w = text(join(root, "src/screens/WorkoutScreen.tsx"));

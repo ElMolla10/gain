@@ -82,6 +82,7 @@ const lift: LiftItem = {
   nameEn: "Barbell Bench Press",
   nameAr: "بنش",
   gymName: "Gym",
+  gymId: "g",
   setup: "free",
   measure: "reps",
   sessions: 2,

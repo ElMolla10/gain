@@ -9,6 +9,7 @@ import type { DecisionRepo } from "./db/decisionRepo";
 import type { FinishRepo } from "./db/finishRepo";
 import type { GoalRepo } from "./db/goalRepo";
 import type { GymRepo } from "./db/gymRepo";
+import type { AchievementRepo } from "./db/achievementRepo";
 import type { HistoryRepo } from "./db/historyRepo";
 import type { ImportRepo } from "./db/importRepo";
 import type { OnboardingRepo } from "./db/onboardingRepo";
@@ -37,6 +38,7 @@ export interface AppServices {
   deload: DeloadRepo;
   rejections: RejectionRepo;
   history: HistoryRepo;
+  achievements: AchievementRepo;
   decisions: DecisionRepo;
   data: DataRepo;
   restAlerts: RestAlerts;

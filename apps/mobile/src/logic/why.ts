@@ -1,4 +1,5 @@
-import { renderReason, type DecisionInputs, type Locale, type ReasonText } from "@gain/engine";
+import { renderReason, type DecisionInputs, type GymLoadSpec, type Locale, type ReasonText } from "@gain/engine";
+import { isolateLtr } from "../i18n/format";
 import { quantityText } from "./quantity";
 import { loadsSummaryText } from "./exerciseLoads";
 import { localizeReason, unitLabel, weightText, type Unit } from "./units";
@@ -27,6 +28,75 @@ export interface WhySection {
   lines: string[];
 }
 
+export type WhyAction = "increase" | "maintain" | "decrease" | "stop" | "load" | "reps" | "effort" | "quality" | "none";
+export type WhyPosition = "early" | "late";
+export interface WhyTrigger {
+  load: number;
+  reps: number;
+  rir?: number | null;
+}
+export interface WhyWeightInput {
+  trigger?: WhyTrigger | null;
+  position?: WhyPosition | null;
+  action: WhyAction;
+  loadSpec?: GymLoadSpec | null;
+  loadSource?: "line" | "exercise" | "gym";
+  experimental?: boolean;
+  missing?: string[];
+}
+
+/** First 1–2 working sets of this exercise are early; 3rd and later are late. Unknown (no index) is omitted. */
+export function sessionPosition(workingSetsBefore: number | null | undefined): WhyPosition | null {
+  if (workingSetsBefore == null || !Number.isFinite(workingSetsBefore)) return null;
+  return workingSetsBefore <= 1 ? "early" : "late";
+}
+
+/**
+ * One short sentence plus the triggering set: last logged load × reps, session position when known,
+ * maintain / increase / decrease, and the gym or machine loads that were considered. No feature vectors.
+ */
+export function describeWhyWeight(
+  input: WhyWeightInput,
+  L: (k: string, params?: Record<string, string | number>) => string,
+  locale: Locale,
+  unit: Unit = "kg",
+): { sentence: string; details: string[] } {
+  const W = (kg: number): string => `${weightText(kg, unit)} ${unitLabel(unit, locale)}`;
+  const parts: string[] = [];
+  if (input.trigger && input.trigger.load > 0 && input.trigger.reps > 0) {
+    let set = L("why.weight.after", { set: isolateLtr(`${W(input.trigger.load)} × ${input.trigger.reps}`) });
+    if (input.trigger.rir != null) set += L("why.weight.effort", { effort: String(input.trigger.rir) });
+    if (input.position) set += L(`why.weight.${input.position}`);
+    parts.push(set);
+  }
+  parts.push(L(`why.weight.action.${input.action}`));
+  if (input.loadSpec) {
+    const what = loadsSummaryText(input.loadSpec, unit, unitLabel(unit, locale), L);
+    parts.push(L(input.loadSource === "line" ? "why.weight.loads.line" : input.loadSource === "exercise" ? "why.weight.loads.own" : "why.weight.loads.gym", { what }));
+  } else {
+    parts.push(L(input.loadSource === "gym" ? "why.weight.loads.gymDefault" : "why.weight.loads.unknown"));
+  }
+  const sentence = parts.join(L("why.weight.join"));
+  const details: string[] = [];
+  if (input.experimental) {
+    details.push(L("why.weight.experimental"));
+    if (input.missing && input.missing.length > 0) details.push(L("why.weight.missing", { what: input.missing.join(L("why.weight.missing.join")) }));
+  }
+  return { sentence, details };
+}
+
+function actionFromCurrency(currency: string): WhyAction {
+  if (currency === "load" || currency === "reps" || currency === "effort" || currency === "quality" || currency === "none") return currency;
+  return "none";
+}
+
+function triggerFromInputs(i: DecisionInputs): WhyTrigger | null {
+  const s = i.sessions[0];
+  if (!s) return null;
+  const reps = i.policy.trigger.repsBasis === "best_set" ? (s.bestRepsAtTop ?? s.repsAtTop) : s.repsAtTop;
+  return { load: s.topLoad, reps, rir: s.rir };
+}
+
 /** "Why this weight?": the logged inputs, as plain facts. Observed numbers first, then the rule's reading of them. Not a chatbot paragraph. */
 export function describeDecision(
   payload: DecisionPayload,
@@ -38,8 +108,19 @@ export function describeDecision(
   /** A kilogram weight as "62.5 kg" / "137.8 lb" in the lifter's unit. The engine and the stored decision stay in kilograms. */
   const W = (kg: number): string => `${weightText(kg, unit)} ${unitLabel(unit, locale)}`;
   const { proposal: p, inputs: i } = payload;
+  const compact = describeWhyWeight(
+    {
+      trigger: triggerFromInputs(i),
+      action: actionFromCurrency(p.currency),
+      loadSpec: i.gym.loadSpec ?? null,
+      loadSource: i.gym.loadSource ?? (i.gym.loadSpec ? "exercise" : "gym"),
+    },
+    L,
+    locale,
+    unit,
+  );
   const out: WhySection[] = [];
-  out.push({ title: L("why.sentence"), lines: [renderReason(localizeReason(p.reason, unit, locale), locale)] });
+  out.push({ title: L("why.sentence"), lines: [compact.sentence, renderReason(localizeReason(p.reason, unit, locale), locale), ...compact.details] });
 
   out.push({
     title: L("why.observed"),
@@ -63,7 +144,8 @@ export function describeDecision(
   const gymLines: string[] = [];
   // Where the grid comes from, never implied: the lifter's own weights for this exercise, or the standard steps (a typical set, not a measurement).
   // Decisions stored before v0.21.0 have no `loadSource` and show the standard-steps line like any default one.
-  if (g.loadSource === "exercise" && g.loadSpec) gymLines.push(L("why.loads.own", { what: loadsSummaryText(g.loadSpec, unit, unitLabel(unit, locale), L) }));
+  if (g.loadSource === "line" && g.loadSpec) gymLines.push(L("why.loads.line", { what: loadsSummaryText(g.loadSpec, unit, unitLabel(unit, locale), L) }));
+  else if (g.loadSource === "exercise" && g.loadSpec) gymLines.push(L("why.loads.own", { what: loadsSummaryText(g.loadSpec, unit, unitLabel(unit, locale), L) }));
   else if (g.anchorLoad !== null || g.nextHarderLoad !== null || g.nextEasierLoad !== null) gymLines.push(L("why.loads.gym"));
   if (g.anchorLoad !== null) gymLines.push(L("why.anchor", { load: W(g.anchorLoad), onGym: g.anchorOnGymLoads ? L("why.yes") : L("why.no") }));
   gymLines.push(g.nextHarderLoad !== null ? L("why.nextLoad", { load: W(g.nextHarderLoad), jump: W(g.jump ?? 0) }) : L("why.noNextLoad"));

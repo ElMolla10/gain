@@ -1,9 +1,10 @@
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
-import { derivePlates, platesOf, type GymLoadSpec } from "@gain/engine";
+import { derivePlates, platesOf, type GymLoadSpec, type SetupType } from "@gain/engine";
 import React, { useCallback, useState } from "react";
 import { Alert, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
+import { exerciseLabels } from "../i18n/format";
 import { defaultGymLoads, defaultGymName } from "../logic/defaultGym";
 import { cleanSpec, formatList, parseNumber, parseNumberList, validateGym } from "../logic/gymInput";
 import { kgToUnit, unitToKg, weightText } from "../logic/units";
@@ -16,10 +17,10 @@ function numField(text: string, unit: "kg" | "lb"): number | undefined {
 }
 
 export function GymEditScreen() {
-  const { gyms } = useServices();
+  const { gyms, repos } = useServices();
   const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
-  const nav = useNavigation();
+  const nav = useNavigation<{ navigate: (name: string, params?: object) => void; goBack: () => void }>();
   const gymId = (useRoute().params as { gymId?: string } | undefined)?.gymId;
   const [name, setName] = useState("");
   const [loads, setLoads] = useState<GymLoadSpec[] | null>(null);
@@ -27,6 +28,7 @@ export function GymEditScreen() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [machines, setMachines] = useState<{ exerciseId: string; nameEn: string; nameAr: string; setup: SetupType; hasOwn: boolean }[]>([]);
 
   const load = useCallback(async () => {
     if (gymId) {
@@ -36,14 +38,16 @@ export function GymEditScreen() {
       setLoads(g.loads);
       const bar = g.loads.find((l) => l.equipment === "barbell");
       setPlatesText(bar ? platesOf(bar).map((x) => weightText(x, unit)).join(", ") : "");
+      setMachines(await repos.listGymMachines(gymId));
     } else {
       const std = defaultGymLoads(unit);
       setName(defaultGymName(lang));
       setLoads(std);
       const bar = std.find((l) => l.equipment === "barbell");
       setPlatesText(bar ? platesOf(bar).map((x) => weightText(x, unit)).join(", ") : "");
+      setMachines([]);
     }
-  }, [gyms, gymId, unit, lang]);
+  }, [gyms, repos, gymId, unit, lang]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   if (!loads) return <LoadingState />;
@@ -121,6 +125,19 @@ export function GymEditScreen() {
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("equipment.cable")}</AppText>
           <Field label={t("loads.step", { unit: unitText })} value={textOf(cable.increment)} onChangeText={(s) => patch("cable", { increment: numField(s, unit) })} numeric />
+        </Card>
+      ) : null}
+      {gymId ? (
+        <Card>
+          <AppText style={{ fontWeight: "600" }}>{t("loads.machines")}</AppText>
+          {machines.length === 0 ? <AppText style={{ color: p.muted }}>{t("loads.machines.empty")}</AppText> : machines.map((m) => (
+            <BigButton
+              key={`${m.exerciseId}:${m.setup}`}
+              variant="secondary"
+              label={`${exerciseLabels(m, lang).primary} · ${t(`setup.${m.setup}` as never)}${m.hasOwn ? ` · ${t("loads.machines.open")}` : ""}`}
+              onPress={() => nav.navigate("ExerciseLoads", { exerciseId: m.exerciseId, gymId, setup: m.setup })}
+            />
+          ))}
         </Card>
       ) : null}
       {error ? <InlineStatus kind="error" text={error} /> : null}

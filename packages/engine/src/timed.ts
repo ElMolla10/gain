@@ -108,7 +108,9 @@ export function proposeTimed(ctx: TimedContext): Proposal {
     if (sm) summaries.push(sm);
   }
   const spec = specForExercise(gym, exercise);
-  const loadRec: Pick<DecisionInputs["gym"], "loadSource" | "loadSpec"> = exercise.loadOverride ? { loadSource: "exercise", loadSpec: exercise.loadOverride } : {};
+  const loadRec: Pick<DecisionInputs["gym"], "loadSource" | "loadSpec"> = exercise.loadOverride
+    ? { loadSource: exercise.loadSource ?? "exercise", loadSpec: exercise.loadOverride }
+    : {};
   const baseInputs = (): DecisionInputs => ({
     measure,
     lineKey: key,

@@ -389,6 +389,82 @@ ALTER TABLE session ADD COLUMN paused_at INTEGER;
 ALTER TABLE import_batch ADD COLUMN source_kind TEXT;
 `,
   },
+  {
+    version: 15,
+    name: "evidence-first achievements",
+    sql: `
+-- Logical training day stamped at log time (local calendar date, rolling at 04:00). Existing finished rows get one stamp from finished_at; the app never recomputes it later.
+ALTER TABLE session ADD COLUMN local_calendar_date TEXT;
+UPDATE session SET local_calendar_date = date(finished_at / 1000, 'unixepoch', 'localtime', '-4 hours')
+ WHERE status = 'finished' AND finished_at IS NOT NULL AND local_calendar_date IS NULL;
+
+CREATE TABLE user_achievements (
+  id TEXT PRIMARY KEY,
+  badge_id TEXT NOT NULL,
+  rule_version INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('locked','in_progress','earned','revoked_by_edit')),
+  progress_current REAL,
+  progress_target REAL,
+  earned_at_utc INTEGER,
+  earned_local_date TEXT,
+  primary_session_id TEXT,
+  primary_set_id TEXT,
+  evidence_payload_json TEXT,
+  is_backfilled INTEGER NOT NULL DEFAULT 0,
+  celebrated_at_utc INTEGER,
+  ${TS}
+);
+CREATE INDEX user_achievements_badge ON user_achievements(badge_id) WHERE deleted_at IS NULL;
+CREATE INDEX user_achievements_status ON user_achievements(status) WHERE deleted_at IS NULL;
+
+CREATE TABLE achievement_audit_log (
+  id TEXT PRIMARY KEY,
+  achievement_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  detail_json TEXT,
+  created_at INTEGER NOT NULL
+);
+`,
+  },
+  {
+    version: 16,
+    name: "quests, pins, machine line loads",
+    sql: `
+-- Per-machine available weights at a gym (this exercise + gym + setup). Null = exercise then gym grid.
+ALTER TABLE exercise_line ADD COLUMN load_spec_json TEXT;
+
+CREATE TABLE user_quest (
+  id TEXT PRIMARY KEY,
+  month TEXT NOT NULL,
+  offer_json TEXT NOT NULL,
+  picked_kind TEXT,
+  picked_payload_json TEXT,
+  swapped_at_utc INTEGER,
+  status TEXT NOT NULL CHECK (status IN ('offered','picked','completed','abandoned')),
+  progress_current REAL,
+  progress_target REAL,
+  completed_session_id TEXT,
+  completed_at_utc INTEGER,
+  ${TS}
+);
+CREATE UNIQUE INDEX user_quest_month ON user_quest(month) WHERE deleted_at IS NULL;
+
+CREATE TABLE lift_pin (
+  id TEXT PRIMARY KEY,
+  exercise_id TEXT NOT NULL REFERENCES exercise(id),
+  equipment TEXT,
+  setup TEXT,
+  gym_id TEXT,
+  load REAL NOT NULL,
+  reps INTEGER NOT NULL,
+  reached_at_utc INTEGER,
+  reached_session_id TEXT,
+  reached_set_id TEXT,
+  ${TS}
+);
+CREATE INDEX lift_pin_exercise ON lift_pin(exercise_id) WHERE deleted_at IS NULL;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

@@ -2,6 +2,7 @@ import { recommendLiveSet, predictNextReps, type Decision, type FeatureMap, type
 import type { SetRow } from "../db/workoutRepo";
 import { effectiveOf, kindOf, type SetRowDraft } from "./workoutRows";
 
+export const LIVE_MISSING_FEATURES = ["rest", "rir", "sleep", "readiness", "rpe", "equipment", "days"];
 export const trustedWorkingSet = (s: SetRow): boolean => !s.warmup && !s.tags.includes("drop") && (s.outlierStatus === "none" || s.outlierStatus === "confirmed") && s.durationS === null && s.distanceM === null && s.load > 0 && s.reps > 0;
 export function nextAdaptiveRow(rows: SetRowDraft[]): SetRowDraft | undefined {
   const next = rows.find(r => !r.saved);

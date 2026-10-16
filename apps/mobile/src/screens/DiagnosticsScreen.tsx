@@ -5,9 +5,12 @@ import React, { useCallback, useState } from "react";
 import { Platform, Share, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
+import { telemetry } from "../achievementTelemetry";
 import { diagnostics } from "../diagnostics";
+import { TELEMETRY_EVENTS, type GateCounters, type TelemetryState } from "../logic/achievementTelemetry";
 import { buildFeedbackMessage } from "../logic/diagnostics";
 import { useI18n } from "../i18n";
+import type { StringKey } from "../i18n/strings";
 import { localDateText } from "../logic/trendChart";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, InlineStatus, Screen } from "../ui";
@@ -24,6 +27,8 @@ export function DiagnosticsScreen() {
   const [report, setReport] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
+  const [notes, setNotes] = useState<TelemetryState>(() => telemetry.snapshot());
+  const [gates, setGates] = useState<GateCounters>(() => telemetry.gates());
 
   const context = useCallback(async () => {
     let schema: number | null = null;
@@ -59,6 +64,8 @@ export function DiagnosticsScreen() {
     useCallback(() => {
       setOn(diagnostics.isEnabled());
       setCount(diagnostics.entries().length);
+      setNotes(telemetry.snapshot());
+      setGates(telemetry.gates());
     }, []),
   );
 
@@ -115,6 +122,39 @@ export function DiagnosticsScreen() {
           }}
         />
         {msg ? <InlineStatus kind="info" text={msg} /> : null}
+      </Card>
+      <Card>
+        <AppText style={{ fontWeight: "600" }}>{t("telemetry.title")}</AppText>
+        <AppText style={{ color: p.muted }}>{t("telemetry.intro")}</AppText>
+        <AppText>{t("telemetry.enabled")}: {notes.optedIn ? t("diag.on") : t("diag.off")}</AppText>
+        {TELEMETRY_EVENTS.map((event) => {
+          const row = notes.events[event];
+          const when = row.lastAt ? localDateText(row.lastAt) : t("telemetry.never");
+          return (
+            <View key={event} style={{ gap: 2 }}>
+              <AppText>
+                {t(`telemetry.event.${event}` as StringKey)}: {row.count}
+              </AppText>
+              <AppText style={{ color: p.muted, fontSize: 13 }}>{t("telemetry.last", { when })}</AppText>
+            </View>
+          );
+        })}
+        <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("telemetry.gates.title")}</AppText>
+        <AppText style={{ color: p.muted }}>{t("telemetry.gates.note")}</AppText>
+        <AppText>{t("telemetry.gates.comprehension", { n: gates.comprehension })}</AppText>
+        <AppText>{t("telemetry.gates.rest", { n: gates.restDaySafety })}</AppText>
+        <AppText>{t("telemetry.gates.integrity", { n: gates.engineIntegrity })}</AppText>
+        <AppText>{t("telemetry.gates.engagement", { progress: gates.engagement.progressOpened28d, shares: gates.engagement.shareCards28d })}</AppText>
+        <BigButton
+          label={t("telemetry.clear")}
+          variant="danger"
+          onPress={() => {
+            telemetry.clear();
+            setNotes(telemetry.snapshot());
+            setGates(telemetry.gates());
+            setMsg(t("telemetry.cleared"));
+          }}
+        />
       </Card>
     </Screen>
   );

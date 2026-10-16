@@ -3,6 +3,7 @@ import * as Sharing from "expo-sharing";
 import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
+import { telemetry } from "../achievementTelemetry";
 import { diagnostics } from "../diagnostics";
 import { PRE_MIGRATION_FILE, PRE_RESTORE_FILE } from "../db/preMigrate";
 import { RestoreFailed, type DataCounts } from "../db/dataRepo";
@@ -146,6 +147,7 @@ export function DataScreen() {
         /* nothing to remove */
       }
       diagnostics.clear();
+      telemetry.wipe();
       setSafetyCopy(false);
       setRestoreCopy(false);
       setAskDelete(false);

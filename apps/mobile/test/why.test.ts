@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { describeDecision, type DecisionPayload } from "../src/logic/why";
-import { translate } from "../src/i18n/format";
+import { describeDecision, describeWhyWeight, type DecisionPayload } from "../src/logic/why";
+import { LRI, translate } from "../src/i18n/format";
 import type { StringKey } from "../src/i18n/strings";
 import { freshDb } from "./helpers";
 
@@ -39,7 +39,8 @@ describe("Why this weight? shows the logged inputs", () => {
     const { d } = await benchDecision();
     const sections = describeDecision(d.payload as DecisionPayload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en");
     expect(sections.map((s) => s.title)).toEqual(["The reason", "What you did (observed)", "Loads available", "Left out", "The rule's reading (interpretation)"]);
-    expect(sections[0]!.lines[0]).toContain("Go up to 62.5 kg");
+    expect(clean(sections[0]!.lines[0]!)).toMatch(/After/);
+    expect(clean(sections[0]!.lines.join(" "))).toContain("Go up to 62.5 kg");
     expect(clean(sections[1]!.lines[0]!)).toContain("60 kg × 10");
     expect(sections[1]!.lines).toHaveLength(3);
     expect(clean(sections[2]!.lines.join(" "))).toContain("62.5");
@@ -70,7 +71,7 @@ describe("Why this weight? shows the logged inputs", () => {
     const d = (await ctx.finish.getDecision(t.id))!;
     const sections = describeDecision(d.payload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en");
     expect(sections[1]!.lines).toEqual(["No comparable sessions were found."]);
-    expect(sections[0]!.lines[0]).toMatch(/nothing is proposed/);
+    expect(clean(sections[0]!.lines.join(" "))).toMatch(/nothing is proposed/);
   });
 });
 
@@ -97,7 +98,7 @@ describe("Why this weight? in pounds", () => {
   it("shows the same facts in lb: the sentence, the sessions and the gym's next load", async () => {
     const { d } = await benchDecision();
     const sections = describeDecision(d.payload as DecisionPayload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en", "lb");
-    expect(sections[0]!.lines[0]).toContain("Go up to 137.8 lb");
+    expect(clean(sections[0]!.lines.join(" "))).toContain("Go up to 137.8 lb");
     expect(clean(sections[1]!.lines[0]!)).toContain("132.3 lb × 10");
     expect(clean(sections[2]!.lines.join(" "))).toContain("137.8 lb");
     expect(clean(sections.flatMap((x) => x.lines).join(" "))).not.toMatch(/\bkg\b/);
@@ -106,5 +107,31 @@ describe("Why this weight? in pounds", () => {
     const { d } = await benchDecision();
     const sections = describeDecision(d.payload as DecisionPayload, { ruleVersion: d.ruleVersion, path: d.path }, L("ar"), "ar", "lb");
     expect(clean(sections[1]!.lines[0]!)).toContain("132.3 باوند");
+  });
+});
+
+describe("Why this weight? from a logged set", () => {
+  it("names the triggering set, session position, rule step, and machine loads, with LTR-isolated numbers", () => {
+    const spec = { equipment: "machine" as const, increment: 5, min: 10, max: 100 };
+    const en = describeWhyWeight(
+      { trigger: { load: 60, reps: 10, rir: 2 }, position: "early", action: "increase", loadSpec: spec, loadSource: "line" },
+      L("en"),
+      "en",
+    );
+    expect(clean(en.sentence)).toContain("After 60 kg × 10");
+    expect(clean(en.sentence)).toContain("RIR 2");
+    expect(en.sentence).toContain("early");
+    expect(en.sentence).toContain("increased");
+    expect(en.sentence).toContain("this machine's weights");
+    const ar = describeWhyWeight(
+      { trigger: { load: 60, reps: 10 }, position: "late", action: "maintain", loadSpec: spec, loadSource: "line", experimental: true, missing: ["rir", "sleep"] },
+      L("ar"),
+      "ar",
+    );
+    expect(ar.sentence).toMatch(/[\u0600-\u06FF]/);
+    expect(ar.sentence).toContain(`${LRI}`);
+    expect(ar.sentence).toContain("×");
+    expect(ar.details.join(" ")).toMatch(/[\u0600-\u06FF]/);
+    expect(ar.details.join(" ")).toContain("rir");
   });
 });

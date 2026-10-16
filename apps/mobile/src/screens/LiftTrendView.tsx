@@ -52,6 +52,7 @@ export function LiftTrendView({
   nextTarget,
   setups,
   onPickSetup,
+  extras,
 }: {
   lift: LiftItem;
   trend: LiftTrend;
@@ -63,6 +64,7 @@ export function LiftTrendView({
   nextTarget?: string | null;
   setups?: { lineId: string; label: string; selected: boolean }[];
   onPickSetup?: (lineId: string) => void;
+  extras?: React.ReactNode;
 }) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
@@ -126,6 +128,7 @@ export function LiftTrendView({
           ))}
         </Card>
       ) : null}
+      {extras}
       {setups && setups.length > 1 ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
           {setups.map((s) => (

@@ -21,6 +21,8 @@ export * from "./startingLoad";
 export * from "./muscleVolume";
 export * from "./modelGuard";
 export * from "./timed";
+export * from "./achievements";
+export * from "./quests";
 
 export * from './liveAdaptationInference';
 export * from './liveAdaptationFeatures';

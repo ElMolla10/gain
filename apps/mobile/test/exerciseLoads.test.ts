@@ -102,7 +102,12 @@ describe("migration 11: weights set per exercise (upgrade from schema 10 with re
     expect(LATEST_VERSION).toBeGreaterThanOrEqual(11);
     const before = await dumpAll(cur.db);
     delete before.ml_prediction; // schema 11 predates the device-only evaluation table
-    before.session = (before.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, ...rest }) => rest);
+    delete before.user_achievements;
+    delete before.achievement_audit_log;
+    delete before.user_quest;
+    delete before.lift_pin;
+    before.exercise_line = (before.exercise_line as Record<string, unknown>[]).map(({ load_spec_json: _l, ...rest }) => rest);
+    before.session = (before.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, local_calendar_date: _d, ...rest }) => rest);
     before.import_batch = (before.import_batch as Record<string, unknown>[]).map(({ source_kind: _s, ...rest }) => rest);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);
     const old = await copyAtVersion(cur.db, 10);
@@ -209,6 +214,28 @@ describe("end to end: an exercise's own weights drive its targets", () => {
     await s.rotation();
     const t = await s.rotation();
     expect(t.load).toBe(62.5);
+  });
+  it("machine/line loads beat exercise loads, which beat the gym, and an off-list logged weight stays valid", async () => {
+    const s = await bench();
+    const { resolveLoads } = await import("../src/db/exerciseGrid");
+    const gymId = s.gym.gymId;
+    const setup = (await s.repos.listDayExercises((await s.repos.getNextDay())!.day.id)).find((e) => e.exerciseId === s.benchId)!.setup;
+    await s.programmes.setExerciseLoads(s.benchId, { equipment: "barbell", increment: 3, min: 21, max: 150 });
+    await s.programmes.setLineLoads(s.benchId, gymId, setup, { equipment: "barbell", increment: 5, min: 20, max: 200 });
+    expect(await resolveLoads(s.db, s.gym, s.benchId, "barbell", setup)).toMatchObject({ source: "line", spec: { increment: 5 } });
+    await s.programmes.setLineLoads(s.benchId, gymId, setup, null);
+    expect(await resolveLoads(s.db, s.gym, s.benchId, "barbell", setup)).toMatchObject({ source: "exercise", spec: { increment: 3 } });
+    await s.programmes.setExerciseLoads(s.benchId, null);
+    expect((await resolveLoads(s.db, s.gym, s.benchId, "barbell", setup)).source).toBe("gym");
+    await s.programmes.setLineLoads(s.benchId, gymId, setup, { equipment: "barbell", increment: 5, min: 20, max: 200 });
+    await s.rotation();
+    const t = await s.rotation();
+    expect(t.load).toBe(65);
+    const day = (await s.repos.getNextDay())!;
+    const { id } = await s.workout.startOrResumeSession(day.day.id, gymId);
+    await s.workout.logSet({ sessionId: id, exerciseId: s.benchId, load: 61, reps: 8 }, { gym: s.gym, equipment: "barbell", setup });
+    const logged = await s.db.get<{ load: number }>("SELECT load FROM workout_set WHERE session_id = ? AND exercise_id = ? AND deleted_at IS NULL", [id, s.benchId]);
+    expect(logged?.load).toBe(61);
   });
 });
 

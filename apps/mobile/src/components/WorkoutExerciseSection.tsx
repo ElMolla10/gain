@@ -13,7 +13,8 @@ import { isTimed, quantityText, setQuantity } from "../logic/quantity";
 import { workingIndexes } from "../logic/liveSummary";
 import { focusedRowKey } from "../logic/workoutFocus";
 import { rowLabels, type SetRowDraft } from "../logic/workoutRows";
-import { nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
+import { LIVE_MISSING_FEATURES, nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
+import { describeWhyWeight, sessionPosition } from "../logic/why";
 import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, IconButton, InlineStatus, Notice } from "../ui";
@@ -57,8 +58,26 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   // "Maintain" is an actual recommendation too: show its current load, not a blank.
   // If inference is unavailable or tells the lifter to stop, do not fake a weight.
   const suggestedKg = suggestedNextLoad(candidate?.decision, exSets.some(s => !s.warmup && s.outlierStatus !== "unconfirmed" && s.outlierStatus !== "rejected"));
-  const basis = exSets.filter(trustedWorkingSet).at(-1);
+  const trusted = exSets.filter(trustedWorkingSet);
+  const basis = trusted.at(-1);
   const suggestedWeight = suggestedKg === null ? "" : formatLoad(suggestedKg, lang, unit);
+  const why = card
+    ? describeWhyWeight(
+        {
+          trigger: basis ? { load: basis.load, reps: basis.reps, rir: basis.rir } : null,
+          position: sessionPosition(trusted.length > 0 ? trusted.length - 1 : null),
+          action: card.decision.action,
+          loadSpec: spec,
+          loadSource: ex.loadSource ?? (ex.loadSpec ? "exercise" : "gym"),
+          experimental: card.decision.predictionAvailable !== false && card.decision.reason !== "reported_symptoms",
+          missing: card.decision.predictionAvailable !== false && card.decision.reason !== "reported_symptoms" ? LIVE_MISSING_FEATURES : undefined,
+        },
+        (k, params) => t(k as never, params),
+        lang,
+        unit,
+      )
+    : null;
+  const whySentence = why ? [why.sentence, ...why.details].join(" ") : null;
 
   // GAIN's target for today and its reason, kept to one line until tapped.
   const storedQ = info.stored ? (ex.measure === "time" ? info.stored.durationS : ex.measure === "distance" ? info.stored.distanceM : info.stored.reps) : null;
@@ -81,7 +100,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   const live = card ? <LiveSuggestion decision={card.decision} basis={basis} repMin={ex.repMin} repMax={ex.repMax}
     detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
     manualLoad={nextAdaptiveRow(list)?.load !== null || nextAdaptiveRow(list)?.reps !== null} busy={busy}
-    onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep} /> : null;
+    onApply={onLiveApply} onReport={onLiveReport} onKeep={onLiveKeep} whySentence={whySentence} /> : null;
 
   return (
     <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>

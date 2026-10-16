@@ -1,9 +1,10 @@
-import { PersonalProgressCard } from "../components/PersonalProgressCard";
+import { EvidenceAchievementsCard } from "../components/EvidenceAchievementsCard";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
 import { useDeveloperMode } from "../DeveloperMode";
 import { useServices } from "../AppContext";
+import { telemetry } from "../achievementTelemetry";
 import { createHistoryLoader, EMPTY_HISTORY_LOAD } from "../logic/historyLoad";
 import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
@@ -11,7 +12,7 @@ import { exerciseLabels } from "../i18n/format";
 import { localDateText } from "../logic/trendChart";
 import { sessionMinutes } from "../logic/historyRows";
 import { space } from "../theme";
-import { BigButton, Card, Chip, EmptyState, ErrorState, InlineStatus, ListRow, LoadingState, Screen } from "../ui";
+import { AppText, BigButton, Card, Chip, EmptyState, ErrorState, InlineStatus, ListRow, LoadingState, Screen } from "../ui";
 
 const PAGE = 30;
 
@@ -23,8 +24,10 @@ export function HistoryScreen() {
   const nav = useNavigation<{ navigate: (n: string, params: object) => void }>();
   const [mode, setMode] = useState<"sessions" | "lifts">("sessions");
   const [state, setState] = useState(EMPTY_HISTORY_LOAD);
+  const [asked, setAsked] = useState(() => telemetry.hasAsked());
   const loader = useMemo(() => createHistoryLoader(history, setState, e => diagnostics.record("warn", "load history", e)), [history]);
   useFocusEffect(useCallback(() => {
+    telemetry.record("progress_opened");
     void loader.load();
     return loader.cancel;
   }, [loader]));
@@ -37,8 +40,16 @@ export function HistoryScreen() {
         <Chip label={t("history.lifts")} selected={mode === "lifts"} onPress={() => setMode("lifts")} />
       </View>
 
-      <PersonalProgressCard />
-      <BigButton variant="secondary" label={t("achievements.open")} onPress={() => nav.navigate("Achievements", {})} />
+      {!asked ? (
+        <Card>
+          <AppText style={{ fontWeight: "600" }}>{t("telemetry.optin.title")}</AppText>
+          <AppText>{t("telemetry.optin.body")}</AppText>
+          <BigButton label={t("telemetry.optin.allow")} onPress={() => { telemetry.setOptedIn(true); setAsked(true); telemetry.record("progress_opened"); }} />
+          <BigButton variant="secondary" label={t("telemetry.optin.deny")} onPress={() => { telemetry.setOptedIn(false); setAsked(true); }} />
+        </Card>
+      ) : null}
+
+      <EvidenceAchievementsCard />
       {state.failed ? <View accessibilityLiveRegion="polite">
         <InlineStatus kind="error" text={t("history.error.body")} />
         <BigButton variant="secondary" label={t("history.error.retry")} disabled={state.loading} onPress={() => void loader.load()} />

@@ -35,10 +35,12 @@ import { diagnostics } from "./src/diagnostics";
 import { installCrashHandler } from "./src/logic/diagnostics";
 import { PrivacyScreen } from "./src/screens/PrivacyScreen";
 import { DiagnosticsScreen } from "./src/screens/DiagnosticsScreen";
+import { PilotChecklistScreen } from "./src/screens/PilotChecklistScreen";
 import { DataScreen } from "./src/screens/DataScreen";
 import type { Db } from "./src/db/driver";
 import { createDecisionRepo } from "./src/db/decisionRepo";
 import { DecisionLogScreen } from "./src/screens/DecisionLogScreen";
+import { createAchievementRepo } from "./src/db/achievementRepo";
 import { createHistoryRepo } from "./src/db/historyRepo";
 import { createRejectionRepo } from "./src/db/rejectionRepo";
 import { createDeloadRepo } from "./src/db/deloadRepo";
@@ -58,6 +60,7 @@ import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { GoalsScreen } from "./src/screens/GoalsScreen";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { AchievementsScreen } from "./src/screens/AchievementsScreen";
+import { LiftersLedgerScreen } from "./src/screens/LiftersLedgerScreen";
 import { LiftTrendScreen } from "./src/screens/LiftTrendScreen";
 import { ExerciseLoadsScreen } from "./src/screens/ExerciseLoadsScreen";
 import { SessionDetailScreen } from "./src/screens/SessionDetailScreen";
@@ -182,11 +185,13 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
           <Stack.Screen name="Sync" component={SyncScreen} options={{ title: t("sync.title") }} />
           <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: t("privacy.title") }} />
+          <Stack.Screen name="PilotChecklist" component={PilotChecklistScreen} options={{ title: t("pilot.title") }} />
           {developerMode ? <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: t("diag.title") }} /> : null}
           {developerMode ? <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} /> : null}
           <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: t("history.session.title") }} />
           <Stack.Screen name="LiftTrend" component={LiftTrendScreen} options={{ title: t("trend.title") }} />
-          <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: t("achievements.title") }} />
+          <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: t("achv.cabinet.title") }} />
+          <Stack.Screen name="Ledger" component={LiftersLedgerScreen} options={{ title: t("achv.ledger.title") }} />
           <Stack.Screen name="ExerciseLoads" component={ExerciseLoadsScreen} options={{ title: t("loads.title") }} />
           <Stack.Screen name="StoppedSuggestions" component={StoppedSuggestionsScreen} options={{ title: t("stop.title") }} />
           <Stack.Screen name="ShortWeek" component={ShortWeekScreen} options={{ title: t("short.title") }} />
@@ -275,6 +280,8 @@ export default function App() {
       setAppearance(parseAppearance(await repos.getSetting("appearance")));
       const rejections = createRejectionRepo(db, deps);
       const history = createHistoryRepo(db, deps, repos, finish);
+      const achievements = createAchievementRepo(db, deps, repos);
+      await achievements.ensureBackfill().catch((e) => diagnostics.record("warn", "achievements backfill", e));
       const deload = createDeloadRepo(db, deps, repos, programmes, history, finish, shortWeek);
       const decisions = createDecisionRepo(db);
       const maint = maintRef.current ?? (maintRef.current = await openExpoMaintenanceDb());
@@ -291,7 +298,7 @@ export default function App() {
         if (rs.on) await syncReminders(reminders, rs, reminderText(await repos.getLanguage()));
       })().catch(() => undefined);
       autoSync(true); // does one local read and nothing else unless the lifter turned Back up and sync on
-      setBoot({ services: { db, repos, workout, mlEvaluation, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, deload, rejections, history, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), showSecond: (await repos.getSetting("second_name")) === "1", needsOnboarding: (await onboarding.getState()) === null });
+      setBoot({ services: { db, repos, workout, mlEvaluation, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, deload, rejections, history, achievements, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), showSecond: (await repos.getSetting("second_name")) === "1", needsOnboarding: (await onboarding.getState()) === null });
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
       setBoot("error");

@@ -197,6 +197,8 @@ export interface ExerciseSpec {
    * exercise only; omitted = the gym's grid for its equipment, exactly as before. `equipment` must equal the exercise's own.
    */
   loadOverride?: GymLoadSpec;
+  /** When `loadOverride` is this machine at this gym, `"line"`; omitted with an override reads as this exercise's own weights. */
+  loadSource?: "line" | "exercise";
   /** How the exercise is counted. Omitted = reps. For time / distance, `repRange` is read as seconds / metres. */
   measure?: Measure;
 }
@@ -313,8 +315,8 @@ export interface DecisionInputs {
     jumpTooBig: boolean | null;
     maxJumpRatio: number;
     minJumpRatio: number;
-    /** Present only when the lifter set weights for this exercise: the exact grid that was used, so the decision stays explainable later. */
-    loadSource?: "exercise";
+    /** Present only when the lifter set weights for this exercise or this machine at this gym: the exact grid that was used, so the decision stays explainable later. */
+    loadSource?: "line" | "exercise";
     loadSpec?: GymLoadSpec;
   };
   /** The resolved policy and how close the lift is to earning more load. */

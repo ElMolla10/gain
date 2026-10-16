@@ -19,10 +19,11 @@ interface Props {
   onApply: () => void;
   onKeep: () => void;
   onReport: (symptom: ReportedSymptom) => void;
+  whySentence?: string | null;
 }
 
 /** Presentation only: the logger owns persistence, staleness checks and acceptance. */
-export function LiveSuggestion({ decision, detailsOpen = false, onToggleDetails, basis, repMin, repMax, manualLoad, busy, onKeep, onReport }: Props) {
+export function LiveSuggestion({ decision, detailsOpen = false, onToggleDetails, basis, repMin, repMax, manualLoad, busy, onKeep, onReport, whySentence }: Props) {
   const { t, lang, unit } = useI18n();
   const p = useLogPalette();
   return (
@@ -40,7 +41,7 @@ export function LiveSuggestion({ decision, detailsOpen = false, onToggleDetails,
         {decision.action !== "stop" ? <AppText ltr style={{ fontWeight: "700", color: p.accent }}>{t("live.prescription", { load: formatLoad(decision.suggestedWeightKg, lang, unit), reps: decision.suggestedReps })}</AppText> : null}
       </View>
       {decision.action === "stop" ? <AppText>{t(`live.reason.${decision.reason}` as never)}</AppText> : <>
-        {basis ? <AppText style={{ color: p.muted }}>{t("live.afterSet", { load: formatLoad(basis.load, lang, unit), reps: basis.reps })}</AppText> : null}
+        {whySentence ? <AppText style={{ color: p.muted }}>{whySentence}</AppText> : basis ? <AppText style={{ color: p.muted }}>{t("live.afterSet", { load: formatLoad(basis.load, lang, unit), reps: basis.reps })}</AppText> : null}
         <AppText style={{ color: p.muted }}>{t("live.shortNote")}</AppText>
       </>}
       {detailsOpen ? <View style={{ gap: space.xs }}>

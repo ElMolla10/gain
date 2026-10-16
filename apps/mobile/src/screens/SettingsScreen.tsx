@@ -273,7 +273,7 @@ export function SettingsScreen() {
     catch { setDeveloperError(true); }
   };
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
   return (
     <Screen tab title={t("tab.settings")}>
       <Group title={t("settings.group.training")}>
@@ -344,6 +344,7 @@ export function SettingsScreen() {
 
       <Group title={t("settings.group.about")}>
         <LinkRow label={t("privacy.entry")} onPress={() => nav.navigate("Privacy")} />
+        <LinkRow label={t("pilot.entry")} onPress={() => nav.navigate("PilotChecklist")} />
         <View style={{ paddingVertical: space.md, gap: space.sm }}>
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.privacy")}</AppText>
           <HealthNote />

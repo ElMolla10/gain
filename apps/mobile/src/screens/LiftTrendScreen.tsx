@@ -1,29 +1,51 @@
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { findSpec, type EquipmentType, type GymLoadSpec, type HistorySession, type LiftTrend } from "@gain/engine";
+import { View } from "react-native";
+import { findSpec, type EquipmentType, type GymLoadSpec, type HistorySession, type LiftPin, type LiftTrend } from "@gain/engine";
 import { useServices } from "../AppContext";
 import type { LiftItem } from "../db/historyRepo";
 import { specWithJump } from "../logic/exerciseLoads";
+import { parseNumber } from "../logic/gymInput";
 import { hasConcreteTarget, targetText } from "../logic/nextTarget";
 import { describePace } from "../logic/paceText";
-import { exerciseLabels } from "../i18n/format";
+import { kgToUnit, unitToKg } from "../logic/units";
+import { exerciseLabels, isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { useI18n } from "../i18n";
-import { EmptyState, LoadingState } from "../ui";
+import { usePalette } from "../theme";
+import { AppText, BigButton, Card, EmptyState, Field, InlineStatus, LoadingState } from "../ui";
 import { LiftTrendView } from "./LiftTrendView";
 
 /** One trend per lift: the top set of each workout, drawn as bars, with plain words for the direction. */
+function towardPin(pin: LiftPin, latest: { load: number; reps: number } | undefined, assisted: boolean): number {
+  if (!latest) return 0;
+  const loadOk = assisted ? latest.load <= pin.load : latest.load >= pin.load;
+  if (loadOk && latest.reps >= pin.reps) return 100;
+  const loadRatio = pin.load <= 0 ? 1 : assisted ? Math.min(1, pin.load / Math.max(latest.load, 1e-6)) : Math.min(1, latest.load / pin.load);
+  const repsRatio = pin.reps <= 0 ? 1 : Math.min(1, latest.reps / pin.reps);
+  return Math.round(Math.min(loadRatio, repsRatio) * 100);
+}
+
 export function LiftTrendScreen() {
-  const { history, repos, programmes, goals, finish } = useServices();
+  const { history, repos, programmes, goals, finish, achievements } = useServices();
   const nav = useNavigation<{ navigate: (name: string, params?: object) => void }>();
   const lineId = (useRoute().params as { lineId: string }).lineId;
-  const { t, lang, fmt } = useI18n();
+  const { t, lang, unit, unitText, fmt } = useI18n();
+  const p = usePalette();
   const [data, setData] = useState<{ lift: LiftItem; trend: LiftTrend; sessions: HistorySession[] } | null | "none">(null);
   const [loads, setLoads] = useState<{ equipment: EquipmentType; own: GymLoadSpec | null; gym: GymLoadSpec | null } | null>(null);
   const [picking, setPicking] = useState(false);
   const [pace, setPace] = useState<{ headline: string; details: string[] } | null>(null);
   const [nextTarget, setNextTarget] = useState<string | null>(null);
   const [setups, setSetups] = useState<{ lineId: string; label: string; selected: boolean }[]>([]);
+  const [pin, setPinState] = useState<LiftPin | null>(null);
+  const [pinLoad, setPinLoad] = useState("");
+  const [pinReps, setPinReps] = useState("");
+  const [rx, setRx] = useState<{ sets: number; repMin: number; repMax: number } | null>(null);
+  const [rxSets, setRxSets] = useState("");
+  const [rxMin, setRxMin] = useState("");
+  const [rxMax, setRxMax] = useState("");
+  const [rxSaved, setRxSaved] = useState(false);
 
   const refreshLoads = useCallback(async (exerciseId: string) => {
     const cur = await repos.getExerciseLoads(exerciseId);
@@ -43,6 +65,17 @@ export function LiftTrendScreen() {
         }
         setData(r);
         void refreshLoads(r.lift.exerciseId);
+        void (async () => {
+          const [curPin, curRx] = await Promise.all([achievements.getPin(r.lift.exerciseId), programmes.getExercisePrescription(r.lift.exerciseId)]);
+          setPinState(curPin);
+          setPinLoad(curPin ? String(kgToUnit(curPin.load, unit)) : "");
+          setPinReps(curPin ? String(curPin.reps) : "");
+          setRx(curRx);
+          setRxSets(curRx ? String(curRx.sets) : "");
+          setRxMin(curRx ? String(curRx.repMin) : "");
+          setRxMax(curRx ? String(curRx.repMax) : "");
+          setRxSaved(false);
+        })();
         void (async () => {
           const letters = { s: t("qty.s"), m: t("qty.m") };
           const [paceResult, lifts, gymId, next] = await Promise.all([goals.getPace(Date.now()), history.listLifts(), repos.getActiveGymId(), repos.getNextDay()]);
@@ -77,7 +110,7 @@ export function LiftTrendScreen() {
           setNextTarget(rec);
         })();
       });
-    }, [history, lineId, refreshLoads, goals, programmes, finish, repos, t, fmt, lang]),
+    }, [history, lineId, refreshLoads, goals, programmes, finish, repos, achievements, t, fmt, lang, unit]),
   );
 
   if (data === null) return <LoadingState />;
@@ -94,18 +127,83 @@ export function LiftTrendScreen() {
     }
   };
 
+  const savePin = async () => {
+    const load = parseNumber(pinLoad);
+    const reps = parseNumber(pinReps);
+    if (load === null || load <= 0 || reps === null || reps < 1) return;
+    await achievements.setPin({
+      exerciseId: data.lift.exerciseId,
+      equipment: loads?.equipment,
+      setup: data.lift.setup,
+      load: unitToKg(load, unit),
+      reps: Math.round(reps),
+    });
+    setPinState(await achievements.getPin(data.lift.exerciseId));
+  };
+  const clearPin = async () => {
+    await achievements.clearPin(data.lift.exerciseId);
+    setPinState(null);
+    setPinLoad("");
+    setPinReps("");
+  };
+  const saveRx = async () => {
+    const sets = parseNumber(rxSets);
+    const min = parseNumber(rxMin);
+    const max = parseNumber(rxMax);
+    if (sets === null || sets < 1 || min === null || min < 1 || max === null || max < min) return;
+    await programmes.setExercisePrescription(data.lift.exerciseId, { sets: Math.round(sets), repMin: Math.round(min), repMax: Math.round(max) });
+    setRx({ sets: Math.round(sets), repMin: Math.round(min), repMax: Math.round(max) });
+    setRxSaved(true);
+  };
+  const pinPct = towardPin(pin ?? { exerciseId: data.lift.exerciseId, load: 0, reps: 0 }, data.trend.latest ?? undefined, data.lift.setup === "assisted");
+  const pinTarget = pin ? `${fmt(pin.load)} ${isolateLtr(`× ${pin.reps}`)}` : "";
+
   return (
     <LiftTrendView
       lift={data.lift}
       trend={data.trend}
       sessions={data.sessions}
-      onOpenLoads={() => nav.navigate("ExerciseLoads", { exerciseId: data.lift.exerciseId })}
+      onOpenLoads={() => nav.navigate("ExerciseLoads", { exerciseId: data.lift.exerciseId, gymId: data.lift.gymId, setup: data.lift.setup })}
       loads={loads ? { ...loads, onPickJump: (kg) => void onPickJump(kg) } : null}
       paceHeadline={pace?.headline}
       paceDetails={pace?.details}
       nextTarget={nextTarget}
       setups={setups}
       onPickSetup={(id) => nav.navigate("LiftTrend", { lineId: id })}
+      extras={
+        <>
+          <Card>
+            <AppText style={{ fontWeight: "600" }}>{t("achv.pin.title")}</AppText>
+            {pin ? (
+              <View
+                accessible
+                accessibilityRole="progressbar"
+                accessibilityLabel={t("achv.pin.a11y", { pct: pinPct })}
+                accessibilityValue={{ min: 0, max: 100, now: pinPct }}
+              >
+                <AppText>{t("achv.pin.progress", { done: pinPct, goal: 100, target: pinTarget })}</AppText>
+                <View style={{ height: 8, borderRadius: 4, backgroundColor: p.border, overflow: "hidden" }}>
+                  <View style={{ height: 8, width: `${pinPct}%`, backgroundColor: p.accent }} />
+                </View>
+              </View>
+            ) : null}
+            <Field label={`${t("achv.pin.load")} (${unitText})`} value={pinLoad} onChangeText={setPinLoad} numeric />
+            <Field label={t("achv.pin.reps")} value={pinReps} onChangeText={setPinReps} numeric />
+            <BigButton variant="secondary" label={t("achv.pin.save")} onPress={() => void savePin()} />
+            {pin ? <BigButton variant="quiet" label={t("achv.pin.clear")} onPress={() => void clearPin()} /> : null}
+          </Card>
+          {rx ? (
+            <Card>
+              <AppText style={{ fontWeight: "600" }}>{t("ex.savePrescription")}</AppText>
+              <Field label={t("ex.sets")} value={rxSets} onChangeText={(s) => { setRxSets(s); setRxSaved(false); }} numeric />
+              <Field label={t("ex.repMin")} value={rxMin} onChangeText={(s) => { setRxMin(s); setRxSaved(false); }} numeric />
+              <Field label={t("ex.repMax")} value={rxMax} onChangeText={(s) => { setRxMax(s); setRxSaved(false); }} numeric />
+              {rxSaved ? <InlineStatus kind="success" text={t("ex.prescriptionSaved")} /> : null}
+              <BigButton variant="secondary" label={t("ex.savePrescription")} onPress={() => void saveRx()} />
+            </Card>
+          ) : null}
+        </>
+      }
     />
   );
 }

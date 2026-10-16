@@ -2,6 +2,7 @@ import { consistencyProgress, personalMilestone } from "../logic/personalProgres
 import { strengthBreakthroughs, type BreakthroughInput } from "../logic/achievementProgress";
 import { pathFromSessionStrengths } from "../logic/exercisePath";
 import { findSpec, weekStartOf, isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
+import { syncAchievements } from "./achievementRepo";
 import type { Db, Deps } from "./driver";
 import { hasLoggedSets } from "./sessionSql";
 import type { FinishRepo } from "./finishRepo";
@@ -55,6 +56,7 @@ export interface LiftItem {
   nameEn: string;
   nameAr: string;
   gymName: string;
+  gymId: string;
   setup: SetupType;
   measure: Measure;
   sessions: number;
@@ -214,8 +216,8 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
 
   /** Every exercise + gym + setup line that has at least one finished working set. Lines are never merged. */
   async function listLifts(): Promise<LiftItem[]> {
-    const rows = await db.all<{ line_id: string; exercise_id: string; name_en: string; name_ar: string; gym_name: string; setup: SetupType; measure: Measure; sessions: number; last_at: number; imported: number }>(
-      `SELECT l.id AS line_id, e.id AS exercise_id, e.name_en, e.name_ar, g.name AS gym_name, l.setup, e.measure,
+    const rows = await db.all<{ line_id: string; exercise_id: string; name_en: string; name_ar: string; gym_id: string; gym_name: string; setup: SetupType; measure: Measure; sessions: number; last_at: number; imported: number }>(
+      `SELECT l.id AS line_id, e.id AS exercise_id, e.name_en, e.name_ar, g.id AS gym_id, g.name AS gym_name, l.setup, e.measure,
               COUNT(DISTINCT s.id) AS sessions, MAX(s.finished_at) AS last_at, MAX(s.import_key IS NOT NULL) AS imported
          FROM exercise_line l JOIN exercise e ON e.id = l.exercise_id JOIN gym g ON g.id = l.gym_id
          JOIN workout_set ws ON ws.line_id = l.id AND ws.deleted_at IS NULL AND ws.is_warmup = 0
@@ -223,7 +225,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
         WHERE l.deleted_at IS NULL GROUP BY l.id ORDER BY last_at DESC`,
     );
     return rows.map((r) => ({
-      lineId: r.line_id, exerciseId: r.exercise_id, nameEn: r.name_en, nameAr: r.name_ar, gymName: r.gym_name, setup: r.setup, measure: r.measure,
+      lineId: r.line_id, exerciseId: r.exercise_id, nameEn: r.name_en, nameAr: r.name_ar, gymId: r.gym_id, gymName: r.gym_name, setup: r.setup, measure: r.measure,
       sessions: r.sessions, lastAt: r.last_at, hasImported: r.imported === 1,
     }));
   }
@@ -284,9 +286,11 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
         ...(r.distance_m !== null ? { distanceM: r.distance_m } : {}),
         warmup: r.is_warmup === 1, tags: JSON.parse(r.tags_json) as string[], outlierStatus: r.outlier_status });
     }
-    const exerciseLoads = await repos.getExerciseLoads(line.exercise_id);
     const gym = await repos.loadGymFingerprint(line.gym_id);
-    const spec = exerciseLoads?.spec ?? (exerciseLoads ? findSpec(gym, exerciseLoads.equipment) : null);
+    const exerciseLoads = await repos.getExerciseLoads(line.exercise_id);
+    const spec = exerciseLoads
+      ? ((await repos.getLineLoads(line.exercise_id, line.gym_id, line.setup)) ?? exerciseLoads.spec ?? findSpec(gym, exerciseLoads.equipment))
+      : null;
     const active = await repos.getLatestProgrammeVersion();
     const day = active ? await db.get<{ id: string }>(
       `SELECT d.id FROM programme_day d JOIN programme_day_exercise pde ON pde.programme_day_id = d.id
@@ -301,6 +305,14 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   async function resync(): Promise<void> {
     const active = await repos.getActiveGymId();
     if (active) await finish.refreshPlannedSessions(active);
+  }
+
+  async function afterHistoryChange(): Promise<void> {
+    await resync();
+    const raw = await repos.getSetting("week_starts_on");
+    const v = raw === null || raw === "" ? Number.NaN : Number(raw);
+    const startsOn = Number.isInteger(v) && v >= 0 && v <= 6 ? v : 1;
+    await syncAchievements(db, deps, { weekStartsOn: startsOn, backfill: false });
   }
 
   /**
@@ -335,7 +347,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       "UPDATE workout_set SET load = ?, reps = ?, duration_s = ?, distance_m = ?, rir = ?, outlier_status = CASE WHEN outlier_status = 'unconfirmed' THEN 'confirmed' ELSE outlier_status END, updated_at = ? WHERE id = ?",
       [v.load, reps, durationS, distanceM, rir, t, setId],
     );
-    await resync();
+    await afterHistoryChange();
   }
 
   /**
@@ -375,7 +387,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       );
     });
     // Planned workout targets must no longer include data from the deleted workout.
-    await resync();
+    await afterHistoryChange();
   }
 
   /** Remove a logged set from a finished session (soft delete, kept for sync). */
@@ -386,7 +398,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       [t, t, setId],
     );
     if (r.changes === 0) throw new HistoryInvalid("missing");
-    await resync();
+    await afterHistoryChange();
   }
 
   async function weekExerciseSets(fromMs: number, toMs: number): Promise<{ exerciseId: string; pattern: string; seedKey: string | null; equipment: import("@gain/engine").EquipmentType; sets: LoggedSet[] }[]> {

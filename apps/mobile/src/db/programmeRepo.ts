@@ -169,6 +169,47 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     if (gymId) await finish.refreshPlannedSessions(gymId);
   }
 
+  async function setLineLoads(exerciseId: string, gymId: string, setup: SetupType, spec: GymLoadSpec | null): Promise<void> {
+    await repos.setLineLoads(exerciseId, gymId, setup, spec);
+    await finish.refreshPlannedSessions(gymId);
+  }
+
+  async function getExercisePrescription(exerciseId: string): Promise<{ sets: number; repMin: number; repMax: number } | null> {
+    const active = await repos.getLatestProgrammeVersion();
+    if (!active) return null;
+    const row = await db.get<{ sets: number; rep_min: number; rep_max: number }>(
+      `SELECT pde.sets, pde.rep_min, pde.rep_max FROM programme_day_exercise pde
+       JOIN programme_day pd ON pd.id = pde.programme_day_id
+       WHERE pd.programme_version_id = ? AND pde.exercise_id = ? AND pde.deleted_at IS NULL AND pd.deleted_at IS NULL
+       ORDER BY pd.position, pde.position LIMIT 1`,
+      [active.versionId, exerciseId],
+    );
+    return row ? { sets: row.sets, repMin: row.rep_min, repMax: row.rep_max } : null;
+  }
+
+  async function setExercisePrescription(exerciseId: string, patch: { sets?: number; repMin?: number; repMax?: number }): Promise<void> {
+    const active = await repos.getLatestProgrammeVersion();
+    if (!active) throw new Error("No active program");
+    const t = now();
+    const rows = await db.all<{ id: string; sets: number; rep_min: number; rep_max: number }>(
+      `SELECT pde.id, pde.sets, pde.rep_min, pde.rep_max FROM programme_day_exercise pde
+       JOIN programme_day pd ON pd.id = pde.programme_day_id
+       WHERE pd.programme_version_id = ? AND pde.exercise_id = ? AND pde.deleted_at IS NULL AND pd.deleted_at IS NULL`,
+      [active.versionId, exerciseId],
+    );
+    for (const r of rows) {
+      await db.run("UPDATE programme_day_exercise SET sets = ?, rep_min = ?, rep_max = ?, updated_at = ? WHERE id = ?", [
+        patch.sets ?? r.sets,
+        patch.repMin ?? r.rep_min,
+        patch.repMax ?? r.rep_max,
+        t,
+        r.id,
+      ]);
+    }
+    const gymId = await repos.getActiveGymId();
+    if (gymId) await finish.refreshPlannedSessions(gymId);
+  }
+
   /** Select the machine's loading mechanism; this sets its default weights and refreshes future targets. */
   async function setMachineLoadKind(exerciseId: string, kind: MachineLoadKind, pinStep?: PinMachineStep): Promise<void> {
     if (kind !== "pin" && kind !== "plate") throw new Error("Unknown machine type");
@@ -369,6 +410,6 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     await replan();
   }
 
-  return { listExercises, createExercise, setExerciseMeasure, setExerciseLoads, setMachineLoadKind, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
+  return { listExercises, createExercise, setExerciseMeasure, setExerciseLoads, setLineLoads, getExercisePrescription, setExercisePrescription, setMachineLoadKind, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };
 }
 export type ProgrammeRepo = ReturnType<typeof createProgrammeRepo>;

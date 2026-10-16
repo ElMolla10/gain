@@ -1,5 +1,5 @@
 import { preferUsedTwin } from "./library/equivalents";
-import { classifyTitle, findSpec, guessPattern, matchLibrary, MAX_METRES, MAX_SECONDS, roundToGymLoad, type EquipmentType, type GymFingerprint, type ImportedExercise, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type Measure, type SetupType } from "@gain/engine";
+import { classifyTitle, findSpec, guessPattern, logicalTrainingDateFromMs, matchLibrary, MAX_METRES, MAX_SECONDS, roundToGymLoad, type EquipmentType, type GymFingerprint, type ImportedExercise, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type Measure, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { ProgrammeRepo } from "./programmeRepo";
@@ -336,9 +336,9 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         const start = localToEpoch(w.startTime);
         const end = w.endTime ? Math.max(start, localToEpoch(w.endTime)) : start; // no end time in the file: the session ends when it starts, nothing is estimated
         await db.run(
-          `INSERT INTO session (id, programme_version_id, programme_day_id, gym_id, status, started_at, finished_at, import_key, import_batch_id, created_at, updated_at)
-           VALUES (?, ?, ?, ?, 'finished', ?, ?, ?, ?, ?, ?)`,
-          [sessionId, versionId, dayId, gymId, start, end, w.key, batchId, t0, t0],
+          `INSERT INTO session (id, programme_version_id, programme_day_id, gym_id, status, started_at, finished_at, local_calendar_date, import_key, import_batch_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'finished', ?, ?, ?, ?, ?, ?, ?)`,
+          [sessionId, versionId, dayId, gymId, start, end, logicalTrainingDateFromMs(end), w.key, batchId, t0, t0],
         );
         const position = new Map<string, number>();
         for (const { e, ex, rows } of plan) {

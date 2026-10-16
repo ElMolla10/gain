@@ -43,6 +43,7 @@ import { pauseClock, resumeClock } from "../logic/workoutClock";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 
+import { attachLoads, resolveLoads } from "../db/exerciseGrid";
 import type { DayEx, Disp, ExInfo } from "../logic/workoutTypes";
 
 interface Loaded {
@@ -72,7 +73,7 @@ const NO_STATE = (slot: string): ExerciseState => ({ slot, removed: false, repla
  * today's target, so one tap on the tick accepts it. A set is saved on the phone the moment it is ticked (offline); nothing waits for the finish.
  */
 export function WorkoutScreen() {
-  const { repos, gyms, workout, finish, programmes, restAlerts, mlEvaluation } = useServices();
+  const { repos, gyms, workout, finish, programmes, restAlerts, mlEvaluation, achievements, db } = useServices();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const insets = useSafeAreaInsets();
@@ -173,7 +174,7 @@ export function WorkoutScreen() {
         equipment: ex.equipment,
         setup: ex.setup,
         bodyweightKg: Number.isFinite(bw) ? bw : null,
-        spec: findSpec(gym, ex.equipment),
+        spec: ex.loadSpec ?? findSpec(gym, ex.equipment),
       });
       return { proposal, line, lineId, last, stored, personalHistory: history, prefill: est ? { load: est.load, reps: ex.repMin, estimated: true } : { load: d.load, reps: d.reps } };
     },
@@ -213,7 +214,7 @@ export function WorkoutScreen() {
         const ad = await repos.adHocDayExercise(st.slot);
         if (ad) addedSlots.push(ad);
       }
-      const slots = [...programmeSlots, ...addedSlots];
+      const slots = await attachLoads(db, gym, [...programmeSlots, ...addedSlots]);
       const info: Record<string, ExInfo> = {};
       const all = await workout.listSessionSets(id);
       const initial: Record<string, SetRowDraft[]> = {};
@@ -238,7 +239,7 @@ export function WorkoutScreen() {
       startedRef.current = false;
       setLoadError(true);
     });
-  }, [repos, gyms, workout, programmes, mlEvaluation, dayId, unit, makeDisp, buildInfo, attempt]);
+  }, [repos, gyms, workout, programmes, mlEvaluation, db, dayId, unit, makeDisp, buildInfo, attempt]);
 
   useEffect(() => {
     if (!resumeNote) return;
@@ -573,7 +574,7 @@ export function WorkoutScreen() {
         const ad = await repos.adHocDayExercise(st.slot);
         if (ad) addedSlots.push(ad);
       }
-      const next: Loaded = { ...lo, slots: [...programmeSlots, ...addedSlots] };
+      const next: Loaded = { ...lo, slots: await attachLoads(db, lo.gym, [...programmeSlots, ...addedSlots]) };
       const st = states[withId] ?? NO_STATE(withId);
       setExState(states);
       setLoaded(next);
@@ -621,7 +622,8 @@ export function WorkoutScreen() {
       if (!ad) return;
       const states = await workout.listExerciseState(loaded.sessionId);
       const mine = states.find((x) => x.slot === exerciseId) ?? NO_STATE(exerciseId);
-      const lo: Loaded = { ...loaded, slots: loaded.slots.some((x) => x.exerciseId === exerciseId) ? loaded.slots : [...loaded.slots, ad] };
+      const attached = (await attachLoads(db, loaded.gym, [ad]))[0]!;
+      const lo: Loaded = { ...loaded, slots: loaded.slots.some((x) => x.exerciseId === exerciseId) ? loaded.slots : [...loaded.slots, attached] };
       setLoaded(lo);
       setState(exerciseId, mine);
       await showSlot(lo, exerciseId, mine);
@@ -710,7 +712,7 @@ export function WorkoutScreen() {
     setFinishing(true);
     setFinishFailed(false);
     const r = await attemptFinish(
-      () => workout.finishSession(lo.sessionId),
+      () => workout.finishSession(lo.sessionId).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
       () => navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId })),
       (e) => diagnostics.record("error", "finish workout", e),
     );
@@ -843,8 +845,8 @@ export function WorkoutScreen() {
       const updatedLibrary = await programmes.listExercises();
       libRef.current = updatedLibrary;
       setLibrary(updatedLibrary);
-      const spec = (await repos.getExerciseLoads(ex.exerciseId))?.spec ?? null;
-      const slots = loaded.slots.map(slot => slot.exerciseId === ex.exerciseId ? { ...slot, loadSpec: spec } : slot);
+      const resolved = await resolveLoads(db, loaded.gym, ex.exerciseId, ex.equipment, ex.setup);
+      const slots = loaded.slots.map(slot => slot.exerciseId === ex.exerciseId ? { ...slot, loadSpec: resolved.spec, loadSource: resolved.source } : slot);
       const currentSlot = slots.find(slot => slot.exerciseId === ex.slot);
       if (!currentSlot) return;
       const updatedEx = makeDisp(currentSlot, exState[ex.slot]);

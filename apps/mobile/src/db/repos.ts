@@ -1,9 +1,10 @@
-import { classifyLift, DEFAULT_REP_CEILINGS, type Measure, mergeRepCeilings, resolveProgression, resolveRepTop, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings, type RepTopBasis } from "@gain/engine";
+import { classifyLift, DEFAULT_REP_CEILINGS, type Measure, mergeRepCeilings, resolveProgression, resolveRepTop, validateRepCeiling, type CeilingClass, type GymFingerprint, type GymLoadSpec, type RepCeilings, type RepTopBasis, type SetupType } from "@gain/engine";
 import { parseUnit, type Unit } from "../logic/units";
 import type { Db, Deps } from "./driver";
 import { normTopSets } from "../logic/programmeDraft";
 import { parseStoredLoads, serializeLoads } from "../logic/exerciseLoads";
-import { parseLoadsJson } from "../logic/gymInput";
+import { parseLoadsJson, validateGym } from "../logic/gymInput";
+import { lineOwnLoads } from "./exerciseGrid";
 import { loadsJsonWithKind, machineLoads } from "../logic/machineLoadKind";
 import { hasLoggedSets } from "./sessionSql";
 import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
@@ -220,6 +221,68 @@ export function createRepos(db: Db, deps: Deps) {
     await db.run("UPDATE exercise SET load_spec_json = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [json, now(), exerciseId]);
   }
 
+  async function ensureLineRow(exerciseId: string, gymId: string, setup: SetupType): Promise<string> {
+    const existing = await db.get<{ id: string }>(
+      "SELECT id FROM exercise_line WHERE exercise_id = ? AND gym_id = ? AND setup = ? AND deleted_at IS NULL",
+      [exerciseId, gymId, setup],
+    );
+    if (existing) return existing.id;
+    const id = newId();
+    const t = now();
+    await db.run("INSERT INTO exercise_line (id, exercise_id, gym_id, setup, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)", [id, exerciseId, gymId, setup, t, t]);
+    return id;
+  }
+
+  /** The weights the lifter set for this machine at this gym, or null (exercise then gym grid apply). */
+  async function getLineLoads(exerciseId: string, gymId: string, setup: SetupType): Promise<GymLoadSpec | null> {
+    return lineOwnLoads(db, exerciseId, gymId, setup);
+  }
+
+  /**
+   * Sets (or, with null, clears) this machine's weights at this gym. Creates the exercise+gym+setup line if it does not exist yet.
+   * Logged sets are unchanged; a weight that is not on the new list stays valid.
+   */
+  async function setLineLoads(exerciseId: string, gymId: string, setup: SetupType, spec: GymLoadSpec | null): Promise<void> {
+    const existing = await db.get<{ equipment: GymLoadSpec["equipment"] }>("SELECT equipment FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
+    if (!existing) throw new Error("Unknown exercise");
+    if (spec && spec.equipment !== existing.equipment) throw new Error("Weights do not match the exercise's equipment");
+    if (spec && validateGym("x", [spec]).length > 0) throw new Error("Weights are not valid");
+    const gym = await db.get<{ id: string }>("SELECT id FROM gym WHERE id = ? AND deleted_at IS NULL", [gymId]);
+    if (!gym) throw new Error("Unknown gym");
+    const id = await ensureLineRow(exerciseId, gymId, setup);
+    await db.run("UPDATE exercise_line SET load_spec_json = ?, updated_at = ? WHERE id = ?", [spec ? serializeLoads(spec) : null, now(), id]);
+  }
+
+  /** Machines the lifter can set weights for at this gym: lines already used here, plus machines in the active program. */
+  async function listGymMachines(gymId: string): Promise<{ exerciseId: string; nameEn: string; nameAr: string; setup: SetupType; hasOwn: boolean }[]> {
+    const activeId = await getSetting("active_programme_id");
+    const rows = await db.all<{ id: string; name_en: string; name_ar: string; setup: SetupType; load_spec_json: string | null }>(
+      `SELECT e.id, e.name_en, e.name_ar, COALESCE(l.setup, e.setup) AS setup, l.load_spec_json
+         FROM exercise e
+         LEFT JOIN exercise_line l ON l.exercise_id = e.id AND l.gym_id = ? AND l.deleted_at IS NULL
+        WHERE e.equipment = 'machine' AND e.deleted_at IS NULL
+          AND (l.id IS NOT NULL OR EXISTS (
+            SELECT 1 FROM programme_day_exercise pde
+            JOIN programme_day pd ON pd.id = pde.programme_day_id
+            JOIN programme_version pv ON pv.id = pd.programme_version_id
+            JOIN programme p ON p.id = pv.programme_id
+            WHERE pde.exercise_id = e.id AND pde.deleted_at IS NULL AND pd.deleted_at IS NULL AND pv.deleted_at IS NULL AND p.deleted_at IS NULL
+              AND p.kind = 'user' ${activeId ? "AND p.id = ?" : ""}
+          ))
+        ORDER BY e.name_en, setup`,
+      activeId ? [gymId, activeId] : [gymId],
+    );
+    const seen = new Set<string>();
+    const out: { exerciseId: string; nameEn: string; nameAr: string; setup: SetupType; hasOwn: boolean }[] = [];
+    for (const r of rows) {
+      const key = `${r.id}:${r.setup}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ exerciseId: r.id, nameEn: r.name_en, nameAr: r.name_ar, setup: r.setup, hasOwn: parseStoredLoads(r.load_spec_json, "machine") !== null });
+    }
+    return out;
+  }
+
   // ---- program / Today ----------------------------------------------------------------------------------
   /**
    * The current version of the active program (setting `active_programme_id`; before one is set, the oldest program).
@@ -426,6 +489,9 @@ export function createRepos(db: Db, deps: Deps) {
     loadGymFingerprint,
     getExerciseLoads,
     setExerciseLoads,
+    getLineLoads,
+    setLineLoads,
+    listGymMachines,
     getLatestProgrammeVersion,
     listDays,
     listDayExercises,

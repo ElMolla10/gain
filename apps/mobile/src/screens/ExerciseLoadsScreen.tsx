@@ -1,5 +1,5 @@
 import { useFocusEffect, useRoute } from "@react-navigation/native";
-import type { GymLoadSpec } from "@gain/engine";
+import type { GymLoadSpec, SetupType } from "@gain/engine";
 import React, { useCallback, useState } from "react";
 import { View } from "react-native";
 import { useServices } from "../AppContext";
@@ -24,7 +24,10 @@ export function ExerciseLoadsScreen() {
   const { repos, programmes, db } = useServices();
   const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
-  const exerciseId = (useRoute().params as { exerciseId: string }).exerciseId;
+  const params = useRoute().params as { exerciseId: string; gymId?: string; setup?: SetupType };
+  const exerciseId = params.exerciseId;
+  const gymId = params.gymId;
+  const setup = params.setup;
   const [data, setData] = useState<Loaded | null | "none">(null);
   const [form, setForm] = useState<LoadsForm>(emptyLoadsForm());
   const [problems, setProblems] = useState<LoadsProblem[]>([]);
@@ -35,9 +38,10 @@ export function ExerciseLoadsScreen() {
     const cur = await repos.getExerciseLoads(exerciseId);
     const row = await db.get<{ name_en: string; name_ar: string }>("SELECT name_en, name_ar FROM exercise WHERE id = ? AND deleted_at IS NULL", [exerciseId]);
     if (!cur || !row) return setData("none");
-    setData({ nameEn: row.name_en, nameAr: row.name_ar, equipment: cur.equipment, spec: cur.spec });
-    setForm(formFromSpec(cur.spec, unit));
-  }, [repos, db, exerciseId, unit]);
+    const spec = gymId && setup ? await repos.getLineLoads(exerciseId, gymId, setup) : cur.spec;
+    setData({ nameEn: row.name_en, nameAr: row.name_ar, equipment: cur.equipment, spec });
+    setForm(formFromSpec(spec, unit));
+  }, [repos, db, exerciseId, gymId, setup, unit]);
   useFocusEffect(useCallback(() => void load(), [load]));
 
   if (data === null) return <LoadingState />;
@@ -58,7 +62,8 @@ export function ExerciseLoadsScreen() {
     if (built.problems.length > 0) return setProblems(built.problems);
     setBusy(true);
     try {
-      await programmes.setExerciseLoads(exerciseId, built.spec);
+      if (gymId && setup) await programmes.setLineLoads(exerciseId, gymId, setup, built.spec);
+      else await programmes.setExerciseLoads(exerciseId, built.spec);
       setSaved(true);
       await load();
     } finally {
@@ -75,7 +80,7 @@ export function ExerciseLoadsScreen() {
       <Card>
         <AppText style={{ fontWeight: "600" }}>{state}</AppText>
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.intro")}</AppText>
-        <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.scope")}</AppText>
+        <AppText style={{ color: p.muted, fontSize: ty.label }}>{t(gymId ? "loads.scope.line" : "loads.scope")}</AppText>
       </Card>
       <Card>
         <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("loads.mode")}</AppText>

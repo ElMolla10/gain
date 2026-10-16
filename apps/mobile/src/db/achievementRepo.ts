@@ -197,15 +197,21 @@ async function stampMissingDates(db: Db, now: number): Promise<void> {
   }
 }
 
-async function loadSessions(db: Db): Promise<AchievementSession[]> {
+async function loadSessions(db: Db, preview?: { sessionId: string; setId: string; now: number }): Promise<AchievementSession[]> {
   const sessions = await db.all<{ id: string; finished_at: number; local_calendar_date: string | null }>(
-    "SELECT id, finished_at, local_calendar_date FROM session WHERE status = 'finished' AND deleted_at IS NULL AND finished_at IS NOT NULL ORDER BY finished_at, id",
+    `SELECT id, ${preview ? "COALESCE(finished_at, ?)" : "finished_at"} AS finished_at, local_calendar_date FROM session
+     WHERE deleted_at IS NULL AND ((status = 'finished' AND finished_at IS NOT NULL)
+       ${preview ? "OR (id = ? AND status = 'in_progress')" : ""}) ORDER BY finished_at, id`,
+    preview ? [preview.now, preview.sessionId] : [],
   );
   const sets = await db.all<SetRow>(
     `SELECT ws.id, ws.session_id, ws.exercise_id, e.equipment, e.setup, ws.load, ws.reps, ws.is_warmup, ws.tags_json, ws.outlier_status,
             ws.duration_s, ws.distance_m, e.pattern, e.measure
        FROM workout_set ws JOIN exercise e ON e.id = ws.exercise_id
-      WHERE ws.deleted_at IS NULL AND e.deleted_at IS NULL`,
+      WHERE ws.deleted_at IS NULL AND e.deleted_at IS NULL
+      ${preview ? `AND ws.exercise_id = (SELECT exercise_id FROM workout_set WHERE id = ? AND session_id = ? AND deleted_at IS NULL)
+        AND (ws.session_id != ? OR ws.id = ?)` : ""}`,
+    preview ? [preview.setId, preview.sessionId, preview.sessionId, preview.setId] : [],
   );
   const bySession = new Map<string, AchievementSet[]>();
   for (const s of sets) {
@@ -687,7 +693,14 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
     return all[0] ?? null;
   }
 
-  return { sync, ensureBackfill, dismissBanner, listEarned, listCabinet, listLedger, listForSession, markCelebrated, getHome, getById, pickQuest, getPin, listPins, setPin, clearPin };
+  /** Read-only check of this saved set using the finish evaluator. No award/celebration writes. */
+  async function previewStrengthPr(sessionId: string, setId: string): Promise<boolean> {
+    const sessions = await loadSessions(db, { sessionId, setId, now: deps.now() });
+    // Only the checked set participates today; a stronger set must not hide its qualifying PR.
+    return evaluateAchievements(sessions).earned.some(e => e.badgeId === "strength_pr" && e.primarySessionId === sessionId && e.primarySetId === setId);
+  }
+
+  return { sync, ensureBackfill, dismissBanner, listEarned, listCabinet, listLedger, listForSession, markCelebrated, getHome, getById, pickQuest, getPin, listPins, setPin, clearPin, previewStrengthPr };
 }
 
 export type AchievementRepo = ReturnType<typeof createAchievementRepo>;

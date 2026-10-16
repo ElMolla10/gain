@@ -74,10 +74,12 @@ describe("two years of history (Step 15)", () => {
       const { createRepos } = await import("../src/db/repos");
       const { createWorkoutRepo } = await import("../src/db/workoutRepo");
       const { createFinishRepo } = await import("../src/db/finishRepo");
+      const { createAchievementRepo } = await import("../src/db/achievementRepo");
       const repos = createRepos(c.db, ctx.deps);
       const workout = createWorkoutRepo(c.db, ctx.deps);
       const finish = createFinishRepo(c.db, ctx.deps, repos, workout);
       const history = createHistoryRepo(c.db, ctx.deps, repos, finish);
+      const achievements = createAchievementRepo(c.db, ctx.deps, repos);
       const res: Record<string, { ms: number; stmts: number }> = {};
       const run = async (name: string, f: () => Promise<unknown>) => {
         c.reset();
@@ -96,6 +98,10 @@ describe("two years of history (Step 15)", () => {
       await run("liveTarget", () => workout.liveProposal({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, repMin: ex.repMin, repMax: ex.repMax, repCeiling: ex.repCeiling, isGoalLift: ex.isGoalLift, trackEffort: false, sets: ex.sets }, gym));
       await run("todayNextDay", () => repos.getNextDay());
       await run("planNextSession", () => finish.planNextSession(ctx.gymId));
+      await run("previousDisplay", () => workout.previousPerformances(ex.exerciseId, next.day.id));
+      const { id } = await workout.startOrResumeSession(next.day.id, ctx.gymId);
+      const checked = await workout.logSet({ sessionId: id, exerciseId: ex.exerciseId, load: 60, reps: 9 }, { gym, equipment: ex.equipment, setup: ex.setup });
+      await run("checkedPrPreview", () => achievements.previewStrengthPr(id, checked.id));
       return res;
     };
 

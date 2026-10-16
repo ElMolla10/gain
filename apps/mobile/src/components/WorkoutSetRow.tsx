@@ -31,10 +31,11 @@ export interface WorkoutSetRowProps {
   onUntick: (row: SetRowDraft) => void;
   autoFocus?: boolean;
   focusNonce?: number;
+  strengthPr?: boolean;
 }
 
 /** Inputs and actions for one set. Persistence and draft state belong to the logger. */
-export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce }: WorkoutSetRowProps) {
+export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce, strengthPr = false }: WorkoutSetRowProps) {
   const { t, lang, unit, unitText } = useI18n();
   const p = useLogPalette();
   const labels = exerciseLabels(ex, lang);
@@ -149,6 +150,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
           {tick}
         </View>
       )}
+      {done && strengthPr ? <AppText accessibilityLiveRegion="polite" style={{ color: p.accent, fontSize: 13, paddingHorizontal: space.md, paddingBottom: space.xs }}>{t("achv.strengthPr")}</AppText> : null}
     </SwipeRow>
   );
 }

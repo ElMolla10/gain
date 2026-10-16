@@ -12,6 +12,7 @@ import { Icon } from "../components/Icon";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { ExerciseReorderModal } from "../components/ExerciseReorderModal";
 import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
+import { PreviousSourceToggle, PREVIOUS_SOURCE_KEY, parsePreviousSource, type PreviousSource } from "../components/PreviousSourceToggle";
 import { RestClock, LiveDuration, Stat } from "../components/WorkoutStats";
 import { WorkoutHelp } from "../components/WorkoutHelp";
 import type { LibraryExercise } from "../db/programmeRepo";
@@ -98,6 +99,9 @@ export function WorkoutScreen() {
   const [focusRow, setFocusRow] = useState<{ exId: string; key: string; nonce: number } | null>(null);
   const [cardListText, setCardListText] = useState<Record<string, string>>({});
   const [sets, setSets] = useState<SetRow[]>([]);
+  const [previousSource, setPreviousSource] = useState<PreviousSource>("any");
+  const [strengthPr, setStrengthPr] = useState<{ setId: string; version: number } | null>(null);
+  const prPreviewVersion = useRef(0);
   const [exState, setExState] = useState<Record<string, ExerciseState>>({});
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const [outliers, setOutliers] = useState<Record<string, OutlierResult>>({});
@@ -157,6 +161,7 @@ export function WorkoutScreen() {
         gym,
       );
       const personalHistory = await workout.getHistory(line, lineId);
+      const previous = await workout.previousPerformances(ex.exerciseId, dayId);
       const latest = personalHistory.at(-1);
       const last = latest ? { performedAt: latest.performedAt, sets: latest.sets.filter(s => !s.warmup && !s.tags?.includes("drop")) } : null;
       const savedTarget = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
@@ -172,7 +177,7 @@ export function WorkoutScreen() {
         last: lastTop ? { load: lastTop.load, reps: setQuantity(lastTop, m) } : null,
       });
       const history = personalHistory.map((h) => ({ performedAt: h.performedAt, sets: h.sets }));
-      if (d.load !== null || isTimed(m)) return { proposal, line, lineId, last, stored, personalHistory: history, prefill: { load: d.load, reps: d.reps } };
+      if (d.load !== null || isTimed(m)) return { proposal, line, lineId, last, previous, stored, personalHistory: history, prefill: { load: d.load, reps: d.reps } };
       const bwRaw = await repos.getSetting("bodyweight_kg");
       const bw = bwRaw ? Number(bwRaw) : NaN;
       const est = estimateStartingLoad({
@@ -182,9 +187,9 @@ export function WorkoutScreen() {
         bodyweightKg: Number.isFinite(bw) ? bw : null,
         spec: ex.loadSpec ?? findSpec(gym, ex.equipment),
       });
-      return { proposal, line, lineId, last, stored, personalHistory: history, prefill: est ? { load: est.load, reps: ex.repMin, estimated: true } : { load: d.load, reps: d.reps } };
+      return { proposal, line, lineId, last, previous, stored, personalHistory: history, prefill: est ? { load: est.load, reps: ex.repMin, estimated: true } : { load: d.load, reps: d.reps } };
     },
-    [workout, finish, repos],
+    [workout, finish, repos, dayId],
   );
 
   // Open (or resume) the session exactly once; leaving and coming back never creates a second one. A failed open is an error with a
@@ -235,6 +240,7 @@ export function WorkoutScreen() {
         initial[ex.exerciseId] = resumeEvaluationTarget(initial[ex.exerciseId]!, pendingId);
       }
       const session = await workout.getSession(id);
+      setPreviousSource(parsePreviousSource(await repos.getSetting(PREVIOUS_SOURCE_KEY)));
       const flag = parseReadiness(session?.readiness);
       setReadiness(flag === "fatigued" || flag === "returning" ? flag : null);
       setExState(states);
@@ -254,6 +260,29 @@ export function WorkoutScreen() {
     const h = setTimeout(() => setResumeNote(false), RESUMED_NOTE_MS);
     return () => clearTimeout(h);
   }, [resumeNote]);
+
+  // Static feedback also respects reduced motion. No celebration is consumed here.
+  useEffect(() => {
+    if (!strengthPr) return;
+    const handle = setTimeout(() => setStrengthPr(null), 4000);
+    return () => clearTimeout(handle);
+  }, [strengthPr]);
+  useEffect(() => () => { prPreviewVersion.current++; }, []);
+
+  function clearStrengthPr() {
+    prPreviewVersion.current++;
+    setStrengthPr(null);
+  }
+
+  async function choosePreviousSource(source: PreviousSource) {
+    try {
+      await repos.setSetting(PREVIOUS_SOURCE_KEY, source);
+      setPreviousSource(source);
+    } catch (e) {
+      diagnostics.record("warn", "save Previous source", e);
+      Alert.alert(t("workout.saveFailed.title"), t("workout.saveFailed.body"));
+    }
+  }
 
   useEffect(() => {
     void repos.getSetting(JUMP_SETTING_KEY).then((v) => setJumpThreshold(parseJumpThreshold(v)));
@@ -428,6 +457,7 @@ export function WorkoutScreen() {
   }, [loaded, rows, sets, exState, liveDismissed, liveManual, reportedSymptoms, makeDisp, mlEvaluation, lang, readiness]);
 
   const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => {
+    clearStrengthPr();
     setPreferredExercise(exId);
     setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
   };
@@ -448,6 +478,8 @@ export function WorkoutScreen() {
     }
     setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
     setBusy(row.key);
+    clearStrengthPr();
+    const previewVersion = prPreviewVersion.current;
     // Empty boxes take the ghost target as the row's own numbers (what the lifter saw is what is saved).
     setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
     const eff = effectiveOf(row);
@@ -474,6 +506,10 @@ export function WorkoutScreen() {
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
       setSaveError(false);
+      // The save and next-set flow never wait for achievement evaluation.
+      void achievements.previewStrengthPr(loaded.sessionId, row.key).then(qualified => {
+        if (qualified && prPreviewVersion.current === previewVersion) setStrengthPr({ setId: row.key, version: previewVersion });
+      }).catch(e => diagnostics.record("warn", "preview strength PR", e));
     } catch (e) {
       // Storage full or the database failed: the row stays un-ticked (nothing half-saved) and the lifter is told, never left guessing.
       diagnostics.record("error", "save set", e);
@@ -488,6 +524,7 @@ export function WorkoutScreen() {
   async function untick(ex: Disp, row: SetRowDraft) {
     if (!loaded || loaded === "nogym" || busy) return;
     setBusy(row.key);
+    clearStrengthPr();
     try {
       await workout.deleteSet(row.key);
       setOutliers((o) => {
@@ -505,6 +542,7 @@ export function WorkoutScreen() {
 
   async function dropRow(ex: Disp, row: SetRowDraft) {
     if (!loaded || loaded === "nogym") return;
+    clearStrengthPr();
     if (row.saved) {
       await workout.deleteSet(row.key);
       setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
@@ -829,6 +867,7 @@ export function WorkoutScreen() {
     const detailKey = card ? `${ex.exerciseId}:${card.performance}:${card.key}` : null;
     return (
       <WorkoutExerciseSection key={ex.id} active={ex.exerciseId === focus}
+        previousSource={previousSource} strengthPrSetId={strengthPr?.setId}
         liveDetailsOpen={detailKey !== null && liveDetails === detailKey} onLiveDetails={() => setLiveDetails(current => current === detailKey ? null : detailKey)} ex={ex} position={position} info={info} list={list}
         st={exState[ex.slot] ?? NO_STATE(ex.slot)} gym={loaded.gym} exSets={setsByEx.get(ex.exerciseId) ?? []}
         outliers={outliers} candidate={currentCandidate} card={card} expanded={!!whyOpen[ex.exerciseId]}
@@ -1023,6 +1062,8 @@ export function WorkoutScreen() {
             />
           ))}
         </View>
+
+        <PreviousSourceToggle source={previousSource} onChange={source => void choosePreviousSource(source)} />
 
         {finishFailed ? (
           <View accessibilityLiveRegion="assertive" style={{ marginHorizontal: space.md, marginBottom: space.sm }}>

@@ -6,6 +6,7 @@ import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
 import { LiveSuggestion } from "../src/components/LiveSuggestion";
 import { WorkoutExerciseSection } from "../src/components/WorkoutExerciseSection";
 import { WorkoutSetRow, type WorkoutSetRowProps } from "../src/components/WorkoutSetRow";
+import { PreviousSourceToggle, parsePreviousSource, PREVIOUS_SOURCE_KEY } from "../src/components/PreviousSourceToggle";
 
 // Inspect the presentation tree and invoke its callbacks. Native keyboard/gesture delivery needs a phone.
 const settings = vi.hoisted(() => ({ unit: "kg" as "kg" | "lb", lang: "en" as "en" | "ar", fontScale: 1 }));
@@ -36,6 +37,20 @@ const inputs = (p: WorkoutSetRowProps) => nodes(WorkoutSetRow(p)).filter(n => n.
 
 beforeEach(() => { settings.unit = "kg"; settings.lang = "en"; settings.fontScale = 1; });
 describe("extracted workout row wiring", () => {
+  it("shows a static, polite PR indicator only on a clean checked row", () => {
+    const p = props({ strengthPr: true });
+    const indicators = () => nodes(WorkoutSetRow(p)).filter(n => n.props.accessibilityLiveRegion === "polite");
+    expect(indicators()).toHaveLength(0);
+    p.row = markSaved([p.row], p.row.key)[0]!;
+    expect(indicators()[0]!.props.children).toBe("Verified strength PR");
+    p.strengthPr = false;
+    expect(indicators()).toHaveLength(0);
+    p.strengthPr = true;
+    settings.lang = "ar";
+    expect(indicators()[0]!.props.children).toBe("رقم قوة موثّق");
+    p.row = editRow([p.row], p.row.key, { reps: 9 })[0]!;
+    expect(indicators()).toHaveLength(0);
+  });
   it("logs a ghost-filled row and unticks a saved row using its original identity", () => {
     const p = props();
     expect(tick(p).props.disabled).toBe(false);
@@ -131,6 +146,45 @@ async function sectionProps(): Promise<Parameters<typeof WorkoutExerciseSection>
   };
 }
 describe("extracted exercise section wiring", () => {
+  it("defaults to any workout and restores the saved source from local settings", async () => {
+    const { freshDb } = await import("./helpers");
+    const c = await freshDb();
+    expect(parsePreviousSource(await c.repos.getSetting(PREVIOUS_SOURCE_KEY))).toBe("any");
+    await c.repos.setSetting(PREVIOUS_SOURCE_KEY, "routine");
+    expect(parsePreviousSource(await c.repos.getSetting(PREVIOUS_SOURCE_KEY))).toBe("routine");
+    expect(parsePreviousSource("invalid")).toBe("any");
+    const p = await sectionProps();
+    p.info.previous = { any: { performedAt: "2026-10-16", sets: [{ load: 65, reps: 7 }] }, routine: null };
+    p.previousSource = "routine";
+    expect(nodes(WorkoutExerciseSection(p)).find(n => n.type === WorkoutSetRow)!.props.lastSets).toBeNull();
+  });
+  it("changes only Previous when its source switches, preserving suggestions and editable fields", async () => {
+    const p = await sectionProps();
+    p.info.previous = { any: { performedAt: "2026-10-16", sets: [{ load: 65, reps: 7 }] }, routine: { performedAt: "2026-10-14", sets: [{ load: 60, reps: 8 }] } };
+    p.info.last = { performedAt: "2026-10-15", sets: [{ load: 62.5, reps: 9 }] };
+    p.card = { decision: { action: "maintain", suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8, reason: "within_range" }, key: p.list[0]!.key, performance: "saved", snapshot: "snapshot" };
+    for (const lang of ["en", "ar"] as const) {
+      settings.lang = lang;
+      const before = nodes(WorkoutExerciseSection(p));
+      const row = before.find(n => n.type === WorkoutSetRow)!;
+      const fields = nodes(WorkoutSetRow(row.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "CellInput").map(n => [n.props.value, n.props.placeholder]);
+      expect(row.props.lastSets).toEqual([{ load: 65, reps: 7 }]);
+      const onChange = (source: "any" | "routine") => { p.previousSource = source; };
+      const selector = nodes(PreviousSourceToggle({ source: "any", onChange }));
+      const options = selector.filter(n => n.props.accessibilityRole === "radio");
+      expect(options.map(n => n.props.accessibilityState.checked)).toEqual([true, false]);
+      options[1]!.props.onPress();
+      const after = nodes(WorkoutExerciseSection(p));
+      const nextRow = after.find(n => n.type === WorkoutSetRow)!;
+      expect(nextRow.props.lastSets).toEqual([{ load: 60, reps: 8 }]);
+      const previousText = nodes(WorkoutSetRow(nextRow.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
+      expect(previousText).toContain("\u206660kg x 8\u2069");
+      expect(nodes(WorkoutSetRow(nextRow.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "CellInput").map(n => [n.props.value, n.props.placeholder])).toEqual(fields);
+      expect(nextRow.props.row).toBe(row.props.row);
+      expect(after.find(n => n.type === LiveSuggestion)!.props).toEqual(before.find(n => n.type === LiveSuggestion)!.props);
+      p.previousSource = "any";
+    }
+  });
   it("preserves warm-up numbering, prior working-set indexes and the current-row identity", async () => {
     const p = await sectionProps();
     p.list = markSaved(editRow(p.list, p.list[0]!.key, { warmup: true }), p.list[0]!.key);

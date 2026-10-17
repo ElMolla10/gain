@@ -139,7 +139,7 @@ export const markSaved = (rows: SetRowDraft[], key: string): SetRowDraft[] => ro
  * Labels shown to the lifter: W warm-up, D drop set (neither is numbered), F a failure set (a working set: it keeps its place in the
  * numbering, so the next set still reads 3 after a set 2 taken to failure shown as F), working sets 1, 2, 3 ...
  */
-export function rowLabels(rows: SetRowDraft[]): string[] {
+export function rowLabels(rows: readonly { warmup: boolean; tags?: readonly string[] }[]): string[] {
   let n = 0;
   return rows.map((r) => {
     const k = kindOf(r);

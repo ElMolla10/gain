@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ar, en } from "../src/i18n/strings";
 
-const screen = readFileSync(join(__dirname, "..", "src/screens/WorkoutScreen.tsx"), "utf8");
+const screen = ["screens/WorkoutScreen.tsx", "components/WorkoutSessionSheets.tsx"].map(f => readFileSync(join(__dirname, "..", "src", f), "utf8")).join("\n");
 const section = readFileSync(join(__dirname, "..", "src/components/WorkoutExerciseSection.tsx"), "utf8");
 const row = readFileSync(join(__dirname, "..", "src/components/WorkoutSetRow.tsx"), "utf8");
 const help = readFileSync(join(__dirname, "..", "src/components/WorkoutHelp.tsx"), "utf8");

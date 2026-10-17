@@ -25,6 +25,6 @@ describe("Developer Mode tools", () => {
     toggle.props.onChange(false);
     expect(props.onChange).toHaveBeenCalledWith(false);
     tree.filter(n => n.type as unknown === "LinkRow").forEach(n => n.props.onPress());
-    expect(props.onNavigate.mock.calls).toEqual([["DecisionLog"],["Diagnostics"]]);
+    expect(props.onNavigate.mock.calls).toEqual([["DecisionLog"],["Diagnostics"],["StoppedSuggestions"]]);
   });
 });

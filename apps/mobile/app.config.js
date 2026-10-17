@@ -1,5 +1,5 @@
-// Expo merges app.json (the base) into `config` here. Only the build switches in build-flags.js are applied; with no environment variables set
-// the result is app.json plus `extra: { distribution: "sideload", pilotTemplateIds: null }`, i.e. the same app as before.
+// Apply distribution/pilot/personal-signing flags, then opt into the paid-team widget extension.
 const { applyBuildFlags } = require("./build-flags");
+const { applyRestLiveActivityConfig } = require("./plugins/rest-live-activity-config");
 
-module.exports = ({ config }) => applyBuildFlags(config, process.env);
+module.exports = ({ config }) => applyRestLiveActivityConfig(applyBuildFlags(config, process.env), process.env);

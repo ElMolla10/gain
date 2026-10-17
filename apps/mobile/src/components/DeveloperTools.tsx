@@ -8,7 +8,7 @@ export function DeveloperTools(props: {
   enabled: boolean;
   saving: boolean;
   onChange: (on: boolean) => void;
-  onNavigate: (route: "DecisionLog" | "Diagnostics") => void;
+  onNavigate: (route: "DecisionLog" | "Diagnostics" | "StoppedSuggestions") => void;
 }) {
   const { t } = useI18n();
   if (!props.enabled) return null;
@@ -17,5 +17,6 @@ export function DeveloperTools(props: {
     <MlAccuracyCard />
     <LinkRow label={t("dec.entry")} onPress={() => props.onNavigate("DecisionLog")} />
     <LinkRow label={t("diag.entry")} onPress={() => props.onNavigate("Diagnostics")} />
+    <LinkRow label={t("stop.entry")} onPress={() => props.onNavigate("StoppedSuggestions")} />
   </Group>;
 }

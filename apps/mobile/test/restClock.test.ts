@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const stats = readFileSync(join(__dirname, "..", "src", "components", "WorkoutStats.tsx"), "utf8");
-const src = readFileSync(join(__dirname, "..", "src", "screens", "WorkoutScreen.tsx"), "utf8");
+const src = ["screens/WorkoutScreen.tsx", "hooks/useWorkoutSession.ts", "hooks/useWorkoutRest.ts"].map(f => readFileSync(join(__dirname, "..", "src", f), "utf8")).join("\n");
 
 describe("P27: the 250 ms rest-timer tick does not re-render the whole logger", () => {
   it("the 250 ms interval lives only in the RestClock component", () => {

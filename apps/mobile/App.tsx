@@ -193,7 +193,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Achievements" component={AchievementsScreen} options={{ title: t("achv.cabinet.title") }} />
           <Stack.Screen name="Ledger" component={LiftersLedgerScreen} options={{ title: t("achv.ledger.title") }} />
           <Stack.Screen name="ExerciseLoads" component={ExerciseLoadsScreen} options={{ title: t("loads.title") }} />
-          <Stack.Screen name="StoppedSuggestions" component={StoppedSuggestionsScreen} options={{ title: t("stop.title") }} />
+          {developerMode ? <Stack.Screen name="StoppedSuggestions" component={StoppedSuggestionsScreen} options={{ title: t("stop.title") }} /> : null}
           <Stack.Screen name="ShortWeek" component={ShortWeekScreen} options={{ title: t("short.title") }} />
           <Stack.Screen name="Why" component={WhyScreen} options={{ title: t("why.title") }} />
           <Stack.Screen name="Gyms" component={GymsScreen} options={{ title: t("gyms.title") }} />

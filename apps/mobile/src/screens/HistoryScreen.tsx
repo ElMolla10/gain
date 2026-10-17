@@ -40,14 +40,14 @@ export function HistoryScreen() {
         <Chip label={t("history.lifts")} selected={mode === "lifts"} onPress={() => setMode("lifts")} />
       </View>
 
-      {!asked ? (
+      {developerMode && (!asked ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("telemetry.optin.title")}</AppText>
           <AppText>{t("telemetry.optin.body")}</AppText>
           <BigButton label={t("telemetry.optin.allow")} onPress={() => { telemetry.setOptedIn(true); setAsked(true); telemetry.record("progress_opened"); }} />
           <BigButton variant="secondary" label={t("telemetry.optin.deny")} onPress={() => { telemetry.setOptedIn(false); setAsked(true); }} />
         </Card>
-      ) : null}
+      ) : null)}
 
       <EvidenceAchievementsCard />
       {state.failed ? <View accessibilityLiveRegion="polite">

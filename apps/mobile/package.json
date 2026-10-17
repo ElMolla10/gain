@@ -15,6 +15,7 @@
     "export:ios": "expo export --platform ios"
   },
   "dependencies": {
+    "@expo/ui": "~57.0.25",
     "@gain/engine": "*",
     "@gain/sync": "*",
     "@react-navigation/bottom-tabs": "^7.20.0",
@@ -35,6 +36,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
+    "expo-widgets": "~57.0.26",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",

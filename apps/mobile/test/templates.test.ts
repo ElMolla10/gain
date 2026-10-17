@@ -427,7 +427,7 @@ describe("every template works with the real library, the program repo, the swit
           expect(targets.length, `${t.id}/${next.day.name}`).toBeGreaterThan(0);
           for (const tg of targets) {
             checked++;
-            expect(tg.ruleVersion, `${t.id}/${tg.nameEn}`).toBe("rule-v0.6");
+            expect(tg.ruleVersion, `${t.id}/${tg.nameEn}`).toBe("rule-v0.7");
             expect(tg.reason.key, `${t.id}/${tg.nameEn}`).toBeTruthy();
           }
         }

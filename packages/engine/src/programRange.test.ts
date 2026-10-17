@@ -19,7 +19,7 @@ const P = (ex: ExerciseSpec, reps: number[], options?: Parameters<typeof propose
   proposeNext({ exercise: ex, gym: gymA, asOf: ASOF, history: run(lineOf("bench"), 100, reps), options });
 
 describe("rule version", () => {
-  it("is rule-v0.6", () => expect(RULE_VERSION).toBe("rule-v0.6"));
+  it("is rule-v0.7", () => expect(RULE_VERSION).toBe("rule-v0.7"));
 });
 
 describe("resolveRepTop", () => {

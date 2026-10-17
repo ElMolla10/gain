@@ -385,10 +385,10 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     });
   }
 
-  // 5. Repeated misses below the range at the same load: step the load down one real step.
+  // 5. Count misses using the configured rep basis, matching readiness and currency decisions.
   let misses = 0;
   for (const s of summaries) {
-    if (Math.abs(s.topLoad - last.topLoad) < 1e-6 && s.repsAtTop < lo) misses++;
+    if (Math.abs(s.topLoad - last.topLoad) < 1e-6 && basisReps(s) < lo) misses++;
     else break;
   }
   if (stepDownAfter !== null && misses >= stepDownAfter && nextEasier !== null) {

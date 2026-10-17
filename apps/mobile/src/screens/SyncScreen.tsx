@@ -1,11 +1,14 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
+import { View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
+import { isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
+import { groupCode, normalizeCode } from "../logic/recoveryCodeText";
 import { localDateText } from "../logic/trendChart";
 import type { SyncInfo } from "../sync/engine";
-import { space, usePalette } from "../theme";
+import { radius, space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Field, InlineStatus, Notice, Screen } from "../ui";
 
 type Step = "idle" | "code" | "choice";
@@ -48,7 +51,7 @@ export function SyncScreen() {
     clear();
     setBusy("sync.connecting");
     try {
-      const r = await sync.connect({ recoveryCode: recoveryCode?.trim() || undefined });
+      const r = await sync.connect({ recoveryCode: (recoveryCode && normalizeCode(recoveryCode)) || undefined });
       if (!r.ok) return fail(r.error);
       if (r.needsChoice) {
         setStep("choice");
@@ -178,7 +181,10 @@ export function SyncScreen() {
       {step === "code" && code ? (
         <Card>
           <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.code.title")}</AppText>
-          <AppText ltr selectable style={{ fontSize: 20, fontWeight: "600", letterSpacing: 1 }}>{code}</AppText>
+          <View style={{ backgroundColor: p.raised, borderRadius: radius.input, padding: space.lg }}>
+            <AppText ltr selectable style={{ fontSize: 28, lineHeight: 34, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(groupCode(code))}</AppText>
+          </View>
+          <AppText style={{ color: p.muted, fontSize: 14, lineHeight: 20 }}>{t("sync.code.copyHint")}</AppText>
           <AppText>{t("sync.code.body")}</AppText>
           <BigButton label={t("sync.code.saved")} onPress={() => setStep("idle")} />
         </Card>
@@ -203,7 +209,7 @@ export function SyncScreen() {
             <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.restoreTitle")}</AppText>
             <AppText style={{ color: p.muted }}>{t("sync.restoreNote")}</AppText>
             <Field label={t("sync.codeField")} hint={t("sync.codeHint")} value={typed} onChangeText={setTyped} />
-            <BigButton label={t("sync.restore")} variant="secondary" disabled={!!busy || typed.trim().length < 10} onPress={() => turnOn(typed)} />
+            <BigButton label={t("sync.restore")} variant="secondary" disabled={!!busy || normalizeCode(typed).length < 10} onPress={() => turnOn(typed)} />
           </Card>
           <Card>
             <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.email.title")}</AppText>

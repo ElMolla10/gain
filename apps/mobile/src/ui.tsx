@@ -6,6 +6,7 @@ import { familyFor, hasArabic, ltrAllowed, scaleFor, textOf } from "./fonts";
 import { useI18n } from "./i18n";
 import { adjustKeyboardInsets, numberPadAccessory } from "./numberPad";
 import { choiceListMaxHeight, hasCollapsibleContent } from "./logic/sheetLayout";
+import { clampStep, parseTyped, REPEAT_DELAY_MS, REPEAT_EVERY_MS } from "./logic/stepper";
 import { INPUT_HEIGHT, MIN_TOUCH, PRIMARY_HEIGHT, radius, space, type as ty, usePalette } from "./theme";
 
 /**
@@ -311,12 +312,47 @@ export function ArDraftNote() {
 export function Stepper(props: { label: string; value: number; onChange: (n: number) => void; min: number; max: number; /** Size of one tap (default 1). */ step?: number }) {
   const step = props.step ?? 1;
   const p = usePalette();
+  // Long-press auto-repeat (P-9): first repeat after 400 ms, then every 120 ms; stops at min/max, on release and on unmount.
+  const live = useRef(props);
+  live.current = props;
+  const timers = useRef<{ delay?: ReturnType<typeof setTimeout>; every?: ReturnType<typeof setInterval>; repeated: boolean }>({ repeated: false });
+  const stop = () => {
+    if (timers.current.delay) clearTimeout(timers.current.delay);
+    if (timers.current.every) clearInterval(timers.current.every);
+    timers.current.delay = undefined;
+    timers.current.every = undefined;
+  };
+  useEffect(() => stop, []);
+  const apply = (delta: number) => {
+    const cur = live.current;
+    const next = clampStep(cur.value + delta * step, cur.min, cur.max);
+    if (next === cur.value) return stop();
+    cur.onChange(next);
+  };
+  const [typing, setTyping] = useState<string | null>(null);
+  const commit = () => {
+    if (typing !== null) props.onChange(parseTyped(typing, props.value, props.min, props.max, step));
+    setTyping(null);
+  };
   const btn = (icon: "plus" | "minus", delta: number, disabled: boolean) => (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${props.label} ${icon === "plus" ? "+" : "−"}`}
       disabled={disabled}
-      onPress={() => props.onChange(Math.min(props.max, Math.max(props.min, props.value + delta * step)))}
+      onPressIn={() => {
+        stop();
+        timers.current.repeated = false;
+        timers.current.delay = setTimeout(() => {
+          timers.current.repeated = true;
+          apply(delta);
+          timers.current.every = setInterval(() => apply(delta), REPEAT_EVERY_MS);
+        }, REPEAT_DELAY_MS);
+      }}
+      onPressOut={stop}
+      onPress={() => {
+        if (!timers.current.repeated) apply(delta);
+        timers.current.repeated = false;
+      }}
       style={({ pressed }) => ({ width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: radius.button, borderWidth: 1.5, borderColor: disabled ? p.border : p.edge, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? p.tint : p.raised })}
     >
       <Icon name={icon} color={disabled ? p.onDisabled : p.text} size={22} />
@@ -327,7 +363,24 @@ export function Stepper(props: { label: string; value: number; onChange: (n: num
       <AppText style={{ fontWeight: "600", flexShrink: 1 }}>{props.label}</AppText>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
         {btn("minus", -1, props.value <= props.min)}
-        <AppText ltr style={{ minWidth: 40, textAlign: "center", fontSize: ty.section, fontWeight: "600" }}>{String(props.value)}</AppText>
+        {typing !== null ? (
+          <TextInput
+            accessibilityLabel={props.label}
+            autoFocus
+            value={typing}
+            onChangeText={setTyping}
+            onBlur={commit}
+            onSubmitEditing={commit}
+            keyboardType={step >= 1 ? "number-pad" : "decimal-pad"}
+            selectTextOnFocus
+            style={{ minWidth: 40, minHeight: MIN_TOUCH, textAlign: "center", fontSize: ty.section, fontWeight: "600", color: p.text, fontVariant: ["tabular-nums"], borderBottomWidth: 2, borderColor: p.accent, writingDirection: "ltr" }}
+          />
+        ) : (
+          // Tap the number to type it (clamped on blur/submit).
+          <Pressable accessibilityRole="button" accessibilityLabel={`${props.label}: ${props.value}`} accessibilityHint={props.label} onPress={() => setTyping(String(props.value))} style={{ minWidth: 40, minHeight: MIN_TOUCH, justifyContent: "center" }}>
+            <AppText ltr style={{ textAlign: "center", fontSize: ty.section, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{String(props.value)}</AppText>
+          </Pressable>
+        )}
         {btn("plus", 1, props.value >= props.max)}
       </View>
     </View>
@@ -591,7 +644,33 @@ export function TargetStrip(props: { label: string; value?: string | null; /** T
 }
 
 /** A tappable list row with title, note, optional trailing text and a chevron that mirrors in RTL. */
-export function ListRow(props: { title: string; note?: string; trailing?: string; onPress?: () => void; last?: boolean; accessibilityLabel?: string }) {
+/**
+ * Two or three tabs that switch content in place (History's Sessions / Exercises, H-7): a full-width segmented control,
+ * 48 dp, first segment on the start edge. Exposed as a tablist with selected tabs, not as chips.
+ */
+export function SegmentedTabs<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  const p = usePalette();
+  return (
+    <View accessibilityRole="tablist" style={{ flexDirection: "row", borderWidth: 1.5, borderColor: p.edge, borderRadius: radius.button, overflow: "hidden" }}>
+      {props.options.map((o, i) => {
+        const on = o.value === props.value;
+        return (
+          <Pressable
+            key={o.value}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            onPress={() => props.onChange(o.value)}
+            style={{ flex: 1, minHeight: MIN_TOUCH, alignItems: "center", justifyContent: "center", paddingHorizontal: space.sm, backgroundColor: on ? p.fill : "transparent", borderStartWidth: i === 0 ? 0 : 1.5, borderColor: p.edge }}
+          >
+            <AppText style={{ fontSize: ty.bodySmall, fontWeight: "600", textAlign: "center", color: on ? p.onFill : p.text }}>{o.label}</AppText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export function ListRow(props: { title: string; note?: string; trailing?: string; /** Extra trailing content (a pill, a value with a glyph); kept within 45% of the row. */ trailingIcon?: React.ReactNode; onPress?: () => void; last?: boolean; accessibilityLabel?: string }) {
   const p = usePalette();
   const inner = (
     <>
@@ -600,6 +679,7 @@ export function ListRow(props: { title: string; note?: string; trailing?: string
         {props.note ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.note}</AppText> : null}
       </View>
       {props.trailing ? <AppText ltr style={{ fontSize: ty.label, color: p.muted, maxWidth: "45%" }}>{props.trailing}</AppText> : null}
+      {props.trailingIcon ? <View style={{ maxWidth: "45%", flexDirection: "row", alignItems: "center", gap: space.xs }}>{props.trailingIcon}</View> : null}
       {props.onPress ? <Icon name="chevron" color={p.muted} size={20} mirror /> : null}
     </>
   );

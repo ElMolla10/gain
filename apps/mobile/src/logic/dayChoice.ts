@@ -40,3 +40,19 @@ export type SessionAction = { kind: "start"; dayId: string } | { kind: "resume";
 export function sessionAction(chosenId: string, openDayId: string | null): SessionAction {
   return openDayId === null ? { kind: "start", dayId: chosenId } : { kind: "resume", dayId: openDayId, elsewhere: openDayId !== chosenId };
 }
+
+/**
+ * Start (14): plan the day's targets, then open the workout. Planning is best-effort: a throw is recorded and the workout still opens
+ * (the Workout screen computes live proposals and handles "no gym"). A resume never plans. Navigates exactly once; never rejects.
+ */
+export async function startDay(action: SessionAction, deps: {
+  plan: (dayId: string) => Promise<unknown>;
+  navigate: (dayId: string) => void;
+  record: (e: unknown) => void;
+}): Promise<void> {
+  if (action.kind === "start") {
+    try { await deps.plan(action.dayId); }
+    catch (e) { deps.record(e); }
+  }
+  deps.navigate(action.dayId);
+}

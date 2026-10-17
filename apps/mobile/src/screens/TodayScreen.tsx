@@ -18,7 +18,7 @@ import { loadRestSettings } from "../logic/restAlert";
 import { useI18n } from "../i18n";
 import { radius, space, type as ty, usePalette } from "../theme";
 import { BrandLogo } from "../BrandLogo";
-import { dayLabel, initialSelection, markSuggested, sessionAction, type DayChoice } from "../logic/dayChoice";
+import { dayLabel, initialSelection, markSuggested, sessionAction, startDay, type DayChoice } from "../logic/dayChoice";
 import { AppText, BigButton, Card, ChoiceSheet, EmptyState, ErrorState, InlineStatus, ListCard, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
@@ -144,11 +144,15 @@ export function TodayScreen() {
     try {
       // Only a NEW workout gets its planned session and targets (planned sessions of other days are voided: missed days never stack).
       // An open workout is resumed as it is, whichever day is shown.
-      if (action.kind === "start") {
-        const gymId = await repos.getActiveGymId();
-        if (gymId) await finish.planDay(action.dayId, gymId);
-      }
-      navigation.navigate("Workout", { dayId: action.dayId });
+      // Planning never blocks training: a failure is recorded and the workout still opens.
+      await startDay(action, {
+        plan: async (dayId) => {
+          const gymId = await repos.getActiveGymId();
+          if (gymId) await finish.planDay(dayId, gymId);
+        },
+        navigate: (dayId) => navigation.navigate("Workout", { dayId }),
+        record: (e) => diagnostics.record("error", "today start", e),
+      });
     } finally {
       setStarting(false);
     }

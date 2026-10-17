@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { dayLabel, initialSelection, markSuggested, sessionAction } from "../src/logic/dayChoice";
+import { describe, expect, it, vi } from "vitest";
+import { dayLabel, initialSelection, markSuggested, sessionAction, startDay } from "../src/logic/dayChoice";
 import { freshDb } from "./helpers";
 
 const days = [
@@ -106,5 +106,34 @@ describe("choosing the day (data)", () => {
     const { id } = await c.workout.startOrResumeSession(c.list[2 % c.list.length]!.id, c.gymId);
     expect(await c.workout.getOpenSession()).toEqual({ id, dayId: c.list[2 % c.list.length]!.id });
     expect(await c.finish.planDay(c.list[2 % c.list.length]!.id, c.gymId)).toBeNull(); // already in progress
+  });
+});
+
+describe("14 Start never fails silently and planning never blocks training", () => {
+  it("plan throws: recorded once, still navigates once, never rejects", async () => {
+    const plan = vi.fn(async () => { throw new Error("SQLITE_BUSY"); });
+    const navigate = vi.fn();
+    const record = vi.fn();
+    await expect(startDay({ kind: "start", dayId: "a" }, { plan, navigate, record })).resolves.toBeUndefined();
+    expect(record).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("a");
+  });
+  it("plan ok: plans the chosen day, then navigates once, nothing recorded", async () => {
+    const order: string[] = [];
+    const plan = vi.fn(async () => { order.push("plan"); });
+    const navigate = vi.fn(() => { order.push("nav"); });
+    const record = vi.fn();
+    await startDay({ kind: "start", dayId: "b" }, { plan, navigate, record });
+    expect(plan).toHaveBeenCalledWith("b");
+    expect(order).toEqual(["plan", "nav"]);
+    expect(record).not.toHaveBeenCalled();
+  });
+  it("resume: never plans, navigates to the open day", async () => {
+    const plan = vi.fn(async () => undefined);
+    const navigate = vi.fn();
+    await startDay({ kind: "resume", dayId: "c", elsewhere: true }, { plan, navigate, record: vi.fn() });
+    expect(plan).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith("c");
   });
 });

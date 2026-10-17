@@ -10,7 +10,7 @@ import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { actionOf, hasNumber } from "../logic/decisionText";
-import { localDateText } from "../logic/trendChart";
+import { formatDay } from "../logic/dateText";
 import { localizeReason } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, EmptyState, FilterPanel, LoadingState, Screen } from "../ui";
@@ -66,7 +66,7 @@ export function DecisionLogScreen() {
         }
         return (
           <Card key={d.targetId}>
-            <AppText ltr style={{ fontWeight: "600" }}>{localDateText(d.decidedAt)}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{formatDay(d.decidedAt, lang)}</AppText>
             <AppText style={{ fontSize: 20, fontWeight: "600" }}>{exerciseLabels(d, lang).primary}</AppText>
             <AppText style={{ color: p.muted }}>{t("dec.for", { day: d.dayName })}</AppText>
             <AppText style={{ fontSize: 16, fontWeight: "600" }}>

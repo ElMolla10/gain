@@ -24,14 +24,15 @@ function toDate(when: number | string): Date | null {
   return Number.isFinite(ms) ? new Date(ms) : null;
 }
 
-/** "Wed 16 Sep" / "الأربعاء 16 سبتمبر" (+ " 2025" outside the current year). Unreadable input is returned as it is. */
-export function formatDay(when: number | string, lang: DateLang, now: number = Date.now()): string {
+/** "Wed 16 Sep" / "الأربعاء 16 سبتمبر" (+ " 2025" outside the current year). Unreadable input is returned as it is.
+ * `short` drops the weekday ("16 Sep" / "16 سبتمبر") for tight spots such as a chart axis. */
+export function formatDay(when: number | string, lang: DateLang, now: number = Date.now(), short = false): string {
   const d = toDate(when);
   if (!d) return String(when);
   const year = d.getFullYear() === new Date(now).getFullYear() ? "" : ` ${d.getFullYear()}`;
   const days = lang === "ar" ? AR_DAYS : EN_DAYS;
   const months = lang === "ar" ? AR_MONTHS : EN_MONTHS;
-  return toWesternDigits(`${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}${year}`);
+  return toWesternDigits(`${short ? "" : `${days[d.getDay()]} `}${d.getDate()} ${months[d.getMonth()]}${year}`);
 }
 
 /** A plain number with Western digits in both languages (counts, percentages); never for loads. */

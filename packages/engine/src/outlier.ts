@@ -24,6 +24,8 @@ export interface OutlierContext {
   history: HistorySession[];
   bodyweightKg?: number | null;
   gymSpec?: GymLoadSpec | null;
+  /** Today's other sets for this exercise. Added to the baseline on top of the last past sessions, never taking one of their slots. */
+  today?: LoggedSet[];
 }
 
 /** Sets that may anchor a line: working sets, not drop sets, not unconfirmed/rejected outliers. */
@@ -59,7 +61,7 @@ export function checkOutlier(set: LoggedSet, ctx: OutlierContext): OutlierResult
     return { verdict: "unconfirmed", outlierStatus: "unconfirmed", reasons: ["invalid_value"], expected: null };
   }
 
-  const recent = recentTrustedSets(ctx.line, ctx.history);
+  const recent = [...recentTrustedSets(ctx.line, ctx.history), ...(ctx.today ?? []).filter(isTrustedWorkingSet)];
   if (recent.length < OUTLIER_MIN_SETS) {
     return { verdict: "insufficient_history", outlierStatus: "none", reasons: [], expected: null };
   }

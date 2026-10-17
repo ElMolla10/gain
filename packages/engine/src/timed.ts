@@ -286,13 +286,13 @@ export const TIMED_OUTLIER_MIN_DIFF = 15;
  * sets are shown but never move the next target until the lifter confirms them. Needs 2 earlier working sets to judge; the number
  * must always be a positive amount no bigger than an hour / 5 km.
  */
-export function checkTimedOutlier(set: LoggedSet, measure: "time" | "distance", ctx: { line: LineIdentity; history: HistorySession[] }): OutlierResult {
+export function checkTimedOutlier(set: LoggedSet, measure: "time" | "distance", ctx: { line: LineIdentity; history: HistorySession[]; today?: LoggedSet[] }): OutlierResult {
   const q = quantityOf(set, measure);
   const cap = measure === "time" ? MAX_SECONDS : MAX_METRES;
   if (q === null || q > cap || !Number.isFinite(set.load) || set.load < 0) {
     return { verdict: "unconfirmed", outlierStatus: "unconfirmed", reasons: ["invalid_value"], expected: null };
   }
-  const recent = recentTrustedSets(ctx.line, ctx.history).map((x) => quantityOf(x, measure)).filter((x): x is number => x !== null);
+  const recent = [...recentTrustedSets(ctx.line, ctx.history), ...(ctx.today ?? []).filter(isTrustedWorkingSet)].map((x) => quantityOf(x, measure)).filter((x): x is number => x !== null);
   if (recent.length < 2) return { verdict: "insufficient_history", outlierStatus: "none", reasons: [], expected: null };
   const med = median(recent);
   const far = Math.abs(q - med) >= TIMED_OUTLIER_MIN_DIFF && (q > med * TIMED_OUTLIER_RATIO || q < med / TIMED_OUTLIER_RATIO);

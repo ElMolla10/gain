@@ -228,7 +228,7 @@ export function TodayScreen() {
 
       <View style={{ gap: space.sm }}>
         {/* The explanation of where these weights come from sits behind a "?" instead of 2-3 lines above the list (T-6). */}
-        <SectionTitle action={<QuietAction label="?" accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen} onPress={() => setNoteOpen((o) => !o)} />}>{t("today.targets")}</SectionTitle>
+        <SectionTitle action={<QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen} onPress={() => setNoteOpen((o) => !o)} />}>{t("today.targets")}</SectionTitle>
         {noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}
         {previewDay ? <AppText style={{ color: p.muted }}>{t("common.loading")}</AppText> : !anyWeight ? <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText> : null}
         <Card style={{ paddingVertical: space.xs }}>

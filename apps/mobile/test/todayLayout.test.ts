@@ -48,8 +48,8 @@ describe("Today layout (design audit T-3..T-8)", () => {
     expect(hasCollapsibleContent(0)).toBe(false);
     expect(hasCollapsibleContent(120)).toBe(true);
   });
-  it("T-6: the preview note sits behind a 48 dp '?' with a spoken label, closed by default", () => {
-    expect(today).toContain(`<QuietAction label="?" accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen}`);
+  it("T-6: the preview note sits behind a 48 dp Why toggle with a spoken label, closed by default", () => {
+    expect(today).toContain(`<QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen}`);
     expect(today).toContain("const [noteOpen, setNoteOpen] = useState(false);");
     expect(today).toContain('{noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}');
   });
@@ -65,5 +65,17 @@ describe("Today layout (design audit T-3..T-8)", () => {
     expect(today).toContain('note={t("today.chooseNoteShort")}');
     expect(en["today.chooseNoteShort"].length).toBeLessThanOrEqual(50);
     expect(ar["today.chooseNoteShort"].length).toBeLessThanOrEqual(50);
+  });
+});
+
+describe("design QA round 1 (B-R1, B-R2)", () => {
+  it("the preview-note toggle uses the why icon, not a bare '?'", () => {
+    const f = readFileSync(join(__dirname, "..", "src", "screens", "TodayScreen.tsx"), "utf8");
+    expect(f).not.toContain('label="?"');
+    expect(f).toMatch(/<QuietAction icon="why" label=\{t\("workout\.whyShort"\)\} accessibilityLabel=\{t\("today\.previewNoteToggle"\)\}/);
+  });
+  it("a primary BigButton inside the collapsible card is drawn secondary", () => {
+    const ui = readFileSync(join(__dirname, "..", "src", "ui.tsx"), "utf8");
+    expect(ui).toMatch(/inset && asked === "primary" && !props\.hero \? "secondary" : asked/);
   });
 });

@@ -122,7 +122,10 @@ export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger";
 export function BigButton(props: { label: string; onPress?: () => void; disabled?: boolean; selected?: boolean; variant?: ButtonVariant; loading?: boolean; icon?: IconName; accessibilityHint?: string; /** The one primary action on a screen: taller, larger label. */ hero?: boolean }) {
   const p = usePalette();
   const { t } = useI18n();
-  const variant: ButtonVariant = props.variant ?? (props.selected === false ? "secondary" : "primary");
+  // Inside a collapsible card (This week) a primary would compete with the screen's one primary action: draw it secondary (B-R2).
+  const inset = React.useContext(InsetCards);
+  const asked: ButtonVariant = props.variant ?? (props.selected === false ? "secondary" : "primary");
+  const variant: ButtonVariant = inset && asked === "primary" && !props.hero ? "secondary" : asked;
   const disabled = !!props.disabled || !!props.loading;
   const fg = disabled && !props.loading ? p.onDisabled : variant === "primary" ? p.onFill : variant === "danger" ? p.danger : variant === "quiet" ? p.accent : p.text;
   const height = props.hero ? 60 : variant === "primary" ? PRIMARY_HEIGHT : MIN_TOUCH;

@@ -11,7 +11,7 @@ describe("2.12 empty states", () => {
   it("finds the empty states", () => expect(uses.length).toBeGreaterThanOrEqual(12));
   it("every EmptyState title is four words or fewer in English, and translated", () => {
     for (const u of uses) {
-      const s = (en as Record<string, string>)[u.key];
+      const s = (en as Record<string, string>)[u.key] ?? "";
       expect(s, u.key).toBeTruthy();
       expect(s.trim().split(/\s+/).length, `${u.key}: ${s}`).toBeLessThanOrEqual(4);
       expect((ar as Record<string, string>)[u.key], u.key).toBeTruthy();

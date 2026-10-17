@@ -1,10 +1,10 @@
 import { isTrustedWorkingSet } from "@gain/engine";
 import type { SessionSummary } from "../db/finishRepo";
 import type { SessionDetail } from "../db/historyRepo";
-import { translate, type Lang } from "../i18n/format";
+import { formatLoad, isolateLtr, NBSP, translate, type Lang } from "../i18n/format";
 import { quantityText, setQuantity } from "./quantity";
 import { sessionMinutes } from "./historyRows";
-import { kgToUnit, weightText, unitLabel, type Unit } from "./units";
+import { kgToUnit, unitToKg, weightText, unitLabel, type Unit } from "./units";
 import { formatDay } from "./dateText";
 
 /** Real logged-set statistics. Do not treat warm-ups, drops, questionable sets or holds as rep-based volume. */
@@ -22,9 +22,19 @@ export function workoutRecapStats(detail: SessionDetail, summary: SessionSummary
   };
 }
 
-export function personalBestLines(summary: SessionSummary, lang: Lang, unit: Unit): string[] {
-  const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params).replace(/[\u2066\u2069]/g, "");
-  const fmt = (kg: number) => `${weightText(kg, unit)} ${unitLabel(unit, lang)}`;
+/** An estimate shown at a sensible precision: 0.5 kg or 1 lb (never "76.667 kg") (design QA D-R5). */
+export function estimateKg(kg: number, unit: Unit): number {
+  return unit === "kg" ? Math.round(kg * 2) / 2 : unitToKg(Math.round(kgToUnit(kg, "lb")), "lb");
+}
+
+/**
+ * Personal-best lines. On screen (default) loads keep their isolates and no-break spaces (S-1); `plain` strips the isolates for the
+ * plain-text share message.
+ */
+export function personalBestLines(summary: SessionSummary, lang: Lang, unit: Unit, opts: { plain?: boolean } = {}): string[] {
+  const strip = (s: string) => (opts.plain ? s.replace(/[\u2066-\u2069]/g, "") : s);
+  const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => strip(translate(lang, key, params));
+  const fmt = (kg: number) => strip(formatLoad(kg, lang, unit));
   return summary.exercises.flatMap(ex => {
     if (ex.firstTime || !ex.top) return [];
     const name = lang === "ar" ? ex.nameAr : ex.nameEn;
@@ -32,7 +42,7 @@ export function personalBestLines(summary: SessionSummary, lang: Lang, unit: Uni
       if (record === "load") return `${name} — ${t("finish.record.load", { load: fmt(ex.top!.load) })}`;
       if (record === "reps_at_load") return `${name} — ${t("finish.record.reps", { load: fmt(ex.top!.load), reps: ex.top!.reps })}`;
       if (record === "rep" && ex.repPr) return `${name} — ${t("finish.record.rep", { load: fmt(ex.repPr.load), reps: ex.repPr.reps })}`;
-      if (record === "e1rm" && ex.estimated1rm != null) return `${name} — ${t("finish.record.e1rm", { load: fmt(ex.estimated1rm) })}`;
+      if (record === "e1rm" && ex.estimated1rm != null) return `${name} — ${t("finish.record.e1rm", { load: fmt(estimateKg(ex.estimated1rm, unit)) })}`;
       if (record === "quantity_at_load" && ex.top?.quantity !== undefined && ex.measure) {
         const q = quantityText(ex.top.quantity, ex.measure, { s: t("qty.s"), m: t("qty.m") });
         return `${name} — ${ex.top.load > 0 ? t("finish.record.quantity", { load: fmt(ex.top.load), q }) : t("finish.record.quantityBare", { q })}`;
@@ -46,7 +56,7 @@ export function personalBestLines(summary: SessionSummary, lang: Lang, unit: Uni
 export function formatWorkoutShareText(detail: SessionDetail, summary: SessionSummary, lang: Lang, unit: Unit): string {
   const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params).replace(/[\u2066\u2069]/g, "");
   const stats = workoutRecapStats(detail, summary);
-  const pb = personalBestLines(summary, lang, unit);
+  const pb = personalBestLines(summary, lang, unit, { plain: true });
   const label = unitLabel(unit, lang);
   const date = formatDay(detail.finishedAt, lang);
   const lines = [
@@ -81,7 +91,8 @@ export function formatWorkoutShareText(detail: SessionDetail, summary: SessionSu
 /** Concrete changes, with the relevant earlier performance rather than an implied population rank. */
 export function improvementLines(summary: SessionSummary, lang: Lang, unit: Unit): string[] {
   const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params);
-  const performance = (load: number, q: number, measure: "reps" | "time" | "distance") => `${weightText(load, unit)} ${unitLabel(unit, lang)} × ${measure === "reps" ? q : quantityText(q, measure, { s: t("qty.s"), m: t("qty.m") })}`;
+  // Language order with isolated numbers (S-1/F-2): "57.5 كجم × 8" reads correctly from the right.
+  const performance = (load: number, q: number, measure: "reps" | "time" | "distance") => `${formatLoad(load, lang, unit)}${NBSP}×${NBSP}${isolateLtr(measure === "reps" ? String(q) : quantityText(q, measure, { s: t("qty.s"), m: t("qty.m") }))}`;
   return summary.exercises.flatMap(ex => {
     if (!ex.top || !ex.counted) return [];
     const exercise = lang === "ar" ? ex.nameAr : ex.nameEn;

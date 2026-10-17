@@ -11,7 +11,12 @@ import { diagnostics } from "../diagnostics";
 import { formatDay } from "../logic/dateText";
 
 /** The exact preview is captured locally. Native capture loads only when sharing is requested. */
-export function AchievementCard({ detail, summary }: { detail: SessionDetail; summary: SessionSummary }) {
+export function AchievementCard({ detail, summary, shareRef }: {
+  detail: SessionDetail;
+  summary: SessionSummary;
+  /** When given (Finish), the card's own Share button is hidden and sharing is exposed here for the screen's one Share menu (D-R1). */
+  shareRef?: React.MutableRefObject<(() => Promise<void>) | null>;
+}) {
   const { t, lang, unit } = useI18n();
   const layout = useRef({ width: 0, height: 0 });
   const ref = useRef<View>(null); const lock = useRef(false);
@@ -32,6 +37,7 @@ export function AchievementCard({ detail, summary }: { detail: SessionDetail; su
     } catch (e) { diagnostics.record("warn", "share achievement", e); setFailed(true); }
     finally { if (uri) release?.(uri); lock.current = false; setBusy(false); }
   };
+  if (shareRef) shareRef.current = summary.totals.counted === 0 ? null : share;
   if (summary.totals.counted === 0) return null;
   return <View style={{ gap: space.sm }}>
     <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("progress.cardPreview")}</AppText>
@@ -45,7 +51,7 @@ export function AchievementCard({ detail, summary }: { detail: SessionDetail; su
       <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("progress.note")}</AppText>
     </View>
     <AppText>{t("progress.shareNote")}</AppText>
-    <BigButton variant="secondary" icon="export" label={t("progress.share")} loading={busy} disabled={busy || !ready} onPress={() => void share()} />
+    {shareRef ? null : <BigButton variant="secondary" icon="export" label={t("progress.share")} loading={busy} disabled={busy || !ready} onPress={() => void share()} />}
     {failed ? <InlineStatus kind="error" text={t("recap.shareFailed")} /> : null}
   </View>;
 }

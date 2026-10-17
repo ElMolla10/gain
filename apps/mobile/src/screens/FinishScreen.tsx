@@ -20,6 +20,9 @@ import type { StringKey } from "../i18n/strings";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, ErrorState, InlineStatus, LoadingState, Notice, Screen } from "../ui";
 import { FinishedDayForecast, type SameDayForecast } from "../components/FinishedDayForecast";
+import { MenuSheet } from "../components/LogParts";
+import { Icon } from "../components/Icon";
+import { finishStatCells, resolveWhyTargets, SHEET_CLOSE_MS } from "../logic/finishLayout";
 import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
@@ -48,6 +51,24 @@ export function FinishScreen() {
   const [milestones, setMilestones] = useState<string[]>([]);
   const [hero, setHero] = useState<SurfaceBadge | null>(null);
   const [heroRest, setHeroRest] = useState<SurfaceBadge[]>([]);
+  const [shareOpen, setShareOpen] = useState(false);
+  // The achievement card's share lives in the one Share menu (D-R1).
+  const achievementShare = useRef<(() => Promise<void>) | null>(null);
+  const [goalLiftId, setGoalLiftId] = useState<string | null>(null);
+  const [whyTargets, setWhyTargets] = useState<Record<string, string>>({});
+  // Saved decision records for the forecast exercises: those open the real Why screen (read-only lookup).
+  useEffect(() => {
+    if (next === null || next === "none") return;
+    let alive = true;
+    void resolveWhyTargets(next.dayId, next.exercises.map((e) => e.exerciseId), finish).then((m) => { if (alive) setWhyTargets(m); });
+    return () => { alive = false; };
+  }, [next, finish]);
+  // The goal lift leads the next-workout block when it is in it (F-1). Read-only; a failure just leaves the first exercise leading.
+  useEffect(() => {
+    let alive = true;
+    goals.getPace(Date.now()).then((pace) => { if (alive && pace.kind === "lift") setGoalLiftId(pace.goal.exerciseId); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [goals]);
 
   // Continue planning the rotation; preview this finished day separately.
   useEffect(() => {
@@ -229,10 +250,15 @@ export function FinishScreen() {
     setNotices((n) => ({ ...n, link: t("link.stopped") }));
   };
 
+  const afterSheet = (run: () => void) => setTimeout(run, SHEET_CLOSE_MS);
   const noSets = summary.totals.counted === 0 && summary.totals.warmups === 0 && summary.totals.unconfirmed === 0;
   const improvements = improvementLines(summary, lang, unit);
   const pbLines = personalBestLines(summary, lang, unit);
   const stats = detail ? workoutRecapStats(detail, summary) : null;
+  const statCells = finishStatCells({
+    sets: summary.totals.counted, exercises: summary.totals.exercises,
+    volume: stats ? volumeText(stats.volumeKg, unit) : null, minutes: stats?.durationMinutes ?? null,
+  }, { sets: t("workout.stat.sets"), exercises: t("recap.exercises"), volume: t("workout.stat.volume"), duration: t("workout.stat.duration"), unit: unitText, min: t("workout.dur.m") });
 
   return (
     <Screen footer={<BigButton hero label={t("finish.done")} onPress={() => navigation.popToTop()} />}>
@@ -242,44 +268,43 @@ export function FinishScreen() {
         <SaveStatusLine since={finishedAt} />
       </View>
 
-      {hero ? <HeroAchievement hero={hero} rest={heroRest} /> : null}
+      {/* 2. The hand-off: the next workout's weights, right under the title (F-1). Forecast of the next occurrence of THIS day. */}
+      {next === null
+        ? <Card><AppText style={{ color: p.muted }}>{t("common.loading")}</AppText></Card>
+        : <FinishedDayForecast value={next} leadExerciseId={goalLiftId} whyTargets={whyTargets} onWhy={(targetId) => navigation.navigate("Why", { targetId })} />}
 
+      {/* 3. One row of stats: values 20/26, labels 13; only the next load is drawn at 36 (F-5). */}
       <Card>
         {noSets ? (
           <AppText>{t("finish.noSets")}</AppText>
         ) : (
           <>
-            <View style={{ flexDirection: "row", gap: space.md, flexWrap: "wrap" }}>
-              <View style={{ minWidth: 100, flexGrow: 1 }}>
-                <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{summary.totals.counted}</AppText>
-                <AppText style={{ color: p.muted }}>{t("workout.stat.sets")}</AppText>
-              </View>
-              <View style={{ minWidth: 100, flexGrow: 1 }}>
-                <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{summary.totals.exercises}</AppText>
-                <AppText style={{ color: p.muted }}>{t("recap.exercises")}</AppText>
-              </View>
-              {stats ? (
-                <View style={{ minWidth: 100, flexGrow: 1 }}>
-                  <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(volumeText(stats.volumeKg, unit))} {unitText}</AppText>
-                  <AppText style={{ color: p.muted }}>{t("workout.stat.volume")}</AppText>
+            <View style={{ flexDirection: "row", columnGap: space.md, rowGap: space.sm, flexWrap: "wrap" }}>
+              {statCells.map((c) => (
+                <View key={c.key} style={{ flexGrow: 1, minWidth: 64 }}>
+                  <AppText style={{ fontSize: ty.section, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{c.value}</AppText>
+                  <AppText style={{ color: p.muted, fontSize: ty.caption }}>{c.label}</AppText>
                 </View>
-              ) : null}
-              {stats?.durationMinutes != null ? (
-                <View style={{ minWidth: 100, flexGrow: 1 }}>
-                  <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(String(stats.durationMinutes))} {t("workout.dur.m")}</AppText>
-                  <AppText style={{ color: p.muted }}>{t("workout.stat.duration")}</AppText>
-                </View>
-              ) : null}
+              ))}
             </View>
             {summary.totals.warmups + summary.totals.unconfirmed > 0 ? (
               <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("finish.excludedNote", { warmups: summary.totals.warmups, unconfirmed: summary.totals.unconfirmed })}</AppText>
             ) : null}
           </>
         )}
+      </Card>
+
+      {/* 4. Personal bests and achievements. */}
+      {hero ? <HeroAchievement hero={hero} rest={heroRest} /> : null}
+      <Card>
         <View style={{ gap: space.xs }}>
-          <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", color: pbLines.length ? p.accent : p.text }}>
-            {pbLines.length > 0 ? "🏆 " : ""}{t("recap.personalBests")}{pbLines.length ? ` (${pbLines.length})` : ""}
-          </AppText>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+            {/* A drawn trophy, not the emoji (renders differently per platform) (F-6). */}
+            {pbLines.length > 0 ? <Icon name="trophy" color={p.accent} size={20} /> : null}
+            <AppText accessibilityRole="header" style={{ flexShrink: 1, fontSize: ty.section, fontWeight: "600", color: pbLines.length ? p.accent : p.text }}>
+              {t("recap.personalBests")}{pbLines.length ? ` (${pbLines.length})` : ""}
+            </AppText>
+          </View>
           {pbLines.length ? pbLines.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText style={{ color: p.muted }}>{t("recap.noPbs")}</AppText>}
           {milestones.map((line, i) => <AppText key={`m${i}`}>{line}</AppText>)}
         </View>
@@ -290,17 +315,24 @@ export function FinishScreen() {
         {improvements.length ? improvements.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText>{t("progress.steady")}</AppText>}
         <AppText style={{ color: p.muted }}>{t("progress.note")}</AppText>
       </Card>
-      {detail ? <AchievementCard detail={detail} summary={summary} /> : null}
-
-      {/* Forecast the next occurrence of this particular day, not the next day in the rotation. */}
-      {next === null
-        ? <Card><AppText style={{ color: p.muted }}>{t("common.loading")}</AppText></Card>
-        : <FinishedDayForecast value={next} />}
+      {detail ? <AchievementCard detail={detail} summary={summary} shareRef={achievementShare} /> : null}
 
       {/* 3. Sharing is optional and secondary. */}
+      {/* 5. One Share button; text, PDF and link are in a menu (F-7). The link still asks for consent before anything is uploaded. */}
       <View style={{ gap: space.sm }}>
-        <BigButton variant="secondary" icon="export" label={t("recap.shareText")} loading={sharingText} disabled={sharingText || !summary} onPress={() => void shareWorkoutText()} />
-        <BigButton variant="secondary" icon="export" label={sharing ? t("card.sharing") : t("card.share")} disabled={sharing} onPress={shareCard} />
+        <BigButton variant="secondary" icon="export" label={sharingText ? t("common.loading") : sharing ? t("card.sharing") : t("finish.share")} loading={sharingText || sharing} disabled={sharingText || sharing} onPress={() => setShareOpen(true)} />
+        <MenuSheet
+          visible={shareOpen}
+          title={t("finish.share")}
+          onClose={() => setShareOpen(false)}
+          // Each action fires only after the sheet has fully closed (a share sheet opened during the dismiss may never show on iOS) (D-R3).
+          items={[
+            ...(detail && summary.totals.counted > 0 ? [{ label: t("progress.share"), onPress: () => afterSheet(() => void achievementShare.current?.()) }] : []),
+            { label: t("recap.shareText"), onPress: () => afterSheet(() => void shareWorkoutText()) },
+            { label: t("card.share"), onPress: () => afterSheet(() => void shareCard()) },
+            ...(link ? [] : [{ label: t("link.share"), onPress: () => afterSheet(() => setAskLink(true)) }]),
+          ]}
+        />
         {askLink ? (
           <Card>
             <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("link.consent.title")}</AppText>
@@ -314,12 +346,7 @@ export function FinishScreen() {
             <BigButton variant="secondary" label={t("link.again")} onPress={() => void Share.share({ message: t("link.message", { url: link.url }) })} />
             <BigButton variant="secondary" label={t("link.stop")} onPress={stopLink} />
           </Card>
-        ) : (
-          <>
-            <BigButton variant="secondary" icon="export" label={t("link.share")} onPress={() => setAskLink(true)} />
-            {notices.link ? <AppText style={{ color: p.muted }}>{notices.link}</AppText> : null}
-          </>
-        )}
+        ) : notices.link ? <AppText style={{ color: p.muted }}>{notices.link}</AppText> : null}
       </View>
       <HealthNote />
     </Screen>

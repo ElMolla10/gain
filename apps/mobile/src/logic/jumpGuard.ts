@@ -1,3 +1,5 @@
+import { isTrustedWorkingSet, type LoggedSet } from "@gain/engine";
+
 /**
  * P04: confirm before a big load jump. A proposed load more than `thresholdPct` (default 10%) above what the lifter did last time is not
  * applied silently: the lifter confirms it or picks a smaller step (repeat the load, add a rep, or a microload). Pure; loads are kg.
@@ -84,4 +86,12 @@ export function jumpOptions(
     { kind: "anyway", load: target.load, reps: target.reps, label: t("jump.anyway", { load: fmtLoad(target.load), reps: target.reps }) },
     ...check.alternatives.map((a) => ({ kind: a.kind, load: a.load, reps: a.reps, label: t(key[a.kind], { load: fmtLoad(a.load), reps: a.reps }) })),
   ];
+}
+
+/**
+ * The heaviest trusted working set of last time (9): warm-ups, drops and sets flagged as possible typos (unconfirmed/rejected) never
+ * become the "last top" that the jump guard compares against or the prefill falls back to. Null when none is trusted (guard off).
+ */
+export function topTrustedSet<S extends LoggedSet>(sets: readonly S[] | null | undefined): S | null {
+  return (sets ?? []).filter(isTrustedWorkingSet).reduce<S | null>((a, s) => (a === null || s.load > a.load ? s : a), null);
 }

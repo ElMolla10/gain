@@ -2,7 +2,7 @@ import { useWorkoutSuggestions } from "./useWorkoutSuggestions";
 import type { LoadedWorkout as Loaded } from "../logic/workoutTypes";
 import { useWorkoutRest } from "./useWorkoutRest";
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { estimateStartingLoad, findSpec, nextLoadAbove, parseReadiness, sessionOrderFatigue, type GymFingerprint, type GymLoadSpec, type LoggedSet, type OutlierResult, type ReadinessFlag } from "@gain/engine";
+import { estimateStartingLoad, findSpec, nextLoadAbove, parseReadiness, sessionOrderFatigue, type GymFingerprint, type GymLoadSpec, type OutlierResult, type ReadinessFlag } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, TextInput } from "react-native";
@@ -21,7 +21,7 @@ import { initialDraft } from "../logic/draft";
 import { upgradeLegacyKgDumbbells } from "../logic/defaultGym";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
-import { checkJump, isAcceptedTarget, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
+import { checkJump, isAcceptedTarget, JUMP_SETTING_KEY, parseJumpThreshold, topTrustedSet, type JumpCheck } from "../logic/jumpGuard";
 import { isTimed, quantityFields, setQuantity } from "../logic/quantity";
 import { replacementDisplay } from "../logic/replacement";
 import { substitutionCandidates } from "../logic/substitutions";
@@ -131,7 +131,7 @@ export function useWorkoutSession() {
       const last = latest ? { performedAt: latest.performedAt, sets: latest.sets.filter(s => !s.warmup && !s.tags?.includes("drop")) } : null;
       const savedTarget = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
       const stored = staleOffGridTarget(savedTarget, proposal) ? null : savedTarget;
-      const lastTop = last?.sets.reduce<LoggedSet | null>((a, s) => (a === null || s.load > a.load ? s : a), null) ?? null;
+      const lastTop = topTrustedSet(last?.sets); // a flagged typo never becomes the prefill fallback
       // Never invented: today's target, else last time's top set, else empty.
       const m = ex.measure;
       const storedQ = stored ? (m === "time" ? stored.durationS : m === "distance" ? stored.distanceM : stored.reps) : null;
@@ -301,7 +301,7 @@ export function useWorkoutSession() {
     if (!row.saved && !row.warmup && !isDropRow(row) && !isTimed(ex.measure)) {
       const e0 = effectiveOf(row);
       const info0 = loaded.info[ex.exerciseId];
-      const lastTop = info0?.last?.sets.reduce<LoggedSet | null>((a, s0) => (a === null || s0.load > a.load ? s0 : a), null) ?? null;
+      const lastTop = topTrustedSet(info0?.last?.sets);
       if (e0.load !== null && e0.reps !== null && lastTop && !isAcceptedTarget(row, info0?.prefill.load ?? null) && !okJumps.current.has(`${ex.exerciseId}:${e0.load}`)) {
         const spec0 = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
         const micro = spec0 ? nextLoadAbove(spec0, lastTop.load, false) : lastTop.load + 1.25;

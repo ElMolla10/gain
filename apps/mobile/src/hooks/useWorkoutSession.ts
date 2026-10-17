@@ -21,7 +21,7 @@ import { initialDraft } from "../logic/draft";
 import { upgradeLegacyKgDumbbells } from "../logic/defaultGym";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
-import { checkJump, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
+import { checkJump, isAcceptedTarget, JUMP_SETTING_KEY, parseJumpThreshold, type JumpCheck } from "../logic/jumpGuard";
 import { isTimed, quantityFields, setQuantity } from "../logic/quantity";
 import { replacementDisplay } from "../logic/replacement";
 import { substitutionCandidates } from "../logic/substitutions";
@@ -297,11 +297,12 @@ export function useWorkoutSession() {
   async function logRow(ex: Disp, row: SetRowDraft) {
     if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
     // P04: a proposed load more than 10% above last time is confirmed first (or swapped for a smaller step); nothing is saved yet.
+    // An untouched row carrying the app's own target is the lifter accepting it: no confirmation.
     if (!row.saved && !row.warmup && !isDropRow(row) && !isTimed(ex.measure)) {
       const e0 = effectiveOf(row);
       const info0 = loaded.info[ex.exerciseId];
       const lastTop = info0?.last?.sets.reduce<LoggedSet | null>((a, s0) => (a === null || s0.load > a.load ? s0 : a), null) ?? null;
-      if (e0.load !== null && e0.reps !== null && lastTop && !okJumps.current.has(`${ex.exerciseId}:${e0.load}`)) {
+      if (e0.load !== null && e0.reps !== null && lastTop && !isAcceptedTarget(row, info0?.prefill.load ?? null) && !okJumps.current.has(`${ex.exerciseId}:${e0.load}`)) {
         const spec0 = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
         const micro = spec0 ? nextLoadAbove(spec0, lastTop.load, false) : lastTop.load + 1.25;
         const check = checkJump({ prevLoad: lastTop.load, prevReps: lastTop.reps, targetLoad: e0.load, targetReps: e0.reps, setup: ex.setup, thresholdPct: jumpThreshold, microLoad: micro });

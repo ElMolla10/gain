@@ -30,6 +30,14 @@ export function parseJumpThreshold(raw: string | null): number {
   return Number.isFinite(n) && n >= 0 && n <= 100 ? n : DEFAULT_JUMP_CONFIRM_PCT;
 }
 
+/**
+ * The row carries the app's own target untouched: the load box is empty and its ghost is this exercise's target load (kg). One-tap
+ * ticking it is accepting the app's explained recommendation, so the jump guard is skipped. A typed load never counts, even if equal.
+ */
+export function isAcceptedTarget(row: { load: number | null; ghostLoad: number | null }, targetLoad: number | null): boolean {
+  return row.load === null && row.ghostLoad !== null && targetLoad !== null && Math.abs(row.ghostLoad - targetLoad) < 1e-6;
+}
+
 export function checkJump(i: {
   prevLoad: number | null;
   prevReps: number | null;

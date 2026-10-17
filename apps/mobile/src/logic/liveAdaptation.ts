@@ -101,6 +101,15 @@ export function suggestedNextLoad(decision: Decision | undefined, hasLoggedWorki
   return Number.isFinite(decision.suggestedWeightKg) && decision.suggestedWeightKg > 0 ? decision.suggestedWeightKg : null;
 }
 
+/**
+ * The live card still belongs to this exercise while the lifter types into its next row: same saved performance, same next working
+ * row. Typing only changes the row snapshot, and the recompute replaces the card one tick later; hiding it in between made the section
+ * lose and regain its suggestion lines on every keystroke (on Android the ScrollView jumped by that height and snapped back).
+ */
+export function liveCardCurrent(card: { key: string; performance: string } | undefined, rows: SetRowDraft[], performance: string): boolean {
+  return !!card && card.performance === performance && nextAdaptiveRow(rows)?.key === card.key;
+}
+
 /** Stable across row keystrokes; dismissal lasts until the saved confirmed performance changes. */
 export function livePerformanceKey(sets: SetRow[], exerciseId: string): string {
   return JSON.stringify(sets.filter(s => s.exerciseId === exerciseId && trustedWorkingSet(s)).map(s => [s.id,s.load,s.reps]));

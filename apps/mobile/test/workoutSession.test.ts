@@ -5,13 +5,14 @@ import { createMlEvaluationRepo } from "../src/db/mlEvaluationRepo";
 import { translate } from "../src/i18n/format";
 import { useWorkoutSession, type WorkoutSession } from "../src/hooks/useWorkoutSession";
 import { WorkoutSetRow } from "../src/components/WorkoutSetRow";
+import { WorkoutExerciseSection } from "../src/components/WorkoutExerciseSection";
 import { REST_KEYS } from "../src/logic/restAlert";
 import { elapsedMs } from "../src/logic/workoutClock";
 import { sessionMinutes } from "../src/logic/historyRows";
 
 // Run the session hook against the real SQLite repositories. Only React's host and
 // native delivery are substituted; no logging, prescription, or rest logic is mocked.
-const host = vi.hoisted(() => ({ values: [] as any[], index: 0, effects: [] as (() => void)[], services: null as any, dayId: "" }));
+const host = vi.hoisted(() => ({ values: [] as any[], writes: [] as number[], index: 0, effects: [] as (() => void)[], services: null as any, dayId: "" }));
 vi.mock("react", async original => {
   const actual = await original<typeof import("react")>();
   const same = (a: unknown[] | undefined, b: unknown[] | undefined) => !!a && !!b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
@@ -25,7 +26,7 @@ vi.mock("react", async original => {
     useState: (initial: unknown) => {
       const index = host.index++;
       if (!(index in host.values)) host.values[index] = typeof initial === "function" ? initial() : initial;
-      return [host.values[index], (update: any) => { host.values[index] = typeof update === "function" ? update(host.values[index]) : update; }];
+      return [host.values[index], (update: any) => { host.writes.push(index); host.values[index] = typeof update === "function" ? update(host.values[index]) : update; }];
     },
     useRef: (initial: unknown) => { const index = host.index++; return host.values[index] ??= { current: initial }; },
     useMemo,
@@ -40,7 +41,7 @@ vi.mock("react", async original => {
   };
 });
 const native = vi.hoisted(() => ({ alert: vi.fn(), sync: vi.fn(async () => {}), stop: vi.fn(async () => {}) }));
-vi.mock("react-native", () => ({ Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View" }));
+vi.mock("react-native", () => ({ Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
 vi.mock("@react-navigation/native", () => ({ useRoute: () => ({ params: { dayId: host.dayId } }), useNavigation: () => ({ dispatch: vi.fn(), goBack: vi.fn() }), StackActions: { push: vi.fn(), replace: vi.fn() } }));
 vi.mock("../src/AppContext", () => ({ useServices: () => host.services }));
@@ -50,10 +51,10 @@ vi.mock("../src/i18n", () => {
 });
 vi.mock("../src/diagnostics", () => ({ diagnostics: { record: vi.fn() } }));
 vi.mock("../src/native/restLiveActivity", () => ({ restLiveActivity: { sync: native.sync, stop: native.stop } }));
-vi.mock("../src/theme", () => ({ radius: { button: 8 }, space: { xs: 4, sm: 8, md: 12 }, useLogPalette: () => ({}) }));
-vi.mock("../src/ui", () => ({ AppText: "AppText" }));
+vi.mock("../src/theme", () => ({ radius: { button: 8 }, space: { xs: 4, sm: 8, md: 12 }, type: { section: 20, label: 13 }, useLogPalette: () => ({}) }));
+vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", QuietAction: "QuietAction" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
-vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow" }));
+vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", TargetLine: "TargetLine" }));
 
 type Node = ReactElement<Record<string, any>>;
 function nodes(value: unknown): Node[] {
@@ -260,5 +261,94 @@ describe("untick and delete failures", () => {
     await vi.waitFor(() => { expect(ready().rows[ex.exerciseId]!.some(r => r.key === row.key)).toBe(false); });
     expect(native.alert).not.toHaveBeenCalled();
     expect(ready().status.kind).not.toBe("error");
+  });
+});
+
+describe("typing into set 2 after set 1 is ticked (Android scroll twitch)", () => {
+  // The exercise section as the lifter sees it: every node's type in order, plus the Suggested weight / Next set details line.
+  const layout = (s: WorkoutSession, i: number) => {
+    const props = s.exerciseProps(s.shown[i]!, i)!;
+    const tree = nodes(WorkoutExerciseSection(props));
+    const target = tree.find(n => n.type as unknown === "TargetLine")!;
+    return {
+      types: tree.map(n => typeof n.type === "string" ? n.type : (n.type as { name?: string }).name ?? "?"),
+      suggested: [target.props.suggestedLabel, target.props.suggestedValue, target.props.moreLabel],
+      props,
+    };
+  };
+  // Render (which schedules the suggestion effect) and let it run, a few rounds so follow-up row updates settle too.
+  const settleAll = async () => { for (let n = 0; n < 3; n++) { ready(); await vi.advanceTimersByTimeAsync(1); } };
+  async function setOneTicked(i: number) {
+    await fixture();
+    let s = ready(); const ex = s.shown[i]!;
+    await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
+    await settleAll();
+    s = ready();
+    const before = layout(s, i);
+    expect(before.props.card?.key).toBe(before.props.list[1]!.key);
+    expect(before.props.suggestionOpen).toBe(false);
+    expect(before.suggested[0]).toBe("Suggested weight:");
+    expect(before.suggested[2]).toBe("Next set details");
+    return { ex, before };
+  }
+
+  it.each([0, 1])("exercise %i: the suggestion line stays mounted with the same value on every keystroke, and never copies the draft", async i => {
+    const { ex, before } = await setOneTicked(i);
+    const kg = before.props.card!.decision.suggestedWeightKg;
+    const key = before.props.list[1]!.key;
+    // "6", "65", "6.", "6.5", delete back to "6", clear, then reps "1", "12", delete.
+    const keystrokes = [{ load: 6 }, { load: 65 }, { load: 6 }, { load: 6.5 }, { load: 6 }, { load: null }, { reps: 1 }, { reps: 12 }, { reps: 1 }, { reps: null }];
+    for (const change of keystrokes) {
+      ready().patch(ex.exerciseId, key, change);
+      // The render straight after the keystroke (before the suggestion effect runs) and the one after it.
+      for (const settle of [false, true]) {
+        if (settle) await settleAll();
+        const now = layout(ready(), i);
+        expect(now.props.card, JSON.stringify({ change, settle })).toBeDefined();
+        expect(now.props.card!.decision.suggestedWeightKg).toBe(kg);
+        expect(now.types).toEqual(before.types);
+        expect(now.suggested).toEqual(before.suggested);
+      }
+    }
+    expect(ready().rows[ex.exerciseId]![1]!).toMatchObject({ load: null, reps: null, saved: false });
+    expect(ready().status.kind).toBe("info");
+  });
+
+  it("logging set 2, changing readiness, or unticking set 1 still recalculates the suggestion", async () => {
+    const { ex, before } = await setOneTicked(0);
+    let s = ready();
+    s.patch(ex.exerciseId, before.props.list[1]!.key, { load: 6 });
+    s = ready();
+    s.setReadiness("fatigued");
+    await settleAll();
+    const fatigued = layout(ready(), 0).props.candidate as unknown as { fatigueKey: string };
+    expect(fatigued.fatigueKey).toContain("fatigued");
+    s = ready();
+    s.patch(ex.exerciseId, before.props.list[1]!.key, { load: null });
+    s = ready();
+    await s.logRow(ex, s.rows[ex.exerciseId]![1]!);
+    await settleAll();
+    const two = layout(ready(), 0).props;
+    expect(two.card?.key).toBe(two.list[2]!.key);
+    expect(two.card!.performance).not.toBe(before.props.card!.performance);
+    s = ready();
+    s.exerciseProps(ex, 0)!.onUntick(s.rows[ex.exerciseId]![1]!);
+    await vi.waitFor(() => expect(ready().rows[ex.exerciseId]![1]!.saved).toBe(false));
+    await settleAll();
+    const back = layout(ready(), 0).props;
+    expect(back.card?.key).toBe(back.list[1]!.key);
+    expect(back.card!.performance).toBe(before.props.card!.performance);
+  });
+
+  it("patch() for the same exercise only sets the rows after the first keystroke (no setPreferredExercise / clearStrengthPr)", async () => {
+    const { ex, before } = await setOneTicked(0);
+    const key = before.props.list[1]!.key;
+    ready().patch(ex.exerciseId, key, { load: 6 });
+    const after1 = ready();
+    host.writes = [];
+    after1.patch(ex.exerciseId, key, { load: 65 });
+    // Only setRows: the preferred exercise is already this one and there is no PR note to clear.
+    expect(host.writes).toHaveLength(1);
+    expect(ready().rows[ex.exerciseId]![1]!.load).toBe(65);
   });
 });

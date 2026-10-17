@@ -28,7 +28,7 @@ import { substitutionCandidates } from "../logic/substitutions";
 import { focusedExercise, livePromptVisible } from "../logic/workoutFocus";
 import { liveSummary } from "../logic/liveSummary";
 import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
-import { takeLiveTarget, clearLiveTarget, livePerformanceKey, reportedSymptomDecision, trustedWorkingSet } from "../logic/liveAdaptation";
+import { takeLiveTarget, clearLiveTarget, liveCardCurrent, livePerformanceKey, reportedSymptomDecision, trustedWorkingSet } from "../logic/liveAdaptation";
 import { specWithJump, buildLoads, specValues, emptyLoadsForm } from "../logic/exerciseLoads";
 import { muscleGroupOf } from "../logic/muscleVolume";
 import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
@@ -293,8 +293,10 @@ export function useWorkoutSession() {
   );
 
   const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => {
-    clearStrengthPr();
-    setPreferredExercise(exId);
+    // Typing calls this on every keystroke: only touch state that actually changes (the preview counter still cancels a pending PR).
+    if (strengthPr) clearStrengthPr();
+    else prPreviewVersion.current++;
+    if (preferredExercise !== exId) setPreferredExercise(exId);
     setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
   };
 
@@ -698,7 +700,7 @@ export function useWorkoutSession() {
     if (!info) return null;
     const list = rows[ex.exerciseId] ?? [];
     const candidate = liveCards[ex.exerciseId];
-    const currentCandidate = candidate && candidate.snapshot === JSON.stringify(list) && candidate.performance === livePerformanceKey(sets, ex.exerciseId) ? candidate : undefined;
+    const currentCandidate = liveCardCurrent(candidate, list, livePerformanceKey(sets, ex.exerciseId)) ? candidate : undefined;
     const fatigue = sessionOrderFatigue(fatigueSlots, ex.exerciseId);
     const protectFirst = !currentCandidate && info.proposal.currency === "load";
     const afterExercise = fatigue && !protectFirst ? fatigue.earlierName : null;

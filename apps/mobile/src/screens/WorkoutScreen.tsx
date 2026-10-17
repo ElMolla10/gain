@@ -1,17 +1,18 @@
 import { RestTimerBar } from "../components/RestTimerBar";
+import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { adjustKeyboardInsets } from "../numberPad";
 import { Icon } from "../components/Icon";
 import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
-import { PreviousSourceToggle } from "../components/PreviousSourceToggle";
+import { WorkoutDetailsPanel } from "../components/WorkoutDetailsPanel";
 import { RestClock, LiveDuration, Stat } from "../components/WorkoutStats";
 import { exerciseLabels } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { volumeText } from "../logic/liveSummary";
 import { adjustTimer, startTimer, stopTimer } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, Chip, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
+import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 import { useWorkoutSession } from "../hooks/useWorkoutSession";
 import { WorkoutSessionSheets } from "../components/WorkoutSessionSheets";
 
@@ -21,6 +22,8 @@ export function WorkoutScreen() {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const insets = useSafeAreaInsets();
+  // Session-only: the Workout details panel always starts closed and is not persisted.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   if (session.phase === "error") {
     return (
       <View style={{ flex: 1, padding: space.lg, paddingTop: insets.top + space.lg, gap: space.md, backgroundColor: p.bg }}>
@@ -96,42 +99,36 @@ export function WorkoutScreen() {
           <Stat label={t("workout.stat.sets")}>
             <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{summary.sets}</AppText>
           </Stat>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
-            <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
-          </Pressable>
-          {summaryOpen ? <Stat label={t("workout.stat.volume")}>
-            <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
-          </Stat> : null}
+          <View style={{ justifyContent: "flex-end" }}>
+            <QuietAction label={t("workout.details")} expanded={detailsOpen} onPress={() => setDetailsOpen(open => !open)} />
+          </View>
         </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.sm }}>
-          <AppText style={{ color: p.muted, alignSelf: "center" }}>{t("workout.readiness.label")}</AppText>
-          {(["normal", "fatigued", "returning"] as const).map((flag) => (
-            <Chip
-              key={flag}
-              label={t(`workout.readiness.${flag}`)}
-              selected={flag === "normal" ? readiness == null : readiness === flag}
-              onPress={() => {
-                const next = flag === "normal" ? null : flag;
-                setReadiness(next);
-                void workout.setSessionReadiness(loaded.sessionId, next);
-              }}
-            />
-          ))}
-        </View>
-
-        <PreviousSourceToggle source={previousSource} onChange={source => void choosePreviousSource(source)} />
+        <WorkoutDetailsPanel
+          open={detailsOpen}
+          readiness={readiness}
+          onReadiness={(next) => {
+            setReadiness(next);
+            void workout.setSessionReadiness(loaded.sessionId, next);
+          }}
+          previousSource={previousSource}
+          onPreviousSource={source => void choosePreviousSource(source)}
+          onReorder={shown.length > 1 ? () => setReorderOpen(true) : undefined}
+        >
+          <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
+            <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
+              <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
+            </Pressable>
+            {summaryOpen ? <Stat label={t("workout.stat.volume")}>
+              <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
+            </Stat> : null}
+          </View>
+        </WorkoutDetailsPanel>
 
         {finishFailed ? (
           <View accessibilityLiveRegion="assertive" style={{ marginHorizontal: space.md, marginBottom: space.sm }}>
             <Notice kind="error" title={t("workout.finishFailed.title")} actionLabel={t("workout.finishFailed.retry")} onAction={() => void doFinish(loaded)}>
               {t("workout.finishFailed.body")}
             </Notice>
-          </View>
-        ) : null}
-
-        {shown.length > 1 ? (
-          <View style={{ paddingHorizontal: space.md, paddingBottom: space.sm }}>
-            <QuietAction icon="drag" label={t("workout.reorder.button")} onPress={() => setReorderOpen(true)} />
           </View>
         ) : null}
 

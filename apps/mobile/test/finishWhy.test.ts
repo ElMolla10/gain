@@ -16,6 +16,7 @@ vi.mock("../src/logic/bidiText", () => ({ targetRowText: () => "60 kg × 6" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: "en", unit: "kg", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate("en", k, p) }) }));
 vi.mock("../src/theme", () => ({ radius: { card: 12 }, space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 14, load: 36, caption: 13 }, usePalette: () => ({ tint: "tint", accent: "accent", muted: "muted", border: "border" }) }));
 vi.mock("../src/ui", () => ({ AppText: "AppText", Card: "Card", QuietAction: "QuietAction" }));
+vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
 
 type Node = ReactElement<Record<string, any>>;
 const nodes = (v: unknown): Node[] => Array.isArray(v) ? v.flatMap(nodes) : React.isValidElement(v) ? [v as Node, ...nodes((v as Node).props.children)] : [];

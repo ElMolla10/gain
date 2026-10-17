@@ -9,6 +9,7 @@ import { forecastOrder, whyDetail } from "../logic/finishLayout";
 import { localizeReason } from "../logic/units";
 import { radius, space, type as ty, usePalette } from "../theme";
 import { AppText, Card, QuietAction } from "../ui";
+import { Icon } from "./Icon";
 
 export type SameDayForecast = NonNullable<Awaited<ReturnType<FinishRepo["previewFinishedDay"]>>>;
 
@@ -26,7 +27,7 @@ export function FinishedDayForecast({ value, leadExerciseId, whyTargets, onWhy }
   /** Opens the real Why / decision detail for a saved target. */
   onWhy?: (targetId: string) => void;
 }) {
-  const { t, lang, unit } = useI18n();
+  const { t, lang, unit, direction } = useI18n();
   const p = usePalette();
   const [whyOpen, setWhyOpen] = useState(false);
   if (value === "none") return <Card><AppText>{t("finish.noNext")}</AppText></Card>;
@@ -62,8 +63,12 @@ export function FinishedDayForecast({ value, leadExerciseId, whyTargets, onWhy }
               <QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${name(lead!)}`} onPress={() => onWhy!(savedTargetId)} />
             </View>
           ) : more ? (
-            <View style={{ alignItems: "flex-start" }}>
+            // In-place fallback: a chevron after the label shows open/closed (D-R4).
+            <View style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start" }}>
               <QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${name(lead)}`} expanded={whyOpen} onPress={() => setWhyOpen((o) => !o)} />
+              <View pointerEvents="none" style={{ transform: [{ rotate: whyOpen ? (direction === "rtl" ? "-90deg" : "90deg") : "0deg" }] }}>
+                <Icon name="chevron" color={p.accent} size={18} mirror />
+              </View>
             </View>
           ) : null}
         </View>

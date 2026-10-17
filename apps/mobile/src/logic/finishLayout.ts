@@ -27,8 +27,8 @@ export function finishStatCells(
     { key: "sets", value: iso(v.sets), label: l.sets },
     { key: "exercises", value: iso(v.exercises), label: l.exercises },
   ];
-  if (v.volume !== null) cells.push({ key: "volume", value: `${iso(v.volume)} ${l.unit}`, label: l.volume });
-  if (v.minutes !== null) cells.push({ key: "duration", value: `${iso(v.minutes)} ${l.min}`, label: l.duration });
+  if (v.volume !== null) cells.push({ key: "volume", value: `${iso(v.volume)}\u00A0${l.unit}`, label: l.volume });
+  if (v.minutes !== null) cells.push({ key: "duration", value: `${iso(v.minutes)}\u00A0${l.min}`, label: l.duration });
   return cells;
 }
 
@@ -59,3 +59,6 @@ export async function resolveWhyTargets(
   }
   return out;
 }
+
+/** Wait for a closing sheet (its Modal dismiss) before opening a system share sheet; the notes item uses the same pattern (D-R3). */
+export const SHEET_CLOSE_MS = 350;

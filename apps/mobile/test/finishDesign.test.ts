@@ -41,7 +41,7 @@ describe("Finish design audit (F-1, F-3..F-8)", () => {
     const cells = finishStatCells({ sets: 14, exercises: 5, volume: "1240", minutes: 48 },
       { sets: "مجموعات", exercises: "تمارين", volume: "الحجم", duration: "المدة", unit: "كجم", min: "د" });
     expect(cells.map((c) => c.key)).toEqual(["sets", "exercises", "volume", "duration"]);
-    expect(cells[2]!.value).toBe("\u20661240\u2069 كجم");
+    expect(cells[2]!.value).toBe("\u20661240\u2069 كجم");
     expect(finishStatCells({ sets: 0, exercises: 0, volume: null, minutes: null }, { sets: "", exercises: "", volume: "", duration: "", unit: "", min: "" })).toHaveLength(2);
     expect(finish).toMatch(/fontSize: ty\.caption \}\}>\{c\.label\}/);
     expect(finish).not.toMatch(/<AppText ltr/);
@@ -69,8 +69,39 @@ describe("Finish evidence lines read in the language's order (S-1 / F-2)", () =>
   it("set evidence keeps the Arabic unit outside any LTR isolate", async () => {
     const { formatSetEvidence } = await import("../src/logic/achievementEvidence");
     const ar1 = formatSetEvidence(57.5, 8, "ar", "kg");
-    expect(ar1).toBe("\u206657.5\u2069 كجم × \u20668\u2069");
+    expect(ar1).toBe("\u206657.5\u2069 كجم × \u20668\u2069");
     expect(ar1.startsWith("\u2066") && ar1.endsWith("\u2069") && /\u2066[^\u2069]*[\u0600-\u06FF]/.test(ar1)).toBe(false);
-    expect(formatSetEvidence(57.5, 8, "en", "kg")).toBe("\u206657.5\u2069 kg × \u20668\u2069");
+    expect(formatSetEvidence(57.5, 8, "en", "kg")).toBe("\u206657.5\u2069 kg × \u20668\u2069");
+  });
+});
+
+describe("design QA round 1 (D-R1..D-R5)", () => {
+  it("D-R1: the achievement card's share is in the Share menu; no standalone button on Finish", () => {
+    expect(finish).toContain("shareRef={achievementShare}");
+    expect(finish).toMatch(/label: t\("progress\.share"\), onPress: \(\) => afterSheet/);
+    const card = src("components/AchievementCard.tsx");
+    expect(card).toMatch(/\{shareRef \? null : <BigButton/);
+  });
+  it("D-R2: Finish dates use Western digits (ar-EG-u-nu-latn) in the card and the share text", () => {
+    expect(src("components/AchievementCard.tsx")).toContain('"ar-EG-u-nu-latn"');
+    expect(src("logic/workoutRecap.ts")).toContain('"ar-EG-u-nu-latn"');
+    expect(src("components/AchievementCard.tsx")).not.toMatch(/"ar-EG"/);
+  });
+  it("D-R3: every Share menu action waits for the sheet to close", async () => {
+    const { SHEET_CLOSE_MS } = await import("../src/logic/finishLayout");
+    expect(SHEET_CLOSE_MS).toBeGreaterThanOrEqual(300);
+    const items = finish.slice(finish.indexOf("items={["), finish.indexOf("]}", finish.indexOf("items={[")));
+    expect(items.match(/onPress: \(\) => afterSheet\(/g)).toHaveLength(4);
+  });
+  it("D-R4: the in-place Why shows open/closed with a rotating chevron", () => {
+    expect(forecast).toMatch(/rotate: whyOpen \?/);
+  });
+  it("D-R5: estimated strength rounds to 0.5 kg / 1 lb and PB lines keep isolates on screen", async () => {
+    const { estimateKg } = await import("../src/logic/workoutRecap");
+    expect(estimateKg(76.667, "kg")).toBe(76.5);
+    expect(estimateKg(76.8, "kg")).toBe(77);
+    const { kgToUnit } = await import("../src/logic/units");
+    expect(Number.isInteger(Math.round(kgToUnit(estimateKg(76.667, "lb"), "lb") * 1000) / 1000)).toBe(true);
+    expect(src("logic/workoutRecap.ts")).toContain("personalBestLines(summary, lang, unit, { plain: true })");
   });
 });

@@ -1,11 +1,11 @@
 import type { AchievementEvidence } from "@gain/engine";
-import { formatLoad, isolateLtr, type Lang } from "../i18n/format";
+import { formatLoad, isolateLtr, NBSP, type Lang } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import type { Unit } from "./units";
 
 export function formatSetEvidence(load: number, reps: number, lang: Lang, unit: Unit): string {
   // Language order (S-1/F-2): the number is isolated, the unit word stays in the language; never LTR-isolate Arabic.
-  return `${formatLoad(load, lang, unit)} × ${isolateLtr(String(reps))}`;
+  return `${formatLoad(load, lang, unit)}${NBSP}×${NBSP}${isolateLtr(String(reps))}`;
 }
 
 export function evidenceLine(

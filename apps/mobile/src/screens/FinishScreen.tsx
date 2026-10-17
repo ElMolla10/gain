@@ -22,7 +22,7 @@ import { AppText, BigButton, Card, ErrorState, InlineStatus, LoadingState, Notic
 import { FinishedDayForecast, type SameDayForecast } from "../components/FinishedDayForecast";
 import { MenuSheet } from "../components/LogParts";
 import { Icon } from "../components/Icon";
-import { finishStatCells, resolveWhyTargets } from "../logic/finishLayout";
+import { finishStatCells, resolveWhyTargets, SHEET_CLOSE_MS } from "../logic/finishLayout";
 import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
@@ -52,6 +52,8 @@ export function FinishScreen() {
   const [hero, setHero] = useState<SurfaceBadge | null>(null);
   const [heroRest, setHeroRest] = useState<SurfaceBadge[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
+  // The achievement card's share lives in the one Share menu (D-R1).
+  const achievementShare = useRef<(() => Promise<void>) | null>(null);
   const [goalLiftId, setGoalLiftId] = useState<string | null>(null);
   const [whyTargets, setWhyTargets] = useState<Record<string, string>>({});
   // Saved decision records for the forecast exercises: those open the real Why screen (read-only lookup).
@@ -248,6 +250,7 @@ export function FinishScreen() {
     setNotices((n) => ({ ...n, link: t("link.stopped") }));
   };
 
+  const afterSheet = (run: () => void) => setTimeout(run, SHEET_CLOSE_MS);
   const noSets = summary.totals.counted === 0 && summary.totals.warmups === 0 && summary.totals.unconfirmed === 0;
   const improvements = improvementLines(summary, lang, unit);
   const pbLines = personalBestLines(summary, lang, unit);
@@ -312,7 +315,7 @@ export function FinishScreen() {
         {improvements.length ? improvements.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText>{t("progress.steady")}</AppText>}
         <AppText style={{ color: p.muted }}>{t("progress.note")}</AppText>
       </Card>
-      {detail ? <AchievementCard detail={detail} summary={summary} /> : null}
+      {detail ? <AchievementCard detail={detail} summary={summary} shareRef={achievementShare} /> : null}
 
       {/* 3. Sharing is optional and secondary. */}
       {/* 5. One Share button; text, PDF and link are in a menu (F-7). The link still asks for consent before anything is uploaded. */}
@@ -322,10 +325,12 @@ export function FinishScreen() {
           visible={shareOpen}
           title={t("finish.share")}
           onClose={() => setShareOpen(false)}
+          // Each action fires only after the sheet has fully closed (a share sheet opened during the dismiss may never show on iOS) (D-R3).
           items={[
-            { label: t("recap.shareText"), onPress: () => void shareWorkoutText() },
-            { label: t("card.share"), onPress: () => void shareCard() },
-            ...(link ? [] : [{ label: t("link.share"), onPress: () => setAskLink(true) }]),
+            ...(detail && summary.totals.counted > 0 ? [{ label: t("progress.share"), onPress: () => afterSheet(() => void achievementShare.current?.()) }] : []),
+            { label: t("recap.shareText"), onPress: () => afterSheet(() => void shareWorkoutText()) },
+            { label: t("card.share"), onPress: () => afterSheet(() => void shareCard()) },
+            ...(link ? [] : [{ label: t("link.share"), onPress: () => afterSheet(() => setAskLink(true)) }]),
           ]}
         />
         {askLink ? (

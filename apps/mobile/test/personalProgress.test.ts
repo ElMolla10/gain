@@ -48,11 +48,11 @@ describe("monthly strength goals", () => {
 });
 describe("concrete workout improvements", () => {
   it("shows the earlier best at the same load", () => {
-    expect(improvementLines(summary([S(80, 6)], [S(80, 5), S(70, 10)]), "en", "kg")[0]).toContain("80 kg × 5 → 80 kg × 6");
+    expect(improvementLines(summary([S(80, 6)], [S(80, 5), S(70, 10)]), "en", "kg")[0]).toContain("80 kg × 5 → 80 kg × 6");
   });
   it("shows the previous top for new loads and less assistance", () => {
-    expect(improvementLines(summary([S(90, 4)], [S(80, 5)]), "en", "kg")[0]).toContain("80 kg × 5 → 90 kg × 4");
-    expect(improvementLines(summary([S(20, 6)], [S(30, 8)], "assisted"), "en", "kg")[0]).toContain("30 kg × 8 → 20 kg × 6");
+    expect(improvementLines(summary([S(90, 4)], [S(80, 5)]), "en", "kg")[0]).toContain("80 kg × 5 → 90 kg × 4");
+    expect(improvementLines(summary([S(20, 6)], [S(30, 8)], "assisted"), "en", "kg")[0]).toContain("30 kg × 8 → 20 kg × 6");
   });
   it("labels a first session as a baseline and avoids improvement claims on ties", () => {
     expect(improvementLines(summary([S(80, 6)], []), "en", "kg")[0]).toContain("baseline");
@@ -60,7 +60,7 @@ describe("concrete workout improvements", () => {
   });
   it("formats pounds, Arabic, and timed comparisons", () => {
     expect(improvementLines(summary([S(80, 6)], [S(80, 5)]), "ar", "lb")[0]).toContain("بنش");
-    expect(improvementLines(summary([S(80, 6)], [S(80, 5)]), "en", "lb")[0]).toContain("176.4 lb");
+    expect(improvementLines(summary([S(80, 6)], [S(80, 5)]), "en", "lb")[0]).toContain("176.4 lb");
     expect(improvementLines(summary([S(0, 1, { durationS: 50 })], [S(0, 1, { durationS: 45 })], "free", "time"), "en", "kg")[0]).toContain("45 s");
   });
 });

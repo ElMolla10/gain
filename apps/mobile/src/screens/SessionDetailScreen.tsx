@@ -3,7 +3,7 @@ import { AchievementCard } from "../components/AchievementCard";
 import type { Measure } from "@gain/engine";
 import { isTimed, parseQuantityInput, setQuantity } from "../logic/quantity";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import { Alert, Share, View, type TextStyle } from "react-native";
 import { useServices } from "../AppContext";
 import { HistoryInvalid, type HistorySetRow, type SessionDetail } from "../db/historyRepo";
@@ -30,7 +30,7 @@ interface EditState {
 /** A finished workout, set by set. A set can be corrected or deleted; planned targets are re-worked from the fixed history. */
 export function SessionDetailScreen() {
   const { history, finish } = useServices();
-  const navigation = useNavigation<{ goBack: () => void }>();
+  const navigation = useNavigation<{ goBack: () => void; setOptions: (o: { title: string }) => void }>();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
@@ -60,6 +60,10 @@ export function SessionDetailScreen() {
       void refresh();
     }, [refresh]),
   );
+
+  // One title (N-2): the day name goes in the native header, not as a second title in the body.
+  const headerTitle = detail && detail !== "none" ? (detail.imported ? t("history.imported") : detail.dayName) : null;
+  useLayoutEffect(() => { if (headerTitle) navigation.setOptions({ title: headerTitle }); }, [navigation, headerTitle]);
 
   if (detail === null) return <LoadingState />;
   if (detail === "none") return <EmptyState icon="progress" title={t("history.err.missing")} />;
@@ -133,7 +137,7 @@ export function SessionDetailScreen() {
   };
 
   return (
-    <Screen title={detail.imported ? t("history.imported") : detail.dayName}>
+    <Screen>
       {summary ? <AchievementCard detail={detail} summary={summary} /> : null}
       <BigButton variant="secondary" icon="export" label={t("recap.shareText")} loading={sharingText} disabled={sharingText} onPress={() => void shareWorkout()} />
       {shareFailed ? <InlineStatus kind="error" text={t("recap.shareFailed")} /> : null}

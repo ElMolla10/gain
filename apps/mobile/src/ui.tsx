@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Animated, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type KeyboardTypeOptions, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, LayoutAnimation, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type KeyboardTypeOptions, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "./components/Icon";
 import { familyFor, hasArabic, ltrAllowed, scaleFor, textOf } from "./fonts";
 import { useI18n } from "./i18n";
 import { adjustKeyboardInsets, numberPadAccessory } from "./numberPad";
-import { choiceListMaxHeight, hasCollapsibleContent } from "./logic/sheetLayout";
+import { choiceListMaxHeight, hasCollapsibleContent, sheetMaxHeight, sheetRelease } from "./logic/sheetLayout";
 import { clampStep, parseTyped, REPEAT_DELAY_MS, REPEAT_EVERY_MS } from "./logic/stepper";
 import { INPUT_HEIGHT, MIN_TOUCH, PRIMARY_HEIGHT, radius, space, type as ty, usePalette } from "./theme";
 
@@ -476,8 +476,17 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
   const closing = useRef(false);
   const latest = useRef({ onClose, reduced, visible });
   latest.current = { onClose, reduced, visible };
+  // N-3: content height up to 60%; dragging the handle up grows it to 90%, down from there returns to 60%.
+  const [expanded, setExpanded] = useState(false);
+  const expandedRef = useRef(false);
+  expandedRef.current = expanded;
+  const resize = (next: boolean) => {
+    if (!latest.current.reduced) LayoutAnimation.configureNext(LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.scaleY));
+    setExpanded(next);
+  };
   useEffect(() => {
     closing.current = false;
+    setExpanded(false);
     if (!visible) return;
     if (reduced) { translateY.setValue(0); return; }
     translateY.setValue(cardHeight.current);
@@ -498,11 +507,13 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
     });
   }, [translateY]);
   const pan = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_e, g) => g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+    onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 4 && Math.abs(g.dy) > Math.abs(g.dx),
     onPanResponderMove: (_e, g) => translateY.setValue(Math.max(0, g.dy)),
     onPanResponderRelease: (_e, g) => {
-      if (sheetShouldDismiss(g.dy, g.vy, cardHeight.current)) close();
-      else Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+      const action = sheetRelease(g.dy, g.vy, expandedRef.current, sheetShouldDismiss(g.dy, g.vy, cardHeight.current));
+      if (action === "dismiss") return close();
+      if (action === "expand" || action === "collapse") resize(action === "expand");
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
     },
     onPanResponderTerminate: () => Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start(),
   }), [translateY, close]);
@@ -510,7 +521,7 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
     <Modal visible={visible} transparent animationType={reduced ? "none" : "fade"} onRequestClose={close} statusBarTranslucent navigationBarTranslucent>
       <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" }}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={close} style={{ flex: 1 }} />
-        <Animated.View accessibilityViewIsModal onLayout={(e) => { cardHeight.current = e.nativeEvent.layout.height; }} style={{ transform: [{ translateY }], maxHeight: height * 0.9, backgroundColor: p.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: p.border, paddingBottom: insets.bottom + space.md }}>
+        <Animated.View accessibilityViewIsModal onLayout={(e) => { cardHeight.current = e.nativeEvent.layout.height; }} style={{ transform: [{ translateY }], maxHeight: sheetMaxHeight(height, expanded), backgroundColor: p.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: p.border, paddingBottom: insets.bottom + space.md }}>
           <View {...pan.panHandlers}>
             <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: p.edge, marginTop: space.sm }} />
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingStart: space.lg, paddingEnd: space.xs, paddingVertical: space.xs, gap: space.sm }}>
@@ -670,7 +681,7 @@ export function SegmentedTabs<T extends string>(props: { value: T; options: { va
   );
 }
 
-export function ListRow(props: { title: string; note?: string; trailing?: string; /** Extra trailing content (a pill, a value with a glyph); kept within 45% of the row. */ trailingIcon?: React.ReactNode; onPress?: () => void; last?: boolean; accessibilityLabel?: string }) {
+export function ListRow(props: { title: string; note?: string; trailing?: string; /** Extra trailing content (a pill, a value with a glyph); kept within 45% of the row. */ trailingIcon?: React.ReactNode; onPress?: () => void; last?: boolean; accessibilityLabel?: string; /** Where the row leads, when the title does not say (screen readers, S-12). */ accessibilityHint?: string }) {
   const p = usePalette();
   const inner = (
     <>
@@ -685,7 +696,7 @@ export function ListRow(props: { title: string; note?: string; trailing?: string
   );
   const style = { minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.sm, borderBottomWidth: props.last ? 0 : 1, borderColor: p.border } as const;
   return props.onPress ? (
-    <Pressable accessibilityRole="button" accessibilityLabel={props.accessibilityLabel} onPress={props.onPress} style={({ pressed }) => [style, pressed ? { backgroundColor: p.raised } : null]}>{inner}</Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={props.accessibilityLabel} accessibilityHint={props.accessibilityHint} onPress={props.onPress} style={({ pressed }) => [style, pressed ? { backgroundColor: p.raised } : null]}>{inner}</Pressable>
   ) : (
     <View style={style}>{inner}</View>
   );
@@ -739,10 +750,10 @@ export function CollapsibleCard({ title, note, children, defaultOpen = false }: 
 }
 
 /** A whole-card link: title, a muted note and a chevron (e.g. the goal pace on Today). */
-export function ListCard({ title, note, onPress }: { title: string; note?: string; onPress: () => void }) {
+export function ListCard({ title, note, onPress, accessibilityHint }: { title: string; note?: string; onPress: () => void; /** Where the card leads, when the title does not say (S-12). */ accessibilityHint?: string }) {
   const p = usePalette();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: pressed ? p.raised : p.card, padding: space.lg })}>
+    <Pressable accessibilityRole="button" accessibilityHint={accessibilityHint} onPress={onPress} style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: pressed ? p.raised : p.card, padding: space.lg })}>
       <View style={{ flex: 1, gap: 2 }}>
         <AppText style={{ fontWeight: "600" }}>{title}</AppText>
         {note ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{note}</AppText> : null}

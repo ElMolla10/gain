@@ -51,7 +51,7 @@ export function LiftersLedgerScreen() {
   if (!items) return <LoadingState />;
 
   return (
-    <Screen title={t("achv.ledger.title")}>
+    <Screen>
       {items.length === 0 ? (
         <EmptyState icon="progress" title={t("achv.ledger.empty")} />
       ) : (

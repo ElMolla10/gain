@@ -29,7 +29,23 @@ export function AchievementEvidenceSheet(props: {
       })
     : null;
   return (
-    <Sheet visible={row !== null} title={row ? t(row.i18nKey as StringKey) : t("achv.detail.title")} onClose={props.onClose}>
+    <Sheet
+      visible={row !== null}
+      title={row ? t(row.i18nKey as StringKey) : t("achv.detail.title")}
+      onClose={props.onClose}
+      // The primary action sits in the footer, in thumb reach (N-3).
+      footer={row && sheet?.supportingSessionId ? (
+        <BigButton
+          label={t("achv.viewWorkout")}
+          onPress={() => {
+            const sessionId = sheet.supportingSessionId!;
+            telemetry.record("view_workout");
+            props.onClose();
+            props.onViewWorkout(sessionId);
+          }}
+        />
+      ) : undefined}
+    >
       {row && sheet ? (
         <>
           <AppText style={{ color: p.muted }}>{t(`achv.prestige.${prestigeForBadge(row.badgeId)}` as StringKey)}</AppText>
@@ -53,17 +69,6 @@ export function AchievementEvidenceSheet(props: {
           ) : (
             <AppText style={{ color: p.muted }}>{t("achv.cabinet.noNext")}</AppText>
           )}
-          {sheet.supportingSessionId ? (
-            <BigButton
-              label={t("achv.viewWorkout")}
-              onPress={() => {
-                const sessionId = sheet.supportingSessionId!;
-                telemetry.record("view_workout");
-                props.onClose();
-                props.onViewWorkout(sessionId);
-              }}
-            />
-          ) : null}
         </>
       ) : null}
     </Sheet>

@@ -264,8 +264,10 @@ export function SyncScreen() {
             {askDelete ? (
               <>
                 <AppText>{t("sync.offDelete.warn")}</AppText>
-                <BigButton variant="danger" label={t("sync.offDelete.confirm")} disabled={!!busy} onPress={() => turnOff(true)} />
-                <BigButton label={t("sync.offDelete.cancel")} variant="secondary" onPress={() => setAskDelete(false)} />
+                <View style={{ gap: space.lg }}>
+                  <BigButton label={t("sync.offDelete.cancel")} variant="secondary" onPress={() => setAskDelete(false)} />
+                  <BigButton variant="dangerSolid" label={t("sync.offDelete.confirm")} disabled={!!busy} onPress={() => turnOff(true)} />
+                </View>
               </>
             ) : (
               <BigButton label={t("sync.offDelete")} variant="danger" disabled={!!busy} onPress={() => setAskDelete(true)} />

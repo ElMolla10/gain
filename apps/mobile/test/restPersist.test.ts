@@ -21,11 +21,12 @@ describe("running rest persistence (iOS audit 3)", () => {
     expect(cancelRestOnLeave(false)).toBe(false);
     expect(cancelRestOnLeave(true)).toBe(true);
   });
-  it("useWorkoutRest no longer cancels the alert or Live Activity on unmount", () => {
+  it("useWorkoutRest no longer cancels the alert on unmount", () => {
     const src = readFileSync(join(__dirname, "..", "src", "hooks", "useWorkoutRest.ts"), "utf8");
     expect(src).not.toMatch(/useEffect\(\(\) => \(\) =>/);
     const end = src.slice(src.indexOf("async function endRest"));
     expect(end).toMatch(/restAlerts\.cancel\(\)/);
-    expect(end).toMatch(/restLiveActivity\.stop\(\)/);
+    // The Live Activity moved to useWorkoutLiveActivity (reconcile on unmount, stop on finish/discard).
+    expect(src).not.toMatch(/LiveActivity\.(stop|sync)/);
   });
 });

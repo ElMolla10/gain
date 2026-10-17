@@ -1,6 +1,10 @@
 import { useWorkoutSuggestions } from "./useWorkoutSuggestions";
 import type { LoadedWorkout as Loaded } from "../logic/workoutTypes";
 import { useWorkoutRest } from "./useWorkoutRest";
+import { useWorkoutLiveActivity } from "./useWorkoutLiveActivity";
+import { workoutLiveActivity } from "../native/workoutLiveActivity";
+import { workoutActivityProps } from "../logic/workoutActivityModel";
+import { shownExercises } from "../logic/workoutShown";
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
 import { estimateStartingLoad, findSpec, parseReadiness, sessionOrderFatigue, type GymFingerprint, type GymLoadSpec, type OutlierResult, type ReadinessFlag } from "@gain/engine";
 import * as Crypto from "expo-crypto";
@@ -16,7 +20,7 @@ import { exerciseLabels } from "../i18n/format";
 import { weightText } from "../logic/units";
 import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { useI18n } from "../i18n";
-import { orderSlots, reorderBlocks, restAfterSet, supersetLabels } from "../logic/superset";
+import { reorderBlocks, restAfterSet, supersetLabels } from "../logic/superset";
 import { initialDraft } from "../logic/draft";
 import { upgradeLegacyKgDumbbells } from "../logic/defaultGym";
 import { finishChoice } from "../logic/finishChoice";
@@ -101,7 +105,7 @@ export function useWorkoutSession() {
   const [kindFor, setKindFor] = useState<{ exId: string; key: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
-  const { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver, endRest } = useWorkoutRest(loaded && loaded !== "nogym" ? loaded.sessionId : null);
+  const { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver, endRest, restored: restRestored } = useWorkoutRest(loaded && loaded !== "nogym" ? loaded.sessionId : null);
   /** The one-time "notifications are blocked" hint after the logger asked for the rest alert; cleared on the next tick. */
   const [restPermDenied, setRestPermDenied] = useState(false);
   const startedRef = useRef(false);
@@ -587,6 +591,15 @@ export function useWorkoutSession() {
     });
   }
 
+  // The Lock Screen / Dynamic Island workout card. Computed before the early returns (hooks); null until the session and its rest are restored.
+  const activityProps = useMemo(() => {
+    if (!loaded || loaded === "nogym" || !restRestored) return null;
+    const { shown: list } = shownExercises(loaded.slots, exState, makeDisp);
+    const focusId = focusedExercise(list.map((ex) => ex.exerciseId), rows, preferredExercise);
+    return workoutActivityProps({ startedAt: loaded.startedAt, pausedMs: loaded.pausedMs, pausedAt: loaded.pausedAt, shown: list, rows, focus: focusId, timer, now: Date.now(), lang, unit, t });
+  }, [loaded, restRestored, exState, makeDisp, rows, preferredExercise, timer, lang, unit, t]);
+  useWorkoutLiveActivity(activityProps, () => workout.getOpenSession().then(Boolean));
+
   if (loaded === null && loadError) return { phase: "error", retry: () => { setLoadError(false); setAttempt(n => n + 1); }, navigation } as const;
   if (loaded === null) return { phase: "loading", navigation } as const;
   if (loaded === "nogym") return { phase: "nogym", navigation } as const;
@@ -602,13 +615,8 @@ export function useWorkoutSession() {
     : statusKind === "resumed" ? ({ kind: "success", icon: "check", text: t("workout.resumed") } as const)
     : statusKind === "saved" ? ({ kind: "info", icon: "phone", text: savedAt ? t("workout.saved", { time: clock(savedAt) }) : t("status.savedLocal") } as const)
     : ({ kind: "info", icon: "why", text: t("workout.notSaved") } as const);
-  const programmeIds = loaded.slots.filter((s) => !exState[s.exerciseId]?.added).map((s) => s.exerciseId);
-  const order = orderSlots(programmeIds, exState);
+  const { order, shown } = shownExercises(loaded.slots, exState, makeDisp);
   const ssLabel = supersetLabels(order, exState);
-  const shown: Disp[] = order.flatMap((slot) => {
-    const s = loaded.slots.find((x) => x.exerciseId === slot);
-    return s ? [makeDisp(s, exState[slot])] : [];
-  });
   const fatigueSlots = shown.map((ex) => ({
     exerciseId: ex.exerciseId,
     name: exerciseLabels(ex, lang).primary,
@@ -646,7 +654,7 @@ export function useWorkoutSession() {
     setFinishing(true);
     setFinishFailed(false);
     const r = await attemptFinish(
-      () => workout.finishSession(lo.sessionId).then(() => void endRest()).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
+      () => workout.finishSession(lo.sessionId).then(() => { void endRest(); void workoutLiveActivity.stop(); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
       () => navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId })),
       (e) => diagnostics.record("error", "finish workout", e),
     );
@@ -661,6 +669,7 @@ export function useWorkoutSession() {
     try {
       if (!(await workout.discardEmptySession(lo.sessionId))) throw new Error("not empty");
       void endRest();
+      void workoutLiveActivity.stop();
       navigation.goBack();
     } catch (e) {
       diagnostics.record("error", "discard empty workout", e);

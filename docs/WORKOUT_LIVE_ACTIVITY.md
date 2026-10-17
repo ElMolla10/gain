@@ -1,6 +1,8 @@
-# Rest timer on the iOS Lock Screen
+# Workout on the iOS Lock Screen and Dynamic Island
 
-The rest timer can present a local Live Activity on the Lock Screen and Dynamic Island. The native countdown uses SwiftUI's bounded timer interval, so it continues counting while JavaScript is suspended and stops at zero. Logging, the in-app rest clock, and local completion alerts remain independent of this optional presentation.
+> **Needs a native build with `GAIN_IOS_LIVE_ACTIVITY=1` and a paid Apple Developer Program team** (the App Group can't be provisioned by a free Personal Team). It does not work in Expo Go, in an OTA-only update, or in the current free-route build (docs/IOS.md).
+
+While a workout is open, one Live Activity (`GainWorkoutActivity`) shows the GAIN badge and "Workout", the elapsed workout time (a native SwiftUI count-up that freezes while the workout is paused), the current exercise, "Set X of Y" (or Warm-up / Drop set / All sets done), the set's weight × reps (seconds or metres for timed exercises) and, while resting, the rest countdown with a progress bar inside the same card. Timers are native (`Text timerInterval`), so nothing ticks in JavaScript. Logging, the in-app rest clock and the local rest alert stay independent of this optional presentation.
 
 ## Building
 
@@ -17,13 +19,29 @@ The default (`GAIN_IOS_LIVE_ACTIVITY=0`, or unset) omits the extension and App G
 
 ## Lifecycle and limitations
 
-`src/native/restLiveActivity.ts` exposes `restLiveActivity.sync({ endsAt, durationMs, label, restLabel? })` and `stop()`. The workout rest hook calls this without awaiting it in the logging path. One controller serializes native work, recovers existing instances after relaunch, removes duplicates, updates deadline/label changes, and ends immediately on stop or elapsed rest. `restLabel` accepts localized text.
+- `src/logic/workoutActivityModel.ts` builds the props (all strings localised, Western digits, names cut to 32 characters, well under 1 KB).
+- `src/logic/workoutLiveActivityController.ts` serialises native work, dedupes by content, recovers instances after relaunch, ends duplicates and leftover `GainRestActivity` cards from earlier builds, and contains every error. `sync(props | null)`, `stop()`, `reconcile(hasOpenSession)`.
+- `src/native/workoutLiveActivity.ts` is the lazy gate (iOS 16.4+, `extra.restLiveActivityEnabled`, `ExpoWidgets` present); `workoutLiveActivityLayout.tsx` is the SwiftUI layout.
+- `src/hooks/useWorkoutLiveActivity.ts` (called from useWorkoutSession) syncs with a 400 ms trailing debounce for typing and flushes at once on a new exercise or set, rest start/stop, pause/resume. Leaving the logger (collapse, swipe back) never ends the card: it calls `reconcile`, which ends it only when no workout is open. The rest block stays because the running rest persists (audit item 3). Finish and discard call `stop()`. App.tsx reconciles at boot and whenever the app becomes active.
+- The build flag, plugin (`plugins/rest-live-activity-config.js`) and `extra.restLiveActivityEnabled` name are unchanged, so existing build scripts work.
 
 Unsupported platforms, iOS below 16.4, disabled builds, missing native modules, disabled Live Activity permission, and native failures are silent best effort fallbacks. Live Activities require foreground app execution to start; iOS controls presentation and may dismiss them. Dynamic Island is available only on devices that have it.
 
 The deadline is also passed as ActivityKit's `staleDate`. This marks an expired activity stale; it does **not** schedule automatic dismissal. When iOS suspends or terminates the app, the native countdown still reaches zero, but the card may remain until the app resumes and ends it, the user dismisses it, or iOS removes it. Exact background dismissal would require another execution mechanism; this implementation uses no push service or background polling. The local completion notification remains the completion alert.
 
 ## Manual device verification
+
+Workout card (iPhone 15 Pro or later for the Dynamic Island, iOS 17+):
+1. Start a workout and lock: badge, "Workout", a timer matching the in-app duration, the first exercise, "Set 1 of N", the target weight × reps.
+2. Type a different weight and wait about half a second: the card shows it. Tick: the rest countdown appears in the same card and the line reads "Set 2 of N". At zero the countdown stops and the alert still fires.
+3. Finish an exercise's last set: the card moves to the next exercise; everything ticked reads "All sets done".
+4. Pause: the timer freezes and shows "Paused"; resume continues with no jump.
+5. Collapse the logger or swipe back to Today: the card stays (with the rest). Reopen: no duplicate. Swipe the app away: the card stays; reopening keeps one card.
+6. Finish or discard: the card disappears at once. A stale card (e.g. after a backup restore) goes when the app comes to the foreground.
+7. Arabic device + Arabic GAIN, then English device + Arabic GAIN: Arabic labels, Western digits, no mirrored timer, nothing clipped. Light, dark and Always-On readable.
+8. Live Activities off for GAIN in Settings, a free-ID build, and Android: everything works, no errors.
+
+Older rest-only checks:
 
 1. Install an opt-in native build on an iOS 16.4+ iPhone. Enable Live Activities in iOS Settings for GAIN. Log a set with a 60-second rest; verify the Lock Screen shows the exercise, rest label, progress and countdown. On a Dynamic Island device, check compact, minimal (alongside another activity), and expanded presentations.
 2. Lock the device for at least 20 seconds. Verify native countdown agrees with the app's remaining time when reopened. Leave it locked past expiry; expect zero/stale presentation, then immediate removal when reopened.

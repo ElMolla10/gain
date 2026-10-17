@@ -60,7 +60,7 @@ export function quantityFields(q: number, measure: Measure): { reps: number; dur
   return { reps: q };
 }
 
-/** "PREVIOUS" cell of a timed row: "24kg x 45 s" with a load, else "45 s". */
+/** "PREVIOUS" cell of a timed row: "24kg × 45 s" with a load, else "45 s" (same "×" as previousText). */
 export function previousQuantityText(
   lastWorking: readonly { load: number; reps: number; durationS?: number | null; distanceM?: number | null }[] | null,
   workingIndex: number | null,
@@ -72,7 +72,7 @@ export function previousQuantityText(
   const s = lastWorking[workingIndex];
   if (!s) return "—";
   const q = quantityText(setQuantity(s, measure), measure, unitLetters);
-  return s.load > 0 ? `${loadText(s.load)} x ${q}` : q;
+  return s.load > 0 ? `${loadText(s.load)} × ${q}` : q;
 }
 
 /** Is this exercise counted in seconds or metres? */

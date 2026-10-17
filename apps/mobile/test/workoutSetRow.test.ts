@@ -103,7 +103,7 @@ describe("extracted workout row wiring", () => {
     const cells = inputs(p);
     expect(cells).toHaveLength(3);
     expect(cells.every(n => n.props.unitLabel)).toBe(true);
-    expect(tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("60kg x 7");
+    expect(tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("60kg × 7");
   });
   it("uses quantity parsing for timed/distance rows and omits effort when disabled", () => {
     const p = props(); p.ex = { ...p.ex, measure: "distance", trackEffort: false };
@@ -178,7 +178,7 @@ describe("extracted exercise section wiring", () => {
       const nextRow = after.find(n => n.type === WorkoutSetRow)!;
       expect(nextRow.props.lastSets).toEqual([{ load: 60, reps: 8 }]);
       const previousText = nodes(WorkoutSetRow(nextRow.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
-      expect(previousText).toContain("\u206660kg x 8\u2069");
+      expect(previousText).toContain("\u206660kg × 8\u2069");
       expect(nodes(WorkoutSetRow(nextRow.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "CellInput").map(n => [n.props.value, n.props.placeholder])).toEqual(fields);
       expect(nextRow.props.row).toBe(row.props.row);
       expect(after.find(n => n.type === LiveSuggestion)!.props).toEqual(before.find(n => n.type === LiveSuggestion)!.props);

@@ -1,7 +1,8 @@
 import React from "react";
 import { Pressable, Switch, View } from "react-native";
 import { Icon } from "./Icon";
-import { MIN_TOUCH, radius, space, type as ty, usePalette } from "../theme";
+import { switchColors } from "../logic/stateColors";
+import { MIN_TOUCH, radius, space, type as ty, useIsDark, usePalette } from "../theme";
 import { AppText, Card } from "../ui";
 
 /** A titled group of settings rows (Training, Display, Data, About) on one card, rows separated by hairlines. */
@@ -49,6 +50,7 @@ export function LinkRow(props: { label: string; note?: string; onPress: () => vo
 /** An on/off setting: the whole row is the target. The switch is the picture; the row carries the role and state for TalkBack. */
 export function SwitchRow(props: { label: string; note?: string; value: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
   const p = usePalette();
+  const sw = switchColors(p, !useIsDark(), props.value);
   return (
     <Pressable
       accessibilityRole="switch"
@@ -63,7 +65,7 @@ export function SwitchRow(props: { label: string; note?: string; value: boolean;
         {props.note ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.note}</AppText> : null}
       </View>
       <View pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-        <Switch accessibilityLabel={props.label} value={props.value} trackColor={{ true: p.fill, false: p.edge }} thumbColor={props.value ? p.onFill : p.card} />
+        <Switch accessibilityLabel={props.label} value={props.value} trackColor={{ true: sw.trackOn, false: sw.trackOff }} thumbColor={sw.thumb} ios_backgroundColor={sw.iosBackground} />
       </View>
     </Pressable>
   );

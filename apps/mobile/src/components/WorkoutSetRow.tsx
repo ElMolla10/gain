@@ -13,6 +13,7 @@ import { radius, space, useLogPalette } from "../theme";
 import { AppText } from "../ui";
 import { Icon } from "./Icon";
 import { CellInput, SwipeRow } from "./LogParts";
+import { haptics } from "../haptics";
 
 export interface WorkoutSetRowProps {
   ex: Disp;
@@ -61,7 +62,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         onLongPress={() => onAskDelete(row)}
         accessibilityActions={[{ name: "delete", label: t("workout.deleteSet") }]}
         onAccessibilityAction={event => { if (event.nativeEvent.actionName === "delete") onAskDelete(row); }}
-        style={{ width: 48, height: 48, borderRadius: radius.button, backgroundColor: p.field, alignItems: "center", justifyContent: "center" }}
+        style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.button, backgroundColor: p.field, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
       >
         <AppText ltr style={{ fontWeight: "600", fontSize: 14, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.accent }}>{label}</AppText>
       </Pressable>
@@ -116,8 +117,8 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         accessibilityState={{ checked: done, disabled: tickDisabled }}
         accessibilityLabel={`${done ? t("workout.untick") : row.saved ? t("workout.tickUpdate") : t("workout.tick")}. ${ctx}`}
         disabled={tickDisabled}
-        onPress={() => (done ? onUntick(row) : onLog(row))}
-        style={{ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.doneFill : p.field, borderWidth: done ? 1.5 : current ? 2 : 1.5, borderColor: done ? p.doneEdge : (row.saved && row.dirty) || current ? p.accent : p.edge, opacity: !done && !row.saved && !canTick ? 0.5 : 1 }}
+        onPress={() => { if (done) { haptics.untick(); onUntick(row); } else { haptics.tick(); onLog(row); } }}
+        style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.doneFill : p.field, borderWidth: done ? 1.5 : current ? 2 : 1.5, borderColor: done ? p.doneEdge : (row.saved && row.dirty) || current ? p.accent : p.edge, opacity: !done && !row.saved && !canTick ? 0.5 : pressed ? 0.7 : 1 })}
       >
         {row.saved && row.dirty ? <Icon name="edit" color={p.accent} size={20} /> : <Icon name="check" color={done ? p.onDone : p.muted} size={22} />}
       </Pressable>

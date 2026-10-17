@@ -13,6 +13,7 @@ import { sessionMinutes } from "../src/logic/historyRows";
 // Run the session hook against the real SQLite repositories. Only React's host and
 // native delivery are substituted; no logging, prescription, or rest logic is mocked.
 const host = vi.hoisted(() => ({ values: [] as any[], writes: [] as number[], index: 0, effects: [] as (() => void)[], services: null as any, dayId: "" }));
+vi.mock("../src/haptics", () => ({ haptics: { tick: () => {}, untick: () => {}, restOver: () => {}, celebrate: () => {} } }));
 vi.mock("react", async original => {
   const actual = await original<typeof import("react")>();
   const same = (a: unknown[] | undefined, b: unknown[] | undefined) => !!a && !!b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));

@@ -6,7 +6,7 @@ import { useI18n } from "../i18n";
 import { isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { groupCode, normalizeCode } from "../logic/recoveryCodeText";
-import { localDateText } from "../logic/trendChart";
+import { formatDay } from "../logic/dateText";
 import type { SyncInfo } from "../sync/engine";
 import { radius, space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Field, InlineStatus, Notice, Screen } from "../ui";
@@ -19,7 +19,7 @@ type Step = "idle" | "code" | "choice";
  */
 export function SyncScreen() {
   const { sync, restart } = useServices();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const p = usePalette();
   const [info, setInfo] = useState<SyncInfo | null>(null);
   const [busy, setBusy] = useState<StringKey | null>(null);
@@ -232,7 +232,7 @@ export function SyncScreen() {
       {status === "on" ? (
         <>
           <Card>
-            <AppText>{info?.lastSyncAt ? t("sync.last", { when: `${localDateText(info.lastSyncAt)} ${new Date(info.lastSyncAt).toTimeString().slice(0, 5)}` }) : t("sync.never")}</AppText>
+            <AppText>{info?.lastSyncAt ? t("sync.last", { when: `${formatDay(info.lastSyncAt, lang)} ${new Date(info.lastSyncAt).toTimeString().slice(0, 5)}` }) : t("sync.never")}</AppText>
             <AppText>{info && info.pendingOut > 0 ? t("sync.pending", { n: info.pendingOut }) : t("sync.nothingPending")}</AppText>
             {info && info.parked.conflict > 0 ? <InlineStatus kind="error" text={t("sync.parked.conflict", { n: info.parked.conflict })} /> : null}
             {info && info.parked.waiting_parent > 0 ? <AppText>{t("sync.parked.waiting", { n: info.parked.waiting_parent })}</AppText> : null}

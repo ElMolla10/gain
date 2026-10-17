@@ -20,8 +20,9 @@ import {
 import type { LiftItem } from "../db/historyRepo";
 import { TrendChart } from "../components/TrendChart";
 import { useI18n } from "../i18n";
-import { exerciseLabels, isolateLtr } from "../i18n/format";
-import { directionKey, filterTrendPoints, groupSessionsByDate, localDateText, metricTrendPoints, type ChartMetric, type ChartRange } from "../logic/trendChart";
+import { exerciseLabels, isolateLtr, isolateParam } from "../i18n/format";
+import { formatDay } from "../logic/dateText";
+import { directionKey, filterTrendPoints, groupSessionsByDate, metricTrendPoints, type ChartMetric, type ChartRange } from "../logic/trendChart";
 import { loadsSummaryText, matchingJumpKg, TREND_LOAD_JUMPS_KG } from "../logic/exerciseLoads";
 import { exercisePath } from "../logic/exercisePath";
 import { kgToUnit, weightText } from "../logic/units";
@@ -160,16 +161,16 @@ export function LiftTrendView({
             })}
           </AppText>
         ) : null}
-        {trend.latest ? <AppText>{t("trend.latest", { set: setText(trend.latest), date: localDateText(trend.latest.at) })}</AppText> : null}
-        {trend.best ? <AppText>{t("trend.best", { set: setText(trend.best), date: localDateText(trend.best.at) })}</AppText> : null}
+        {trend.latest ? <AppText>{t("trend.latest", { set: setText(trend.latest), date: formatDay(trend.latest.at, lang) })}</AppText> : null}
+        {trend.best ? <AppText>{t("trend.best", { set: setText(trend.best), date: formatDay(trend.best.at, lang) })}</AppText> : null}
       </Card>
       {records.heaviest ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("trend.pr.title")}</AppText>
-          <AppText>{t("trend.pr.heaviest", { set: setText(records.heaviest), date: localDateText(records.heaviest.at) })}</AppText>
+          <AppText>{t("trend.pr.heaviest", { set: setText(records.heaviest), date: formatDay(records.heaviest.at, lang) })}</AppText>
           {records.e1rm ? <AppText>{t("trend.pr.e1rm", { load: fmt(records.e1rm.e1rm), set: setText(records.e1rm.set) })}</AppText> : null}
           {records.setVol ? <AppText>{t("trend.pr.setVolume", { volume: String(Math.round(records.setVol.volume)), set: setText(records.setVol.set) })}</AppText> : null}
-          {records.sessionVol ? <AppText>{t("trend.pr.sessionVolume", { volume: String(Math.round(records.sessionVol.volume)), date: localDateText(records.sessionVol.at) })}</AppText> : null}
+          {records.sessionVol ? <AppText>{t("trend.pr.sessionVolume", { volume: String(Math.round(records.sessionVol.volume)), date: formatDay(records.sessionVol.at, lang) })}</AppText> : null}
         </Card>
       ) : null}
       {recent.length > 0 ? (
@@ -177,7 +178,7 @@ export function LiftTrendView({
           <AppText style={{ fontWeight: "600" }}>{t("trend.recent")}</AppText>
           {recent.map((pt) => (
             <AppText key={pt.at} style={{ fontVariant: ["tabular-nums"] }}>
-              {isolateLtr(localDateText(pt.at))}  {setText(pt)}
+              {isolateParam(formatDay(pt.at, lang))}  {setText(pt)}
               {pt.imported ? `  (${t("trend.imported")})` : ""}
             </AppText>
           ))}

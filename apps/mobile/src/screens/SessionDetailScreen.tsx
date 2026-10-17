@@ -12,7 +12,7 @@ import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { parseNumber } from "../logic/gymInput";
-import { localDateText } from "../logic/trendChart";
+import { formatDay } from "../logic/dateText";
 import { editedKg, kgToUnit } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
 import { formatWorkoutShareText } from "../logic/workoutRecap";
@@ -135,7 +135,7 @@ export function SessionDetailScreen() {
       {summary ? <AchievementCard detail={detail} summary={summary} /> : null}
       <BigButton variant="secondary" icon="export" label={t("recap.shareText")} loading={sharingText} disabled={sharingText} onPress={() => void shareWorkout()} />
       {shareFailed ? <InlineStatus kind="error" text={t("recap.shareFailed")} /> : null}
-      <AppText ltr style={{ color: p.muted, fontWeight: "600" }}>{localDateText(detail.finishedAt)}</AppText>
+      <AppText style={{ color: p.muted, fontWeight: "600" }}>{formatDay(detail.finishedAt, lang)}</AppText>
       <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("history.editNote")}</AppText>
       {detail.exercises.map((ex) => (
         <Card key={ex.exerciseId}>

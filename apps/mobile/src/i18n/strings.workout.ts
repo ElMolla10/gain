@@ -160,6 +160,7 @@ export const enWorkout = {
   "today.startDay": "Start {day}",
   "workout.loads": "Loads",
   "workout.nextSetDetails": "Next set details",
+  "workout.details": "Workout details",
   "workout.pause": "Pause workout",
   "workout.resume": "Resume workout",
 } as const;
@@ -325,6 +326,7 @@ export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "today.startDay": "ابدأ {day}",
   "workout.loads": "الأوزان",
   "workout.nextSetDetails": "تفاصيل المجموعة الجاية",
+  "workout.details": "تفاصيل التمرينة",
   "workout.pause": "وقّف التمرينة مؤقتًا",
   "workout.resume": "كمّل التمرينة",
 };

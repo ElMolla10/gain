@@ -35,7 +35,7 @@ import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
 import { staleOffGridTarget } from "../logic/targetRefresh";
 import { startTimer } from "../logic/restTimer";
-import { REST_KEYS, restOffFor, toggleRestChoice } from "../logic/restAlert";
+import { REST_KEYS, REST_NOTIFY_ASKED_KEY, restOffFor, shouldOfferRestNotify, toggleRestChoice } from "../logic/restAlert";
 import { pauseClock, resumeClock } from "../logic/workoutClock";
 import { attachLoads, resolveLoads } from "../db/exerciseGrid";
 import type { DayEx, Disp, ExInfo } from "../logic/workoutTypes";
@@ -102,6 +102,8 @@ export function useWorkoutSession() {
   const [busy, setBusy] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver } = useWorkoutRest();
+  /** The one-time "notifications are blocked" hint after the logger asked for the rest alert; cleared on the next tick. */
+  const [restPermDenied, setRestPermDenied] = useState(false);
   const startedRef = useRef(false);
   const libRef = useRef<LibraryExercise[]>([]);
   const noteInputs = useRef<Record<string, TextInput | null>>({});
@@ -293,6 +295,7 @@ export function useWorkoutSession() {
   };
 
   async function logRow(ex: Disp, row: SetRowDraft) {
+    setRestPermDenied(false);
     if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
     // Ticking logs the boxes as they are (target or typed): no big-jump confirmation.
     setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
@@ -410,13 +413,32 @@ export function useWorkoutSession() {
 
   async function toggleRest(slot: string) {
     if (!loaded || loaded === "nogym") return;
-    const next = toggleRestChoice(rest.auto, exState[slot]?.restOff ?? DEFAULT_EXERCISE_REST_OFF);
+    const curOff = exState[slot]?.restOff ?? DEFAULT_EXERCISE_REST_OFF;
+    const turningOn = restOffFor(rest.auto, { restOff: curOff });
+    const next = toggleRestChoice(rest.auto, curOff);
     if (next.auto !== rest.auto) {
       setRest((r) => ({ ...r, auto: next.auto }));
       await repos.setSetting(REST_KEYS.auto, next.auto ? "1" : "0").catch((e) => diagnostics.record("warn", "save rest preference", e));
     }
     setState(slot, { restOff: next.restOff });
     await workout.patchExerciseState(loaded.sessionId, slot, { restOff: next.restOff });
+    if (turningOn && !rest.notify) void offerRestNotify();
+  }
+
+  /** Turning rest on in the logger also offers the lock-screen alert, once per install. Never blocks the toggle and never throws. */
+  async function offerRestNotify() {
+    try {
+      const asked = (await repos.getSetting(REST_NOTIFY_ASKED_KEY)) === "1";
+      if (!shouldOfferRestNotify(true, rest.notify, asked)) return;
+      await repos.setSetting(REST_NOTIFY_ASKED_KEY, "1");
+      const r = await restAlerts.ensurePermission();
+      if (r === "granted") {
+        await repos.setSetting(REST_KEYS.notify, "1");
+        setRest((s) => ({ ...s, notify: true }));
+      } else if (r === "denied") setRestPermDenied(true);
+    } catch (e) {
+      diagnostics.record("warn", "offer rest alert", e);
+    }
   }
 
   const durationBusy = useRef(false);
@@ -841,7 +863,7 @@ export function useWorkoutSession() {
     } finally { setBusy(null); }
   }
   return { phase: "ready",
-    timerOpen, timerRunning, restOver, navigation, setHelpOpen,
+    timerOpen, timerRunning, restOver, restPermDenied, navigation, setHelpOpen,
     setRestOver, setTimerOpen, timer, finishing, askFinish,
     loaded, status, toggleDurationPause, summary, sets,
     summaryOpen, setSummaryOpen, readiness, setReadiness, workout,

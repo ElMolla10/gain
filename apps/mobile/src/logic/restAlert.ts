@@ -12,6 +12,14 @@ export interface RestSettings {
 
 export const REST_CHOICES = [60, 90, 120, 180, 240] as const;
 export const REST_KEYS = { seconds: "rest_seconds", vibrate: "rest_vibrate", notify: "rest_notify", auto: "rest_auto" } as const;
+/** Set once the logger has offered the lock-screen alert (asked for the notification permission), so it never asks again. */
+export const REST_NOTIFY_ASKED_KEY = "rest_notify_asked";
+
+/**
+ * Whether turning on the logger's rest switch should also offer the lock-screen alert (one permission prompt per install):
+ * only when the switch turns rest ON, the alert is still off, and the logger has not asked before.
+ */
+export const shouldOfferRestNotify = (turningOn: boolean, notify: boolean, asked: boolean): boolean => turningOn && !notify && !asked;
 
 export const defaultRestSettings = (): RestSettings => ({ seconds: DEFAULT_REST_SECONDS, vibrate: true, notify: false, auto: false });
 

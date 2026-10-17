@@ -26,6 +26,15 @@ describe("destructive actions: one style ladder (plan 1.6)", () => {
     expect(sd).toContain('<BigButton variant="danger" icon="trash" label={t("history.delete")}');
     expect(sd).toMatch(/variant="dangerSolid"\s+label=\{t\("history\.deleteYes"\)\}/);
   });
+  it("Sync: 'turn off and delete' confirm is solid, with Cancel ≥16 dp before it; the first tap stays outlined", () => {
+    const sync = src("screens/SyncScreen.tsx");
+    expect(sync).toContain('<BigButton variant="dangerSolid" label={t("sync.offDelete.confirm")}');
+    expect(sync).toContain('<BigButton label={t("sync.offDelete")} variant="danger"');
+    const cancel = sync.indexOf('t("sync.offDelete.cancel")');
+    const confirm = sync.indexOf('t("sync.offDelete.confirm")');
+    expect(cancel).toBeLessThan(confirm);
+    expect(sync.slice(sync.lastIndexOf("<View style={{ gap: space.lg }}>", cancel), confirm)).toContain('t("sync.offDelete.cancel")');
+  });
   it("Programme editor: no danger Chip for removing a day", () => {
     const ed = src("components/ProgrammeEditorView.tsx");
     expect(ed).not.toContain('tone="danger" onPress={() => confirmRemoveDay');

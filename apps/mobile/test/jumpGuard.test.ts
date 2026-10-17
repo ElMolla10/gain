@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkJump, DEFAULT_JUMP_CONFIRM_PCT, isAcceptedTarget, jumpOptions, jumpPct, parseJumpThreshold } from "../src/logic/jumpGuard";
+import { checkJump, DEFAULT_JUMP_CONFIRM_PCT, isAcceptedTarget, jumpOptions, jumpPct, parseJumpThreshold, topTrustedSet } from "../src/logic/jumpGuard";
 import { ar, en } from "../src/i18n/strings";
 
 const base = { prevLoad: 60, prevReps: 8, targetReps: 6, setup: "free" } as const;
@@ -91,5 +91,23 @@ describe("P04 skips the app's own accepted target", () => {
     expect(isAcceptedTarget({ load: null, ghostLoad: 0.1 + 0.2 }, 0.3)).toBe(true);
     expect(isAcceptedTarget({ load: null, ghostLoad: 12.5 + 5e-7 }, 12.5)).toBe(true);
     expect(isAcceptedTarget({ load: null, ghostLoad: 12.5 + 1e-5 }, 12.5)).toBe(false);
+  });
+});
+
+describe("9 jump guard and prefill use the heaviest TRUSTED set", () => {
+  const set = (load: number, extra: Record<string, unknown> = {}) => ({ load, reps: 8, warmup: false, ...extra }) as import("@gain/engine").LoggedSet;
+  it("ignores unconfirmed, rejected, warm-up and drop sets", () => {
+    const top = topTrustedSet([set(80), set(200, { outlierStatus: "unconfirmed" }), set(190, { outlierStatus: "rejected" }), set(100, { warmup: true }), set(95, { tags: ["drop"] }), set(82.5, { outlierStatus: "confirmed" })]);
+    expect(top?.load).toBe(82.5);
+  });
+  it("returns null when nothing is trusted (the guard is off, prefill falls back as before)", () => {
+    expect(topTrustedSet([set(200, { outlierStatus: "unconfirmed" }), set(60, { warmup: true })])).toBeNull();
+    expect(topTrustedSet([])).toBeNull();
+    expect(topTrustedSet(null)).toBeNull();
+    expect(topTrustedSet(undefined)).toBeNull();
+  });
+  it("the logger uses it for both the prefill fallback and the guard", () => {
+    const hook = readFileSync(join(__dirname, "..", "src", "hooks", "useWorkoutSession.ts"), "utf8");
+    expect(hook.match(/topTrustedSet\(/g)).toHaveLength(2);
   });
 });

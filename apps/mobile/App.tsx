@@ -29,6 +29,7 @@ import { createDataRepo } from "./src/db/dataRepo";
 import { Icon, type IconName } from "./src/components/Icon";
 import { BootError, BootLoading, MigrationBlocked } from "./src/components/BootScreens";
 import { useBrandFonts } from "./src/useBrandFonts";
+import * as SplashScreen from "expo-splash-screen";
 import { familyFor } from "./src/fonts";
 import { AppText, BigButton } from "./src/ui";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
@@ -92,6 +93,9 @@ const BOOT_T0 = perfNow();
 
 // Uncaught JavaScript errors go to the crash log on this phone (never uploaded), then on to the normal handler.
 perfMarks.attachStore(fileStore(PERF_FILE_NAME));
+// Keep the native splash up until boot is ready (no logo shrink or spinner flash); App hides it once, or after SPLASH_MAX_MS.
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+const SPLASH_MAX_MS = 8000;
 installCrashHandler(diagnostics, (globalThis as { ErrorUtils?: Parameters<typeof installCrashHandler>[1] }).ErrorUtils);
 
 const Tab = createBottomTabNavigator();
@@ -238,6 +242,20 @@ function Guarded({ children }: { children: React.ReactNode }) {
 export default function App() {
   const fontsReady = useBrandFonts();
   const [boot, setBoot] = useState<{ services: AppServices; lang: Lang; override: RtlOverride; unit: Unit; showSecond: boolean; needsOnboarding: boolean } | "error" | "migration_blocked" | null>(null);
+  const splashHidden = useRef(false);
+  const hideSplash = useCallback(() => {
+    if (splashHidden.current) return;
+    splashHidden.current = true;
+    SplashScreen.hideAsync().catch(() => undefined);
+  }, []);
+  // Ready, error or migration-blocked all hide it; a slow migration shows BootLoading after the safety timeout instead of a frozen splash.
+  useEffect(() => {
+    if (fontsReady && boot !== null) hideSplash();
+  }, [fontsReady, boot, hideSplash]);
+  useEffect(() => {
+    const h = setTimeout(hideSplash, SPLASH_MAX_MS);
+    return () => clearTimeout(h);
+  }, [hideSplash]);
 
   const [epoch, setEpoch] = useState(0);
   const dbRef = useRef<Db | null>(null);

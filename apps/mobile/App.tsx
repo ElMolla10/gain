@@ -105,7 +105,7 @@ const Stack = createNativeStackNavigator();
 function TabBarIcon({ name, color, focused }: { name: IconName; color: string; focused: boolean }) {
   const p = usePalette();
   return (
-    <View style={{ width: 56, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: focused ? p.tint : "transparent" }}>
+    <View style={{ width: 56, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: focused ? p.tint : "transparent", borderWidth: 1.5, borderColor: focused ? p.accent : "transparent" }}>
       <Icon name={name} color={color} size={24} />
     </View>
   );

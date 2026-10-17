@@ -184,13 +184,14 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
       </View>
 
 
-      {/* Column heads, once per exercise. At large text Previous is a caption inside each row, so it has no column here (L-8). */}
+      {/* Column heads, once per exercise. At large text Previous is a caption inside each row, so it has no column here (L-8).
+          A head never runs past its column (AR "مجموعة" at 1.5x): one line, shrinks to fit (C-R2). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, marginTop: space.xs }}>
-        <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
+        <View style={colSet}><AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
         {stacked ? null : <View style={{ flex: 1.1 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>}
         <View style={{ flex: 1 }}><AppText style={head}>{unitText.toUpperCase()}</AppText></View>
         <View style={{ flex: 1 }}><AppText style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
-        {ex.trackEffort ? <View style={{ width: stacked ? 64 : 52 }}><AppText style={head}>{t("workout.col.rir").toUpperCase()}</AppText></View> : null}
+        {ex.trackEffort ? <View style={{ width: stacked ? 64 : 52 }}><AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={head}>{t("workout.col.rir").toUpperCase()}</AppText></View> : null}
         <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
       </View>
 

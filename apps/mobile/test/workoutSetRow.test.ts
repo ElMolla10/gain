@@ -388,7 +388,7 @@ describe("live suggestion explanations", () => {
     expect(nodes(LiveSuggestion({ ...p, detailsOpen: false })).some(n => n.type as unknown === "Chip")).toBe(false);
     const tree = nodes(LoadSettings({ busy: false, onPickJump, loadSpec: { equipment: "barbell", increment: 2.5, min: 20 } }));
     const strip = (s: unknown) => String(s).replace(/\u2066|\u2069/g, "");
-    const chip = tree.find(n => n.type as unknown === "Chip" && strip(n.props.label) === "5 kg jumps")!;
+    const chip = tree.find(n => n.type as unknown === "Chip" && strip(n.props.label) === "5 kg jumps")!;
     chip.props.onPress();
     expect(onPickJump).toHaveBeenCalledWith(5);
   });

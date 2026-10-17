@@ -464,11 +464,10 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       let outlier: OutlierResult | null = null;
       if (!input.warmup && !input.tags?.includes("drop")) {
         const history = await getHistory(line, lineId);
-        const todaySets = (await listSessionSets(input.sessionId, input.exerciseId)).map(toLogged);
-        if (todaySets.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: todaySets });
+        const today = (await listSessionSets(input.sessionId, input.exerciseId)).map(toLogged);
         outlier = isTimedMeasure(measure)
-          ? checkTimedOutlier({ load: input.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history })
-          : checkOutlier({ load: input.load, reps: input.reps, rir: input.rir ?? null }, { line, history, gymSpec: await gridFor(db, ctx.gym, input.exerciseId, ctx.equipment, ctx.setup) });
+          ? checkTimedOutlier({ load: input.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history, today })
+          : checkOutlier({ load: input.load, reps: input.reps, rir: input.rir ?? null }, { line, history, today, gymSpec: await gridFor(db, ctx.gym, input.exerciseId, ctx.equipment, ctx.setup) });
       }
       const t = now();
       const pos = await db.get<{ p: number | null }>("SELECT MAX(position) AS p FROM workout_set WHERE session_id = ? AND exercise_id = ?", [input.sessionId, input.exerciseId]);
@@ -529,11 +528,10 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     if (!v.warmup && !v.tags?.includes("drop")) {
       const line: LineIdentity = { exerciseId: row.exercise_id, gymId: row.gym_id, setup: ctx.setup };
       const history = await getHistory(line, row.line_id);
-      const others = (await listSessionSets(row.session_id, row.exercise_id)).filter((x) => x.id !== setId).map(toLogged);
-      if (others.length > 0) history.push({ line, performedAt: new Date(now()).toISOString(), sets: others });
+      const today = (await listSessionSets(row.session_id, row.exercise_id)).filter((x) => x.id !== setId).map(toLogged);
       outlier = isTimedMeasure(measure)
-        ? checkTimedOutlier({ load: v.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history })
-        : checkOutlier({ load: v.load, reps, rir: v.rir }, { line, history, gymSpec: await gridFor(db, ctx.gym, row.exercise_id, ctx.equipment, ctx.setup) });
+        ? checkTimedOutlier({ load: v.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history, today })
+        : checkOutlier({ load: v.load, reps, rir: v.rir }, { line, history, today, gymSpec: await gridFor(db, ctx.gym, row.exercise_id, ctx.equipment, ctx.setup) });
       const unchanged = row.load === v.load && row.reps === reps && row.duration_s === q.durationS && row.distance_m === q.distanceM;
       status = row.outlier_status === "confirmed" && unchanged ? "confirmed" : outlier.outlierStatus;
     }

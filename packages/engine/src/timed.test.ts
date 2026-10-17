@@ -177,6 +177,20 @@ describe("timed outlier check", () => {
   });
 });
 
+describe("timed outlier: today's sets", () => {
+  const past = [40, 40, 45].map((q, i) => session(hang, days(10 - i), [{ load: 0, reps: 1, durationS: q }]));
+  it("today's sets do not push out past sessions", () => {
+    const today: LoggedSet[] = [{ load: 0, reps: 1, durationS: 42 }, { load: 0, reps: 1, durationS: 600, outlierStatus: "unconfirmed" }];
+    const r = checkTimedOutlier({ load: 0, reps: 1, durationS: 44 }, "time", { line: hang, history: past, today });
+    expect(r.verdict).toBe("ok");
+    expect(r.expected?.sampleSize).toBe(4);
+  });
+  it("first-ever session still judges from today's sets", () => {
+    const today: LoggedSet[] = [{ load: 0, reps: 1, durationS: 40 }, { load: 0, reps: 1, durationS: 45 }];
+    expect(checkTimedOutlier({ load: 0, reps: 1, durationS: 450 }, "time", { line: hang, history: [], today }).outlierStatus).toBe("unconfirmed");
+  });
+});
+
 describe("timed trend", () => {
   const at = (n: number) => new Date(Date.parse("2026-06-01") + n * 86_400_000).toISOString();
   const mk = (n: number, q: number, load = 0) => session(hang, at(n), hold(load, q));

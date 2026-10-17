@@ -108,3 +108,23 @@ describe("fat-finger typos (Step 5)", () => {
     expect(checkOutlier(S(30, 12), { line, history: hist, gymSpec: spec }).verdict).toBe("ok");
   });
 });
+
+describe("today's sets in the baseline", () => {
+  const past = [
+    session(line, "2026-09-24", sets(80, 8, 3)),
+    session(line, "2026-09-27", sets(80, 8, 3)),
+    session(line, "2026-09-30", sets(82.5, 8, 3)),
+  ];
+  it("today's sets do not push out past sessions", () => {
+    const today = [S(80, 8), S(60, 8), S(80, 8, { outlierStatus: "unconfirmed" }), S(40, 10, { warmup: true }), S(50, 10, { tags: ["drop"] })];
+    const r = checkOutlier(S(80, 8), { line, history: past, today, gymSpec: spec });
+    expect(r.verdict).toBe("ok");
+    expect(r.expected?.sampleSize).toBe(9 + 2);
+  });
+  it("first-ever session still judges from today's sets", () => {
+    const today = [S(80, 8), S(80, 8)];
+    expect(checkOutlier(S(80, 8), { line, history: [], today }).expected?.sampleSize).toBe(2);
+    expect(checkOutlier(S(800, 8), { line, history: [], today }).verdict).toBe("unconfirmed");
+    expect(checkOutlier(S(800, 8), { line, history: [], today: [S(80, 8)] }).verdict).toBe("insufficient_history");
+  });
+});

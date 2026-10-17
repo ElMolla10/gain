@@ -286,7 +286,6 @@ export function SettingsScreen() {
         <LinkRow label={t("coach.priority.entry")} note={t("coach.priority.note")} onPress={() => nav.navigate("MusclePriority")} />
         <PeriodizationSettings />
         <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
-        <LinkRow label={t("stop.entry")} onPress={() => nav.navigate("StoppedSuggestions")} />
         <LinkRow label={t("settings.setupAgain")} note={t("settings.setupAgainNote")} onPress={() => nav.navigate("Setup")} />
       </Group>
 

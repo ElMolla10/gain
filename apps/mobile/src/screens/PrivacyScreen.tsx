@@ -38,18 +38,18 @@ export function PrivacyScreen() {
       <Notice kind="warn">{t("privacy.draft")}</Notice>
       {block("privacy.local.title", ["privacy.local.body", "privacy.ai.body"])}
       {block("privacy.leaves.title", [...(hasSelfUpdater(buildFlags, Platform.OS) ? (["privacy.leaves.update"] as const) : []), "privacy.leaves.sync", "privacy.leaves.link", osTextKey("privacy.leaves.share", Platform.OS), osTextKey("privacy.leaves.backup", Platform.OS)])}
-      <Card>
+      {developerMode ? <Card>
         <AppText style={{ fontWeight: "600", fontSize: 20 }} accessibilityRole="header">{t("privacy.crash.title")}</AppText>
         <AppText>{t("privacy.crash.body")}</AppText>
         <SwitchRow label={t("privacy.crash.enabled")} value={crashLog} onChange={on => { diagnostics.setEnabled(on); setCrashLog(on); }} />
         <BigButton variant="quiet" label={t("diag.clear")} onPress={() => { diagnostics.clear(); setCleared(true); }} />
         {cleared ? <InlineStatus kind="success" text={t("diag.cleared")} /> : null}
-      </Card>
-      <Card>
+      </Card> : null}
+      {developerMode ? <Card>
         <AppText style={{ fontWeight: "600", fontSize: 20 }} accessibilityRole="header">{t("privacy.telemetry.title")}</AppText>
         <AppText>{t("privacy.telemetry.body")}</AppText>
         <SwitchRow label={t("telemetry.enabled")} note={t("telemetry.enabled.note")} value={notesOn} onChange={(on) => { telemetry.setOptedIn(on); setNotesOn(on); }} />
-      </Card>
+      </Card> : null}
       {block("privacy.control.title", [osTextKey("privacy.control.body", Platform.OS)])}
       {block("privacy.health.title", ["privacy.health.body", "privacy.age"])}
       <AppText style={{ color: p.muted }}>{t("privacy.contact")}</AppText>

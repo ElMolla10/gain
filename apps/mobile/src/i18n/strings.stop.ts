@@ -21,7 +21,7 @@ export const enStop = {
   "stop.jump.pause": "Add a pause",
   "stop.jump.slow_eccentric": "Slower lowering",
   "stop.jump.extra_set": "Add a set",
-  "stop.notice.stopped": "You have declined this jump ({jump}) {count} times, so I will stop suggesting it for this lift. You can bring it back in Settings, under Things I've stopped suggesting.",
+  "stop.notice.stopped": "You have declined this jump ({jump}) {count} times, so I will stop suggesting it for this lift.",
   "stop.notice.counting": "Declined: {jump}. {count} of {max}. After {max} I stop suggesting it.",
 } as const;
 
@@ -44,6 +44,6 @@ export const arStop: Record<keyof typeof enStop, string> = {
   "stop.jump.pause": "زوّد وقفة",
   "stop.jump.slow_eccentric": "نزول أبطأ",
   "stop.jump.extra_set": "زوّد مجموعة",
-  "stop.notice.stopped": "رفضت القفزة دي ({jump}) {count} مرات، فهوقف أقترحها للتمرين ده. تقدر ترجّعها من الإعدادات، تحت حاجات وقفت أقترحها.",
+  "stop.notice.stopped": "رفضت القفزة دي ({jump}) {count} مرات، فهوقف أقترحها للتمرين ده.",
   "stop.notice.counting": "اترفضت: {jump}. {count} من {max}. بعد {max} هوقف أقترحها.",
 };

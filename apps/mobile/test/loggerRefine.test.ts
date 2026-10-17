@@ -7,7 +7,7 @@ import { currentRowKey, initialRows, markSaved, pendingCount, editRow } from "..
 import { logDarkPalette, logLightPalette } from "../src/palettes";
 
 const src = (f: string) => readFileSync(join(__dirname, "..", "src", f), "utf8");
-const screen = src("screens/WorkoutScreen.tsx");
+const screen = src("screens/WorkoutScreen.tsx") + src("hooks/useWorkoutSession.ts");
 const section = src("components/WorkoutExerciseSection.tsx");
 const row = src("components/WorkoutSetRow.tsx");
 const today = src("screens/TodayScreen.tsx");

@@ -63,7 +63,7 @@ describe("P12 finishing a workout fails safely", () => {
     expect((await workout.getSession(id))!.status).toBe("finished");
   });
   it("the workout screen no longer rethrows from the finish handler and shows a retry", () => {
-    const w = src("screens/WorkoutScreen.tsx");
+    const w = src("screens/WorkoutScreen.tsx") + src("hooks/useWorkoutSession.ts");
     const f = w.slice(w.indexOf("async function doFinish"), w.indexOf("async function doDiscard"));
     expect(f).not.toContain("throw");
     expect(f).toContain("attemptFinish");

@@ -74,7 +74,7 @@ describe("privacy page matches the code (DRAFT, not legally reviewed)", () => {
     expect(wipe).toMatch(/telemetry\.wipe\(\)/);
   });
   it("a failed set save is shown to the lifter, not swallowed", () => {
-    const w = text(join(root, "src/screens/WorkoutScreen.tsx"));
+    const w = text(join(root, "src/hooks/useWorkoutSession.ts"));
     expect(w).toMatch(/workout\.saveFailed\.title/);
   });
 });

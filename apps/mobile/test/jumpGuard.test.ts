@@ -61,7 +61,7 @@ describe("P04 confirm big load jumps", () => {
   });
   it("the logger guards applying big jumps, while Finish's same-day forecast is read-only", () => {
     const root = join(__dirname, "..", "src");
-    expect(readFileSync(join(root, "screens/WorkoutScreen.tsx"), "utf8")).toContain("checkJump(");
+    expect(readFileSync(join(root, "hooks/useWorkoutSession.ts"), "utf8")).toContain("checkJump(");
     const finish = readFileSync(join(root, "screens/FinishScreen.tsx"), "utf8");
     expect(finish).toContain("previewFinishedDay(sessionId)");
     expect(finish).not.toContain("acceptTarget(");

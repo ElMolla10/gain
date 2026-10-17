@@ -288,11 +288,11 @@ describe("per-workout exercise changes (remove / replace / note / rest timer)", 
     await workout.patchExerciseState(id, slot, { restOff: true });
     expect(await workout.listExerciseState(id)).toEqual([{ slot, removed: false, replacedBy: null, note: "belt on", restOff: true, added: false, position: null, superset: null }]);
   });
-  it("rest defaults off for newly created state and honors explicit opt-in across reloads", async () => {
+  it("rest starts enabled for new state and honors an explicit rest-off choice across reloads", async () => {
     const { workout, id, exs } = await open();
     const slot = exs[0]!.exerciseId;
     await workout.patchExerciseState(id, slot, { note: "testing" });
-    expect((await workout.listExerciseState(id))[0]!.restOff).toBe(true);
+    expect((await workout.listExerciseState(id))[0]!.restOff).toBe(false);
     await workout.patchExerciseState(id, slot, { restOff: false });
     expect((await workout.listExerciseState(id))[0]!.restOff).toBe(false);
     await workout.patchExerciseState(id, slot, { restOff: true });

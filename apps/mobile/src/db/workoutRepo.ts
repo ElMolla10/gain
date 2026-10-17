@@ -29,8 +29,8 @@ import { gridFor, resolveLoads } from "./exerciseGrid";
 import { foldPausedMs } from "../logic/workoutClock";
 import { orderSlots, validReorder } from "../logic/superset";
 
-/** New workout exercises do not auto-start a rest countdown until the lifter opts in. */
-export const DEFAULT_EXERCISE_REST_OFF = true;
+/** A checked working set starts rest unless the lifter explicitly switches it off. */
+export const DEFAULT_EXERCISE_REST_OFF = false;
 
 export interface SetRow {
   id: string;

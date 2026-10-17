@@ -1,4 +1,4 @@
-import type { LineIdentity, LoggedSet, Proposal } from "@gain/engine";
+import type { GymFingerprint, LineIdentity, LoggedSet, Proposal } from "@gain/engine";
 import type { LoadSource } from "../db/exerciseGrid";
 import type { Repos } from "../db/repos";
 import type { TargetRow } from "../db/finishRepo";
@@ -19,4 +19,15 @@ export interface ExInfo {
   /** The target written when the previous workout was finished, if any. */
   stored: TargetRow | null;
   prefill: Prefill;
+}
+
+export interface LoadedWorkout {
+  sessionId: string;
+  resumed: boolean;
+  startedAt: number;
+  pausedMs: number;
+  pausedAt: number | null;
+  gym: GymFingerprint;
+  slots: DayEx[];
+  info: Record<string, ExInfo>;
 }

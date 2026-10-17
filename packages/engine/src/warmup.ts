@@ -38,6 +38,7 @@ export interface WarmupPlan {
  * Warm-up sets from the working load just decided, rounded to loads that exist in the gym.
  * They are logged with warmup=true and never drive progression. Each warm-up is strictly heavier than the last and
  * strictly lighter than the working load. Barbell-style grids open with the empty bar when the working load is >= 1.5x the bar.
+ * maxSets keeps the heaviest warm-ups in ascending order; a non-positive cap skips the ramp.
  */
 function stepsFor(spec: GymLoadSpec, opts: { steps?: WarmupStep[]; isolation?: boolean }): WarmupStep[] {
   if (opts.steps) return opts.steps;
@@ -81,6 +82,6 @@ export function generateWarmups(
     push(load, step.reps);
   }
 
-  const trimmed = out.slice(0, maxSets);
+  const trimmed = maxSets <= 0 ? [] : out.slice(Math.max(0, out.length - maxSets));
   return { sets: trimmed, skipped: trimmed.length === 0 ? "working_load_too_light" : null };
 }

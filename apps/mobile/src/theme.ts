@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { useColorScheme } from "react-native";
+import { Appearance as NativeAppearance, useColorScheme } from "react-native";
 
 import { gainTokens } from "./design/tokens";
 import { APPEARANCES, parseAppearance, type Appearance, darkPalette, lightPalette, logDarkPalette, logLightPalette, type LogPalette, type Palette } from "./palettes";
@@ -14,7 +14,16 @@ export { APPEARANCES, parseAppearance, type Appearance };
 
 let appearance: Appearance = "dark";
 const listeners = new Set<() => void>();
+/** What native UI (keyboard, alerts, share sheet, pickers) was last told; null until the boot call. */
+let nativeApplied: Appearance | null = null;
+function applyNative(a: Appearance): void {
+  if (a === nativeApplied) return;
+  nativeApplied = a;
+  // "unspecified" clears the override, so native UI and useColorScheme follow the system again.
+  try { NativeAppearance?.setColorScheme?.(a === "system" ? "unspecified" : a); } catch { /* best effort */ }
+}
 export function setAppearance(a: Appearance): void {
+  applyNative(a);
   if (a === appearance) return;
   appearance = a;
   listeners.forEach((l) => l());

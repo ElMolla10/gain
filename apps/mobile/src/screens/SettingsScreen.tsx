@@ -6,6 +6,7 @@ import { hasSelfUpdater } from "../logic/buildFlags";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { weekStartOf, type CeilingClass, type RepCeilings } from "@gain/engine";
 import { Platform, Pressable, View } from "react-native";
+import { osTextKey } from "../logic/platform";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
@@ -236,7 +237,7 @@ function RestCard() {
       <SwitchRow label={t("rest.vibrate")} value={s.vibrate} onChange={(on) => void save("vibrate", on ? "1" : "0", { ...s, vibrate: on })} />
       <SwitchRow
         label={t("rest.notify")}
-        note={t("rest.notifyNote")}
+        note={t(osTextKey("rest.notifyNote", Platform.OS))}
         value={s.notify}
         onChange={async (on) => {
           if (!on) {

@@ -41,7 +41,7 @@ export function WorkoutScreen() {
   if (session.phase === "nogym") return <View style={{ flex: 1, backgroundColor: p.bg }}><Notice kind="error">{t("workout.noGym")}</Notice></View>;
 
   const {
-    timerOpen, timerRunning, restOver, navigation, setHelpOpen,
+    timerOpen, timerRunning, restOver, restPermDenied, navigation, setHelpOpen,
     setRestOver, setTimerOpen, timer, finishing, askFinish,
     loaded, status, toggleDurationPause, summary, sets,
     summaryOpen, setSummaryOpen, readiness, setReadiness, workout,
@@ -155,6 +155,7 @@ export function WorkoutScreen() {
         </View>
       </ScrollView>
 
+      {restPermDenied ? <View style={{ paddingHorizontal: space.lg }}><InlineStatus kind="warn" text={t("rest.perm.denied")} /></View> : null}
       {dockVisible ? <RestTimerBar timer={timer} restFor={restFor} restOver={restOver}
         onAdjust={d => setTimer(tm => adjustTimer(tm, d, Date.now()))}
         onToggle={() => { setRestOver(false); setTimer(tm => tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm)); }} /> : null}

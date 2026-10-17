@@ -368,21 +368,36 @@ export function useWorkoutSession() {
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
       setSaveError(false);
+    } catch (e) {
+      // Rows only change after the delete succeeds, so they always match the database.
+      diagnostics.record("error", "untick set", e);
+      setSaveError(true);
+      Alert.alert(t("workout.saveFailed.title"), t("workout.saveFailed.body"));
     } finally {
       setBusy(null);
     }
   }
 
   async function dropRow(ex: Disp, row: SetRowDraft) {
-    if (!loaded || loaded === "nogym") return;
+    if (!loaded || loaded === "nogym" || busy) return;
+    setBusy(row.key);
     clearStrengthPr();
-    if (row.saved) {
-      await workout.deleteSet(row.key);
-      setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
-      await reload(loaded.sessionId);
-    } else {
-      await mlEvaluation.skip(row.key);
-      setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
+    try {
+      if (row.saved) {
+        await workout.deleteSet(row.key);
+        setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
+        await reload(loaded.sessionId);
+      } else {
+        // Telemetry only: a failed skip never keeps the row on screen.
+        await mlEvaluation.skip(row.key).catch(e => diagnostics.record("warn", "skip evaluation", e));
+        setRows((r) => ({ ...r, [ex.exerciseId]: removeRow(r[ex.exerciseId] ?? [], row.key) }));
+      }
+    } catch (e) {
+      diagnostics.record("error", "delete set", e);
+      setSaveError(true);
+      Alert.alert(t("workout.saveFailed.title"), t("workout.saveFailed.body"));
+    } finally {
+      setBusy(null);
     }
   }
 

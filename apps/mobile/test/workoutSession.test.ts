@@ -168,3 +168,50 @@ describe("one tap on the real session checkmark", () => {
   });
 
 });
+
+describe("untick and delete failures", () => {
+  async function loggedRow() {
+    const c = await fixture();
+    const s = ready(); const ex = s.shown[0]!;
+    await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
+    const after = ready();
+    const row = after.rows[ex.exerciseId]![0]!;
+    expect(row.saved).toBe(true);
+    native.alert.mockClear();
+    return { c, ex, row };
+  }
+
+  it.each(["onUntick", "onDelete"] as const)("%s: a failed delete alerts and keeps the set visible and ticked", async action => {
+    const { c, ex, row } = await loggedRow();
+    vi.spyOn(c.workout, "deleteSet").mockRejectedValueOnce(new Error("SQLITE_BUSY"));
+    ready().exerciseProps(ex, 0)![action](row);
+    await vi.waitFor(() => { expect(native.alert).toHaveBeenCalledTimes(1); expect(ready().busy).toBeNull(); });
+    const result = ready();
+    expect(result.rows[ex.exerciseId]!.find(r => r.key === row.key)?.saved).toBe(true);
+    expect(result.status.kind).toBe("error");
+    expect(await c.workout.listSessionSets(result.loaded.sessionId)).toHaveLength(1);
+  });
+
+  it("untick: a failed reload after a successful delete alerts and leaves the row un-ticked", async () => {
+    const { c, ex, row } = await loggedRow();
+    const sessionId = ready().loaded.sessionId;
+    vi.spyOn(c.workout, "listSessionSets").mockRejectedValue(new Error("SQLITE_BUSY"));
+    ready().exerciseProps(ex, 0)!.onUntick(row);
+    await vi.waitFor(() => { expect(native.alert).toHaveBeenCalledTimes(1); expect(ready().busy).toBeNull(); });
+    vi.mocked(c.workout.listSessionSets).mockRestore();
+    expect(ready().rows[ex.exerciseId]![0]!.saved).toBe(false);
+    expect(ready().status.kind).toBe("error");
+    expect(await c.workout.listSessionSets(sessionId)).toHaveLength(0);
+  });
+
+  it("a failing evaluation skip still removes an unsaved row", async () => {
+    await fixture();
+    const s = ready(); const ex = s.shown[0]!;
+    const row = s.rows[ex.exerciseId]![0]!;
+    vi.spyOn(host.services.mlEvaluation, "skip").mockRejectedValueOnce(new Error("SQLITE_FULL"));
+    s.exerciseProps(ex, 0)!.onDelete(row);
+    await vi.waitFor(() => { expect(ready().rows[ex.exerciseId]!.some(r => r.key === row.key)).toBe(false); });
+    expect(native.alert).not.toHaveBeenCalled();
+    expect(ready().status.kind).not.toBe("error");
+  });
+});

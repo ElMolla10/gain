@@ -23,6 +23,7 @@ import { FinishedDayForecast, type SameDayForecast } from "../components/Finishe
 import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
+import { runFinishFlow } from "../logic/finishFlow";
 
 export function FinishScreen() {
   const { workout, finish, history, goals, programmes, coachLinks, autoSync, achievements } = useServices();
@@ -52,81 +53,91 @@ export function FinishScreen() {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    (async () => {
-      const sess = await workout.getSession(sessionId);
-      const finishedMs = Number(sess?.finished_at ?? Date.now());
-      setFinishedAt(finishedMs);
-      const nextSummary = await finish.summarizeSession(sessionId);
-      setSummary(nextSummary);
-      try {
-        const recent = await history.listSessions(20);
-        const pace = await goals.getPace(finishedMs);
-        let monthHistory: import("@gain/engine").HistorySession[] | null = null;
-        let monthSetup: import("@gain/engine").SetupType | null = null;
-        let trainedGoalLift = false;
-        let paceBefore = null as import("@gain/engine").PaceStatus | null;
-        if (pace.kind === "lift") {
-          trainedGoalLift = nextSummary.exercises.some((e) => e.exerciseId === pace.goal.exerciseId);
-          const lift = (await history.listLifts()).find((l) => l.exerciseId === pace.goal.exerciseId);
-          if (lift) {
-            const trend = await history.getLiftTrend(lift.lineId);
-            monthHistory = trend?.sessions ?? null;
-            monthSetup = lift.setup;
+    let finishedMs = Date.now();
+    void runFinishFlow({
+      summarize: async () => {
+        const sess = await workout.getSession(sessionId);
+        finishedMs = Number(sess?.finished_at ?? Date.now());
+        setFinishedAt(finishedMs);
+        return finish.summarizeSession(sessionId);
+      },
+      onSummary: setSummary,
+      extras: async (nextSummary) => {
+        try {
+          const recent = await history.listSessions(20);
+          const pace = await goals.getPace(finishedMs);
+          let monthHistory: import("@gain/engine").HistorySession[] | null = null;
+          let monthSetup: import("@gain/engine").SetupType | null = null;
+          let trainedGoalLift = false;
+          let paceBefore = null as import("@gain/engine").PaceStatus | null;
+          if (pace.kind === "lift") {
+            trainedGoalLift = nextSummary.exercises.some((e) => e.exerciseId === pace.goal.exerciseId);
+            const lift = (await history.listLifts()).find((l) => l.exerciseId === pace.goal.exerciseId);
+            if (lift) {
+              const trend = await history.getLiftTrend(lift.lineId);
+              monthHistory = trend?.sessions ?? null;
+              monthSetup = lift.setup;
+            }
+            const hist = await goals.liftExposures(pace.goal.exerciseId);
+            if (hist.length >= 2) {
+              paceBefore = liftPace({ targetLoad: pace.goal.targetLoad, targetReps: pace.goal.targetReps, targetDate: pace.goal.targetDate }, hist.slice(0, -1), finishedMs).status;
+            }
           }
-          const hist = await goals.liftExposures(pace.goal.exerciseId);
-          if (hist.length >= 2) {
-            paceBefore = liftPace({ targetLoad: pace.goal.targetLoad, targetReps: pace.goal.targetReps, targetDate: pace.goal.targetDate }, hist.slice(0, -1), finishedMs).status;
-          }
+          const facts: Milestone[] = sessionMilestones({
+            finishedAt: recent.map((s) => s.finishedAt),
+            nowMs: finishedMs,
+            monthHistory,
+            monthSetup,
+            trainedGoalLift,
+            paceBefore,
+            paceAfter: pace.kind === "none" ? null : pace.pace.status,
+          });
+          setMilestones(facts.map((f) => {
+            if (f.kind === "goal_reached") return t("recap.goalReached");
+            if (f.kind === "goal_improved") return t("recap.goalImproved", { status: t(`pace.status.${f.status}` as StringKey) });
+            if (f.kind === "streak") return t("recap.streak", { n: f.streak ?? 0 });
+            return t("recap.monthPct", { pct: String(f.pct ?? 0) });
+          }));
+        } catch (e) {
+          diagnostics.record("warn", "finish milestones", e);
         }
-        const facts: Milestone[] = sessionMilestones({
-          finishedAt: recent.map((s) => s.finishedAt),
-          nowMs: finishedMs,
-          monthHistory,
-          monthSetup,
-          trainedGoalLift,
-          paceBefore,
-          paceAfter: pace.kind === "none" ? null : pace.pace.status,
-        });
-        setMilestones(facts.map((f) => {
-          if (f.kind === "goal_reached") return t("recap.goalReached");
-          if (f.kind === "goal_improved") return t("recap.goalImproved", { status: t(`pace.status.${f.status}` as StringKey) });
-          if (f.kind === "streak") return t("recap.streak", { n: f.streak ?? 0 });
-          return t("recap.monthPct", { pct: String(f.pct ?? 0) });
-        }));
-      } catch (e) {
-        diagnostics.record("warn", "finish milestones", e);
-      }
-      // Sharing is secondary: a history-read failure must never block finishing a workout.
-      try { setDetail(await history.getSession(sessionId)); }
-      catch (e) { diagnostics.record("warn", "finish recap detail", e); }
-      await finish.writeNextSessionTargets(sessionId);
-      autoSync(true);
-      const preview = (await finish.previewFinishedDay(sessionId)) ?? "none";
-      try {
-        await achievements.sync();
-        const fresh = await achievements.listForSession(sessionId);
-        const picked = pickHero(fresh);
-        setHero(picked.hero);
-        setHeroRest(picked.rest);
-        if (picked.hero) await achievements.markCelebrated(fresh.map((r) => r.id));
-      } catch (e) {
-        diagnostics.record("warn", "finish hero", e);
-      }
-      setNext(preview);
-    })().catch((e) => {
+        // Sharing is secondary: a history-read failure must never block finishing a workout.
+        try { setDetail(await history.getSession(sessionId)); }
+        catch (e) { diagnostics.record("warn", "finish recap detail", e); }
+      },
+      // Not fatal: Today's Start re-plans via finish.planDay.
+      plan: () => finish.writeNextSessionTargets(sessionId),
+      sync: () => autoSync(true),
+      preview: () => finish.previewFinishedDay(sessionId),
+      achievements: async () => {
+        try {
+          await achievements.sync();
+          const fresh = await achievements.listForSession(sessionId);
+          const picked = pickHero(fresh);
+          setHero(picked.hero);
+          setHeroRest(picked.rest);
+          if (picked.hero) await achievements.markCelebrated(fresh.map((r) => r.id));
+        } catch (e) {
+          diagnostics.record("warn", "finish hero", e);
+        }
+      },
+      onForecast: setNext,
+      record: (level, label, e) => diagnostics.record(level, label, e),
+    }).then((r) => {
       // The workout itself is already finished and saved; only the summary could not be built. Retry instead of loading forever.
-      diagnostics.record("error", "finish summary", e);
-      started.current = false;
-      setFailed(true);
+      if (r === "failed") {
+        started.current = false;
+        setFailed(true);
+      }
     });
   }, [achievements, finish, history, workout, sessionId, autoSync, attempt]);
 
-  if (failed && (!summary || next === null)) {
+  if (failed && !summary) {
     return (
       <Screen>
         <ErrorState
           title={t("finish.error.title")}
-          body={t("workout.finishFailed.body")}
+          body={t("finish.error.body")}
           retryLabel={t("finish.error.retry")}
           onRetry={() => {
             setFailed(false);
@@ -136,7 +147,7 @@ export function FinishScreen() {
       </Screen>
     );
   }
-  if (!summary || next === null) return <LoadingState />;
+  if (!summary) return <LoadingState />;
 
   // The coach card: session, next targets, pace line (no bodyweight). One model feeds the PDF and the private link.
   const makeModel = async () => {
@@ -153,7 +164,7 @@ export function FinishScreen() {
     }
     return buildCardModel({
       lang, unit, date, summary, next: null,
-      forecast: next === "none" ? null : {
+      forecast: next === "none" || next === null ? null : {
         dayName: next.dayName,
         exercises: next.exercises.map(ex => ({ nameEn: ex.nameEn, nameAr: ex.nameAr, measure: ex.measure, proposal: ex.proposal })),
       },
@@ -282,7 +293,9 @@ export function FinishScreen() {
       {detail ? <AchievementCard detail={detail} summary={summary} /> : null}
 
       {/* Forecast the next occurrence of this particular day, not the next day in the rotation. */}
-      <FinishedDayForecast value={next} />
+      {next === null
+        ? <Card><AppText style={{ color: p.muted }}>{t("common.loading")}</AppText></Card>
+        : <FinishedDayForecast value={next} />}
 
       {/* 3. Sharing is optional and secondary. */}
       <View style={{ gap: space.sm }}>

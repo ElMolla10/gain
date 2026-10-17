@@ -20,6 +20,5 @@ export function PersonalMilestoneLine({ onOpen, history, today, spec, measure, r
     <View accessible accessibilityRole="progressbar" accessibilityLabel={t("progress.milestone", { target })} accessibilityValue={{ min: 0, max: 100, now: Math.round(m.progress * 100) }} style={{ height: 4, borderRadius: 2, backgroundColor: p.line, overflow: "hidden" }}>
       <View style={{ height: 4, width: `${m.progress * 100}%`, backgroundColor: p.accent }} />
     </View>
-    <AppText style={{ fontSize: 13, color: p.muted }}>{t("progress.optional")}</AppText>
   </View>;
 }

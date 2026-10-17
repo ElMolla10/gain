@@ -55,7 +55,7 @@ export function HistoryScreen() {
 
       {mode === "sessions" ? (
         sessions.length === 0 ? (
-          <EmptyState icon="progress" title={t("history.empty")} actionLabel={t("history.emptyAction")} onAction={() => nav.navigate("Today", {})} />
+          <EmptyState icon="progress" title={t("empty.noWorkouts")} body={t("empty.workoutsBody")} actionLabel={t("history.emptyAction")} onAction={() => nav.navigate("Today", {})} />
         ) : (
           <View style={{ gap: space.md }}>
             <Card style={{ paddingVertical: space.xs }}>
@@ -81,7 +81,7 @@ export function HistoryScreen() {
           </View>
         )
       ) : lifts.length === 0 ? (
-        <EmptyState icon="progress" title={t("history.emptyLifts")} body={t("history.empty")} />
+        <EmptyState icon="progress" title={t("empty.noLifts")} body={t("empty.liftsBody")} />
       ) : (
         <Card style={{ paddingVertical: space.xs }}>
           {lifts.map((l, i) => {

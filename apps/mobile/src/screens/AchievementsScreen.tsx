@@ -91,7 +91,7 @@ export function AchievementsScreen() {
         ))}
       </View>
       {visible.length === 0 ? (
-        <EmptyState icon="progress" title={t("achv.cabinet.empty")} />
+        <EmptyState icon="progress" title={t("empty.filter")} />
       ) : (
         <Card style={{ paddingVertical: space.xs }}>
           {visible.map((row, i) => (

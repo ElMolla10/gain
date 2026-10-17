@@ -55,7 +55,7 @@ export function DecisionLogScreen() {
           ))}
         </View>
       </FilterPanel>
-      {items.length === 0 ? <EmptyState icon="why" title={t("dec.empty")} /> : null}
+      {items.length === 0 ? <EmptyState icon="why" title={t("empty.noDecisions")} body={t("empty.decisionsBody")} /> : null}
       {items.map((d) => {
         const a = actionOf(d);
         let sentence: string;

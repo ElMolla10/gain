@@ -48,7 +48,7 @@ export function ExerciseLoadsScreen() {
   useFocusEffect(useCallback(() => void load(), [load]));
 
   if (data === null) return <LoadingState />;
-  if (data === "none") return <EmptyState icon="progress" title={t("trend.noPoints")} />;
+  if (data === "none") return <EmptyState icon="progress" title={t("empty.noSets")} body={t("trend.noPoints")} />;
 
   const set = (patch: Partial<LoadsForm>) => {
     setForm((f) => ({ ...f, ...patch }));

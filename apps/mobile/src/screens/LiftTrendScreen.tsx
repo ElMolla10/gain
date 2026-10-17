@@ -134,7 +134,7 @@ export function LiftTrendScreen() {
   );
 
   if (data === null) return <LoadingState />;
-  if (data === "none") return <EmptyState icon="progress" title={t("trend.noPoints")} />;
+  if (data === "none") return <EmptyState icon="progress" title={t("empty.noSets")} body={t("trend.noPoints")} />;
 
   const onPickJump = async (kg: number) => {
     if (!loads || picking) return;

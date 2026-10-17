@@ -8,11 +8,11 @@ import { telemetry } from "../achievementTelemetry";
 import { createHistoryLoader, EMPTY_HISTORY_LOAD } from "../logic/historyLoad";
 import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
-import { exerciseLabels } from "../i18n/format";
+import { exerciseLabels, formatLoad, isolateLtr, NBSP } from "../i18n/format";
 import { formatDay } from "../logic/dateText";
 import { sessionMinutes } from "../logic/historyRows";
-import { space } from "../theme";
-import { AppText, BigButton, Card, Chip, EmptyState, ErrorState, InlineStatus, ListRow, LoadingState, Screen } from "../ui";
+import { space, type as ty, usePalette } from "../theme";
+import { AppText, BigButton, Card, EmptyState, ErrorState, InlineStatus, ListRow, LoadingState, Screen, SegmentedTabs } from "../ui";
 
 const PAGE = 30;
 
@@ -20,7 +20,8 @@ const PAGE = 30;
 export function HistoryScreen() {
   const { history } = useServices();
   const { enabled: developerMode } = useDeveloperMode();
-  const { t, lang } = useI18n();
+  const { t, lang, unit } = useI18n();
+  const p = usePalette();
   const nav = useNavigation<{ navigate: (n: string, params: object) => void }>();
   const [mode, setMode] = useState<"sessions" | "lifts">("sessions");
   const [state, setState] = useState(EMPTY_HISTORY_LOAD);
@@ -35,10 +36,8 @@ export function HistoryScreen() {
   const { sessions, total, lifts } = state.data;
   return (
     <Screen tab title={t("history.title")}>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-        <Chip label={t("history.sessions")} selected={mode === "sessions"} onPress={() => setMode("sessions")} />
-        <Chip label={t("history.lifts")} selected={mode === "lifts"} onPress={() => setMode("lifts")} />
-      </View>
+      {/* Real tabs (H-7): a segmented tablist, and the list starts right under it. */}
+      <SegmentedTabs value={mode} options={[{ value: "sessions", label: t("history.sessions") }, { value: "lifts", label: t("history.lifts") }]} onChange={setMode} />
 
       {developerMode && (!asked ? (
         <Card>
@@ -49,7 +48,6 @@ export function HistoryScreen() {
         </Card>
       ) : null)}
 
-      <EvidenceAchievementsCard />
       {state.failed ? <View accessibilityLiveRegion="polite">
         <InlineStatus kind="error" text={t("history.error.body")} />
         <BigButton variant="secondary" label={t("history.error.retry")} disabled={state.loading} onPress={() => void loader.load()} />
@@ -65,7 +63,18 @@ export function HistoryScreen() {
                 const min = sessionMinutes(s.startedAt, s.finishedAt, s.imported, s.pausedMs);
                 const line = min !== null ? t("history.rowLine", { min, sets: s.workingSets }) : t("history.rowLineNoTime", { sets: s.workingSets });
                 const title = s.imported ? t("history.imported") : s.dayName;
-                return <ListRow key={s.id} title={title} note={`${formatDay(s.finishedAt, lang)} · ${line}`} last={i === sessions.length - 1} onPress={() => nav.navigate("SessionDetail", { sessionId: s.id })} />;
+                const note = `${formatDay(s.finishedAt, lang)} · ${line}`;
+                return (
+                  <ListRow
+                    key={s.id}
+                    title={title}
+                    note={note}
+                    accessibilityLabel={s.pr ? `${title}, ${note}, ${t("history.prLabel")}` : undefined}
+                    trailingIcon={s.pr ? <PrPill label={t("history.prPill")} /> : undefined}
+                    last={i === sessions.length - 1}
+                    onPress={() => nav.navigate("SessionDetail", { sessionId: s.id })}
+                  />
+                );
               })}
             </Card>
             {sessions.length < total ? <BigButton variant="secondary" label={t("history.more")} disabled={state.loading} onPress={() => void loader.load(sessions.length + PAGE)} /> : null}
@@ -75,21 +84,49 @@ export function HistoryScreen() {
         <EmptyState icon="progress" title={t("history.emptyLifts")} body={t("history.empty")} />
       ) : (
         <Card style={{ paddingVertical: space.xs }}>
-          {lifts.map((l, i) => (
-            <ListRow
-              key={l.lineId}
-              title={exerciseLabels(l, lang).primary}
-              note={`${t(`setup.${l.setup}` as never)}${l.hasImported ? ` · ${t("history.imported")}` : ""} · ${t("history.liftLine", { n: l.sessions })}`}
-              last={i === lifts.length - 1}
-              onPress={() => nav.navigate("LiftTrend", { lineId: l.lineId })}
-            />
-          ))}
+          {lifts.map((l, i) => {
+            // H-3: the number first. Sessions count, with the setup only when this exercise has more than one; the latest top set and its trend at the end.
+            const title = exerciseLabels(l, lang).primary;
+            const note = `${(l.setups ?? 1) > 1 ? `${t(`setup.${l.setup}` as never)} · ` : ""}${t("history.liftLine", { n: l.sessions })}${l.hasImported ? ` · ${t("history.imported")}` : ""}`;
+            const top = l.latest ? `${formatLoad(l.latest.load, lang, unit)}${NBSP}×${NBSP}${isolateLtr(String(l.latest.reps))}` : null;
+            const glyph = l.direction === "better" ? { c: "↑", color: p.success } : l.direction === "worse" ? { c: "↓", color: p.warn } : l.direction === "flat" ? { c: "→", color: p.muted } : null;
+            const trendWord = l.direction && l.direction !== "thin" ? t(`history.trend.${l.direction}` as never) : null;
+            return (
+              <ListRow
+                key={l.lineId}
+                title={title}
+                note={note}
+                accessibilityLabel={[title, note, top, trendWord].filter(Boolean).join(", ")}
+                trailingIcon={top ? (
+                  <>
+                    <AppText style={{ fontSize: ty.body, fontWeight: "600", fontVariant: ["tabular-nums"], flexShrink: 1 }}>{top}</AppText>
+                    {glyph ? <AppText style={{ fontSize: ty.body, fontWeight: "600", color: glyph.color }}>{glyph.c}</AppText> : null}
+                  </>
+                ) : undefined}
+                last={i === lifts.length - 1}
+                onPress={() => nav.navigate("LiftTrend", { lineId: l.lineId })}
+              />
+            );
+          })}
         </Card>
       )}
+
+      {/* Achievements below the list (H-8), so the list starts right under the tabs. */}
+      <EvidenceAchievementsCard />
 
       {developerMode ? <Card style={{ paddingVertical: space.xs }}>
         <ListRow title={t("dec.entry")} last onPress={() => nav.navigate("DecisionLog", {})} />
       </Card> : null}
     </Screen>
+  );
+}
+
+/** 24 dp "PR" pill on sessions that set a weight record (tint background, accent text; the row label says it in words). */
+function PrPill({ label }: { label: string }) {
+  const p = usePalette();
+  return (
+    <View style={{ minHeight: 24, paddingHorizontal: space.sm, borderRadius: 12, backgroundColor: p.tint, justifyContent: "center" }}>
+      <AppText style={{ color: p.accent, fontSize: ty.label, fontWeight: "600" }}>{label}</AppText>
+    </View>
   );
 }

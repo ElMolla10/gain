@@ -69,7 +69,20 @@ describe("generateWarmups", () => {
     expect(p.sets.length).toBeGreaterThan(0);
     for (const s of p.sets) expect(s.load).toBeLessThan(20);
   });
-  it("maxSets trims the list", () => {
-    expect(generateWarmups(100, bar, { maxSets: 2 }).sets).toHaveLength(2);
+  it("maxSets keeps the two heaviest warm-ups in ascending order", () => {
+    const p = generateWarmups(140, bar, { maxSets: 2 });
+    expect(p.sets.map((s) => s.load)).toEqual([97.5, 120]);
+    expect(p.sets.map((s) => s.reps)).toEqual([3, 1]);
+    expect(p.skipped).toBeNull();
+  });
+  it("maxSets at or above the full ramp length leaves the output unchanged", () => {
+    const full = generateWarmups(140, bar);
+    expect(generateWarmups(140, bar, { maxSets: full.sets.length })).toEqual(full);
+    expect(generateWarmups(140, bar, { maxSets: full.sets.length + 2 })).toEqual(full);
+  });
+  it("non-positive maxSets skips the ramp", () => {
+    for (const maxSets of [0, -1]) {
+      expect(generateWarmups(140, bar, { maxSets })).toEqual({ sets: [], skipped: "working_load_too_light" });
+    }
   });
 });

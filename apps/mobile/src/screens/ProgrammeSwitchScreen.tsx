@@ -1,5 +1,7 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
+import { View } from "react-native";
+import { Icon } from "../components/Icon";
 import { useServices } from "../AppContext";
 import { DraftInvalid, SessionInProgress, type ProgrammeInfo } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
@@ -68,7 +70,13 @@ export function ProgrammeSwitchScreen() {
         <Card key={g.programmeId}>
           <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{g.name}</AppText>
           <AppText style={{ color: p.muted }}>{t("prog.switch.line", { v: g.version, days: g.days, sessions: g.finishedSessions })}</AppText>
-          {g.isActive ? <InlineStatus kind="success" text={t("prog.current")} /> : <BigButton variant="secondary" label={t("prog.switch.use")} disabled={busy} onPress={() => void run(() => programmes.setActiveProgramme(g.programmeId))} />}
+          {g.isActive ? (
+            // Current is a fact, not a status: a tint pill with a check, not the success colour (P-10).
+            <View style={{ alignSelf: "flex-start", minHeight: 24, flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: 12, backgroundColor: p.tint }}>
+              <Icon name="check" color={p.accent} size={16} />
+              <AppText style={{ color: p.accent, fontSize: ty.label, fontWeight: "600" }}>{t("prog.current")}</AppText>
+            </View>
+          ) : <BigButton variant="secondary" label={t("prog.switch.use")} disabled={busy} onPress={() => void run(() => programmes.setActiveProgramme(g.programmeId))} />}
         </Card>
       ))}
       <SectionTitle>{t("prog.switch.templates")}</SectionTitle>

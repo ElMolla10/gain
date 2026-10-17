@@ -212,16 +212,26 @@ export function Field(props: {
   hint?: string;
   /** A concrete problem with the value; shown under the field in the danger colour with an icon. */
   error?: string;
+  /** Search field (P-8): a search glyph at the start and, while there is text, a 48 dp clear button at the end that keeps focus. */
+  search?: { clearLabel: string };
 }) {
   const p = usePalette();
   const { direction, t } = useI18n();
   const font = useInputFont();
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<null | TextInput>(null);
   return (
     <View style={{ gap: space.xs }}>
       <AppText style={{ fontWeight: "600", fontSize: ty.label }}>{props.label}</AppText>
       {props.hint ? <AppText style={{ color: p.muted, fontSize: ty.caption }}>{props.hint}</AppText> : null}
+      <View style={{ justifyContent: "center" }}>
+      {props.search ? (
+        <View pointerEvents="none" style={{ position: "absolute", start: space.md, zIndex: 1 }}>
+          <Icon name="search" color={p.muted} size={20} />
+        </View>
+      ) : null}
       <TextInput
+        ref={inputRef}
         accessibilityLabel={props.label}
         value={props.value}
         onChangeText={props.onChangeText}
@@ -244,8 +254,15 @@ export function Field(props: {
           backgroundColor: p.card,
           textAlign: props.numeric ? "left" : direction === "rtl" ? "right" : "left",
           writingDirection: props.numeric ? "ltr" : direction,
+          ...(props.search ? { paddingStart: space.md + 20 + space.sm, paddingEnd: props.value ? MIN_TOUCH : space.md } : {}),
         }}
       />
+      {props.search && props.value ? (
+        <View style={{ position: "absolute", end: 0 }}>
+          <IconButton icon="close" label={props.search.clearLabel} onPress={() => { props.onChangeText(""); inputRef.current?.focus(); }} />
+        </View>
+      ) : null}
+      </View>
       {props.error ? <InlineStatus kind="error" text={props.error} /> : null}
     </View>
   );

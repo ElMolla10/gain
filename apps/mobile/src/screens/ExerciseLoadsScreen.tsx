@@ -7,7 +7,10 @@ import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { buildLoads, emptyLoadsForm, formFromSpec, loadsSummaryText, specValues, type LoadsForm, type LoadsMode, type LoadsProblem } from "../logic/exerciseLoads";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, EmptyState, Field, InlineStatus, LoadingState, Screen } from "../ui";
+import { AppText, BigButton, Card, EmptyState, Field, InlineStatus, LoadingState, QuietAction, Screen } from "../ui";
+import { SelectRow } from "../components/SettingsRows";
+import { previewTokens } from "../logic/loadsPreview";
+import { weightText } from "../logic/units";
 
 interface Loaded {
   nameEn: string;
@@ -71,6 +74,7 @@ export function ExerciseLoadsScreen() {
     }
   };
   const modes: LoadsMode[] = ["default", "step", "list"];
+  const preview = previewTokens(form);
   const names = exerciseLabels({ nameEn: data.nameEn, nameAr: data.nameAr }, lang);
   const equipment = t(`equipment.${data.equipment}` as never);
   const state = data.spec ? t("loads.state.own", { what: loadsSummaryText(data.spec, unit, unitText, t as never) }) : t("loads.state.default", { equipment });
@@ -83,12 +87,8 @@ export function ExerciseLoadsScreen() {
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{t(gymId ? "loads.scope.line" : "loads.scope")}</AppText>
       </Card>
       <Card>
-        <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("loads.mode")}</AppText>
-        <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-          {modes.map((m) => (
-            <Chip key={m} label={t(`loads.mode.${m}` as never)} selected={form.mode === m} onPress={() => set({ mode: m })} />
-          ))}
-        </View>
+        {/* One choice of three: a segmented control, not chips (P-5 / S-9). */}
+        <SelectRow label={t("loads.mode")} value={form.mode} options={modes.map((m) => ({ value: m, label: t(`loads.mode.${m}` as never) }))} onChange={(m) => set({ mode: m })} />
         {form.mode === "step" ? (
           <View style={{ gap: space.md }}>
             <Field label={t("loads.step", { unit: unitText })} hint={t("loads.step.hint")} value={form.stepText} onChangeText={(s) => set({ stepText: s })} numeric error={problemText("step_missing") ?? problemText("step_bad")} />
@@ -99,10 +99,31 @@ export function ExerciseLoadsScreen() {
         {form.mode === "list" ? (
           <Field label={t("loads.list", { unit: unitText })} hint={t("loads.list.hint")} value={form.listText} onChangeText={(s) => set({ listText: s })} keyboardType="numbers-and-punctuation" error={problemText("list_empty") ?? problemText("list_invalid") ?? problemText("list_zero") ?? problemText("too_many_rungs")} />
         ) : null}
+        {preview.values.length > 0 || preview.invalid.length > 0 ? (
+          // The rack before saving: ascending pills, read left to right in both languages like a real rack.
+          <View accessible accessibilityLabel={`${t("loads.preview")}: ${preview.values.map((v) => weightText(v, "kg")).join(", ")}${preview.more ? ` +${preview.more}` : ""}`} style={{ gap: space.xs }}>
+            <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.preview")}</AppText>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, direction: "ltr" }}>
+              {preview.values.map((v) => <LoadPill key={`v${v}`} text={weightText(v, "kg")} />)}
+              {preview.invalid.map((bad, i) => <LoadPill key={`x${i}`} text={bad} invalid />)}
+              {preview.more > 0 ? <LoadPill text={`+${preview.more}`} /> : null}
+            </View>
+          </View>
+        ) : null}
         {saved ? <InlineStatus kind="success" text={t("loads.saved")} /> : null}
         <BigButton label={t("loads.save")} onPress={() => void save(false)} loading={busy} />
-        {data.spec ? <BigButton variant="secondary" label={t("loads.reset")} onPress={() => void save(true)} disabled={busy} /> : null}
+        {data.spec ? <View style={{ alignItems: "center" }}><QuietAction label={t("loads.reset")} onPress={() => { if (!busy) void save(true); }} /></View> : null}
       </Card>
     </Screen>
+  );
+}
+
+/** One rung of the preview rack: 32 dp, number only (the unit is in the field label); an invalid piece gets a danger outline. */
+function LoadPill({ text, invalid }: { text: string; invalid?: boolean }) {
+  const p = usePalette();
+  return (
+    <View style={{ minHeight: 32, minWidth: 32, paddingHorizontal: space.sm, borderRadius: 16, justifyContent: "center", alignItems: "center", backgroundColor: invalid ? "transparent" : p.raised, borderWidth: invalid ? 1.5 : 1, borderColor: invalid ? p.danger : p.border }}>
+      <AppText ltr={!/[\u0600-\u06FF]/.test(text)} style={{ fontSize: ty.label, fontWeight: "600", fontVariant: ["tabular-nums"], color: invalid ? p.danger : p.text, textDecorationLine: invalid ? "line-through" : "none" }}>{text}</AppText>
+    </View>
   );
 }

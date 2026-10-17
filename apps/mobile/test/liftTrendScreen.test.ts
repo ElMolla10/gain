@@ -48,7 +48,7 @@ vi.mock("react-native", () => {
 vi.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate("en", key, params), lang: "en", unit: "kg", unitText: "kg", fmt: (kg: number) => `${kg} kg` }) }));
 vi.mock("../src/theme", () => ({ space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 }, type: { section: 20, load: 36, caption: 13 }, usePalette: () => ({ muted: "muted", border: "border", text: "text" }) }));
-vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", Card: "Card", Chip: "Chip", Screen: "Screen" }));
+vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", Card: "Card", Chip: "Chip", QuietAction: "QuietAction", Screen: "Screen" }));
 vi.mock("../src/components/TrendChart", () => ({ TrendChart: "TrendChart" }));
 
 type Node = ReactElement<Record<string, unknown>>;

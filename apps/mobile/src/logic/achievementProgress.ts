@@ -73,6 +73,8 @@ export interface Breakthrough {
   load: number;
   previous: number;
   assisted: boolean;
+  /** The workout that set it (History marks it with a PR pill). */
+  sessionId: string;
 }
 
 /** One weight breakthrough per exercise session; the first session establishes the baseline. */
@@ -94,7 +96,7 @@ export function strengthBreakthroughs(rows: readonly BreakthroughInput[], now = 
     const previous = best.get(first.lineId);
     if (previous !== undefined && (assisted ? load < previous - 1e-6 : load > previous + 1e-6)) {
       events.push({ lineId: first.lineId, exerciseId: first.exerciseId, nameEn: first.nameEn, nameAr: first.nameAr,
-        at: first.at, load, previous, assisted });
+        at: first.at, load, previous, assisted, sessionId: first.sessionId });
     }
     if (previous === undefined || (assisted ? load < previous : load > previous)) best.set(first.lineId, load);
   }

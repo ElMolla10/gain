@@ -1,4 +1,5 @@
 import type { EquipmentType, Measure } from "@gain/engine";
+import { SchemePips } from "./SchemePips";
 import React, { useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
@@ -205,6 +206,8 @@ export function ProgrammeEditorView(props: {
                     <Chip label={t("prog.ex.scheme.top")} selected={!!e.topSets} onPress={() => props.onChange(updateExercise(d, di, ei, { topSets: e.topSets || 1 }))} />
                   </View>
                   {e.topSets ? <Stepper label={t("prog.ex.topSets")} value={e.topSets} min={1} max={Math.max(1, e.sets - 1)} onChange={(n) => props.onChange(updateExercise(d, di, ei, { topSets: n }))} /> : null}
+                  {/* The scheme you'll get, set by set (P-3): top sets filled, back-offs outlined, from the start edge. */}
+                  <SchemePips sets={e.sets} topSets={e.topSets} />
                   <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("prog.ex.schemeHint")}</AppText>
                 </View>
               )}

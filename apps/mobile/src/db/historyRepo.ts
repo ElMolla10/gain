@@ -25,6 +25,8 @@ export interface SessionListItem {
   exercises: number;
   workingSets: number;
   imported: boolean;
+  /** This workout set a weight record on at least one lift (the same rule as the strength achievements). */
+  pr: boolean;
 }
 export interface HistorySetRow {
   id: string;
@@ -61,6 +63,11 @@ export interface LiftItem {
   sessions: number;
   lastAt: number;
   hasImported: boolean;
+  /** How many setups this exercise has lines for (the setup is only worth naming when there are several). */
+  setups?: number;
+  /** The latest top set (reps lines only) and the trend direction, from the engine's one trend measure. */
+  latest?: { load: number; reps: number } | null;
+  direction?: LiftTrend["direction"] | null;
 }
 
 export const MAX_LOAD_KG = 2000;
@@ -79,7 +86,8 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
         ORDER BY s.finished_at DESC, s.rowid DESC LIMIT ? OFFSET ?`,
       [limit, offset],
     );
-    return rows.map((r) => ({ id: r.id, dayName: r.day_name, gymName: r.gym_name, finishedAt: r.finished_at, startedAt: r.started_at, pausedMs: r.paused_ms ?? 0, exercises: r.exercises, workingSets: r.sets, imported: r.imported === 1 }));
+    const records = new Set((await getStrengthBreakthroughs()).map((b) => b.sessionId));
+    return rows.map((r) => ({ id: r.id, dayName: r.day_name, gymName: r.gym_name, finishedAt: r.finished_at, startedAt: r.started_at, pausedMs: r.paused_ms ?? 0, exercises: r.exercises, workingSets: r.sets, imported: r.imported === 1, pr: records.has(r.id) }));
   }
 
   /** Only days with trusted working sets qualify. Read all history, without the History screen's pagination limit. */
@@ -188,7 +196,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   }
 
   /** Every exercise + gym + setup line that has at least one finished working set. Lines are never merged. */
-  async function listLifts(): Promise<LiftItem[]> {
+  async function baseLifts(): Promise<LiftItem[]> {
     const rows = await db.all<{ line_id: string; exercise_id: string; name_en: string; name_ar: string; gym_id: string; gym_name: string; setup: SetupType; measure: Measure; sessions: number; last_at: number; imported: number }>(
       `SELECT l.id AS line_id, e.id AS exercise_id, e.name_en, e.name_ar, g.id AS gym_id, g.name AS gym_name, l.setup, e.measure,
               COUNT(DISTINCT s.id) AS sessions, MAX(s.finished_at) AS last_at, MAX(s.import_key IS NOT NULL) AS imported
@@ -197,14 +205,56 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
          JOIN session s ON s.id = ws.session_id AND s.status = 'finished' AND s.deleted_at IS NULL
         WHERE l.deleted_at IS NULL GROUP BY l.id ORDER BY last_at DESC`,
     );
+    const setups = new Map<string, Set<SetupType>>();
+    for (const r of rows) setups.set(r.exercise_id, (setups.get(r.exercise_id) ?? new Set()).add(r.setup));
     return rows.map((r) => ({
       lineId: r.line_id, exerciseId: r.exercise_id, nameEn: r.name_en, nameAr: r.name_ar, gymId: r.gym_id, gymName: r.gym_name, setup: r.setup, measure: r.measure,
-      sessions: r.sessions, lastAt: r.last_at, hasImported: r.imported === 1,
+      sessions: r.sessions, lastAt: r.last_at, hasImported: r.imported === 1, setups: setups.get(r.exercise_id)?.size ?? 1, latest: null, direction: null,
     }));
   }
 
+  /** Finished sets of the given lines, grouped per line and session in time order (the engine's trend input). */
+  async function lineSessions(lineIds: readonly string[] | null): Promise<Map<string, { sessions: HistorySession[]; imported: Set<number> }>> {
+    const rows = await db.all<{ line_id: string; sid: string; finished_at: number; imported: number; load: number; reps: number; duration_s: number | null; distance_m: number | null; rir: number | null; is_warmup: number; tags_json: string; outlier_status: OutlierStatus }>(
+      `SELECT ws.line_id, s.id AS sid, s.finished_at, (s.import_key IS NOT NULL) AS imported, ws.load, ws.reps, ws.duration_s, ws.distance_m, ws.rir, ws.is_warmup, ws.tags_json, ws.outlier_status
+         FROM workout_set ws JOIN session s ON s.id = ws.session_id
+        WHERE ${lineIds ? `ws.line_id IN (${lineIds.map(() => "?").join(",")}) AND` : ""} s.status = 'finished' AND ws.deleted_at IS NULL AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL
+        ORDER BY s.finished_at, ws.position`,
+      lineIds ? [...lineIds] : [],
+    );
+    const out = new Map<string, { sessions: HistorySession[]; imported: Set<number>; bySession: Map<string, HistorySession> }>();
+    for (const r of rows) {
+      let g = out.get(r.line_id);
+      if (!g) out.set(r.line_id, (g = { sessions: [], imported: new Set(), bySession: new Map() }));
+      let h = g.bySession.get(r.sid);
+      if (!h) {
+        h = { line: { exerciseId: "", gymId: "", setup: "free" }, performedAt: new Date(r.finished_at).toISOString(), sets: [] };
+        g.bySession.set(r.sid, h);
+        g.sessions.push(h);
+        if (r.imported === 1) g.imported.add(r.finished_at);
+      }
+      const set: LoggedSet = { load: r.load, reps: r.reps, ...(r.duration_s !== null ? { durationS: r.duration_s } : {}), ...(r.distance_m !== null ? { distanceM: r.distance_m } : {}), rir: r.rir, warmup: r.is_warmup === 1, tags: JSON.parse(r.tags_json) as string[], outlierStatus: r.outlier_status };
+      h.sets.push(set);
+    }
+    return out;
+  }
+
+  /** The lift list with each line's latest top set and trend direction (one extra read for all lines). */
+  async function listLifts(): Promise<LiftItem[]> {
+    const lifts = await baseLifts();
+    if (lifts.length === 0) return lifts;
+    const groups = await lineSessions(null);
+    return lifts.map((lift) => {
+      const g = groups.get(lift.lineId);
+      if (!g || isTimedMeasure(lift.measure)) return lift;
+      const line = { exerciseId: lift.exerciseId, gymId: "", setup: lift.setup };
+      const trend = liftTrend(g.sessions.map((h) => ({ ...h, line })), lift.setup, g.imported);
+      return { ...lift, latest: trend.latest ? { load: trend.latest.load, reps: trend.latest.reps } : null, direction: trend.direction };
+    });
+  }
+
   async function getLiftTrend(lineId: string): Promise<{ lift: LiftItem; sessions: HistorySession[]; trend: LiftTrend } | null> {
-    const lift = (await listLifts()).find((l) => l.lineId === lineId);
+    const lift = (await baseLifts()).find((l) => l.lineId === lineId);
     if (!lift) return null;
     const rows = await db.all<{ sid: string; finished_at: number; imported: number; load: number; reps: number; duration_s: number | null; distance_m: number | null; rir: number | null; is_warmup: number; tags_json: string; outlier_status: OutlierStatus }>(
       `SELECT s.id AS sid, s.finished_at, (s.import_key IS NOT NULL) AS imported, ws.load, ws.reps, ws.duration_s, ws.distance_m, ws.rir, ws.is_warmup, ws.tags_json, ws.outlier_status

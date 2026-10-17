@@ -5,10 +5,11 @@ import { Icon } from "../components/Icon";
 import { useServices } from "../AppContext";
 import type { LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
-import { exerciseLabels } from "../i18n/format";
+import { exerciseLabels, isolateLtr, NBSP } from "../i18n/format";
 import type { ProgrammeDraft } from "../logic/programmeDraft";
 import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
-import { AppText, ArDraftNote, BigButton, Card, EmptyState, IconButton, ListRow, LoadingState, Screen, SectionTitle } from "../ui";
+import { AppText, ArDraftNote, BigButton, Card, EmptyState, ListRow, LoadingState, QuietAction, Screen, SectionTitle, Sheet } from "../ui";
+import { EN_DASH } from "../logic/bidiText";
 import { ceilingForName } from "../logic/ceilings";
 import { effectiveRange, rangeText, sourceOfBasis } from "../logic/repRange";
 import { resolveRepTop } from "@gain/engine";
@@ -34,6 +35,7 @@ export function ProgrammeScreen() {
   const nav = useNavigation<Nav>();
   const [data, setData] = useState<Data | null | undefined>(undefined);
   const [open, setOpen] = useState<number | null>(0);
+  const [ruleOpen, setRuleOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,6 +55,18 @@ export function ProgrammeScreen() {
   );
 
   if (data === undefined) return <LoadingState />;
+  const rangeOf = (e: ProgrammeDraft["days"][number]["exercises"][number]) => {
+    const ex = data?.library.get(e.exerciseId);
+    if (!data || !ex || ex.measure !== "reps") return null;
+    const top = resolveRepTop({ programMax: e.repMax, liftCeiling: e.repCeiling, gainCeiling: ceilingForName(ex.nameEn, data.ceilings), useGainCeilings: data.useGain });
+    return effectiveRange({ programmeMin: e.repMin, programmeMax: e.repMax, ceiling: top.top, source: sourceOfBasis(top.basis) });
+  };
+  // Exercises whose rep ceiling replaces the program's top: their full sentence lives in the "?" sheet, once each.
+  const overrides = (data?.draft.days ?? []).flatMap((day, di) => day.exercises.map((e) => ({ e, di }))).flatMap(({ e, di }) => {
+    const r = rangeOf(e);
+    const ex = data?.library.get(e.exerciseId);
+    return r && r.overridesProgramme && ex ? [{ key: `${di}-${e.exerciseId}`, name: exerciseLabels(ex, lang).primary, text: rangeText(r, (key, params) => t(key, params)) }] : [];
+  });
   if (data === null)
     return (
       <Screen tab title={t("prog.title")}>
@@ -70,10 +84,14 @@ export function ProgrammeScreen() {
           {t("prog.version", { v: data.version })}
           {data.isSample ? ` · ${t("prog.sampleTag")}` : ""}
         </AppText>
+        {/* The progression rule, once per screen (P-2); per-exercise overrides behind "?". */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+          <AppText style={{ color: p.muted, fontSize: ty.label, flex: 1 }}>{t("prog.ruleNote")}</AppText>
+          {overrides.length > 0 ? <QuietAction label="?" accessibilityLabel={t("prog.ruleMore")} expanded={ruleOpen} onPress={() => setRuleOpen(true)} /> : null}
+        </View>
       </View>
-      <BigButton icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
-
-      {data.draft.days.length > 1 ? <BigButton variant="secondary" label={t("prog.workouts.reorder")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId, reorderWorkouts: true })} /> : null}
+      {/* Secondary, not lime: Start on Today is the only primary action (P-6). Reorder lives in the editor. */}
+      <BigButton variant="secondary" icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
       <View style={{ gap: space.md }}>
         {data.draft.days.map((day, i) => {
           const expanded = open === i;
@@ -101,30 +119,38 @@ export function ProgrammeScreen() {
                     <Icon name="chevron" color={p.muted} size={22} />
                   </View>
                 </Pressable>
-              <IconButton icon="settings" label={t("prog.workout.settings", { workout: day.name })} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId, settingsDay: i })} />
               </View>
               {expanded
                 ? day.exercises.map((e, k) => {
                     const ex = data.library.get(e.exerciseId);
                     // Counted in reps: show the range that is really used, and say so when the rep ceiling replaces the top of the program's range.
-                    const top = ex && ex.measure === "reps" ? resolveRepTop({ programMax: e.repMax, liftCeiling: e.repCeiling, gainCeiling: ceilingForName(ex.nameEn, data.ceilings), useGainCeilings: data.useGain }) : null;
-                    const range = ex && top ? effectiveRange({ programmeMin: e.repMin, programmeMax: e.repMax, ceiling: top.top, source: sourceOfBasis(top.basis) }) : null;
+                    const range = rangeOf(e);
                     const l = ex ? exerciseLabels(ex, lang) : null;
                     return (
-                      <View key={e.exerciseId} style={{ minHeight: MIN_TOUCH, justifyContent: "center", borderTopWidth: k === 0 ? 1 : 0, borderColor: p.border, paddingTop: k === 0 ? space.sm : 0 }}>
+                      // Two lines (P-2): the name, then the scheme as one isolated run "3 × 6–10" with the badges.
+                      <View key={e.exerciseId} style={{ minHeight: MIN_TOUCH, justifyContent: "center", gap: 2, borderTopWidth: k === 0 ? 1 : 0, borderColor: p.border, paddingTop: k === 0 ? space.sm : 0 }}>
                         <AppText style={{ fontWeight: "600" }}>
                           {l ? l.primary : e.exerciseId}
                           {e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}
                         </AppText>
-                        <AppText style={{ color: p.muted, fontSize: ty.label }}>
-                          {range ? `${e.sets} × ${rangeText(range, (key, params) => t(key, params))}` : `${e.sets} ×`}
-                          {range && e.topSets ? ` · ${t("prog.ex.scheme.top")} (${e.topSets})` : ""}
-                          {l && l.secondary ? ` · ${l.secondary}` : ""}
-                        </AppText>
+                        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: space.sm, rowGap: space.xs }}>
+                          <AppText style={{ color: p.muted, fontSize: ty.label, fontVariant: ["tabular-nums"] }}>
+                            {range ? isolateLtr(`${e.sets}${NBSP}×${NBSP}${range.min}${EN_DASH}${range.max}`) : isolateLtr(`${e.sets}${NBSP}×`)}
+                            {range && e.topSets ? ` · ${t("prog.ex.scheme.top")} (${e.topSets})` : ""}
+                            {l && l.secondary ? ` · ${l.secondary}` : ""}
+                          </AppText>
+                          {range?.overridesProgramme ? (
+                            <View accessible accessibilityLabel={t("prog.ceilingUp", { n: range.max })} style={{ minHeight: 24, paddingHorizontal: space.sm, borderRadius: 12, backgroundColor: p.tint, justifyContent: "center" }}>
+                              <AppText style={{ color: p.accent, fontSize: ty.label, fontWeight: "600" }}>{isolateLtr(`↑ ${range.max}`)}</AppText>
+                            </View>
+                          ) : null}
+                        </View>
                       </View>
                     );
                   })
                 : null}
+              {/* Day settings inside the open card, as a row with a label (P-7); no gear beside the chevron. */}
+              {expanded ? <ListRow title={t("prog.workoutSettings")} accessibilityLabel={t("prog.workout.settings", { workout: day.name })} last onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId, settingsDay: i })} /> : null}
             </Card>
           );
         })}
@@ -144,6 +170,16 @@ export function ProgrammeScreen() {
         </Card>
       </View>
       <ArDraftNote />
+      <Sheet visible={ruleOpen} title={t("prog.ruleSheetTitle")} onClose={() => setRuleOpen(false)}>
+        <View style={{ gap: space.md }}>
+          {overrides.map((o) => (
+            <View key={o.key} style={{ gap: 2 }}>
+              <AppText style={{ fontWeight: "600" }}>{o.name}</AppText>
+              <AppText>{o.text}</AppText>
+            </View>
+          ))}
+        </View>
+      </Sheet>
     </Screen>
   );
 }

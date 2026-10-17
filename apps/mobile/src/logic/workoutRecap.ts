@@ -1,7 +1,7 @@
 import { isTrustedWorkingSet } from "@gain/engine";
 import type { SessionSummary } from "../db/finishRepo";
 import type { SessionDetail } from "../db/historyRepo";
-import { translate, type Lang } from "../i18n/format";
+import { formatLoad, isolateLtr, translate, type Lang } from "../i18n/format";
 import { quantityText, setQuantity } from "./quantity";
 import { sessionMinutes } from "./historyRows";
 import { kgToUnit, weightText, unitLabel, type Unit } from "./units";
@@ -80,7 +80,8 @@ export function formatWorkoutShareText(detail: SessionDetail, summary: SessionSu
 /** Concrete changes, with the relevant earlier performance rather than an implied population rank. */
 export function improvementLines(summary: SessionSummary, lang: Lang, unit: Unit): string[] {
   const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params);
-  const performance = (load: number, q: number, measure: "reps" | "time" | "distance") => `${weightText(load, unit)} ${unitLabel(unit, lang)} × ${measure === "reps" ? q : quantityText(q, measure, { s: t("qty.s"), m: t("qty.m") })}`;
+  // Language order with isolated numbers (S-1/F-2): "57.5 كجم × 8" reads correctly from the right.
+  const performance = (load: number, q: number, measure: "reps" | "time" | "distance") => `${formatLoad(load, lang, unit)} × ${isolateLtr(measure === "reps" ? String(q) : quantityText(q, measure, { s: t("qty.s"), m: t("qty.m") }))}`;
   return summary.exercises.flatMap(ex => {
     if (!ex.top || !ex.counted) return [];
     const exercise = lang === "ar" ? ex.nameAr : ex.nameEn;

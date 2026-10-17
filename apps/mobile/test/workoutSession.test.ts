@@ -40,7 +40,7 @@ vi.mock("react", async original => {
     },
   };
 });
-const native = vi.hoisted(() => ({ alert: vi.fn(), sync: vi.fn(async () => {}), stop: vi.fn(async () => {}) }));
+const native = vi.hoisted(() => ({ alert: vi.fn(), sync: vi.fn(async (_p?: any) => {}), stop: vi.fn(async () => {}), reconcile: vi.fn(async (_open?: () => Promise<boolean>) => {}) }));
 vi.mock("react-native", () => ({ Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
 vi.mock("@react-navigation/native", () => ({ useRoute: () => ({ params: { dayId: host.dayId } }), useNavigation: () => ({ dispatch: vi.fn(), goBack: vi.fn() }), StackActions: { push: vi.fn(), replace: vi.fn() } }));
@@ -50,7 +50,7 @@ vi.mock("../src/i18n", () => {
   return { useI18n: () => ({ t, lang: "en", unit: "kg", unitText: "kg", fmt: (kg: number) => String(kg) }) };
 });
 vi.mock("../src/diagnostics", () => ({ diagnostics: { record: vi.fn() } }));
-vi.mock("../src/native/restLiveActivity", () => ({ restLiveActivity: { sync: native.sync, stop: native.stop } }));
+vi.mock("../src/native/workoutLiveActivity", () => ({ workoutLiveActivity: { sync: native.sync, stop: native.stop, reconcile: native.reconcile } }));
 vi.mock("../src/theme", () => ({ radius: { button: 8 }, space: { xs: 4, sm: 8, md: 12 }, type: { section: 20, label: 13 }, useLogPalette: () => ({}) }));
 vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", QuietAction: "QuietAction" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
@@ -125,7 +125,7 @@ describe("one tap on the real session checkmark", () => {
     expect(next.list[0]!.saved).toBe(true);
     expect(next.card?.key).toBe(next.list[1]!.key);
     expect(native.alert).not.toHaveBeenCalled();
-    expect(native.sync).toHaveBeenLastCalledWith(expect.objectContaining({ endsAt: ready().timer.endsAt }));
+    expect(native.sync).toHaveBeenLastCalledWith(expect.objectContaining({ setLine: expect.stringMatching(/^Set \W*2\W* of/), rest: expect.objectContaining({ endsAt: ready().timer.endsAt }) }));
   });
 
   it("preserves an explicit rest-off choice", async () => {
@@ -168,9 +168,10 @@ describe("one tap on the real session checkmark", () => {
     const ended = ready();
     expect(ended.restOver).toBe(true);
     expect(ended.timer.endsAt).toBeNull();
-    expect(native.sync).toHaveBeenLastCalledWith(expect.objectContaining({ endsAt: null }));
+    expect(native.sync).toHaveBeenLastCalledWith(expect.objectContaining({ rest: null }));
     host.values.forEach(v => v?.cleanup?.());
     expect(native.stop).not.toHaveBeenCalled();
+    expect(native.reconcile).toHaveBeenCalled();
   });
 
   it("persists a running rest, restores it after the logger is reopened, and finishing ends it (iOS audit 3)", async () => {

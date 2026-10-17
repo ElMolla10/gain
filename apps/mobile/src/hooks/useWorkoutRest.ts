@@ -4,14 +4,13 @@ import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
 import { newTimer, stopTimer, type RestTimer } from "../logic/restTimer";
-import { restLiveActivity } from "../native/restLiveActivity";
 import { diagnostics } from "../diagnostics";
 import { parseRunningRest, REST_RUNNING_KEY, restoreDecision, serializeRunningRest } from "../logic/restPersist";
 
 /**
  * Timer lifecycle uses deadlines, never a ticking state update in the logger.
  * The running rest is persisted per session (logic/restPersist.ts), so leaving the logger without finishing keeps the alert and the
- * Live Activity, and reopening restores the countdown. `endRest` (finish / discard) is the only path that tears them down.
+ * Live Activity's rest block, and reopening restores the countdown. `endRest` (finish / discard) is the only path that tears them down.
  */
 export function useWorkoutRest(sessionId: string | null = null) {
   const { repos, restAlerts } = useServices();
@@ -82,21 +81,17 @@ export function useWorkoutRest(sessionId: string | null = null) {
   }, [timer, rest.vibrate]);
 
 
-  useEffect(() => {
-    if (!restored || ended.current) return;
-    void restLiveActivity.sync({ endsAt: timer.endsAt, durationMs: timer.durationMs, label: restFor ?? t("workout.restTimerBtn"), restLabel: t("workout.restTimerBtn") });
-  }, [timer, restFor, t, restored]);
-  // No cleanup on unmount: collapsing the logger or swiping back keeps the scheduled alert and the Live Activity (the workout is still open).
+  // No cleanup on unmount: collapsing the logger or swiping back keeps the scheduled alert (the workout is still open).
+  // The Live Activity (rest included) is driven by useWorkoutLiveActivity from the session.
 
-  /** The workout was finished or discarded: cancel the alert, end the Live Activity and forget the running rest. Never throws. */
+  /** The workout was finished or discarded: cancel the alert and forget the running rest. Never throws. */
   async function endRest() {
     ended.current = true;
     setTimer((tm) => stopTimer(tm));
     await Promise.all([
       restAlerts.cancel().catch(() => undefined),
-      restLiveActivity.stop().catch(() => undefined),
       repos.setSetting(REST_RUNNING_KEY, "").catch((e) => diagnostics.record("warn", "clear rest", e)),
     ]);
   }
-  return { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver, endRest };
+  return { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver, endRest, restored };
 }

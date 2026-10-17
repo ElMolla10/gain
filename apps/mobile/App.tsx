@@ -4,6 +4,7 @@ import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, View } from "react-native";
+import { workoutLiveActivity } from "./src/native/workoutLiveActivity";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { navColors } from "./src/palettes";
 import { parseAppearance, setAppearance, space, useIsDark, usePalette } from "./src/theme";
@@ -309,8 +310,14 @@ export default function App() {
   // Back on screen after being away: sync quietly if (and only if) Back up and sync is on. Throttled to once per 5 minutes.
   useEffect(() => {
     if (!boot || boot === "error" || boot === "migration_blocked") return;
+    // Remove a workout Live Activity left behind (app killed, workout finished elsewhere or deleted by a restore).
+    const reconcile = () => void workoutLiveActivity.reconcile(() => boot.services.workout.getOpenSession().then(Boolean));
+    reconcile();
     const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active") boot.services.autoSync();
+      if (s === "active") {
+        boot.services.autoSync();
+        reconcile();
+      }
     });
     return () => sub.remove();
   }, [boot]);

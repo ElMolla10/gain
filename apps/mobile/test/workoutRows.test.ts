@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptGhost, addRow, editRow, effectiveOf, initialRows, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, rowReady, unloggedFilled, unlogRow, type SavedSet } from "../src/logic/workoutRows";
+import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, rowReady, unloggedFilled, unlogRow, type SavedSet } from "../src/logic/workoutRows";
 import { freshDb } from "./helpers";
 
 let n = 0;
@@ -56,7 +56,9 @@ describe("workout rows (single list)", () => {
     expect(removeRow(more, more[1]!.key).map((r) => r.key)).toEqual(["a"]);
   });
   it("addRow ignores drop rows for the ghost", () => {
-    const rows = initialRows([s("a", 80, 8), { id: "b", load: 50, reps: 10, rir: null, warmup: false, tags: ["drop"] }], 2, target, key);
+    // plannedSets 1: one working set is already logged; the drop must not pad a blank that would then win as "last"
+    const rows = initialRows([s("a", 80, 8), { id: "b", load: 50, reps: 10, rir: null, warmup: false, tags: ["drop"] }], 1, target, key);
+    expect(rows).toHaveLength(2);
     const more = addRow(rows, target, key);
     expect(more[more.length - 1]).toMatchObject({ load: null, reps: null, ghostLoad: 80, ghostReps: 8, saved: false });
   });
@@ -69,6 +71,37 @@ describe("workout rows (single list)", () => {
     const rows = initialRows([{ id: "a", load: 80, reps: 6, rir: null, warmup: false, tags: ["failure"] }], 1, target, key);
     const more = addRow(rows, target, key);
     expect(more[more.length - 1]).toMatchObject({ load: null, reps: null, ghostLoad: 80, ghostReps: 6, saved: false });
+  });
+  it("initialRows does not count drop sets toward planned sets", () => {
+    const saved: SavedSet[] = [
+      s("a", 80, 8),
+      s("b", 80, 8),
+      { id: "d", load: 50, reps: 10, rir: null, warmup: false, tags: ["drop"] },
+    ];
+    const rows = initialRows(saved, 3, target, key);
+    expect(rows).toHaveLength(4); // 2 working + drop + blank for set 3
+    expect(rows[3]).toMatchObject({ load: null, reps: null, ghostLoad: 60, ghostReps: 8, saved: false });
+    expect(rowLabels(rows)).toEqual(["1", "2", "D", "3"]);
+  });
+  it("initialRows back-off prefill stays aligned when a drop sits after the top set", () => {
+    const saved: SavedSet[] = [
+      s("top", 100, 8),
+      { id: "d", load: 50, reps: 10, rir: null, warmup: false, tags: ["drop"] },
+    ];
+    const backoff = backoffPrefill(1, [
+      { load: 100, reps: 8 },
+      { load: 80, reps: 12 },
+      { load: 80, reps: 11 },
+    ]);
+    const rows = initialRows(saved, 3, { load: 100, reps: 8 }, key, backoff);
+    // working count = 1 (drop ignored) → blanks at working positions 1 and 2 use last[1] and last[2]
+    expect(rows.map((r) => [r.saved, r.ghostLoad, r.ghostReps, r.load])).toEqual([
+      [true, null, null, 100],
+      [true, null, null, 50],
+      [false, 80, 12, null],
+      [false, 80, 11, null],
+    ]);
+    expect(rowLabels(rows)).toEqual(["1", "D", "2", "3"]);
   });
   it("typing over a logged row makes it dirty until it is saved again", () => {
     let rows = initialRows([s("a", 60, 8)], 1, target, key);

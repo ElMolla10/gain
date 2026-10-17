@@ -79,7 +79,7 @@ export function ProgrammeShareScreen() {
   const summary = preview ? programmeShareSummary(preview) : null;
 
   return (
-    <Screen title={t("prog.share.title")}>
+    <Screen>
       <AppText style={{ color: p.muted }}>{t("prog.share.note")}</AppText>
       {json ? (
         <Card>

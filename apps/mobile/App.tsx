@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from "@re
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, View } from "react-native";
+import { AppState, Platform, useWindowDimensions, View } from "react-native";
 import { workoutLiveActivity } from "./src/native/workoutLiveActivity";
 import { perfMark, perfMarks, perfNow } from "./src/perfMarks";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -114,6 +114,8 @@ function TabBarIcon({ name, color, focused }: { name: IconName; color: string; f
 function Tabs() {
   const { t, lang } = useI18n();
   const p = usePalette();
+  // N-6: two-line Arabic labels at large text need a taller bar.
+  const { fontScale } = useWindowDimensions();
   const icon = (name: IconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabBarIcon name={name} color={color} focused={focused} />;
   // Labels wrap to two lines instead of truncating; they scale with the system font up to 1.4x (the bar itself grows with them).
   const label = (text: string) => ({ color, focused }: { color: string; focused: boolean }) => (
@@ -124,7 +126,7 @@ function Tabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: { backgroundColor: p.card, borderTopColor: p.border, paddingTop: space.xs },
-        tabBarItemStyle: { minHeight: 56 },
+        tabBarItemStyle: { minHeight: fontScale > 1.2 ? 64 : 56 },
         tabBarActiveTintColor: p.accent,
         tabBarInactiveTintColor: p.muted,
         tabBarLabelStyle: { fontFamily: familyFor({ weight: "600", arabic: lang === "ar" }) },
@@ -174,7 +176,8 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
       <NavigationContainer theme={navTheme} direction={direction} initialState={openImport ? { routes: [{ name: "Tabs" }, { name: "Import" }] } : undefined}>
         <Stack.Navigator
           screenOptions={{
-            headerTitleStyle: { fontSize: 20, fontFamily: familyFor({ weight: "600", arabic: lang === "ar" }), color: palette.text },
+            // One title per screen (N-2): the native header is the title; 17 on iOS, 20 on Android, as each platform draws it.
+            headerTitleStyle: { fontSize: Platform.select({ ios: 17, default: 20 }), fontFamily: familyFor({ weight: "600", arabic: lang === "ar" }), color: palette.text },
             headerStyle: { backgroundColor: palette.bg },
             headerTintColor: palette.text,
             headerShadowVisible: false,

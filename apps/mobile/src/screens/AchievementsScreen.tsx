@@ -79,7 +79,7 @@ export function AchievementsScreen() {
   };
 
   return (
-    <Screen title={t("achv.cabinet.title")}>
+    <Screen>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         <Chip label={t("achv.cabinet.filter.all")} selected={status === "all"} onPress={() => setStatus("all")} />
         <Chip label={t("achv.cabinet.filter.earned")} selected={status === "earned"} onPress={() => setStatus("earned")} />

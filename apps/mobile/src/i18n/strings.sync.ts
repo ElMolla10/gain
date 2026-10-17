@@ -7,6 +7,10 @@ export const enSync = {
   "sync.title": "Back up and sync",
   "sync.draft": "DRAFT text, not legally reviewed. Off by default. GAIN works fully without it.",
   "sync.privacy.title": "What this does, and what it sends",
+  "sync.sum.what": "Sends your workouts, programs, goals, badges, gyms, body measurements you entered and training settings. Language stays on the phone.",
+  "sync.sum.where": "It goes to a GAIN server on Cloudflare, so a lost or replaced phone does not lose it.",
+  "sync.sum.e2e": "Not end-to-end encrypted: the people who run the server could technically read it.",
+  "sync.fullDetails": "Full details",
   "sync.privacy.body":
     "If you turn this on, GAIN uploads your training data to a GAIN server (Cloudflare) so a lost or replaced phone does not lose it and a second phone can show the same data: your workouts and sets, notes, programs, goals, earned badges, gyms, bodyweight entries, height and birthday if you gave them, and the settings that describe your training (units, appearance, rest defaults, priorities). Language stays on the phone.",
   "sync.privacy.body2":
@@ -100,6 +104,10 @@ export const arSync: Record<keyof typeof enSync, string> = {
   "sync.title": "نسخ احتياطي ومزامنة",
   "sync.draft": "مسودة: النص ده لسه ماتراجعش قانونيًا. مقفولة من الأول. GAIN بيشتغل كامل من غيرها.",
   "sync.privacy.title": "ده بيعمل إيه وبيبعت إيه",
+  "sync.sum.what": "بيبعت تمارينك وبرامجك وأهدافك وشاراتك وجيماتك وقياسات جسمك اللي كتبتها وإعدادات تمرينك. اللغة بتفضل على التليفون.",
+  "sync.sum.where": "بتتحفظ على سيرفر GAIN على Cloudflare، عشان لو التليفون ضاع أو اتغيّر ماتضيعش بياناتك.",
+  "sync.sum.e2e": "مش مشفّرة من طرف لطرف: اللي بيشغّلوا السيرفر تقنيًا يقدروا يقروها.",
+  "sync.fullDetails": "التفاصيل كاملة",
   "sync.privacy.body":
     "لو شغّلتها، GAIN بيرفع بيانات تمرينك على سيرفر GAIN (Cloudflare) عشان لو التليفون ضاع أو اتغيّر ماتضيعش بياناتك، وتليفون تاني يقدر يعرض نفس البيانات: تمارينك ومجموعاتك وملاحظاتك وبرامجك وأهدافك والشارات المكتسبة والجيمات وأوزان جسمك وطولك وتاريخ ميلادك لو كتبتهم، والإعدادات اللي بتوصف تمرينك (الوحدات والمظهر وراحة افتراضية والأولويات). اللغة بتفضل على التليفون.",
   "sync.privacy.body2":

@@ -72,6 +72,7 @@ export function HistoryScreen() {
                     accessibilityLabel={s.pr ? `${title}, ${note}, ${t("history.prLabel")}` : undefined}
                     trailingIcon={s.pr ? <PrPill label={t("history.prPill")} /> : undefined}
                     last={i === sessions.length - 1}
+                    accessibilityHint={t("history.sessionHint")}
                     onPress={() => nav.navigate("SessionDetail", { sessionId: s.id })}
                   />
                 );
@@ -104,6 +105,7 @@ export function HistoryScreen() {
                   </>
                 ) : undefined}
                 last={i === lifts.length - 1}
+                accessibilityHint={t("history.liftHint")}
                 onPress={() => nav.navigate("LiftTrend", { lineId: l.lineId })}
               />
             );

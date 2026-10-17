@@ -195,7 +195,7 @@ export function Field(props: {
   error?: string;
 }) {
   const p = usePalette();
-  const { direction } = useI18n();
+  const { direction, t } = useI18n();
   const font = useInputFont();
   const [focused, setFocused] = useState(false);
   return (
@@ -211,7 +211,7 @@ export function Field(props: {
         placeholder={props.placeholder}
         placeholderTextColor={p.muted}
         keyboardType={props.keyboardType ?? (props.numeric ? "decimal-pad" : "default")}
-        {...(props.numeric || props.keyboardType === "number-pad" || props.keyboardType === "decimal-pad" || props.keyboardType === "numeric" ? numberPadAccessory : {})}
+        {...(props.numeric || props.keyboardType === "number-pad" || props.keyboardType === "decimal-pad" || props.keyboardType === "numeric" ? numberPadAccessory(t) : {})}
         multiline={props.multiline}
         style={{
           ...font,

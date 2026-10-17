@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { hasSelfUpdater, readBuildFlags } from "../src/logic/buildFlags";
@@ -77,7 +77,7 @@ describe("text that names the phone's own system", () => {
 
 describe("iPhone keyboard", () => {
   it("every number-pad / decimal-pad TextInput carries the Done accessory", () => {
-    for (const f of ["src/components/LogParts.tsx"]) expect(read(f), f).toMatch(/\{\.\.\.numberPadAccessory\}/); // NumField.tsx was unused and removed (12)
+    for (const f of ["src/components/LogParts.tsx"]) expect(read(f), f).toMatch(/\{\.\.\.numberPadAccessory\(t\)\}/); // NumField.tsx was unused and removed (12)
     expect(read("src/ui.tsx")).toMatch(/numberPadAccessory/);
     // any other file that puts a numeric keyboard on a raw TextInput must do the same (the shared Field in ui.tsx covers the screens that use it)
     const raw = srcFiles.filter((f) => {
@@ -87,10 +87,11 @@ describe("iPhone keyboard", () => {
     for (const f of raw) expect(readFileSync(f, "utf8"), f).toMatch(/numberPadAccessory/);
     expect(raw.length).toBeGreaterThanOrEqual(2); // was 3 including the removed, unused NumField.tsx (12)
   });
-  it("the Done bar renders only on iOS and is mounted once at the app root", () => {
-    expect(read("src/components/NumberPadDone.tsx")).toMatch(/if \(Platform\.OS !== "ios"\) return null/);
-    expect(read("src/numberPad.ts")).toMatch(/Platform\.OS === "ios" \? \{ inputAccessoryViewID/);
-    expect(read("App.tsx")).toMatch(/<NumberPadDone \/>/);
+  it("the Done bar is the per-input native toolbar, iOS only, with no shared InputAccessoryView left", () => {
+    expect(read("src/numberPad.ts")).toMatch(/Platform\.OS === "ios" \? \{ inputAccessoryViewButtonLabel: t\("common\.done"\) \} : \{\}/);
+    expect(existsSync(join(root, "src/components/NumberPadDone.tsx"))).toBe(false);
+    expect(read("App.tsx")).not.toMatch(/NumberPadDone|InputAccessoryView/);
+    for (const f of [...srcFiles, join(root, "App.tsx")]) expect(readFileSync(f, "utf8"), f).not.toMatch(/inputAccessoryViewID|<InputAccessoryView/);
     expect(en["common.done"]).toBe("Done");
     expect(ar["common.done"]).toBeTruthy();
   });

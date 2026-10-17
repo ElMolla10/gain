@@ -101,7 +101,7 @@ export function useWorkoutSession() {
   const [kindFor, setKindFor] = useState<{ exId: string; key: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
-  const { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver } = useWorkoutRest();
+  const { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver, endRest } = useWorkoutRest(loaded && loaded !== "nogym" ? loaded.sessionId : null);
   /** The one-time "notifications are blocked" hint after the logger asked for the rest alert; cleared on the next tick. */
   const [restPermDenied, setRestPermDenied] = useState(false);
   const startedRef = useRef(false);
@@ -646,7 +646,7 @@ export function useWorkoutSession() {
     setFinishing(true);
     setFinishFailed(false);
     const r = await attemptFinish(
-      () => workout.finishSession(lo.sessionId).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
+      () => workout.finishSession(lo.sessionId).then(() => void endRest()).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
       () => navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId })),
       (e) => diagnostics.record("error", "finish workout", e),
     );
@@ -660,6 +660,7 @@ export function useWorkoutSession() {
     setFinishing(true);
     try {
       if (!(await workout.discardEmptySession(lo.sessionId))) throw new Error("not empty");
+      void endRest();
       navigation.goBack();
     } catch (e) {
       diagnostics.record("error", "discard empty workout", e);

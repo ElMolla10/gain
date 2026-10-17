@@ -159,7 +159,7 @@ describe("one tap on the real session checkmark", () => {
     expect(native.alert).toHaveBeenCalled();
   });
 
-  it("ends the rest presentation at the deadline and on leaving the logger", async () => {
+  it("ends the rest presentation at the deadline; leaving the logger keeps the alert and Live Activity", async () => {
     await fixture({ restOn: true });
     const s = ready(); const ex = s.shown[0]!;
     await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
@@ -170,6 +170,30 @@ describe("one tap on the real session checkmark", () => {
     expect(ended.timer.endsAt).toBeNull();
     expect(native.sync).toHaveBeenLastCalledWith(expect.objectContaining({ endsAt: null }));
     host.values.forEach(v => v?.cleanup?.());
+    expect(native.stop).not.toHaveBeenCalled();
+  });
+
+  it("persists a running rest, restores it after the logger is reopened, and finishing ends it (iOS audit 3)", async () => {
+    const c = await fixture({ restOn: true });
+    const s = ready(); const ex = s.shown[0]!;
+    await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
+    const endsAt = ready().timer.endsAt!;
+    const label = ready().restFor;
+    expect(label).toBeTruthy();
+    await vi.waitFor(async () => expect(JSON.parse((await c.repos.getSetting("rest_running"))!)).toMatchObject({ sessionId: s.loaded.sessionId, endsAt }));
+    const cancel = host.services.restAlerts.cancel as ReturnType<typeof vi.fn>;
+    cancel.mockClear();
+    // collapse: unmount and mount a fresh logger
+    host.values.forEach(v => v?.cleanup?.());
+    host.values = []; host.effects = [];
+    expect(cancel).not.toHaveBeenCalled();
+    render();
+    await vi.waitFor(() => { expect(ready().timer.endsAt).toBe(endsAt); });
+    const again = ready();
+    expect(again.restFor).toBe(label);
+    await again.doFinish(again.loaded);
+    await vi.waitFor(async () => expect(await c.repos.getSetting("rest_running")).toBe(""));
+    expect(cancel).toHaveBeenCalled();
     expect(native.stop).toHaveBeenCalled();
   });
 

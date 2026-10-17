@@ -28,7 +28,7 @@ const forecast = (reason: string) => ({
 describe("Finish Why: real decision detail when a record exists, in-place fallback otherwise", () => {
   it("resolveWhyTargets maps only exercises whose planned target has a decision record", async () => {
     const repo = {
-      getPlannedSession: vi.fn(async () => ({ id: "s2" })),
+      getPlannedSession: vi.fn(async (): Promise<{ id: string } | null> => ({ id: "s2" })),
       getTargetForExercise: vi.fn(async (_s: string, ex: string) => ({ id: `t-${ex}` })),
       getDecision: vi.fn(async (id: string) => (id === "t-bench" ? { path: "x" } : null)),
     };
@@ -66,7 +66,8 @@ describe("Finish Why: real decision detail when a record exists, in-place fallba
 
   it("FinishScreen wires onWhy to the same Why destination used elsewhere", async () => {
     const { readFileSync } = await import("node:fs");
-    const f = readFileSync(new URL("../src/screens/FinishScreen.tsx", import.meta.url), "utf8");
+    const { join } = await import("node:path");
+    const f = readFileSync(join(__dirname, "..", "src", "screens", "FinishScreen.tsx"), "utf8");
     expect(f).toMatch(/onWhy=\{\(targetId\) => navigation\.navigate\("Why", \{ targetId \}\)\}/);
     expect(f).toContain("resolveWhyTargets(next.dayId");
   });

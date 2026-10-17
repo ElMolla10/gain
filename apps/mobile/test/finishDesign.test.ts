@@ -34,7 +34,7 @@ describe("Finish design audit (F-1, F-3..F-8)", () => {
   it("F-3: Why is shown only when there is more to say, and the sentence is body text", () => {
     expect(whyDetail("Load up. You hit all reps last time.", "Load up.")).toBe("You hit all reps last time.");
     expect(whyDetail("Load up.", "Load up.")).toBe("");
-    expect(forecast).toMatch(/\{more \? \(/);
+    expect(forecast).toMatch(/: more \? \(/);
     expect(forecast).toMatch(/icon="why"/);
   });
   it("F-5: one row of stats with isolated numbers and unit words in the language", () => {

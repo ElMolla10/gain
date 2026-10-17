@@ -103,7 +103,8 @@ export function SectionTitle({ children, action }: { children: string; action?: 
   );
 }
 
-export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger";
+/** danger = outlined (a first tap on a destructive action); dangerSolid = the final confirm of one (solid danger, onDanger label). */
+export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dangerSolid";
 /**
  * Buttons. `primary` = lime fill, ink label (one per screen). `secondary` = neutral surface with an edge. `quiet` = text (+ icon) only.
  * `danger` = destructive, separated and outlined in the danger colour. `selected={false}` is the older spelling of `secondary`.
@@ -114,8 +115,8 @@ export function BigButton(props: { label: string; onPress?: () => void; disabled
   const { t } = useI18n();
   const variant: ButtonVariant = props.variant ?? (props.selected === false ? "secondary" : "primary");
   const disabled = !!props.disabled || !!props.loading;
-  const fg = disabled && !props.loading ? p.onDisabled : variant === "primary" ? p.onFill : variant === "danger" ? p.danger : variant === "quiet" ? p.accent : p.text;
-  const height = props.hero ? 60 : variant === "primary" ? PRIMARY_HEIGHT : MIN_TOUCH;
+  const fg = disabled && !props.loading ? p.onDisabled : variant === "primary" ? p.onFill : variant === "dangerSolid" ? p.onDanger : variant === "danger" ? p.danger : variant === "quiet" ? p.accent : p.text;
+  const height = props.hero ? 60 : variant === "primary" || variant === "dangerSolid" ? PRIMARY_HEIGHT : MIN_TOUCH;
   return (
     <Pressable
       accessibilityRole="button"
@@ -133,7 +134,8 @@ export function BigButton(props: { label: string; onPress?: () => void; disabled
         gap: space.sm,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: variant === "primary" ? (props.disabled && !props.loading ? p.disabled : pressed ? p.fillPressed : p.fill) : variant === "secondary" ? (pressed ? p.tint : p.raised) : pressed ? p.raised : "transparent",
+        backgroundColor: variant === "primary" ? (props.disabled && !props.loading ? p.disabled : pressed ? p.fillPressed : p.fill) : variant === "dangerSolid" ? (disabled && !props.loading ? p.disabled : p.danger) : variant === "secondary" ? (pressed ? p.tint : p.raised) : pressed ? p.raised : "transparent",
+        opacity: variant === "dangerSolid" && pressed ? 0.85 : 1,
         borderWidth: variant === "secondary" || variant === "danger" ? 1.5 : 0,
         borderColor: variant === "danger" ? p.danger : p.edge,
       })}
@@ -164,8 +166,9 @@ export function IconButton(props: { icon: IconName; label: string; onPress: () =
  * A quiet text action ("Why", "Change workout"): accent label with an optional icon, no fill and no outline, so it never competes with the
  * primary button. The touch area is always at least 48 x 48 dp whatever the text size; a long label wraps and is never cut off.
  */
-export function QuietAction(props: { label: string; onPress: () => void; onLongPress?: () => void; icon?: IconName; /** Spoken label when it must say more than the visible one (e.g. "Why: Bench Press"). */ accessibilityLabel?: string; /** For a control that opens or closes something in place. */ expanded?: boolean }) {
+export function QuietAction(props: { label: string; onPress: () => void; onLongPress?: () => void; icon?: IconName; /** danger = a destructive text action (e.g. "Remove this day"); it still asks before it deletes. */ tone?: "danger"; /** Spoken label when it must say more than the visible one (e.g. "Why: Bench Press"). */ accessibilityLabel?: string; /** For a control that opens or closes something in place. */ expanded?: boolean }) {
   const p = usePalette();
+  const color = props.tone === "danger" ? p.danger : p.accent;
   return (
     <Pressable
       accessibilityRole="button"
@@ -175,8 +178,8 @@ export function QuietAction(props: { label: string; onPress: () => void; onLongP
       onLongPress={props.onLongPress}
       style={({ pressed }) => ({ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.raised : "transparent" })}
     >
-      {props.icon ? <Icon name={props.icon} color={p.accent} size={18} /> : null}
-      <AppText style={{ fontSize: ty.label, fontWeight: "600", color: p.accent, flexShrink: 1 }}>{props.label}</AppText>
+      {props.icon ? <Icon name={props.icon} color={color} size={props.tone === "danger" ? 20 : 18} /> : null}
+      <AppText style={{ fontSize: ty.label, fontWeight: "600", color, flexShrink: 1 }}>{props.label}</AppText>
     </Pressable>
   );
 }

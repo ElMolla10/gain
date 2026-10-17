@@ -9,7 +9,7 @@ import { PRE_MIGRATION_FILE, PRE_RESTORE_FILE } from "../db/preMigrate";
 import { RestoreFailed, type DataCounts } from "../db/dataRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { BackupInvalid, type BackupFile } from "../logic/backup";
 import { osTextKey } from "../logic/platform";
 import { localDateText } from "../logic/trendChart";
@@ -180,8 +180,10 @@ export function DataScreen() {
           <>
             <AppText style={{ fontWeight: "600" }}>{t("data.restore.found", { date: found.file.exportedAt.slice(0, 10), sessions: found.sessions, sets: found.sets })}</AppText>
             <AppText>{t("data.restore.warn")}</AppText>
-            <BigButton variant="danger" label={t("data.restore.confirm")} onPress={restore} />
-            <BigButton label={t("data.restore.cancel")} variant="secondary" onPress={() => setFound(null)} />
+            <View style={{ gap: space.lg }}>
+              <BigButton label={t("data.restore.cancel")} variant="secondary" onPress={() => setFound(null)} />
+              <BigButton variant="dangerSolid" label={t("data.restore.confirm")} onPress={restore} />
+            </View>
           </>
         ) : null}
       </Card>
@@ -209,9 +211,11 @@ export function DataScreen() {
             <AppText>{t(osTextKey("data.delete.warn", Platform.OS))}</AppText>
             {hasOnline ? <AppText>{t("data.delete.online")}</AppText> : null}
             {onlineFailed ? <InlineStatus kind="error" text={t("data.delete.onlineFailed")} /> : null}
-            <BigButton variant="danger" label={t("data.delete.ask")} onPress={() => wipe()} />
-            {onlineFailed ? <BigButton label={t("data.delete.localOnly")} variant="secondary" onPress={() => wipe(true)} /> : null}
-            <BigButton label={t("data.delete.cancel")} variant="secondary" onPress={() => setAskDelete(false)} />
+            <View style={{ gap: space.lg }}>
+              <BigButton label={t("data.delete.cancel")} variant="secondary" onPress={() => setAskDelete(false)} />
+              {onlineFailed ? <BigButton label={t("data.delete.localOnly")} variant="secondary" onPress={() => wipe(true)} /> : null}
+              <BigButton variant="dangerSolid" label={t("data.delete.ask")} onPress={() => wipe()} />
+            </View>
           </>
         ) : (
           <BigButton label={t("data.delete.first")} variant="danger" onPress={() => setAskDelete(true)} />

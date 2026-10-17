@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { epley, parseImport } from "@gain/engine";
 import { describe, expect, it } from "vitest";
 import { describePace } from "../src/logic/paceText";
-import { buildGoal, emptyGoalForm, parseWeighIn } from "../src/logic/goalForm";
+import { buildGoal, emptyGoalForm, keepOriginalKg, parseWeighIn, prefillFromGoal } from "../src/logic/goalForm";
 import { parseNumber } from "../src/logic/gymInput";
 import { unitToKg, kgToUnit } from "../src/logic/units";
 import { translate } from "../src/i18n/format";
@@ -250,5 +250,30 @@ describe("18 Goals: destructive actions ask first, writes never fail silently", 
       expect(ar[k], k).toMatch(/[\u0600-\u06FF]/);
       expect((ar[k].match(/\{\w+\}/g) ?? []).sort(), k).toEqual((en[k].match(/\{\w+\}/g) ?? []).sort());
     }
+  });
+});
+
+describe("19 Goals form prefill in the lifter's unit, no drift on an untouched re-save", () => {
+  const NOW_MS = Date.parse("2026-10-17T10:00:00Z");
+  it("prefills with the app's display rounding (lb) and unchanged kg text", () => {
+    const lift = prefillFromGoal({ kind: "lift", exerciseId: "bench", targetLoad: 100, targetReps: 5, targetDate: "2027-01-01" }, "lb");
+    expect(lift.form.loadText).toBe("220.5");
+    expect(lift.form.loadText).not.toMatch(/\.\d{2,}/);
+    expect(prefillFromGoal({ kind: "bodyweight", targetWeightKg: 77.3, targetDate: null }, "lb").form.weightText).toBe("170.4");
+    expect(prefillFromGoal({ kind: "lift", exerciseId: "bench", targetLoad: 102.5, targetReps: 5, targetDate: null }, "kg").form.loadText).toBe("102.5");
+  });
+  it("an untouched re-save keeps exactly the stored kg; an edited field uses the typed value", () => {
+    const g = { kind: "lift" as const, exerciseId: "bench", targetLoad: 100, targetReps: 5, targetDate: "2027-01-01" };
+    const { form, kept } = prefillFromGoal(g, "lb");
+    const built = buildGoal(form, "lb", NOW_MS).goal!;
+    expect(built.kind === "lift" && built.targetLoad).not.toBe(100); // 220.5 lb parsed back drifts
+    const same = keepOriginalKg(built, form, kept);
+    expect(same.kind === "lift" && same.targetLoad).toBe(100);
+    const edited = { ...form, loadText: "225" };
+    const changed = keepOriginalKg(buildGoal(edited, "lb", NOW_MS).goal!, edited, kept);
+    expect(changed.kind === "lift" && changed.targetLoad).toBeCloseTo(unitToKg(225, "lb"), 6);
+    const bw = prefillFromGoal({ kind: "bodyweight", targetWeightKg: 77.3, targetDate: null }, "lb");
+    const bwGoal = keepOriginalKg(buildGoal(bw.form, "lb", NOW_MS).goal!, bw.form, bw.kept);
+    expect(bwGoal.kind === "bodyweight" && bwGoal.targetWeightKg).toBe(77.3);
   });
 });

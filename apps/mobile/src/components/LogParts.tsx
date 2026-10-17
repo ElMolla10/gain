@@ -65,7 +65,7 @@ export function CellInput<T extends number>(props: {
           props.onValue(v, s.trim() !== "" && v === null);
         }}
         keyboardType={props.decimal ? "decimal-pad" : "number-pad"}
-        {...numberPadAccessory}
+        {...numberPadAccessory(t)}
         selectTextOnFocus
         placeholder={props.placeholder ?? "—"}
         placeholderTextColor={p.muted}

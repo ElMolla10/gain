@@ -30,7 +30,6 @@ import { useBrandFonts } from "./src/useBrandFonts";
 import { familyFor } from "./src/fonts";
 import { AppText, BigButton } from "./src/ui";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
-import { NumberPadDone } from "./src/components/NumberPadDone";
 import { diagnostics } from "./src/diagnostics";
 import { installCrashHandler } from "./src/logic/diagnostics";
 import { PrivacyScreen } from "./src/screens/PrivacyScreen";
@@ -345,7 +344,6 @@ export default function App() {
             <Guarded>
               <Shell needsOnboarding={boot.needsOnboarding} onOnboarded={() => setBoot((b) => (b && b !== "error" && b !== "migration_blocked" ? { ...b, needsOnboarding: false } : b))} />
             </Guarded>
-            <NumberPadDone />
           </DeveloperModeProvider>
         </I18nProvider>
       </ServicesProvider>

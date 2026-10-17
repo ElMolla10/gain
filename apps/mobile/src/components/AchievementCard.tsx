@@ -8,6 +8,7 @@ import { improvementLines, personalBestLines, workoutRecapStats } from "../logic
 import { AppText, BigButton, InlineStatus } from "../ui";
 import { achievementPalette as p, space, type as ty } from "../theme";
 import { diagnostics } from "../diagnostics";
+import { formatDay } from "../logic/dateText";
 
 /** The exact preview is captured locally. Native capture loads only when sharing is requested. */
 export function AchievementCard({ detail, summary, shareRef }: {
@@ -43,7 +44,7 @@ export function AchievementCard({ detail, summary, shareRef }: {
     <View ref={ref} collapsable={false} onLayout={event => { layout.current = event.nativeEvent.layout; setReady(layout.current.width > 0 && layout.current.height > 0); }} style={{ padding: 24, gap: 18, borderRadius: 24, backgroundColor: p.card, borderWidth: 1, borderColor: p.border }}>
       <AppText ltr style={{ color: p.accent, fontSize: ty.section, fontWeight: "700" }}>{t("app.name")}</AppText>
       <AppText style={{ color: p.text, fontSize: ty.title, fontWeight: "700" }}>{t("progress.cardTitle")}</AppText>
-      <AppText style={{ color: p.muted }}>{new Date(detail.finishedAt).toLocaleDateString(lang === "ar" ? "ar-EG-u-nu-latn" : "en-GB", { day: "numeric", month: "short", year: "numeric" })}</AppText>
+      <AppText style={{ color: p.muted }}>{formatDay(detail.finishedAt, lang)}</AppText>
       <AppText style={{ color: p.text, fontSize: ty.section }}>{stats.sets} {t("workout.stat.sets")} · {stats.exercises} {t("recap.exercises")}</AppText>
       {highlights.map((line, i) => <AppText key={i} style={{ color: p.accent, fontSize: ty.body }}>{line}</AppText>)}
       {!highlights.length ? <AppText style={{ color: p.muted }}>{t("progress.steady")}</AppText> : null}

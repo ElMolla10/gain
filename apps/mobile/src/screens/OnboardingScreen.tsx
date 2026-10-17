@@ -24,7 +24,7 @@ import { instantiateTemplate, templatesForDays, type Instantiated, type Template
 import { serializeMusclePriorities } from "../logic/musclePriority";
 import { generateProgramme } from "../logic/programGenerator";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, ArDraftNote, BigButton, Card, Chip, Field, InlineStatus, Notice, Screen } from "../ui";
+import { AppText, ArDraftNote, BigButton, Card, Chip, Field, InlineStatus, Notice, RadioGroup, RadioRow, Screen } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { activeTemplates } from "../buildConfig";
 import { TemplateBrowser } from "../components/TemplateBrowser";
@@ -156,7 +156,6 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   }
 
   const problemLines = (codes: string[]) => (touched ? codes.map((c, i) => <InlineStatus key={i} kind="error" text={t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })} />) : null);
-  const chipRow = (children: React.ReactNode) => <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>{children}</View>;
   const goalName = form.goalExerciseId ? (byId.get(form.goalExerciseId) ? exerciseLabels(byId.get(form.goalExerciseId)!, lang).primary : "") : "";
 
   const body = (() => {
@@ -169,16 +168,20 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
             <AppText style={{ color: p.muted }}>{t("ob.welcomeBody")}</AppText>
             <HealthNote />
             <AppText style={{ fontWeight: "600" }}>{t("ob.language")}</AppText>
-            <BigButton label={t("settings.language.en")} selected={lang === "en"} onPress={() => { setLang("en"); set({ language: "en" }); }} />
-            <BigButton label={t("settings.language.ar")} selected={lang === "ar"} onPress={() => { setLang("ar"); set({ language: "ar" }); }} />
+            <RadioGroup label={t("ob.language")}>
+              <RadioRow label={t("settings.language.en")} selected={lang === "en"} onPress={() => { setLang("en"); set({ language: "en" }); }} />
+              <RadioRow label={t("settings.language.ar")} selected={lang === "ar"} onPress={() => { setLang("ar"); set({ language: "ar" }); }} />
+            </RadioGroup>
           </>
         );
       case "units":
         return (
           <>
             <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.units")}</AppText>
-            <BigButton label={t("ob.units.kg")} selected={form.units === "kg"} onPress={() => { setUnit("kg"); set({ units: "kg" }); }} />
-            <BigButton label={t("ob.units.lb")} selected={form.units === "lb"} onPress={() => { setUnit("lb"); set({ units: "lb" }); }} />
+            <RadioGroup label={t("ob.units")}>
+              <RadioRow label={t("ob.units.kg")} selected={form.units === "kg"} onPress={() => { setUnit("kg"); set({ units: "kg" }); }} />
+              <RadioRow label={t("ob.units.lb")} selected={form.units === "lb"} onPress={() => { setUnit("lb"); set({ units: "lb" }); }} />
+            </RadioGroup>
             <AppText style={{ color: p.muted }}>{t("ob.units.note")}</AppText>
           </>
         );
@@ -187,9 +190,9 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
           <>
             <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.basics")}</AppText>
             <AppText style={{ fontWeight: "600" }}>{t("ob.days")}</AppText>
-            {chipRow(DAYS_OPTIONS.map((d) => <Chip key={d} label={String(d)} selected={form.days === d} onPress={() => set({ days: d })} />))}
+            <RadioGroup row label={t("ob.days")}>{DAYS_OPTIONS.map((d) => <Chip radio key={d} label={String(d)} selected={form.days === d} onPress={() => set({ days: d })} />)}</RadioGroup>
             <AppText style={{ fontWeight: "600" }}>{t("ob.minutes")}</AppText>
-            {chipRow(MINUTES_OPTIONS.map((m) => <Chip key={m} label={t("ob.minutesValue", { n: m })} selected={form.minutes === m} onPress={() => set({ minutes: m })} />))}
+            <RadioGroup row label={t("ob.minutes")}>{MINUTES_OPTIONS.map((m) => <Chip radio key={m} label={t("ob.minutesValue", { n: m })} selected={form.minutes === m} onPress={() => set({ minutes: m })} />)}</RadioGroup>
             {problemLines(problems)}
           </>
         );
@@ -198,7 +201,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
           <>
             <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.goal")}</AppText>
             <AppText style={{ color: p.muted }}>{t("ob.goalNote")}</AppText>
-            {chipRow((["none", "lift", "bodyweight", "muscle"] as const).map((k) => <Chip key={k} label={t(`ob.goal.${k}` as StringKey)} selected={form.goalKind === k} onPress={() => set({ goalKind: k })} />))}
+            <RadioGroup row label={t("ob.goal")}>{(["none", "lift", "bodyweight", "muscle"] as const).map((k) => <Chip radio key={k} label={t(`ob.goal.${k}` as StringKey)} selected={form.goalKind === k} onPress={() => set({ goalKind: k })} />)}</RadioGroup>
             {form.goalKind === "lift" ? (
               <>
                 <BigButton variant="secondary" icon="dumbbell" label={goalName || t("ob.goal.chooseExercise")} onPress={() => setPicker(true)} />
@@ -216,7 +219,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
             {form.goalKind === "muscle" ? (
               <>
                 <AppText style={{ fontWeight: "600" }}>{t("ob.goal.muscle.pick")}</AppText>
-                {chipRow(MUSCLE_GROUPS.filter((m) => m !== "other").map((m) => <Chip key={m} label={t(`muscle.${m}` as StringKey)} selected={form.goalMuscle === m} onPress={() => set({ goalMuscle: m })} />))}
+                <RadioGroup row label={t("ob.goal.muscle.pick")}>{MUSCLE_GROUPS.filter((m) => m !== "other").map((m) => <Chip radio key={m} label={t(`muscle.${m}` as StringKey)} selected={form.goalMuscle === m} onPress={() => set({ goalMuscle: m })} />)}</RadioGroup>
               </>
             ) : null}
             <AppText style={{ fontWeight: "600", marginTop: space.md }}>{t("ob.body")}</AppText>
@@ -242,13 +245,11 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
         return (
           <>
             <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.programme")}</AppText>
-            {chipRow(
-              <>
-                <Chip label={t("ob.programme.template")} selected={mode === "template"} onPress={() => { setMode("template"); setDraft(null); setOffer(null); setDropped([]); }} />
-                <Chip label={t("coach.build")} selected={mode === "generate"} onPress={() => { setMode("generate"); setOffer(null); setDropped([]); setDraft(null); }} />
-                <Chip label={t("ob.programme.own")} selected={mode === "own"} onPress={() => { setMode("own"); setOffer(null); setDropped([]); setDraft({ name: "", days: [{ name: t("prog.day.default", { n: 1 }).replace(/[\u2066\u2069]/g, ""), exercises: [] }] }); }} />
-              </>,
-            )}
+            <RadioGroup label={t("ob.programme")}>
+              <RadioRow label={t("ob.programme.template")} detail={t("ob.programme.templateDetail")} selected={mode === "template"} onPress={() => { setMode("template"); setDraft(null); setOffer(null); setDropped([]); }} />
+              <RadioRow label={t("coach.build")} detail={t("ob.programme.buildDetail")} selected={mode === "generate"} onPress={() => { setMode("generate"); setOffer(null); setDropped([]); setDraft(null); }} />
+              <RadioRow label={t("ob.programme.own")} detail={t("ob.programme.ownDetail")} selected={mode === "own"} onPress={() => { setMode("own"); setOffer(null); setDropped([]); setDraft({ name: "", days: [{ name: t("prog.day.default", { n: 1 }).replace(/[\u2066\u2069]/g, ""), exercises: [] }] }); }} />
+            </RadioGroup>
             {mode === "own" ? <AppText style={{ color: p.muted }}>{t("ob.programme.ownNote")}</AppText> : null}
             {mode === "generate" && !draft && ceilings ? (
               <BigButton

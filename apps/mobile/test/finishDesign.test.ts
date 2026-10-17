@@ -82,9 +82,9 @@ describe("design QA round 1 (D-R1..D-R5)", () => {
     const card = src("components/AchievementCard.tsx");
     expect(card).toMatch(/\{shareRef \? null : <BigButton/);
   });
-  it("D-R2: Finish dates use Western digits (ar-EG-u-nu-latn) in the card and the share text", () => {
-    expect(src("components/AchievementCard.tsx")).toContain('"ar-EG-u-nu-latn"');
-    expect(src("logic/workoutRecap.ts")).toContain('"ar-EG-u-nu-latn"');
+  it("D-R2: Finish dates use the shared Western-digit formatter (plan 1.2, Forge)", () => {
+    expect(src("components/AchievementCard.tsx")).toContain("formatDay(detail.finishedAt, lang)");
+    expect(src("logic/workoutRecap.ts")).toContain("formatDay(detail.finishedAt, lang)");
     expect(src("components/AchievementCard.tsx")).not.toMatch(/"ar-EG"/);
   });
   it("D-R3: every Share menu action waits for the sheet to close", async () => {

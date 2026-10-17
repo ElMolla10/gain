@@ -1,21 +1,25 @@
-import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, usePreventRemove, useRoute, type NavigationAction } from "@react-navigation/native";
 import type { EquipmentType, Measure } from "@gain/engine";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
 import { useServices } from "../AppContext";
 import { ProgrammeEditorView } from "../components/ProgrammeEditorView";
 import { DraftInvalid, MeasureLocked, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
-import { resetRangeFor, validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
+import { isDraftDirty, resetRangeFor, validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
 import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { ArDraftNote, BigButton, LoadingState, Notice, Screen } from "../ui";
 
 export function ProgrammeEditScreen() {
   const { programmes, repos, gyms } = useServices();
   const { t } = useI18n();
-  const nav = useNavigation<{ goBack: () => void; navigate: (name: string, params?: object) => void }>();
+  const nav = useNavigation<{ goBack: () => void; navigate: (name: string, params?: object) => void; dispatch: (action: NavigationAction) => void }>();
   const params = (useRoute().params ?? {}) as { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean };
   const [draft, setDraft] = useState<ProgrammeDraft | null>(null);
+  /** The draft as it was loaded: leaving with edits beyond it asks first (data-loss follow-up, plan 1.7). */
+  const [initial, setInitial] = useState<ProgrammeDraft | null>(null);
+  const saved = useRef(false);
   const [baseline, setBaseline] = useState<ProgrammeDraft | null>(null);
   const [nextVersion, setNextVersion] = useState<number | null>(null);
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
@@ -50,7 +54,9 @@ export function ProgrammeEditScreen() {
         if (g) setGymEquipment(g.loads.map((l) => l.equipment));
       }
       if (!params.programmeId) {
-        setDraft({ name: "", days: [] });
+        const empty = { name: "", days: [] };
+        setDraft(empty);
+        setInitial(empty);
         return;
       }
       const active = await programmes.getActive();
@@ -59,10 +65,22 @@ export function ProgrammeEditScreen() {
       setNextVersion(cur ? cur.version + 1 : null);
       // Baseline = the version in use now (what the exposure change is measured against); the draft may start from an older one.
       if (active) setBaseline(await programmes.loadDraft(active.versionId));
-      setDraft(await programmes.loadDraft(params.versionId ?? active!.versionId));
+      const loaded = await programmes.loadDraft(params.versionId ?? active!.versionId);
+      setDraft(loaded);
+      setInitial(loaded);
     })().catch(() => setDraft({ name: "", days: [] }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programmes, repos, gyms, params.programmeId, params.versionId]);
+
+  const dirty = isDraftDirty(initial, draft);
+  // Header back, iOS edge-swipe and Android back all go through this. Right after a successful save the guard steps aside.
+  usePreventRemove(dirty, ({ data }) => {
+    if (saved.current) return nav.dispatch(data.action);
+    Alert.alert(t("prog.discard.title"), t("prog.discard.body"), [
+      { text: t("prog.discard.keep"), style: "cancel" },
+      { text: t("prog.discard.ok"), style: "destructive", onPress: () => nav.dispatch(data.action) },
+    ]);
+  });
 
   if (!draft) return <LoadingState />;
   const problems = validateDraft(draft);
@@ -72,6 +90,7 @@ export function ProgrammeEditScreen() {
     try {
       await programmes.setExerciseMeasure(exerciseId, measure);
       setDraft((d) => (d ? resetRangeFor(d, exerciseId, measure) : d));
+      setInitial((d) => (d ? resetRangeFor(d, exerciseId, measure) : d)); // already saved to the library, not a draft edit
       setBaseline((b) => (b ? resetRangeFor(b, exerciseId, measure) : b));
       refreshLibrary();
       setMessage(null);
@@ -91,6 +110,8 @@ export function ProgrammeEditScreen() {
       } else {
         await programmes.createProgramme(draft);
       }
+      saved.current = true;
+      setInitial(draft);
       nav.goBack();
     } catch (e) {
       if (e instanceof SessionInProgress) setMessage(t("prog.openWorkout"));

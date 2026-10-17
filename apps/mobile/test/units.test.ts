@@ -20,12 +20,12 @@ describe("kg <-> lb conversion layer", () => {
     expect(kgToUnit(0.1 + 0.2, "kg")).toBe(0.3);
     expect(weightText(1.25, "kg")).toBe("1.25");
   });
-  it("pounds are rounded to 0.1 lb", () => {
+  it("pounds are rounded to 0.1 lb", () => {
     expect(kgToUnit(20, "lb")).toBe(44.1);
     expect(kgToUnit(62.5, "lb")).toBe(137.8);
     expect(kgToUnit(0, "lb")).toBe(0);
   });
-  it("a 45 lb bar and 5 lb steps are exact in lb after the kg round trip", () => {
+  it("a 45 lb bar and 5 lb steps are exact in lb after the kg round trip", () => {
     const bar = unitToKg(45, "lb");
     expect(bar).toBe(20.412);
     expect(kgToUnit(bar, "lb")).toBe(45);
@@ -43,15 +43,15 @@ describe("kg <-> lb conversion layer", () => {
     expect(unitLabel("lb", "ar")).toBe("باوند");
   });
   it("formatLoad defaults to kg and isolates the number for RTL", () => {
-    expect(formatLoad(32.5, "en")).toBe(`${LRI}32.5${PDI} kg`);
-    expect(clean(formatLoad(20, "en", "lb"))).toBe("44.1 lb");
-    expect(clean(formatLoad(20, "ar", "lb"))).toBe("44.1 باوند");
+    expect(formatLoad(32.5, "en")).toBe(`${LRI}32.5${PDI} kg`);
+    expect(clean(formatLoad(20, "en", "lb"))).toBe("44.1 lb");
+    expect(clean(formatLoad(20, "ar", "lb"))).toBe("44.1 باوند");
   });
 });
 
 describe("logger steps on loads that exist, in either unit", () => {
   const lbBar: GymLoadSpec = { equipment: "barbell", increment: unitToKg(5, "lb"), min: unitToKg(45, "lb"), max: unitToKg(600, "lb") };
-  it("a 5 lb barbell steps 45 -> 50 -> 55 lb and back", () => {
+  it("a 5 lb barbell steps 45 -> 50 -> 55 lb and back", () => {
     let load = unitToKg(45, "lb");
     const seen: number[] = [];
     for (let i = 0; i < 3; i++) {
@@ -67,7 +67,7 @@ describe("logger steps on loads that exist, in either unit", () => {
     expect(up).toBe(22.5);
     expect(kgToUnit(up, "lb")).toBe(49.6);
   });
-  it("with no gym loads the fallback is 2.5 kg, or 5 lb in lb mode", () => {
+  it("with no gym loads the fallback is 2.5 kg, or 5 lb in lb mode", () => {
     expect(stepLoad(null, 20, 1, "free", "kg")).toEqual({ load: 22.5, exact: false });
     const r = stepLoad(null, unitToKg(100, "lb"), 1, "free", "lb");
     expect(kgToUnit(r.load, "lb")).toBe(105);
@@ -112,7 +112,7 @@ describe("import display", () => {
 });
 
 describe("history edit keeps an unchanged load (Step 6)", () => {
-  it("60 kg shown in lb and saved untouched stays exactly 60 kg; a real change converts", () => {
+  it("60 kg shown in lb and saved untouched stays exactly 60 kg; a real change converts", () => {
     const shown = kgToUnit(60, "lb");
     expect(unitToKg(shown, "lb")).not.toBe(60); // the plain round trip drifts by grams
     expect(editedKg(shown, 60, "lb")).toBe(60);

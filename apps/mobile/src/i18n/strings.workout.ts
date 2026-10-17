@@ -1,6 +1,7 @@
 /** Active workout list (v0.8.0, redesigned v0.9.0). ARABIC IS A DRAFT TRANSLATION, still to be reviewed. */
 export const enWorkout = {
   "live.title": "Next set",
+  "live.options": "Set options",
   "live.details": "Details",
   "live.less": "Less",
   "live.dismiss": "Dismiss warning",
@@ -54,6 +55,8 @@ export const enWorkout = {
   "workout.finishBtn": "Finish",
   "workout.restTimerBtn": "Rest timer",
   "workout.stat.duration": "Duration",
+  "workout.pause": "Pause",
+  "workout.resume": "Resume",
   "workout.stat.paused": "Paused",
   "workout.stat.volume": "Volume",
   "workout.stat.sets": "Sets",
@@ -162,6 +165,7 @@ export const enWorkout = {
 
 export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "live.title": "المجموعة الجاية",
+  "live.options": "خيارات المجموعة",
   "live.details": "التفاصيل",
   "live.less": "تفاصيل أقل",
   "live.dismiss": "إغلاق التنبيه",
@@ -215,6 +219,8 @@ export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "workout.finishBtn": "خلّص",
   "workout.restTimerBtn": "مؤقت الراحة",
   "workout.stat.duration": "المدة",
+  "workout.pause": "إيقاف مؤقت",
+  "workout.resume": "استئناف",
   "workout.stat.paused": "متوقف",
   "workout.stat.volume": "الحجم",
   "workout.stat.sets": "المجموعات",

@@ -291,7 +291,9 @@ export function LiftTrendView({
   );
 
   return (
-    <Screen title={exerciseLabels(lift, lang).primary} scroll={tab === "summary"} footer={loadsButton} contentStyle={tab === "history" ? { flex: 1, paddingBottom: 0 } : undefined}>
+    <Screen scroll={tab === "summary"} footer={loadsButton} contentStyle={tab === "history" ? { flex: 1, paddingBottom: 0 } : undefined}>
+      {/* Short native title ("Exercise progression"); the exercise is a 20/26 heading here (N-2). */}
+      <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{exerciseLabels(lift, lang).primary}</AppText>
       <AppText style={{ color: p.muted }}>{t("trend.setupLine", { setup: t(`setup.${lift.setup}` as never) })}</AppText>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         <Chip label={t("trend.tab.summary")} selected={tab === "summary"} onPress={() => setTab("summary")} />

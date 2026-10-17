@@ -670,7 +670,7 @@ export function SegmentedTabs<T extends string>(props: { value: T; options: { va
   );
 }
 
-export function ListRow(props: { title: string; note?: string; trailing?: string; /** Extra trailing content (a pill, a value with a glyph); kept within 45% of the row. */ trailingIcon?: React.ReactNode; onPress?: () => void; last?: boolean; accessibilityLabel?: string }) {
+export function ListRow(props: { title: string; note?: string; trailing?: string; /** Extra trailing content (a pill, a value with a glyph); kept within 45% of the row. */ trailingIcon?: React.ReactNode; onPress?: () => void; last?: boolean; accessibilityLabel?: string; /** Where the row leads, when the title does not say (screen readers, S-12). */ accessibilityHint?: string }) {
   const p = usePalette();
   const inner = (
     <>
@@ -685,7 +685,7 @@ export function ListRow(props: { title: string; note?: string; trailing?: string
   );
   const style = { minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.sm, borderBottomWidth: props.last ? 0 : 1, borderColor: p.border } as const;
   return props.onPress ? (
-    <Pressable accessibilityRole="button" accessibilityLabel={props.accessibilityLabel} onPress={props.onPress} style={({ pressed }) => [style, pressed ? { backgroundColor: p.raised } : null]}>{inner}</Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={props.accessibilityLabel} accessibilityHint={props.accessibilityHint} onPress={props.onPress} style={({ pressed }) => [style, pressed ? { backgroundColor: p.raised } : null]}>{inner}</Pressable>
   ) : (
     <View style={style}>{inner}</View>
   );
@@ -739,10 +739,10 @@ export function CollapsibleCard({ title, note, children, defaultOpen = false }: 
 }
 
 /** A whole-card link: title, a muted note and a chevron (e.g. the goal pace on Today). */
-export function ListCard({ title, note, onPress }: { title: string; note?: string; onPress: () => void }) {
+export function ListCard({ title, note, onPress, accessibilityHint }: { title: string; note?: string; onPress: () => void; /** Where the card leads, when the title does not say (S-12). */ accessibilityHint?: string }) {
   const p = usePalette();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: pressed ? p.raised : p.card, padding: space.lg })}>
+    <Pressable accessibilityRole="button" accessibilityHint={accessibilityHint} onPress={onPress} style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: pressed ? p.raised : p.card, padding: space.lg })}>
       <View style={{ flex: 1, gap: 2 }}>
         <AppText style={{ fontWeight: "600" }}>{title}</AppText>
         {note ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{note}</AppText> : null}

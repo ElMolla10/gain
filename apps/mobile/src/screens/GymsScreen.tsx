@@ -25,7 +25,7 @@ export function GymsScreen() {
   if (!list) return <LoadingState />;
 
   return (
-    <Screen title={t("gyms.title")}>
+    <Screen>
       <AppText style={{ color: p.muted }}>{t("gyms.entryNote")}</AppText>
       {list.map((g) => (
         <Card key={g.id}>

@@ -26,8 +26,10 @@ export function CellInput<T extends number>(props: {
   done?: boolean;
   /** The set the lifter is on: the box gets an outline so it stands out from the wash behind it. */
   current?: boolean;
-  /** A small caption above the box (unit or column name); used when the row is laid out in two lines at large font sizes. */
+  /** A small caption above the box (unit or column name). */
   unitLabel?: string;
+  /** A typed value that is not saved yet (the row is not ticked): a 2 dp warn underline, because unticked rows are dropped at Finish. */
+  pending?: boolean;
   style?: StyleProp<ViewStyle>;
   autoFocus?: boolean;
   focusNonce?: number;
@@ -68,7 +70,7 @@ export function CellInput<T extends number>(props: {
         {...numberPadAccessory(t)}
         selectTextOnFocus
         placeholder={props.placeholder ?? "—"}
-        placeholderTextColor={p.muted}
+        placeholderTextColor={p.edge /* ghost targets are hints: quieter than a typed value (L-4) */}
         onFocus={() => setFocused(true)}
         onBlur={() => { setFocused(false); if (bad) AccessibilityInfo.announceForAccessibility(t("workout.input.invalid")); }}
         style={{
@@ -77,9 +79,12 @@ export function CellInput<T extends number>(props: {
           borderRadius: radius.input,
           borderWidth: bad || focused ? 2 : props.current ? 1.5 : 0,
           borderColor: bad ? p.warn : focused ? p.accent : p.edge,
+          ...(props.pending && !bad && !focused ? { borderBottomWidth: 2, borderBottomColor: p.warn } : null),
           paddingHorizontal: 4,
           paddingVertical: 0,
-          fontSize: 16,
+          // Typed weight and reps are the numbers read at arm's length: 20 semibold with tabular figures, so widths don't jump (L-1).
+          fontSize: ty.section,
+          fontVariant: ["tabular-nums"],
           color: p.text,
           backgroundColor: props.done ? "transparent" : p.field,
           textAlign: "center",
@@ -177,19 +182,35 @@ export function MenuSheet(props: { visible: boolean; title: string; /** Kept for
 export function TargetLine(props: { label: string; value: string; whyLabel: string; whyA11y: string; suggestedLabel?: string; suggestedValue?: string; onWhy: () => void; onWhyLong?: () => void; expanded?: boolean; reason?: string;
   /** Optional compact toggle for the Next-set details (closed by default). */ moreLabel?: string; moreA11y?: string; moreExpanded?: boolean; onMore?: () => void }) {
   const p = useLogPalette();
+  const { direction } = useI18n();
   return (
     <View style={{ gap: 2 }}>
+      {/* Line 1: label, value, Why. Line 2 (only when the card exists): "Next set details" with an end chevron. The two controls never
+          share a wrap row (L-11). */}
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: space.sm }}>
         <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.label}</AppText>
-        <AppText style={{ fontSize: ty.section, fontWeight: "600", flexShrink: 1 }}>{props.value}</AppText>
+        <AppText style={{ fontSize: ty.section, fontWeight: "600", flexShrink: 1, fontVariant: ["tabular-nums"] }}>{props.value}</AppText>
         <QuietAction label={props.whyLabel} icon="why" accessibilityLabel={props.whyA11y} expanded={props.expanded} onPress={props.onWhy} onLongPress={props.onWhyLong} />
-        {props.suggestedLabel ? (
-          <AppText style={{ fontSize: 13, color: p.muted, flexShrink: 1 }}>
-            {props.suggestedLabel}{props.suggestedValue ? <AppText style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}> {props.suggestedValue}</AppText> : null}
-          </AppText>
-        ) : null}
-        {props.moreLabel && props.onMore ? <QuietAction label={props.moreLabel} accessibilityLabel={props.moreA11y} expanded={props.moreExpanded} onPress={props.onMore} /> : null}
       </View>
+      {props.suggestedLabel ? (
+        <AppText style={{ fontSize: 13, color: p.muted }}>
+          {props.suggestedLabel}{props.suggestedValue ? <AppText style={{ color: p.accent, fontSize: 13, fontWeight: "600" }}> {props.suggestedValue}</AppText> : null}
+        </AppText>
+      ) : null}
+      {props.moreLabel && props.onMore ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={props.moreA11y ?? props.moreLabel}
+          accessibilityState={{ expanded: !!props.moreExpanded }}
+          onPress={props.onMore}
+          style={({ pressed }) => ({ minHeight: 48, flexDirection: "row", alignItems: "center", gap: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
+        >
+          <AppText style={{ flex: 1, fontSize: ty.label, fontWeight: "600", color: p.accent }}>{props.moreLabel}</AppText>
+          <View style={{ transform: [{ rotate: props.moreExpanded ? (direction === "rtl" ? "-90deg" : "90deg") : "0deg" }] }}>
+            <Icon name="chevron" color={p.accent} size={18} mirror />
+          </View>
+        </Pressable>
+      ) : null}
       {props.expanded && props.reason ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.reason}</AppText> : null}
     </View>
   );

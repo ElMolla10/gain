@@ -97,13 +97,17 @@ describe("extracted workout row wiring", () => {
     expect(vi.mocked(p.onPatch).mock.calls).toEqual([[p.row.key, { load: kg, invalidLoad: false }], [p.row.key, { reps: 9, invalidReps: false }], [p.row.key, { rir: 2, invalidRir: false }]]);
     for (const cell of cells) { expect(cell.props.a11y).toContain("Bench Press"); expect(cell.props.a11y).toContain("2"); }
   });
-  it("keeps a two-line large-text layout with one copy of every control", () => {
+  it("large text (L-8): set | kg | reps | tick on one line, Previous as a caption above, one copy of every control, no per-row unit captions", () => {
     const p = props({ stacked: true });
     const tree = nodes(WorkoutSetRow(p));
     expect(tree.filter(n => n.props.accessibilityRole === "checkbox")).toHaveLength(1);
     const cells = inputs(p);
     expect(cells).toHaveLength(3);
-    expect(cells.every(n => n.props.unitLabel)).toBe(true);
+    expect(cells.every(n => !n.props.unitLabel)).toBe(true);
+    const direct = (n: Node) => (Array.isArray(n.props.children) ? n.props.children : [n.props.children]).filter(React.isValidElement) as Node[];
+    const line = tree.find(n => n.type as unknown === "View" && direct(n).filter(c => c.type as unknown === "CellInput").length === 3 && direct(n).some(c => nodes(c).some(x => x.props.accessibilityRole === "checkbox")))!;
+    expect(line).toBeTruthy();
+    expect(line.props.style.flexDirection).toBe("row");
     expect(tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("\u206660\u00A0×\u00A07\u2069");
   });
   it("uses quantity parsing for timed/distance rows and omits effort when disabled", () => {
@@ -267,7 +271,7 @@ describe("extracted exercise section wiring", () => {
     expect(tree.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
     expect(tree.find(n => (n.type as unknown) === "TargetLine")!.props.moreLabel).toBeUndefined();
   });
-  it("load settings are closed by default and reachable through the header's Loads control", async () => {
+  it("load settings are closed by default; the header has no Loads control any more (L-12: it lives in the ⋮ menu) and an open panel has a Close", async () => {
     const p = await sectionProps();
     const onToggleLoads = vi.fn(); const onPickJump = vi.fn(); const onSaveList = vi.fn(); const onListChange = vi.fn();
     const base = { ...p, onToggleLoads, onPickJump, onSaveList, onListChange, listText: "20, 22.5" };
@@ -275,10 +279,12 @@ describe("extracted exercise section wiring", () => {
       settings.lang = lang;
       const closed = nodes(WorkoutExerciseSection(base));
       expect(closed.some(n => n.type === LoadSettings)).toBe(false);
-      const button = closed.find(n => (n.type as unknown) === "QuietAction" && n.props.label === translate(lang, "workout.loads"))!;
-      expect(button.props.expanded).toBe(false);
-      expect(button.props.accessibilityLabel).toContain(translate(lang, "workout.loads"));
-      button.props.onPress();
+      expect(closed.some(n => (n.type as unknown) === "QuietAction" && n.props.label === translate(lang, "workout.loads"))).toBe(false);
+      const opened = nodes(WorkoutExerciseSection({ ...base, loadsOpen: true }));
+      expect(opened.some(n => n.type === LoadSettings)).toBe(true);
+      const close = opened.find(n => (n.type as unknown) === "QuietAction" && n.props.label === translate(lang, "common.close"))!;
+      expect(close.props.accessibilityLabel).toContain(translate(lang, "workout.loads"));
+      close.props.onPress();
     }
     expect(onToggleLoads).toHaveBeenCalledTimes(2);
     settings.lang = "en";
@@ -286,10 +292,9 @@ describe("extracted exercise section wiring", () => {
     const panel = open.find(n => n.type === LoadSettings)!;
     expect(panel.props.onPickJump).toBe(onPickJump);
     expect(panel.props.onSaveList).toBe(onSaveList);
-    expect(open.find(n => (n.type as unknown) === "QuietAction" && n.props.label === "Loads")!.props.expanded).toBe(true);
-    // Timed exercises have no load settings to change.
-    const timed = nodes(WorkoutExerciseSection({ ...base, ex: { ...p.ex, measure: "time" } }));
-    expect(timed.some(n => (n.type as unknown) === "QuietAction" && n.props.label === "Loads")).toBe(false);
+    // Timed exercises have no load settings to change, even when asked to open.
+    const timed = nodes(WorkoutExerciseSection({ ...base, loadsOpen: true, ex: { ...p.ex, measure: "time" } }));
+    expect(timed.some(n => n.type === LoadSettings)).toBe(false);
   });
 
 });

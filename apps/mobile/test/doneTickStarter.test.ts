@@ -43,9 +43,9 @@ describe("done tick: muted green, not lime (shared palette tokens)", () => {
   }
   it("the tick button uses the done tokens, keeps the check icon, checkbox state and a 48 dp box", () => {
     const tick = row.slice(row.indexOf('accessibilityRole="checkbox"'), row.indexOf("<SwipeRow key"));
-    expect(tick).toContain("p.doneFill");
-    expect(tick).toContain("p.doneEdge");
-    expect(tick).toContain("p.onDone");
+    // L-2: done is SOLID (doneSolid fill, inverted onDoneSolid check); lime never marks done.
+    expect(row).toContain('const tickFill = state === "done" ? p.doneSolid');
+    expect(tick).toContain("p.onDoneSolid");
     expect(tick).not.toMatch(/done \? p\.fill/);
     expect(tick).toContain("accessibilityState={{ checked: done");
     expect(tick).toContain('name="check"');

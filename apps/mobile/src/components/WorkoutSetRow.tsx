@@ -9,6 +9,7 @@ import { isTimed, parseQuantityInput } from "../logic/quantity";
 import { previousCellText } from "../logic/bidiText";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { kindOf, rowCanLog, type SetRowDraft, type editRow } from "../logic/workoutRows";
+import { pendingInputs, tickState } from "../logic/setRowState";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText } from "../ui";
 import { Icon } from "./Icon";
@@ -47,6 +48,8 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
 
   const done = row.saved && !row.dirty;
   const canTick = rowCanLog(row);
+  const state = tickState(row, canTick);
+  const pending = pendingInputs(row);
   const tickDisabled = busy || (!done && !canTick);
   // Ticked rows get only a quiet wash (the muted green check says "done"; lime stays for the current set and primary actions); the set being worked on is the one with the strong wash, bar and outlined boxes.
   const bg = done ? p.doneBg : current ? p.activeBg : p.bg;
@@ -64,17 +67,16 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         onAccessibilityAction={event => { if (event.nativeEvent.actionName === "delete") onAskDelete(row); }}
         style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.button, backgroundColor: p.field, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
       >
-        <AppText ltr style={{ fontWeight: "600", fontSize: 14, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.accent }}>{label}</AppText>
+        <AppText ltr style={{ fontWeight: "600", fontSize: ty.body, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.accent }}>{label}</AppText>
       </Pressable>
     </View>
   );
-  // Previous performance wraps instead of shrinking or cutting off.
+  // Previous performance wraps instead of shrinking or cutting off. Unitless "55 × 10" (the KG column header names the unit): pure
+  // Latin digits, so ltr is safe here (L-3). At large text it is a 13 caption above the kg box instead of a column (L-8).
+  const previousValue = previousCellText(lastSets, workingIndex, ex.measure, unit, qUnits);
   const previous = (
-    <View style={{ flex: 1.3 }}>
-      {/* Unitless "55 × 10" (the KG column header names the unit): pure Latin digits, so ltr is safe here (L-3). */}
-      <AppText ltr style={{ color: p.muted, fontSize: ty.label, textAlign: "center" }}>
-        {previousCellText(lastSets, workingIndex, ex.measure, unit, qUnits)}
-      </AppText>
+    <View style={{ flex: 1.1 }}>
+      <AppText ltr style={{ color: p.muted, fontSize: ty.label, textAlign: "center" }}>{previousValue}</AppText>
     </View>
   );
   const loadCell = (
@@ -85,7 +87,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
       onValue={(v, invalid = false) => onPatch(row.key, { load: v, invalidLoad: invalid })}
       placeholder={row.ghostLoad !== null ? weightText(row.ghostLoad, unit) : undefined}
-      unitLabel={stacked ? unitText : undefined}
+      pending={pending.load}
       decimal
       done={done}
       current={current}
@@ -102,15 +104,20 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       decimal={ex.measure === "distance"}
       onValue={(v, invalid = false) => onPatch(row.key, { reps: v, invalidReps: invalid })}
       placeholder={row.ghostReps !== null ? String(row.ghostReps) : undefined}
-      unitLabel={stacked ? (timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")) : undefined}
+      pending={pending.reps}
       done={done}
       current={current}
     />
   );
   const rirCell = ex.trackEffort ? (
-    <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: stacked ? 96 : 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v, invalid = false) => onPatch(row.key, { rir: v, invalidRir: invalid })} unitLabel={stacked ? t("workout.col.rir") : undefined} done={done} current={current} />
+    <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: stacked ? 64 : 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v, invalid = false) => onPatch(row.key, { rir: v, invalidRir: invalid })} done={done} current={current} />
   ) : null;
-  const bar = current ? <View pointerEvents="none" style={{ position: "absolute", start: 0, top: 6, bottom: 6, width: 4, borderRadius: 2, backgroundColor: p.accent }} /> : null;
+  // The current set: a 6 dp accent bar on the start edge (right in Arabic; check on device, react-native-web draws it left) (L-6).
+  const bar = current ? <View pointerEvents="none" style={{ position: "absolute", start: 0, top: 4, bottom: 4, width: 6, borderRadius: 3, backgroundColor: p.accent }} /> : null;
+  // Tick states (L-2): hollow = not ready, field = ready, SOLID = done (inverted check), accent ring + pencil = edited after save.
+  const tickFill = state === "done" ? p.doneSolid : state === "notReady" ? "transparent" : p.field;
+  const tickBorderWidth = state === "done" ? 0 : state === "edited" || (state === "ready" && current) ? 2 : 1.5;
+  const tickBorderColor = state === "edited" || (state === "ready" && current) ? p.accent : p.edge;
   const tick = (
     <View style={colTick}>
       <Pressable
@@ -118,31 +125,41 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         accessibilityState={{ checked: done, disabled: tickDisabled }}
         accessibilityLabel={`${done ? t("workout.untick") : row.saved ? t("workout.tickUpdate") : t("workout.tick")}. ${ctx}`}
         disabled={tickDisabled}
+        // The full row pitch is tappable (L-15): the most-tapped control sits at the far left in Arabic.
+        hitSlop={{ top: 4, bottom: 4 }}
         onPress={() => { if (done) { haptics.untick(); onUntick(row); } else { haptics.tick(); onLog(row); } }}
-        style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: done ? p.doneFill : p.field, borderWidth: done ? 1.5 : current ? 2 : 1.5, borderColor: done ? p.doneEdge : (row.saved && row.dirty) || current ? p.accent : p.edge, opacity: !done && !row.saved && !canTick ? 0.5 : pressed ? 0.7 : 1 })}
+        style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: tickFill, borderWidth: tickBorderWidth, borderColor: tickBorderColor, opacity: busy ? 0.6 : pressed ? 0.7 : 1 })}
       >
-        {row.saved && row.dirty ? <Icon name="edit" color={p.accent} size={20} /> : <Icon name="check" color={done ? p.onDone : p.muted} size={22} />}
+        {state === "edited" ? <Icon name="edit" color={p.accent} size={20} /> : state === "done" ? <Icon name="check" color={p.onDoneSolid} size={22} /> : state === "ready" ? <Icon name="check" color={p.muted} size={22} /> : null}
       </Pressable>
     </View>
   );
   return (
     <SwipeRow key={row.key} background={bg} deleteLabel={t("workout.deleteSet")} deleteA11y={`${t("workout.deleteSet")}. ${ctx}`} onDelete={() => onDelete(row)}>
       {stacked ? (
-        <View style={{ gap: space.xs, paddingHorizontal: space.md, paddingVertical: space.xs }}>
+        // Large text (L-8): set | kg | reps | tick stay on ONE line (the tick beside the values it confirms); Previous is a caption above
+        // the kg box. Column heads are shown once per exercise, not per row.
+        // The caption sits directly on its own row (no gap) and rows are divided, so it never reads as the row above's (C-R3).
+        <View style={{ gap: 0, paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.xs, borderBottomWidth: 1, borderColor: p.line }}>
           {bar}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            {setButton}
-            {previous}
-            {tick}
+          <View style={{ flexDirection: "row", gap: space.sm }}>
+            <View style={{ width: 48 }} />
+            <View style={{ flex: 1 }}><AppText ltr style={{ color: p.muted, fontSize: ty.caption, textAlign: "center" }}>{previousValue}</AppText></View>
+            <View style={{ flex: 1 }} />
+            {rirCell ? <View style={{ width: 64 }} /> : null}
+            <View style={{ width: 48 }} />
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+            {setButton}
             {loadCell}
             {repsCell}
             {rirCell}
+            {tick}
           </View>
         </View>
       ) : (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, paddingVertical: 2 }}>
+        // 56 dp row pitch: 8 dp between the 48 dp targets of consecutive rows, 8 dp between columns (L-5).
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.xs }}>
           {bar}
           {setButton}
           {previous}

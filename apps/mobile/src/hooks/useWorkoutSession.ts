@@ -224,7 +224,8 @@ export function useWorkoutSession() {
       // Typed-but-unticked numbers kept when the app went to the background (iOS may have terminated it since).
       const drafts = parseDrafts(await repos.getSetting(draftKey(id)).catch(() => null));
       setRows(drafts.length ? applyDrafts(initial, drafts) : initial);
-      setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), pausedMs: session?.paused_ms ?? 0, pausedAt: session?.paused_at ?? null, gym, slots, info });
+      const dayRow = await db.get<{ name: string }>("SELECT name FROM programme_day WHERE id = ?", [dayId]).catch(() => null);
+      setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), pausedMs: session?.paused_ms ?? 0, pausedAt: session?.paused_at ?? null, gym, slots, info, dayName: dayRow?.name ?? undefined });
       if (resumed) setResumeNote(true);
     })().catch((e) => {
       diagnostics.record("error", "open workout", e);
@@ -958,7 +959,7 @@ export function useWorkoutSession() {
     rows, ssFor, subFor, subCands, setSubFor,
     replaceWith, setPickFor, addOpen, library, addExerciseToday,
     programmes, libRef, setLibrary, pickFor, alternatives,
-    reload,
+    reload, setLoadsOpen,
   } as const;
 }
 

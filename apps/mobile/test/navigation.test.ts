@@ -40,3 +40,11 @@ describe("Plan tab secondary views", () => {
     expect(plan).toContain('navigate("ProgrammeExposure")');
   });
 });
+
+describe("Finish recap cannot be swiped away (iOS audit 12)", () => {
+  it("the Finish screen hides the back button and disables the iOS swipe-back gesture", () => {
+    const line = app.match(/<Stack\.Screen name="Finish"[^\n]*/)?.[0] ?? "";
+    expect(line).toMatch(/headerBackVisible: false/);
+    expect(line).toMatch(/gestureEnabled: false/);
+  });
+});

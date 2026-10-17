@@ -44,7 +44,7 @@ describe("the next session is written at the door", () => {
     const targets = await finish.getTargets(r.written!.sessionId);
     expect(targets).toHaveLength(5);
     for (const t of targets) {
-      expect(t.ruleVersion).toBe("rule-v0.5");
+      expect(t.ruleVersion).toBe("rule-v0.6");
       expect(t.path).toBe("rule");
       expect(t.status).toBe("proposed");
       expect(t.reason.key).toBeTruthy();
@@ -72,7 +72,7 @@ describe("the next session is written at the door", () => {
     const { rotate, finish } = await setup();
     const { bench } = await rotate(8);
     const d = await finish.getDecision(bench.id);
-    expect(d!.ruleVersion).toBe("rule-v0.5");
+    expect(d!.ruleVersion).toBe("rule-v0.6");
     expect(d!.path).toBe("rule");
     expect(d!.payload.inputs.lineKey).toContain("|free");
     expect(d!.payload.inputs.sessions[0]).toMatchObject({ topLoad: 60, repsAtTop: 8 });
@@ -113,10 +113,11 @@ describe("the next session is written at the door", () => {
     expect(bench.reason.key).toBe("load_up");
     expect(bench.reason.params).toMatchObject({ load: 62.5, prevLoad: 60 });
   });
-  it("after one bench session the target is low confidence and a smaller step (repeat)", async () => {
+  it("after one bench session low confidence writes one more rep at the same load", async () => {
     const { rotate } = await setup();
     const { bench } = await rotate(8);
-    expect(bench).toMatchObject({ load: 60, reps: 8, confidence: "low", jumpKind: "repeat" });
+    // rule-v0.6 permits a small rep increase while keeping the low-confidence load unchanged.
+    expect(bench).toMatchObject({ load: 60, reps: 9, confidence: "low", jumpKind: "repeat" });
   });
 });
 

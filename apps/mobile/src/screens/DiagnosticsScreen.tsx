@@ -7,6 +7,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
 import { telemetry } from "../achievementTelemetry";
 import { diagnostics } from "../diagnostics";
+import { perfMarks } from "../perfMarks";
+import type { PerfSummary } from "../logic/perfMarks";
 import { TELEMETRY_EVENTS, type GateCounters, type TelemetryState } from "../logic/achievementTelemetry";
 import { buildFeedbackMessage } from "../logic/diagnostics";
 import { useI18n } from "../i18n";
@@ -60,12 +62,14 @@ export function DiagnosticsScreen() {
     }
   }
 
+  const [timings, setTimings] = useState<PerfSummary[]>(() => perfMarks.summary());
   useFocusEffect(
     useCallback(() => {
       setOn(diagnostics.isEnabled());
       setCount(diagnostics.entries().length);
       setNotes(telemetry.snapshot());
       setGates(telemetry.gates());
+      setTimings(perfMarks.summary());
     }, []),
   );
 
@@ -122,6 +126,14 @@ export function DiagnosticsScreen() {
           }}
         />
         {msg ? <InlineStatus kind="info" text={msg} /> : null}
+      </Card>
+      <Card>
+        <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("diag.perf.title")}</AppText>
+        <AppText style={{ color: p.muted }}>{t("diag.perf.note")}</AppText>
+        {timings.length === 0 ? <AppText>{t("diag.perf.empty")}</AppText> : timings.map((r) => (
+          <AppText key={r.name}>{t("diag.perf.row", { name: r.name, n: r.n, median: r.median, p90: r.p90 })}</AppText>
+        ))}
+        <BigButton label={t("diag.perf.clear")} variant="secondary" onPress={() => { perfMarks.clear(); setTimings([]); }} />
       </Card>
       <Card>
         <AppText style={{ fontWeight: "600" }}>{t("telemetry.title")}</AppText>

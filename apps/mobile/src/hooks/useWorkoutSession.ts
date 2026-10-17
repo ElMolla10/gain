@@ -1,6 +1,7 @@
 import { useWorkoutSuggestions } from "./useWorkoutSuggestions";
 import type { LoadedWorkout as Loaded } from "../logic/workoutTypes";
 import { useWorkoutRest } from "./useWorkoutRest";
+import { perfMark, perfNow } from "../perfMarks";
 import { useWorkoutLiveActivity } from "./useWorkoutLiveActivity";
 import { workoutLiveActivity } from "../native/workoutLiveActivity";
 import { workoutActivityProps } from "../logic/workoutActivityModel";
@@ -301,6 +302,7 @@ export function useWorkoutSession() {
   async function logRow(ex: Disp, row: SetRowDraft) {
     setRestPermDenied(false);
     if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
+    const tickT0 = perfNow();
     // Ticking logs the boxes as they are (target or typed): no big-jump confirmation.
     setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
     setBusy(row.key);
@@ -329,6 +331,7 @@ export function useWorkoutSession() {
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
       }
       setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
+      perfMark("tickSaved", perfNow() - tickT0);
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
       setSaveError(false);

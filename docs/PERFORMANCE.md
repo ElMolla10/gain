@@ -25,5 +25,18 @@ Also tested: JSON and CSV export and a full restore of the two-year history comp
 - Export of 2 years: under 10 s.
 To check on a real phone: install a restored 2-year backup (the test can generate one: see `lifter()` in the test) and time those four actions.
 
+## On-device timings (Developer Mode)
+Turn on Developer Mode, then open Settings > Diagnostics > Timings. Each line shows a name, the number of samples (n, last 50 kept), the median and the p90 in milliseconds. Samples are recorded only while Developer Mode is on, stay in a local file (`gain-perf.json`) and are never uploaded. "Clear timings" empties them.
+- `boot`: from App.tsx module load until the boot state is set (DB open, backup, migrations, seeds, achievements). Not including font load.
+- `workoutOpen`: Workout screen mount until the session is ready.
+- `tickSaved`: in logRow, from the tap until the row is marked saved.
+- `loggerCommit`: React Profiler `actualDuration` per commit of the logger's scroll content (keystrokes, ticks).
+
+First phone measurements (fill in after a run: cold launch, then one workout with a few typed cells and 5 ticked sets):
+
+| Phone / build | boot median / p90 | workoutOpen median / p90 | tickSaved median / p90 | loggerCommit median / p90 |
+| --- | --- | --- | --- | --- |
+| _(iPhone model, iOS, Release)_ | _ | _ | _ | _ |
+
 ## Not covered
 Rendering cost of lists (FlatList/ScrollView), JS bundle start-up time, memory on a 2 GB phone, battery. All need a device or profiler.

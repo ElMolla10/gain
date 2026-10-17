@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, View } from "react-native";
 import { workoutLiveActivity } from "./src/native/workoutLiveActivity";
+import { perfMark, perfMarks, perfNow } from "./src/perfMarks";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { navColors } from "./src/palettes";
 import { parseAppearance, setAppearance, space, useIsDark, usePalette } from "./src/theme";
@@ -31,7 +32,7 @@ import { useBrandFonts } from "./src/useBrandFonts";
 import { familyFor } from "./src/fonts";
 import { AppText, BigButton } from "./src/ui";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
-import { diagnostics } from "./src/diagnostics";
+import { diagnostics, fileStore, PERF_FILE_NAME } from "./src/diagnostics";
 import { installCrashHandler } from "./src/logic/diagnostics";
 import { PrivacyScreen } from "./src/screens/PrivacyScreen";
 import { DiagnosticsScreen } from "./src/screens/DiagnosticsScreen";
@@ -86,7 +87,11 @@ import { createSyncEngine } from "./src/sync/engine";
 import { createSecureStoreSecrets } from "./src/sync/secureStore";
 import { createFetchTransport } from "./src/sync/transport";
 
+/** Developer Mode "boot" timing starts at module load. */
+const BOOT_T0 = perfNow();
+
 // Uncaught JavaScript errors go to the crash log on this phone (never uploaded), then on to the normal handler.
+perfMarks.attachStore(fileStore(PERF_FILE_NAME));
 installCrashHandler(diagnostics, (globalThis as { ErrorUtils?: Parameters<typeof installCrashHandler>[1] }).ErrorUtils);
 
 const Tab = createBottomTabNavigator();
@@ -301,6 +306,7 @@ export default function App() {
       })().catch(() => undefined);
       autoSync(true); // does one local read and nothing else unless the lifter turned Back up and sync on
       setBoot({ services: { db, repos, workout, mlEvaluation, finish, gyms, programmes, onboarding, imports, goals, weekly, weeklyPlan, shortWeek, deload, rejections, history, achievements, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), showSecond: (await repos.getSetting("second_name")) === "1", needsOnboarding: (await onboarding.getState()) === null });
+      perfMark("boot", perfNow() - BOOT_T0);
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
       setBoot("error");

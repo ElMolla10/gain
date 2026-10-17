@@ -1,5 +1,6 @@
 import { RestTimerBar } from "../components/RestTimerBar";
-import { useState } from "react";
+import { Profiler, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
+import { perfMark, perfMarks, perfNow } from "../perfMarks";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { adjustKeyboardInsets } from "../numberPad";
@@ -16,6 +17,12 @@ import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, 
 import { useWorkoutSession } from "../hooks/useWorkoutSession";
 import { WorkoutSessionSheets } from "../components/WorkoutSessionSheets";
 
+/** Developer Mode "loggerCommit": React commit time of the logger's scroll content. Returns at once with Developer Mode off. */
+const onLoggerRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
+  if (!perfMarks.isOn()) return;
+  perfMark("loggerCommit", actualDuration);
+};
+
 /** Presentation only; timer ticks stay in their leaf components. */
 export function WorkoutScreen() {
   const session = useWorkoutSession();
@@ -24,6 +31,14 @@ export function WorkoutScreen() {
   const insets = useSafeAreaInsets();
   // Session-only: the Workout details panel always starts closed and is not persisted.
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Developer Mode timings: mount → session ready, once.
+  const openT0 = useRef(perfNow());
+  const openMarked = useRef(false);
+  useEffect(() => {
+    if (session.phase !== "ready" || openMarked.current) return;
+    openMarked.current = true;
+    perfMark("workoutOpen", perfNow() - openT0.current);
+  }, [session.phase]);
   if (session.phase === "error") {
     return (
       <View style={{ flex: 1, padding: space.lg, paddingTop: insets.top + space.lg, gap: space.md, backgroundColor: p.bg }}>
@@ -88,6 +103,7 @@ export function WorkoutScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
+        <Profiler id="logger" onRender={onLoggerRender}>
         <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, rowGap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
           <Stat label={t("workout.stat.duration")}>
             <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} onToggle={() => void toggleDurationPause()} />
@@ -153,6 +169,7 @@ export function WorkoutScreen() {
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl, gap: 4 }}>
           {unlogged > 0 ? <InlineStatus kind="warn" text={t("workout.unlogged", { n: unlogged })} /> : null}
         </View>
+        </Profiler>
       </ScrollView>
 
       {restPermDenied ? <View style={{ paddingHorizontal: space.lg }}><InlineStatus kind="warn" text={t("rest.perm.denied")} /></View> : null}

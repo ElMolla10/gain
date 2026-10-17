@@ -78,7 +78,7 @@ const blank = (key: string, p: Prefill): SetRowDraft => ({ key, load: null, reps
  */
 export function initialRows(saved: SavedSet[], plannedSets: number, prefill: Prefill, newKey: () => string, backoff?: BackoffPrefill | null): SetRowDraft[] {
   const rows = saved.map(fromSaved);
-  const working = rows.filter((r) => !r.warmup).length;
+  const working = rows.filter((r) => !r.warmup && !isDropRow(r)).length;
   for (let i = working; i < plannedSets; i++) rows.push(blank(newKey(), backoff && i >= backoff.topSets ? backoff.last[i] ?? { load: null, reps: null } : prefill));
   return rows;
 }

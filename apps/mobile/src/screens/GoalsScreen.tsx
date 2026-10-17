@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useServices } from "../AppContext";
 import type { LibraryExercise } from "../db/programmeRepo";
@@ -19,6 +19,7 @@ import { kgToUnit, unitToKg } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Field, InlineStatus, Screen } from "../ui";
 import { HealthNote } from "../components/HealthNote";
+import { diagnostics } from "../diagnostics";
 
 /** Goals and pace: the one goal, how it stands, and weigh-ins. Pace is an estimate from the lifter's logs and says so. */
 export function GoalsScreen() {
@@ -36,6 +37,9 @@ export function GoalsScreen() {
   const [weighBad, setWeighBad] = useState(false);
   const [saved, setSaved] = useState(false);
   const [decided, setDecided] = useState<StoredReview[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<"goal" | "weigh" | null>(null);
+  const busyRef = useRef(false);
 
   const refresh = useCallback(async () => {
     setPace(await goals.getPace(Date.now()));
@@ -45,7 +49,7 @@ export function GoalsScreen() {
   }, [goals, programmes, weekly]);
   useFocusEffect(
     useCallback(() => {
-      void refresh();
+      void refresh().catch((e) => diagnostics.record("warn", "goals refresh", e));
     }, [refresh]),
   );
 
@@ -71,23 +75,57 @@ export function GoalsScreen() {
   };
   const row = (children: React.ReactNode) => <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>{children}</View>;
 
+  /** One Goals write at a time (a double tap does nothing); a failure is recorded and shown next to its card, never an unhandled rejection. */
+  async function run(action: "save" | "weigh" | "clear" | "delete", fn: () => Promise<void>) {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setFailed(null);
+    try {
+      await fn();
+    } catch (e) {
+      diagnostics.record("error", `goals ${action}`, e);
+      setFailed(action === "save" || action === "clear" ? "goal" : "weigh");
+      return;
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+    await refresh().catch((e) => diagnostics.record("warn", "goals refresh", e));
+  }
   async function save() {
     const r = buildGoal(form, unit, Date.now());
     setProblems(r.problems);
-    if (!r.goal) return;
-    await goals.setGoal(r.goal);
-    setSaved(true);
-    setEditing(false);
-    await refresh();
+    const goal = r.goal;
+    if (!goal) return;
+    await run("save", async () => {
+      await goals.setGoal(goal);
+      setSaved(true);
+      setEditing(false);
+    });
   }
   async function weigh() {
     const kg = parseWeighIn(weighText, unit, unitToKg, parseNumber);
     setWeighBad(kg === null);
     if (kg === null) return;
-    await goals.addWeighIn(kg);
-    setWeighText("");
-    await refresh();
+    await run("weigh", async () => {
+      await goals.addWeighIn(kg);
+      setWeighText("");
+    });
   }
+  // Destructive actions ask first (no undo).
+  const askClear = () => {
+    Alert.alert(t("goals.clear.confirmTitle"), t("goals.clear.confirmBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("goals.clear"), style: "destructive", onPress: () => void run("clear", () => goals.clearGoal()) },
+    ]);
+  };
+  const askDelete = (w: WeighIn) => {
+    Alert.alert(t("goals.weighIn.deleteTitle"), t("goals.weighIn.deleteBody", { weight: fmt(w.kg), date: new Date(w.at).toISOString().slice(0, 10) }), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("goals.weighIn.delete"), style: "destructive", onPress: () => void run("delete", () => goals.deleteWeighIn(w.id)) },
+    ]);
+  };
 
   return (
     <Screen>
@@ -123,10 +161,11 @@ export function GoalsScreen() {
             {problems.map((c, i) => (
               <InlineStatus key={i} kind="error" text={t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })} />
             ))}
-            <BigButton label={t("goals.save")} onPress={() => void save()} />
+            <BigButton label={t("goals.save")} disabled={busy} onPress={() => void save()} />
           </View>
         ) : null}
-        {pace && pace.kind !== "none" ? <BigButton label={t("goals.clear")} variant="quiet" onPress={() => void goals.clearGoal().then(refresh)} /> : null}
+        {pace && pace.kind !== "none" ? <BigButton label={t("goals.clear")} variant="quiet" disabled={busy} onPress={askClear} /> : null}
+        {failed === "goal" ? <InlineStatus kind="error" text={t("goals.saveFailed")} /> : null}
       </Card>
 
       <ExercisePicker
@@ -145,14 +184,15 @@ export function GoalsScreen() {
         <AppText style={{ fontWeight: "600" }}>{t("goals.weighIn")}</AppText>
         <Field label={t("goals.weighIn.field", { unit: unitText })} value={weighText} onChangeText={(s) => { setWeighBad(false); setWeighText(s); }} numeric />
         {weighBad ? <InlineStatus kind="error" text={t("goals.weighIn.bad", { min: fmt(30), max: fmt(300) })} /> : null}
-        <BigButton label={t("goals.weighIn.save")} onPress={() => void weigh()} />
+        <BigButton label={t("goals.weighIn.save")} disabled={busy} onPress={() => void weigh()} />
+        {failed === "weigh" ? <InlineStatus kind="error" text={t("goals.saveFailed")} /> : null}
         <AppText style={{ fontWeight: "600" }}>{t("goals.weighIn.recent")}</AppText>
         {weighIns.length === 0 ? <AppText style={{ color: p.muted }}>{t("goals.weighIn.none")}</AppText> : null}
         {weighIns.map((w) => (
           <View key={w.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space.md }}>
             <AppText ltr>{new Date(w.at).toISOString().slice(0, 10)}</AppText>
             <AppText ltr style={{ fontWeight: "600" }}>{fmt(w.kg)}</AppText>
-            <Chip label={t("goals.weighIn.delete")} onPress={() => void goals.deleteWeighIn(w.id).then(refresh)} />
+            <Chip label={t("goals.weighIn.delete")} disabled={busy} onPress={() => askDelete(w)} />
           </View>
         ))}
       </Card>

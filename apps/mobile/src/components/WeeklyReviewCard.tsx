@@ -9,7 +9,7 @@ import { isPlanKind, type ActivePlan, type PlanLine, type PlanPreview } from "..
 import { useI18n } from "../i18n";
 import type { Lang } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
-import { localDateText } from "../logic/trendChart";
+import { formatDay } from "../logic/dateText";
 import { space, usePalette } from "../theme";
 import { DateSelect } from "./DateSelect";
 import { AppText, BigButton, Card, Chip, InlineStatus, Sheet } from "../ui";
@@ -95,7 +95,7 @@ export function WeeklyReviewCard() {
       const waiting = active.expired && active.conflict;
       return (
         <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("weeklyPlan.activeUntil", { date: localDateText(active.endsAt - 1) })}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t("weeklyPlan.activeUntil", { date: formatDay(active.endsAt - 1, lang) })}</AppText>
           {active.lines.map((l, i) => <AppText key={i}>{planLineText(l, t, lang, fmt)}</AppText>)}
           {waiting ? <AppText style={{ color: p.muted }}>{t("weeklyPlan.endedConflict")}</AppText> : null}
           <View style={{ flexDirection: "row" }}>

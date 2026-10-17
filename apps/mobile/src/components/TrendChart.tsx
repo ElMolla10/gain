@@ -1,7 +1,9 @@
 import React from "react";
 import { View } from "react-native";
 import type { TrendPoint } from "@gain/engine";
-import { chartBars, localDateText } from "../logic/trendChart";
+import { useI18n } from "../i18n";
+import { formatDay } from "../logic/dateText";
+import { chartBars } from "../logic/trendChart";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText } from "../ui";
 
@@ -14,6 +16,8 @@ const HEIGHT = 140;
  */
 export function TrendChart({ points, assisted, summary, axisText }: { points: TrendPoint[]; assisted: boolean; summary?: string; axisText?: (from: string, to: string) => string }) {
   const p = usePalette();
+  const { lang } = useI18n();
+  const day = (ms: number) => formatDay(ms, lang, Date.now(), true); // short (no weekday): the axis caption is tight
   const bars = chartBars(points, assisted);
   if (bars.length === 0) return null;
   const first = bars[0]!.at;
@@ -40,8 +44,8 @@ export function TrendChart({ points, assisted, summary, axisText }: { points: Tr
           />
         ))}
       </View>
-      <AppText ltr={!axisText} style={{ color: p.muted, fontSize: ty.caption }}>
-        {axisText ? axisText(localDateText(first), localDateText(last)) : `${localDateText(first)} – ${localDateText(last)}`}
+      <AppText style={{ color: p.muted, fontSize: ty.caption }}>
+        {axisText ? axisText(day(first), day(last)) : `${day(first)} – ${day(last)}`}
       </AppText>
     </View>
   );

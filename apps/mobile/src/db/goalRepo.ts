@@ -69,14 +69,26 @@ export function createGoalRepo(db: Db, deps: Deps, repos: Repos) {
     if (!(kg >= 30 && kg <= 300)) throw new Error("Bodyweight must be between 30 and 300 kg");
     const id = newId();
     const t = now();
-    await db.run("INSERT INTO bodyweight_entry (id, weight_kg, measured_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", [id, kg, at, t, t]);
-    await repos.setSetting("bodyweight_kg", String(kg));
+    await db.transaction(async () => {
+      await db.run("INSERT INTO bodyweight_entry (id, weight_kg, measured_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", [id, kg, at, t, t]);
+      await syncBodyweightSetting(); // a back-dated entry never overwrites a newer one
+    });
     return id;
   }
 
+  /** A deleted (e.g. mistyped) weigh-in stops being the app's bodyweight; with none left, the setting (maybe from onboarding) stays. */
   async function deleteWeighIn(id: string): Promise<void> {
     const t = now();
-    await db.run("UPDATE bodyweight_entry SET deleted_at = ?, updated_at = ? WHERE id = ?", [t, t, id]);
+    await db.transaction(async () => {
+      const r = await db.run("UPDATE bodyweight_entry SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [t, t, id]);
+      if (r.changes > 0) await syncBodyweightSetting();
+    });
+  }
+
+  /** "bodyweight_kg" follows the newest live weigh-in (same order as listWeighIns), in kg. No live entry: left unchanged. */
+  async function syncBodyweightSetting(): Promise<void> {
+    const r = await db.get<{ weight_kg: number }>("SELECT weight_kg FROM bodyweight_entry WHERE deleted_at IS NULL ORDER BY measured_at DESC, rowid DESC LIMIT 1");
+    if (r) await repos.setSetting("bodyweight_kg", String(r.weight_kg));
   }
 
   /** Newest first. */

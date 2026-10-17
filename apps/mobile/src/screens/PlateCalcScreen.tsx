@@ -36,7 +36,7 @@ export function PlateCalcScreen() {
       {spec ? (
         <Card>
           <Field label={t("plates.load")} value={text} onChangeText={setText} numeric hint={unitText} />
-          {line ? <AppText ltr style={{ fontWeight: "600" }}>{line.text}</AppText> : null}
+          {line ? <AppText style={{ fontWeight: "600" }}>{line.text}</AppText> : null}
         </Card>
       ) : (
         <AppText style={{ color: p.muted }}>{t("plates.none")}</AppText>

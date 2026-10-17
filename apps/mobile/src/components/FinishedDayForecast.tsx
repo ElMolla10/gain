@@ -2,9 +2,8 @@ import { renderReason } from "@gain/engine";
 import React from "react";
 import { View } from "react-native";
 import type { FinishRepo } from "../db/finishRepo";
-import { formatLoad, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
-import { isTimed, targetPhrase } from "../logic/quantity";
+import { targetRowText } from "../logic/bidiText";
 import { shortReason } from "../logic/nextTarget";
 import { localizeReason } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
@@ -26,18 +25,15 @@ export function FinishedDayForecast({ value }: { value: SameDayForecast | "none"
       </View>
       {value.exercises.map(ex => {
         const proposal = ex.proposal;
+        // Language order with only the numbers isolated (F-2): never wrapped whole in isolateLtr, never drawn ltr.
         const target = proposal.load === null || proposal.currency === "none" ? null
-          : isTimed(ex.measure)
-            ? targetPhrase(proposal.load,
-                ex.measure === "time" ? proposal.durationS ?? 0 : proposal.distanceM ?? 0,
-                ex.measure, (kg) => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") })
-            : `${formatLoad(proposal.load, lang, unit)} × ${isolateLtr(String(proposal.reps ?? ""))}`;
+          : targetRowText({ measure: ex.measure, reps: proposal.reps, durationS: proposal.durationS, distanceM: proposal.distanceM, effectiveLoad: proposal.load }, lang, unit, { s: t("qty.s"), m: t("qty.m") });
         return (
           <Card key={ex.exerciseId}>
             <AppText style={{ fontWeight: "600" }}>{lang === "ar" ? ex.nameAr : ex.nameEn}</AppText>
             {target === null
               ? <AppText style={{ color: p.muted }}>{t("finish.noTarget")}</AppText>
-              : <TargetStrip label={t("target.label")} value={isolateLtr(target)}
+              : <TargetStrip label={t("target.label")} isNumeric value={target}
                   reason={shortReason(renderReason(localizeReason(proposal.reason, unit, lang), lang))} />}
           </Card>
         );

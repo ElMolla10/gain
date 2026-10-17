@@ -1,14 +1,15 @@
+import { loadTargetText } from "../logic/bidiText";
 import type { SessionSummary } from "../db/finishRepo";
 import { AchievementCard } from "../components/AchievementCard";
 import type { Measure } from "@gain/engine";
-import { isTimed, parseQuantityInput, setQuantity, targetPhrase } from "../logic/quantity";
+import { isTimed, parseQuantityInput, setQuantity } from "../logic/quantity";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { Alert, Share, View } from "react-native";
 import { useServices } from "../AppContext";
 import { HistoryInvalid, type HistorySetRow, type SessionDetail } from "../db/historyRepo";
 import { useI18n } from "../i18n";
-import { exerciseLabels, isolateLtr } from "../i18n/format";
+import { exerciseLabels } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { parseNumber } from "../logic/gymInput";
 import { localDateText } from "../logic/trendChart";
@@ -141,8 +142,8 @@ export function SessionDetailScreen() {
           <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{exerciseLabels(ex, lang).primary}</AppText>
           {ex.sets.map((s) => (
             <View key={s.id} style={{ gap: space.xs, paddingVertical: space.sm, borderTopWidth: 1, borderColor: p.border }}>
-              <AppText ltr style={{ fontSize: ty.section, fontWeight: "600" }}>
-                {isTimed(ex.measure) ? isolateLtr(targetPhrase(s.load, setQuantity(s, ex.measure), ex.measure, fmt, { s: t("qty.s"), m: t("qty.m") })) : <>{fmt(s.load)} × {isolateLtr(String(s.reps))}</>}
+              <AppText style={{ fontSize: ty.section, fontWeight: "600", fontVariant: ["tabular-nums"] }}>
+                {loadTargetText(s.load, isTimed(ex.measure) ? setQuantity(s, ex.measure) : s.reps, ex.measure, lang, unit, { s: t("qty.s"), m: t("qty.m") })}
                 {s.rir !== null ? `  ·  ${t("history.rir", { n: s.rir })}` : ""}
               </AppText>
               {s.warmup ? <AppText style={{ color: p.muted }}>{t("history.warmup")}</AppText> : null}

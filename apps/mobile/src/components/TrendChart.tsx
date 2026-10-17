@@ -40,7 +40,7 @@ export function TrendChart({ points, assisted, summary, axisText }: { points: Tr
           />
         ))}
       </View>
-      <AppText ltr style={{ color: p.muted, fontSize: ty.caption }}>
+      <AppText ltr={!axisText} style={{ color: p.muted, fontSize: ty.caption }}>
         {axisText ? axisText(localDateText(first), localDateText(last)) : `${localDateText(first)} – ${localDateText(last)}`}
       </AppText>
     </View>

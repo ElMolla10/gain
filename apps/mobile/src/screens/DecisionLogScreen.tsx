@@ -1,4 +1,5 @@
-import { isTimed, targetPhrase, targetQuantity } from "../logic/quantity";
+import { loadTargetText } from "../logic/bidiText";
+import { isTimed, targetQuantity } from "../logic/quantity";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { renderReason } from "@gain/engine";
 import React, { useCallback, useState } from "react";
@@ -68,10 +69,10 @@ export function DecisionLogScreen() {
             <AppText ltr style={{ fontWeight: "600" }}>{localDateText(d.decidedAt)}</AppText>
             <AppText style={{ fontSize: 20, fontWeight: "600" }}>{exerciseLabels(d, lang).primary}</AppText>
             <AppText style={{ color: p.muted }}>{t("dec.for", { day: d.dayName })}</AppText>
-            <AppText ltr style={{ fontSize: 16, fontWeight: "600" }}>
+            <AppText style={{ fontSize: 16, fontWeight: "600" }}>
               {hasNumber(d)
                 ? isTimed(d.measure)
-                  ? t("dec.targetTimed", { q: isolateLtr(targetPhrase(d.load!, targetQuantity(d, d.measure)!, d.measure, fmt, { s: t("qty.s"), m: t("qty.m") })) })
+                  ? t("dec.targetTimed", { q: loadTargetText(d.load!, targetQuantity(d, d.measure)!, d.measure, lang, unit, { s: t("qty.s"), m: t("qty.m") }) })
                   : t("dec.target", { load: fmt(d.load!), reps: isolateLtr(String(d.reps)) })
                 : t("dec.noTarget")}
             </AppText>

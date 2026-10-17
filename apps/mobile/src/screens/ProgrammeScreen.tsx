@@ -116,7 +116,7 @@ export function ProgrammeScreen() {
                           {l ? l.primary : e.exerciseId}
                           {e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}
                         </AppText>
-                        <AppText ltr style={{ color: p.muted, fontSize: ty.label }}>
+                        <AppText style={{ color: p.muted, fontSize: ty.label }}>
                           {range ? `${e.sets} × ${rangeText(range, (key, params) => t(key, params))}` : `${e.sets} ×`}
                           {range && e.topSets ? ` · ${t("prog.ex.scheme.top")} (${e.topSets})` : ""}
                           {l && l.secondary ? ` · ${l.secondary}` : ""}

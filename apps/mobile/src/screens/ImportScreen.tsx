@@ -245,7 +245,7 @@ export function ImportScreen() {
 
       {parsed ? (
         <Card>
-          <AppText ltr style={{ fontWeight: "600" }}>{t("import.fileInfo", { name: parsed.name, source: t(`import.source.${parsed.parse.source}` as StringKey) })}</AppText>
+          <AppText style={{ fontWeight: "600" }}>{t("import.fileInfo", { name: parsed.name, source: t(`import.source.${parsed.parse.source}` as StringKey) })}</AppText>
           {unitFromFile ? (
             <AppText style={{ color: p.muted }}>{t("import.unit.fromFile", { unit: parsed.parse.unit })}</AppText>
           ) : (

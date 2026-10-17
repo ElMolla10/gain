@@ -167,8 +167,8 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
         />
         {!why && afterExercise ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("why.weight.afterExercise", { exercise: afterExercise })}</AppText> : null}
         {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}
-        {plates ? <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>{plates.text}</AppText> : null}
-        {suggestedPlates && suggestedPlates.text !== plates?.text ? <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>{suggestedPlates.text}</AppText> : null}
+        {plates ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{plates.text}</AppText> : null}
+        {suggestedPlates && suggestedPlates.text !== plates?.text ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{suggestedPlates.text}</AppText> : null}
         {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
         {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
         <PersonalMilestoneLine onOpen={onOpenProgress} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
@@ -241,7 +241,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
           <View style={{ marginHorizontal: space.md, padding: space.md, gap: space.sm, borderRadius: radius.card, backgroundColor: p.card, borderWidth: 1, borderColor: p.line }}>
             <AppText style={{ fontWeight: "600" }}>{t("warm.title", { load: fmt(offer.workingLoad) })}</AppText>
             {offer.sets.map((w, i) => (
-              <AppText key={i} ltr style={{ fontSize: 16 }}>{fmt(w.load)} × {isolateLtr(String(w.reps))}</AppText>
+              <AppText key={i} style={{ fontSize: 16, fontVariant: ["tabular-nums"] }}>{`${fmt(w.load)} × ${isolateLtr(String(w.reps))}`}</AppText>
             ))}
             <AppText style={{ color: p.muted, fontSize: 13 }}>{t("warm.note")}</AppText>
             <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>

@@ -132,3 +132,61 @@ pure software; the earlier v0.4.0 attempt rendered three onboarding screens and 
 
 ## 7. Starter program (what the built-in sample actually is)
 Checked in code (`db/seedData.ts`, `repos.seedIfNeeded`, `onboardingRepo`): on a first launch the app seeds a generic 4-day upper/lower **structure** (days, exercises, sets, rep ranges), a placeholder gym rack and the exercise library, all stored with `is_sample = 1`. It seeds **no sessions, no logged sets, no targets and no decisions**: the first targets for those exercises are empty ("no target yet") until the lifter logs a lift. So nothing in the seed is demo history or a demo weight, and it is safe to present as a starter program. Onboarding replaces it (`retireSample`) once the lifter sets up their own plan. Screenshots in `docs/design-screens/` use fabricated history, but only inside the web-render harness (a box artefact, never shipped in the app); `test/doneTickStarter.test.ts` pins that the shipped seed has none. The stored program name still reads "Upper/Lower (sample)" and the gym "Sample gym (placeholder...)" on installs that already seeded them; renaming stored rows would be a data change, so it was left alone. Arabic wording for the starter strings is a **draft** pending review.
+
+## 8. System rules: RTL, numbers, numeric type, state contrast, spacing, mirroring
+
+From the Next Set core-flow design audit (2026-10-18, §4 S-1 to S-7). These are binding for new UI. Items marked *(planned)* name
+tokens or sizes that land with the Today, logger and Finish PRs; the rule applies from now on.
+
+### S-1. RTL and `ltr`
+- `AppText ltr` is only for strings with **no Arabic letters at all**: pure numbers, clock times, dates, Latin names, the brand.
+  `AppText` enforces this: when the children contain an Arabic letter (`ltrAllowed()` in `src/fonts.ts`) it ignores `ltr`, keeps the
+  language's direction and warns in development. `test/bidiText.test.ts` (source audit) and `test/workoutSetRow.test.ts` (rendered in
+  Arabic) fail when an `ltr` run carries Arabic.
+- Mixed strings use the language's direction. Isolate **only** the numeric sub-runs with `isolateLtr()`. Never `isolateLtr()` a string
+  that already contains Arabic (that is what laid "55 كجم × 9" out as "كجم × 9 55").
+- `translate()` isolates its parameters: pure numbers and Latin get an LTR isolate; a parameter that already contains Arabic (a
+  formatted load) gets a first-strong isolate (`isolateParam()`), so it keeps its own order.
+- Load format everywhere: `formatLoad()` (→ `55 kg` / `55 كجم`, number isolated) then ` × ` then the isolated reps. Use the helpers in
+  `src/logic/bidiText.ts`: `loadTargetText`, `targetRowText`, `plannedScheme`, `previousCellText`.
+- Ranges use an en dash U+2013 with no spaces, inside one isolate: `isolateLtr("3 × 6–10")`.
+- `writingDirection` only has an effect on iOS in React Native. On Android only the isolates protect the order, which makes these rules
+  essential there. **Verify on an Android device in Arabic.**
+- For tabular figures without forcing a direction, set `fontVariant: ["tabular-nums"]` (or `TargetStrip isNumeric`) instead of `ltr`.
+
+### S-2. Numerals
+- Western digits 0–9 everywhere, Arabic UI included (they match plates, machine stacks and the renders). Do not localise to
+  Eastern Arabic-Indic digits.
+- `×` (U+00D7) for sets × reps and load × reps, never Latin `x`, with a space on both sides.
+- Number inputs and live numbers use `tabular-nums` (*planned* for `CellInput`).
+
+### S-3. Numeric type roles
+| role | size/line | weight | where |
+|---|---|---|---|
+| `load-hero` | 36/42 (AR 36/48) | 600 | Finish lead target, live next-set, rest clock |
+| `entry` | 20/26 (24/28 if a token is added) | 600 tabular | kg / reps inputs |
+| `target` | 20/26 | 600 | Today rows, logger target line, durations |
+| `ref` | 14/20 | 400 tabular | Previous; the set chip is 16/600 |
+| `caption` | 13/18 | 400/600 | column heads and labels only, never a status that needs action |
+
+Arabic line heights come from `scaleFor()` (`src/fonts.ts`); don't hard-code a Latin line height on text that can be Arabic.
+
+### S-4. Colour and state contrast
+Text tokens pass comfortably (text 17.3:1; muted 9.3:1 dark / 6.2:1 light; accent 14.4:1 / 7.6:1). State **surfaces** are the weak
+point in glare (doneBg vs bg 1.17 / 1.04; tint vs bg 1.43 / 1.08; doneFill vs field 1.51 / 1.13; primary fill vs white 1.31).
+Rule: any state the lifter must tell apart mid-set needs a **non-colour cue of at least 3:1**: solid vs hollow, a bar, an icon or a
+weight change. Tokens: `doneSolid` #5E8F72 / #2F7A50 and `onDoneSolid` #10120E / #FFFFFF *(planned, logger PR)*; light `activeBg`
+#DCEBB0 *(planned)*; `fillEdge` transparent / #5C8A00 *(planned, Today PR)*; ghost placeholders in `edge` *(planned)*.
+
+### S-5. Tap targets and spacing
+Every control is at least 48 dp (`MIN_TOUCH`). Between adjacent 48 dp targets on logger screens keep **at least 8 dp**. Stay on the
+4 dp grid: no `gap: 6`, `paddingVertical: 2` or `gap: 2` stacks in new code.
+
+### S-6. Fonts
+Plex Sans Arabic is used when the language is Arabic or the text contains Arabic. With S-1 applied, numbers live in their own runs and
+an `ltr` run never contains Arabic, so digits keep the same Plex Sans metrics on Arabic and English screens.
+
+### S-7. Mirroring
+Only directional arrows and disclosure chevrons mirror (`mirror` / `back` props). Media (play, pause), check, timer, pencil, why and the
+brand mark never mirror. Start-edge bars use `borderStart*` / `start:` so they move to the right in Arabic; the current-set bar position
+in RTL must be checked on iOS and Android (react-native-web draws it on the left).

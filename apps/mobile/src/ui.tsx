@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, ActivityIndicator, Animated, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type KeyboardTypeOptions, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "./components/Icon";
-import { familyFor, hasArabic, scaleFor, textOf } from "./fonts";
+import { familyFor, hasArabic, ltrAllowed, scaleFor, textOf } from "./fonts";
 import { useI18n } from "./i18n";
 import { adjustKeyboardInsets, numberPadAccessory } from "./numberPad";
 import { INPUT_HEIGHT, MIN_TOUCH, PRIMARY_HEIGHT, radius, space, type as ty, usePalette } from "./theme";
@@ -21,14 +21,18 @@ export function AppText({ ltr, style, children, ...rest }: TextProps & { ltr?: b
   const { direction, lang } = useI18n();
   const p = usePalette();
   const flat = (StyleSheet.flatten(style) ?? {}) as TextStyle;
-  const arabic = hasArabic(textOf(children)) || (lang === "ar" && !ltr);
+  // `ltr` is honoured only for text with no Arabic letters; a mixed run would be laid out backwards ("كجم × 9 40"), so it keeps the
+  // language's direction (the numbers inside are isolated by the caller). Tabular figures stay either way.
+  const forceLtr = !!ltr && ltrAllowed(children);
+  if (ltr && !forceLtr && __DEV__) console.warn("AppText ltr ignored: the text contains Arabic", textOf(children));
+  const arabic = hasArabic(textOf(children)) || (lang === "ar" && !forceLtr);
   const { fontWeight, fontSize, lineHeight, ...others } = flat;
   const scaled = scaleFor(typeof fontSize === "number" ? fontSize : ty.body, arabic);
   return (
     <Text
       {...rest}
       style={[
-        { color: p.text, writingDirection: ltr ? "ltr" : direction, fontFamily: familyFor({ weight: fontWeight, arabic }), fontSize: scaled.fontSize, lineHeight: typeof lineHeight === "number" ? lineHeight : scaled.lineHeight },
+        { color: p.text, writingDirection: forceLtr ? "ltr" : direction, fontFamily: familyFor({ weight: fontWeight, arabic }), fontSize: scaled.fontSize, lineHeight: typeof lineHeight === "number" ? lineHeight : scaled.lineHeight },
         ltr ? { fontVariant: ["tabular-nums"] } : null,
         others,
       ]}
@@ -499,13 +503,13 @@ export function SaveStatus({ synced }: { synced?: "synced" | "pending" | "failed
  * The target strip: a quiet olive surface with a small label, the load and reps in large figures (they wrap, never truncate) and an
  * optional "Why" action. When there is no target it becomes a helpful sentence.
  */
-export function TargetStrip(props: { label: string; value?: string | null; unavailable?: string; whyLabel?: string; onWhy?: () => void; reason?: string }) {
+export function TargetStrip(props: { label: string; value?: string | null; /** Tabular figures for the value. It never forces LTR: the value is built in the language's order with isolated numbers. */ isNumeric?: boolean; unavailable?: string; whyLabel?: string; onWhy?: () => void; reason?: string }) {
   const p = usePalette();
   return (
     <View style={{ backgroundColor: p.tint, borderRadius: radius.card, padding: space.lg, gap: space.xs, borderStartWidth: 4, borderStartColor: p.accent }}>
       <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent, letterSpacing: 0.4 }}>{props.label}</AppText>
       {props.value ? (
-        <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{props.value}</AppText>
+        <AppText style={[{ fontSize: ty.load, fontWeight: "600" }, props.isNumeric ? { fontVariant: ["tabular-nums"] } : null]}>{props.value}</AppText>
       ) : (
         <AppText style={{ color: p.muted }}>{props.unavailable ?? ""}</AppText>
       )}

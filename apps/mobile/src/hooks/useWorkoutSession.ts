@@ -35,7 +35,7 @@ import { replacementDisplay } from "../logic/replacement";
 import { substitutionCandidates } from "../logic/substitutions";
 import { focusedExercise, livePromptVisible } from "../logic/workoutFocus";
 import { liveSummary } from "../logic/liveSummary";
-import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, markSaved, mergeRows, pendingCount, removeRow, rowCanLog, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
+import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, markSaved, loggableUnlogged, mergeRows, pendingCount, removeRow, rowCanLog, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
 import { takeLiveTarget, clearLiveTarget, liveCardCurrent, livePerformanceKey, reportedSymptomDecision, trustedWorkingSet } from "../logic/liveAdaptation";
 import { specWithJump, buildLoads, specValues, emptyLoadsForm } from "../logic/exerciseLoads";
 import { muscleGroupOf } from "../logic/muscleVolume";
@@ -322,6 +322,32 @@ export function useWorkoutSession() {
     setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
   };
 
+  /**
+   * Only the database write for one row: log a new set, or update a ticked row typed over since. Empty boxes take the ghost target first
+   * (what the lifter saw is what is saved), an unconfirmed outlier is kept, and the row is marked saved. No rest timer, PR preview,
+   * haptics or reload: the callers (a tick, or Finish's "Log N and finish") add what they need. Throws when the write fails.
+   */
+  async function persistRow(lo: Loaded, ex: Disp, row: SetRowDraft): Promise<"logged" | "updated" | "none"> {
+    setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
+    const eff = effectiveOf(row);
+    const load = eff.load as number;
+    const q = eff.reps as number; // reps, or seconds / metres for a timed exercise
+    const qf = quantityFields(q, ex.measure);
+    const ctx = { gym: lo.gym, equipment: ex.equipment, setup: ex.setup };
+    let kind: "logged" | "updated" | "none" = "none";
+    if (!row.saved) {
+      const r = await workout.logSet({ id: row.key, sessionId: lo.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+      if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
+      kind = "logged";
+    } else if (row.dirty) {
+      const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+      if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
+      kind = "updated";
+    }
+    setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
+    return kind;
+  }
+
   async function logRow(ex: Disp, row: SetRowDraft) {
     setRestPermDenied(false);
     if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
@@ -331,29 +357,15 @@ export function useWorkoutSession() {
     setBusy(row.key);
     clearStrengthPr();
     const previewVersion = prPreviewVersion.current;
-    // Empty boxes take the ghost target as the row's own numbers (what the lifter saw is what is saved).
-    setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
-    const eff = effectiveOf(row);
-    const load = eff.load as number;
-    const q = eff.reps as number; // reps, or seconds / metres for a timed exercise
-    const qf = quantityFields(q, ex.measure);
-    const ctx = { gym: loaded.gym, equipment: ex.equipment, setup: ex.setup };
     try {
-      if (!row.saved) {
-        const r = await workout.logSet({ id: row.key, sessionId: loaded.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
-        if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
-        // No rest timer after a warm-up or a drop set (the next set follows straight away).
-        // In a superset the rest comes after the last exercise of the round only.
-        if (!row.warmup && !isDropRow(row) && !restOffFor(rest.auto, exState[ex.slot]) && restAfterSet(order, exState, ex.slot)) {
-          setRestOver(false);
-          setRestFor(exerciseLabels(ex, lang).primary);
-          setTimer((tm) => startTimer(tm, Date.now()));
-        }
-      } else if (row.dirty) {
-        const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
-        if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
+      const kind = await persistRow(loaded, ex, row);
+      // No rest timer after a warm-up or a drop set (the next set follows straight away).
+      // In a superset the rest comes after the last exercise of the round only.
+      if (kind === "logged" && !row.warmup && !isDropRow(row) && !restOffFor(rest.auto, exState[ex.slot]) && restAfterSet(order, exState, ex.slot)) {
+        setRestOver(false);
+        setRestFor(exerciseLabels(ex, lang).primary);
+        setTimer((tm) => startTimer(tm, Date.now()));
       }
-      setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
       perfMark("tickSaved", perfNow() - tickT0);
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
@@ -705,21 +717,48 @@ export function useWorkoutSession() {
     }
   }
 
+  // Android shows the last button as the primary one: "Discard empty workout" is primary, "Finish anyway" is the quiet alternative.
+  function showDiscardEmpty(lo: Loaded) {
+    Alert.alert(t("workout.discard.title"), t("workout.discard.body"), [
+      { text: t("workout.finish.anyway"), onPress: () => void doFinish(lo) },
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("workout.discard.go"), onPress: () => void doDiscard(lo) },
+    ]);
+  }
+
+  /** "Log N and finish": save every loggable row as it appears, in screen order, then finish. Any failure keeps the workout open. */
+  async function logPendingThenFinish(lo: Loaded) {
+    setFinishing(true);
+    const todo = shown.flatMap((ex) => loggableUnlogged(rowsRef.current[ex.exerciseId] ?? []).map((row) => [ex, row] as const));
+    try {
+      for (const [ex, row] of todo) await persistRow(lo, ex, row);
+      await reload(lo.sessionId);
+    } catch (e) {
+      // Rows already saved stay saved (and ticked); the rest stay typed. Nothing is finished.
+      diagnostics.record("error", "log pending at finish", e);
+      setSaveError(true);
+      setFinishing(false);
+      await reload(lo.sessionId).catch(() => undefined);
+      Alert.alert(t("workout.saveFailed.title"), t("workout.saveFailed.body"));
+      return;
+    }
+    await doFinish(lo);
+  }
+
   function askFinish(lo: Loaded) {
     if (finishing) return;
-    const choice = finishChoice(sets.length, unlogged);
+    // Typed numbers are checked before "nothing logged": a workout typed but never ticked is never pushed toward "Discard".
+    const loggable = shown.reduce((n, ex) => n + loggableUnlogged(rows[ex.exerciseId] ?? []).length, 0);
+    const leftOut = shown.reduce((n, ex) => n + pendingCount(rows[ex.exerciseId] ?? []), 0) - loggable;
+    const choice = finishChoice(sets.length, loggable, leftOut);
     if (choice === "finish") return void doFinish(lo);
-    if (choice === "discard-empty") {
-      // Android shows the last button as the primary one: "Discard empty workout" is primary, "Finish anyway" is the quiet alternative.
-      return Alert.alert(t("workout.discard.title"), t("workout.discard.body"), [
-        { text: t("workout.finish.anyway"), onPress: () => void doFinish(lo) },
-        { text: t("common.cancel"), style: "cancel" },
-        { text: t("workout.discard.go"), onPress: () => void doDiscard(lo) },
-      ]);
-    }
-    Alert.alert(t("workout.finish.title"), t("workout.unlogged", { n: unlogged }), [
+    if (choice === "discard-empty") return showDiscardEmpty(lo);
+    const skipped = leftOut > 0 ? t("workout.finish.unloggedSkipped", { m: leftOut }) : "";
+    const body = loggable > 0 ? t("workout.finish.unloggedBody", { n: loggable }) + (skipped ? "\n\n" + skipped : "") : skipped;
+    Alert.alert(t("workout.finish.title"), body, [
       { text: t("common.cancel"), style: "cancel" },
-      { text: t("workout.finish.go"), onPress: () => void doFinish(lo) },
+      { text: t("workout.finish.dontLog"), style: "destructive", onPress: () => (sets.length === 0 ? showDiscardEmpty(lo) : void doFinish(lo)) },
+      ...(loggable > 0 ? [{ text: t("workout.finish.logAll", { n: loggable }), onPress: () => void logPendingThenFinish(lo) }] : []),
     ]);
   }
 

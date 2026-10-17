@@ -9,7 +9,7 @@ import { createHistoryLoader, EMPTY_HISTORY_LOAD } from "../logic/historyLoad";
 import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
-import { localDateText } from "../logic/trendChart";
+import { formatDay } from "../logic/dateText";
 import { sessionMinutes } from "../logic/historyRows";
 import { space } from "../theme";
 import { AppText, BigButton, Card, Chip, EmptyState, ErrorState, InlineStatus, ListRow, LoadingState, Screen } from "../ui";
@@ -65,7 +65,7 @@ export function HistoryScreen() {
                 const min = sessionMinutes(s.startedAt, s.finishedAt, s.imported, s.pausedMs);
                 const line = min !== null ? t("history.rowLine", { min, sets: s.workingSets }) : t("history.rowLineNoTime", { sets: s.workingSets });
                 const title = s.imported ? t("history.imported") : s.dayName;
-                return <ListRow key={s.id} title={title} note={`${localDateText(s.finishedAt)} · ${line}`} last={i === sessions.length - 1} onPress={() => nav.navigate("SessionDetail", { sessionId: s.id })} />;
+                return <ListRow key={s.id} title={title} note={`${formatDay(s.finishedAt, lang)} · ${line}`} last={i === sessions.length - 1} onPress={() => nav.navigate("SessionDetail", { sessionId: s.id })} />;
               })}
             </Card>
             {sessions.length < total ? <BigButton variant="secondary" label={t("history.more")} disabled={state.loading} onPress={() => void loader.load(sessions.length + PAGE)} /> : null}

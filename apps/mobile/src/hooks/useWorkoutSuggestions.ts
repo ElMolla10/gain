@@ -74,16 +74,18 @@ export function useWorkoutSuggestions({ loaded, rows, setRows, sets, exState, ma
         const existing = liveCards[ex.exerciseId];
         const manual = !!liveManual[ex.exerciseId];
         // A target filled by this exact saved performance is still the same
-        // recommendation. Do not feed it back into the model as new user input.
+        // recommendation. Do not feed it back into the model as new user input,
+        // and keep it while the lifter types into the row (drafts are not logged sets).
         if (next && existing?.performance === performance && existing.key === next.key && existing.fatigueKey === fatigueKey && existing.specKey === specKey
-            && next.load === null && next.reps === null
             && (manual || (next.ghostLoad === existing.decision.suggestedWeightKg
             && next.ghostReps === existing.decision.suggestedReps))) {
           cards[ex.exerciseId] = { ...existing, snapshot: JSON.stringify(list) };
           continue;
         }
         const info = loaded.info[ex.exerciseId];
-        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: list, last: info?.last, targetReps: next?.reps ?? info?.prefill.reps ?? ex.repMax, sessionFatigueReps: combinedPen });
+        // The suggestion follows logged sets only: the next row's half-typed draft never becomes the model's input.
+        const logged = next ? list.map(r => r.key === next.key ? { ...r, load: null, reps: null } : r) : list;
+        const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: logged, last: info?.last, targetReps: info?.prefill.reps ?? ex.repMax, sessionFatigueReps: combinedPen });
         if (!context) {
           let filled = list;
           const protect = info?.proposal.currency === "load";

@@ -115,7 +115,10 @@ export function WorkoutScreen() {
           <IconButton icon={loaded.pausedAt != null ? "play" : "pause"} label={loaded.pausedAt != null ? t("workout.resume") : t("workout.pause")} onPress={() => void toggleDurationPause()} />
           <View style={{ flex: 1 }} />
           <Stat label={t("workout.stat.sets")}>
-            <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{summary.sets}</AppText>
+            {/* Same 48 dp value box as Duration, so both labels share a top line and both values a baseline (C-R1). */}
+            <View style={{ minHeight: MIN_TOUCH, justifyContent: "center" }}>
+              <AppText ltr style={{ fontSize: 20, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{summary.sets}</AppText>
+            </View>
           </Stat>
         </View>
         <Pressable

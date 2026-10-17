@@ -1,6 +1,6 @@
 // Bidi-safe display strings (docs/DESIGN.md "RTL and numbers"). Rule: never force LTR on, or isolate, a string that contains Arabic;
 // build it in the language's direction and isolate only the pure-number runs.
-import { formatLoad, isolateLtr, type Lang } from "../i18n/format";
+import { formatLoad, isolateLtr, NBSP, type Lang } from "../i18n/format";
 import { isTimed, quantityText, setQuantity, targetQuantity } from "./quantity";
 import { previousText } from "./liveSummary";
 import { weightText, type Unit } from "./units";
@@ -14,7 +14,7 @@ export const EN_DASH = "\u2013";
 /** Planned scheme "3 × 6–10" (timed: "3 × 30–45 s"), isolated so it reads the same in both languages. */
 export function plannedScheme(sets: number, repMin: number, repMax: number, measure: Measure, letters: Letters): string {
   const max = measure === "reps" ? String(repMax) : quantityText(repMax, measure, letters);
-  return isolateLtr(`${sets} × ${repMin}${EN_DASH}${max}`);
+  return isolateLtr(`${sets}${NBSP}×${NBSP}${repMin}${EN_DASH}${max}`);
 }
 
 /**
@@ -23,9 +23,9 @@ export function plannedScheme(sets: number, repMin: number, repMax: number, meas
  * WITHOUT `ltr` and never wrap the whole string in `isolateLtr`.
  */
 export function loadTargetText(load: number, q: number | string, measure: Measure, lang: Lang, unit: Unit, letters: Letters): string {
-  if (!isTimed(measure)) return `${formatLoad(load, lang, unit)} × ${isolateLtr(String(q))}`;
+  if (!isTimed(measure)) return `${formatLoad(load, lang, unit)}${NBSP}×${NBSP}${isolateLtr(String(q))}`;
   const qt = isolateLtr(quantityText(Number(q), measure, letters));
-  return load > 0 ? `${formatLoad(load, lang, unit)} × ${qt}` : qt;
+  return load > 0 ? `${formatLoad(load, lang, unit)}${NBSP}×${NBSP}${qt}` : qt;
 }
 
 /** `loadTargetText` for a stored or previewed target row (reps, seconds or metres by measure). */
@@ -55,5 +55,5 @@ export function previousCellText(
   if (!s) return "—";
   if (!isTimed(measure)) return isolateLtr(previousText(lastWorking, workingIndex, unit));
   const q = quantityText(setQuantity(s, measure), measure, letters);
-  return isolateLtr(s.load > 0 ? `${weightText(s.load, unit)} × ${q}` : q);
+  return isolateLtr(s.load > 0 ? `${weightText(s.load, unit)}${NBSP}×${NBSP}${q}` : q);
 }

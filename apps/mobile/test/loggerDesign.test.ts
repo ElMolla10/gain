@@ -103,3 +103,17 @@ describe("L-7, L-9, L-11..L-14", () => {
     expect(screen).toContain("gap: space.sm /* 8 dp between 48 dp header targets (L-14) */");
   });
 });
+
+describe("design QA round 1 (C-R1..C-R3)", () => {
+  const read = (p: string) => require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "src", p), "utf8") as string;
+  it("C-R1: the Sets value sits in the same 48 dp box as Duration", () => {
+    expect(read("screens/WorkoutScreen.tsx")).toMatch(/<Stat label=\{t\("workout\.stat\.sets"\)\}>\s*\{[^}]*\}\s*<View style=\{\{ minHeight: MIN_TOUCH, justifyContent: "center" \}\}>/);
+  });
+  it("C-R2: the set and RIR column heads shrink to fit instead of overflowing", () => {
+    const f = read("components/WorkoutExerciseSection.tsx");
+    expect(f).toMatch(/numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.75\} style=\{head\}>\{t\("workout\.col\.set"\)/);
+  });
+  it("C-R3: at large text the Previous caption sits on its own row, rows divided", () => {
+    expect(read("components/WorkoutSetRow.tsx")).toContain("gap: 0, paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.xs, borderBottomWidth: 1, borderColor: p.line");
+  });
+});

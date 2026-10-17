@@ -128,7 +128,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         // The full row pitch is tappable (L-15): the most-tapped control sits at the far left in Arabic.
         hitSlop={{ top: 4, bottom: 4 }}
         onPress={() => { if (done) { haptics.untick(); onUntick(row); } else { haptics.tick(); onLog(row); } }}
-        style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: tickFill, borderWidth: tickBorderWidth, borderColor: tickBorderColor, opacity: pressed ? 0.7 : 1 })}
+        style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.button, alignItems: "center", justifyContent: "center", backgroundColor: tickFill, borderWidth: tickBorderWidth, borderColor: tickBorderColor, opacity: busy ? 0.6 : pressed ? 0.7 : 1 })}
       >
         {state === "edited" ? <Icon name="edit" color={p.accent} size={20} /> : state === "done" ? <Icon name="check" color={p.onDoneSolid} size={22} /> : state === "ready" ? <Icon name="check" color={p.muted} size={22} /> : null}
       </Pressable>
@@ -139,7 +139,8 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       {stacked ? (
         // Large text (L-8): set | kg | reps | tick stay on ONE line (the tick beside the values it confirms); Previous is a caption above
         // the kg box. Column heads are shown once per exercise, not per row.
-        <View style={{ gap: 2, paddingHorizontal: space.md, paddingVertical: space.xs }}>
+        // The caption sits directly on its own row (no gap) and rows are divided, so it never reads as the row above's (C-R3).
+        <View style={{ gap: 0, paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.xs, borderBottomWidth: 1, borderColor: p.line }}>
           {bar}
           <View style={{ flexDirection: "row", gap: space.sm }}>
             <View style={{ width: 48 }} />

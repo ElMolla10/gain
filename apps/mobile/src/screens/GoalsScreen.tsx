@@ -189,7 +189,7 @@ export function GoalsScreen() {
         {weighIns.map((w) => (
           <View key={w.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: space.md }}>
             <AppText ltr>{new Date(w.at).toISOString().slice(0, 10)}</AppText>
-            <AppText ltr style={{ fontWeight: "600" }}>{fmt(w.kg)}</AppText>
+            <AppText style={{ fontWeight: "600" }}>{fmt(w.kg)}</AppText>
             <Chip label={t("goals.weighIn.delete")} disabled={busy} onPress={() => askDelete(w)} />
           </View>
         ))}

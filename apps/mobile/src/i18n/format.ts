@@ -14,6 +14,16 @@ export const PDI = "\u2069"; // pop directional isolate
  */
 export const isolateLtr = (s: string): string => `${LRI}${s}${PDI}`;
 
+export const FSI = "\u2068"; // first-strong isolate: the run takes the direction of its first strong letter
+const ARABIC_LETTER = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+
+/**
+ * Isolate a value inserted into a sentence. Pure numbers / Latin get a left-to-right isolate; a value that already holds Arabic
+ * ("55 كجم", built by formatLoad with its number isolated) is never forced LTR: it gets a first-strong isolate, so it keeps its own
+ * right-to-left order and still cannot reorder the sentence around it (docs/DESIGN.md, "RTL and numbers").
+ */
+export const isolateParam = (s: string): string => (ARABIC_LETTER.test(s) ? `${FSI}${s}${PDI}` : isolateLtr(s));
+
 export function directionFor(lang: Lang, override: RtlOverride): Direction {
   if (override === "on") return "rtl";
   if (override === "off") return "ltr";
@@ -24,7 +34,7 @@ export function translate(lang: Lang, key: StringKey, params: Record<string, str
   const tpl = (lang === "ar" ? ar : en)[key] ?? en[key];
   return tpl.replace(/\{(\w+)\}/g, (m, name: string) => {
     const v = params[name];
-    return v === undefined ? m : isolateLtr(String(v)); // numbers stay readable in RTL
+    return v === undefined ? m : isolateParam(String(v)); // numbers stay readable in RTL; Arabic values keep their own order
   });
 }
 
@@ -71,4 +81,6 @@ export function matchesExercise(query: string, ex: NamedExercise & { aliasesAr: 
 export const estimateMinutes = (totalSets: number): number => Math.round(totalSets * 3);
 
 /** "32.5 kg" / "71.6 lb" (a kilogram weight shown in the lifter's unit) with the number isolated so it reads correctly in RTL. */
-export const formatLoad = (load: number, lang: Lang, unit: Unit = "kg"): string => `${isolateLtr(weightText(load, unit))} ${unitLabel(unit, lang)}`;
+/** U+00A0: a load never wraps away from its unit or its reps (DESIGN.md S-1). Bidi class CS, so it does not change reading order. */
+export const NBSP = "\u00A0";
+export const formatLoad = (load: number, lang: Lang, unit: Unit = "kg"): string => `${isolateLtr(weightText(load, unit))}${NBSP}${unitLabel(unit, lang)}`;

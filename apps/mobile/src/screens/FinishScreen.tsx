@@ -9,7 +9,7 @@ import { Share, View } from "react-native";
 import { useServices } from "../AppContext";
 import type { SessionSummary } from "../db/finishRepo";
 import type { SessionDetail } from "../db/historyRepo";
-import { exerciseLabels, formatLoad } from "../i18n/format";
+import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { buildCardModel, cardHtml, cardPaceLine, toCoachPayload } from "../logic/coachCard";
 import { sessionMilestones, type Milestone } from "../logic/sessionMilestones";
@@ -260,13 +260,13 @@ export function FinishScreen() {
               </View>
               {stats ? (
                 <View style={{ minWidth: 100, flexGrow: 1 }}>
-                  <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{volumeText(stats.volumeKg, unit)} {unitText}</AppText>
+                  <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(volumeText(stats.volumeKg, unit))} {unitText}</AppText>
                   <AppText style={{ color: p.muted }}>{t("workout.stat.volume")}</AppText>
                 </View>
               ) : null}
               {stats?.durationMinutes != null ? (
                 <View style={{ minWidth: 100, flexGrow: 1 }}>
-                  <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{stats.durationMinutes} {t("workout.dur.m")}</AppText>
+                  <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(String(stats.durationMinutes))} {t("workout.dur.m")}</AppText>
                   <AppText style={{ color: p.muted }}>{t("workout.stat.duration")}</AppText>
                 </View>
               ) : null}

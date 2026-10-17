@@ -22,6 +22,12 @@ export function faceFor(weight: string | number | undefined): FontFace {
 const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 export const hasArabic = (s: string): boolean => ARABIC_RE.test(s);
 
+/**
+ * Whether `AppText ltr` may force left-to-right on these children: only when they hold no Arabic letters at all (numbers, times, Latin
+ * names). A mixed string keeps the language's direction and isolates just its numeric runs (docs/DESIGN.md, "RTL and numbers").
+ */
+export const ltrAllowed = (children: unknown): boolean => !hasArabic(textOf(children));
+
 /** Concatenated text of simple children (strings and numbers), used to pick the Arabic face for Arabic names inside English UI. */
 export function textOf(children: unknown): string {
   if (typeof children === "string") return children;

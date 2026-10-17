@@ -12,7 +12,7 @@ import { PreviousSourceToggle, parsePreviousSource, PREVIOUS_SOURCE_KEY } from "
 const settings = vi.hoisted(() => ({ unit: "kg" as "kg" | "lb", lang: "en" as "en" | "ar", fontScale: 1 }));
 vi.mock("../src/haptics", () => ({ haptics: { tick: () => {}, untick: () => {}, restOver: () => {}, celebrate: () => {} } }));
 vi.mock("react-native", () => ({ View: "View", Alert: { alert: vi.fn() }, Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale }) }));
-vi.mock("../src/i18n", () => ({ useI18n: () => ({ ...settings, unitText: settings.unit, fmt: (kg: number) => `${kg} kg`, t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(settings.lang, key, params) }) }));
+vi.mock("../src/i18n", () => ({ useI18n: () => ({ ...settings, unitText: settings.unit, fmt: (kg: number) => `${kg} kg`, t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(settings.lang, key, params) }) }));
 vi.mock("../src/theme", () => ({ radius: { button: 8, card: 12, pill: 24 }, space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 13, load: 36, caption: 13 }, useLogPalette: () => ({ doneBg: "done", activeBg: "active", bg: "page", card: "card", line: "line", fill: "fill", accent: "accent", muted: "muted", danger: "danger", text: "text" }), usePalette: () => ({ muted: "muted", border: "border", text: "text", fill: "fill", onFill: "onFill", edge: "edge", danger: "danger" }) }));
 vi.mock("../src/ui", () => ({ AppText: "AppText", QuietAction: "QuietAction", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", Chip: "Chip", Field: "Field" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
@@ -104,7 +104,7 @@ describe("extracted workout row wiring", () => {
     const cells = inputs(p);
     expect(cells).toHaveLength(3);
     expect(cells.every(n => n.props.unitLabel)).toBe(true);
-    expect(tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("60kg × 7");
+    expect(tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("\u206660\u00A0×\u00A07\u2069");
   });
   it("uses quantity parsing for timed/distance rows and omits effort when disabled", () => {
     const p = props(); p.ex = { ...p.ex, measure: "distance", trackEffort: false };
@@ -180,7 +180,7 @@ describe("extracted exercise section wiring", () => {
       const nextRow = after.find(n => n.type === MemoWorkoutSetRow)!;
       expect(nextRow.props.lastSets).toEqual([{ load: 60, reps: 8 }]);
       const previousText = nodes(WorkoutSetRow(nextRow.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
-      expect(previousText).toContain("\u206660kg × 8\u2069");
+      expect(previousText).toContain("\u206660\u00A0×\u00A08\u2069");
       expect(nodes(WorkoutSetRow(nextRow.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "CellInput").map(n => [n.props.value, n.props.placeholder])).toEqual(fields);
       expect(nextRow.props.row).toBe(row.props.row);
       expect(after.find(n => n.type === LiveSuggestion)!.props).toEqual(before.find(n => n.type === LiveSuggestion)!.props);
@@ -315,7 +315,12 @@ describe("live suggestion explanations", () => {
     const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false }));
     const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).toContain("Next set");
-    expect(text).toContain("Next:");
+    // L-10: the label sits on its own line; the value is "60 kg × 8" with only the numbers isolated, never ltr-forced.
+    const label = tree.find(n => n.type as unknown === "AppText" && n.props.children === "Next")!;
+    expect(label).toBeTruthy();
+    const value = tree.find(n => n.type as unknown === "AppText" && String(n.props.children).includes("\u00A0×\u00A0"))!;
+    expect(value.props.ltr).toBeFalsy();
+    expect(value.props.children).toBe("\u206660\u2069\u00A0kg\u00A0×\u00A0\u20668\u2069");
     expect(text).toContain("60");
     expect(text).toContain("8");
     expect(text).toContain("Hold");
@@ -406,5 +411,24 @@ describe("accessible row deletion and invalid-input protection", () => {
     expect(p.onPatch).toHaveBeenCalledWith(p.row.key, { load: null, invalidLoad: true });
     cell.props.onValue(null, false);
     expect(p.onPatch).toHaveBeenLastCalledWith(p.row.key, { load: null, invalidLoad: false });
+  });
+});
+
+describe("S-1: AppText ltr never carries Arabic (Arabic UI)", () => {
+  const ARABIC = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+  const textOf = (c: unknown): string => typeof c === "string" || typeof c === "number" ? String(c) : Array.isArray(c) ? c.map(textOf).join("") : "";
+  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8.25, reason: "within_range" as const }, state: "hold" as const, equipment: "barbell" as const, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onOwn: vi.fn(), onKeep: vi.fn(), onReport: vi.fn() });
+  const offenders = (tree: Node[]) => tree.filter(n => n.type as unknown === "AppText" && n.props.ltr && ARABIC.test(textOf(n.props.children))).map(n => textOf(n.props.children));
+  it("the set row and the next-set card in Arabic: no ltr run holds an Arabic letter; Previous is unitless, the load reads in Arabic order", () => {
+    settings.lang = "ar";
+    const row = nodes(WorkoutSetRow(props()));
+    expect(offenders(row)).toEqual([]);
+    const prev = row.filter(n => n.type as unknown === "AppText").map(n => textOf(n.props.children));
+    expect(prev).toContain("\u206660\u00A0×\u00A07\u2069");
+    const card = nodes(LiveSuggestion(presentation()));
+    expect(offenders(card)).toEqual([]);
+    const value = card.find(n => n.type as unknown === "AppText" && textOf(n.props.children).includes("\u00A0×\u00A0"))!;
+    expect(textOf(value.props.children)).toBe("\u206660\u2069\u00A0كجم\u00A0×\u00A0\u20668\u2069");
+    expect(card.some(n => n.type as unknown === "AppText" && n.props.children === "الجاية")).toBe(true);
   });
 });

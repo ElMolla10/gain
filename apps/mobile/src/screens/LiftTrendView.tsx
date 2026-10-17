@@ -1,4 +1,4 @@
-import { targetPhrase } from "../logic/quantity";
+import { loadTargetText } from "../logic/bidiText";
 import React, { useMemo, useState } from "react";
 import { SectionList, View } from "react-native";
 import {
@@ -78,12 +78,12 @@ export function LiftTrendView({
   const letters = { s: t("qty.s"), m: t("qty.m") };
   const setText = (pt: { load: number; reps: number; quantity?: number }) =>
     timed && pt.quantity !== undefined
-      ? isolateLtr(targetPhrase(pt.load, pt.quantity, timed, fmt, letters))
-      : `${fmt(pt.load)} ${isolateLtr(`× ${pt.reps}`)}`;
+      ? loadTargetText(pt.load, pt.quantity, timed, lang, unit, letters)
+      : loadTargetText(pt.load, pt.reps, "reps", lang, unit, letters);
   const loggedText = (s: LoggedSet) =>
     timed
-      ? isolateLtr(targetPhrase(s.load, timed === "time" ? (s.durationS ?? 0) : (s.distanceM ?? 0), timed, fmt, letters))
-      : `${fmt(s.load)} ${isolateLtr(`× ${s.reps}`)}`;
+      ? loadTargetText(s.load, timed === "time" ? (s.durationS ?? 0) : (s.distanceM ?? 0), timed, lang, unit, letters)
+      : loadTargetText(s.load, s.reps, "reps", lang, unit, letters);
 
   const records = useMemo(() => {
     const heaviest = heaviestSet(sessions, lift.setup);
@@ -145,7 +145,7 @@ export function LiftTrendView({
         <AppText style={{ color: p.muted }}>{timed ? t("trend.timedMeasure") : assisted ? t("trend.measureAssisted") : t("trend.measure")}</AppText>
         {trend.points.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : null}
         <AppText style={{ fontWeight: "600", fontSize: ty.section }}>{t(directionKey(trend.direction, assisted))}</AppText>
-        {trend.latest ? <AppText ltr style={{ fontSize: ty.load, fontWeight: "600" }}>{setText(trend.latest)}</AppText> : null}
+        {trend.latest ? <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{setText(trend.latest)}</AppText> : null}
         {timed && trend.quantityChangePer30d != null ? (
           <AppText style={{ color: p.muted }}>
             {t("trend.changeQuantity", { delta: String(Math.round(Math.abs(trend.quantityChangePer30d) * 10) / 10), unit: timed === "time" ? letters.s : letters.m, n: Math.min(trend.points.length, 10) })}
@@ -176,8 +176,8 @@ export function LiftTrendView({
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("trend.recent")}</AppText>
           {recent.map((pt) => (
-            <AppText key={pt.at} ltr style={{ textAlign: "left" /* a11y-ok: LTR figures stay left-aligned */ }}>
-              {localDateText(pt.at)}  {setText(pt)}
+            <AppText key={pt.at} style={{ fontVariant: ["tabular-nums"] }}>
+              {isolateLtr(localDateText(pt.at))}  {setText(pt)}
               {pt.imported ? `  (${t("trend.imported")})` : ""}
             </AppText>
           ))}
@@ -259,7 +259,7 @@ export function LiftTrendView({
               const kinds = prKindsForSet({ heaviest: records.heaviest, bestSetVolume: records.setVol, repMaxes: records.reps }, at, i);
               return (
                 <View key={`${at}-${i}`} style={{ gap: space.xs, paddingVertical: space.sm, borderTopWidth: i === 0 ? 0 : 1, borderColor: p.border }}>
-                  <AppText ltr style={{ fontWeight: "600" }}>
+                  <AppText style={{ fontWeight: "600", fontVariant: ["tabular-nums"] }}>
                     {loggedText(s)}
                     {s.rir != null && !s.warmup ? `  ·  ${t("history.rir", { n: s.rir })}` : ""}
                   </AppText>

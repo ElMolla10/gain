@@ -242,7 +242,7 @@ export function SyncScreen() {
             <BigButton icon="cloud" label={t("sync.syncNow")} disabled={!!busy} onPress={syncNow} />
           </Card>
           <Card>
-            {info?.email ? <AppText ltr>{t("sync.email.linked", { email: info.email })}</AppText> : <AppText>{t("sync.email.none")}</AppText>}
+            {info?.email ? <AppText>{t("sync.email.linked", { email: info.email })}</AppText> : <AppText>{t("sync.email.none")}</AppText>}
             {!info?.email ? (
               <>
                 <Field label={t("sync.email.field")} hint={t("sync.email.hint")} value={email} onChangeText={setEmail} keyboardType="email-address" />

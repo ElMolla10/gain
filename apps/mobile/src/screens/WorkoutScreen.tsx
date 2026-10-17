@@ -8,7 +8,7 @@ import { Icon } from "../components/Icon";
 import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
 import { WorkoutDetailsPanel } from "../components/WorkoutDetailsPanel";
 import { RestClock, LiveDuration, Stat } from "../components/WorkoutStats";
-import { exerciseLabels } from "../i18n/format";
+import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { volumeText } from "../logic/liveSummary";
 import { adjustTimer, startTimer, stopTimer } from "../logic/restTimer";
@@ -135,7 +135,7 @@ export function WorkoutScreen() {
               <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
             </Pressable>
             {summaryOpen ? <Stat label={t("workout.stat.volume")}>
-              <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{volumeText(summary.volumeKg, unit)} {unitText}</AppText>
+              <AppText style={{ fontSize: 20, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(volumeText(summary.volumeKg, unit))} {unitText}</AppText>
             </Stat> : null}
           </View>
         </WorkoutDetailsPanel>

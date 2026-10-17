@@ -5,11 +5,11 @@ import type { Disp } from "../logic/workoutTypes";
 import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { weightText } from "../logic/units";
-import { isTimed, parseQuantityInput, previousQuantityText } from "../logic/quantity";
-import { previousText } from "../logic/liveSummary";
+import { isTimed, parseQuantityInput } from "../logic/quantity";
+import { previousCellText } from "../logic/bidiText";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { kindOf, rowCanLog, type SetRowDraft, type editRow } from "../logic/workoutRows";
-import { radius, space, useLogPalette } from "../theme";
+import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText } from "../ui";
 import { Icon } from "./Icon";
 import { CellInput, SwipeRow } from "./LogParts";
@@ -71,8 +71,9 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
   // Previous performance wraps instead of shrinking or cutting off.
   const previous = (
     <View style={{ flex: 1.3 }}>
-      <AppText ltr style={{ color: p.muted, fontSize: 14, textAlign: "center" }}>
-        {isolateLtr(timed ? previousQuantityText(lastSets, workingIndex, ex.measure, (kg) => `${weightText(kg, unit)}${unitText}`, qUnits) : previousText(lastSets, workingIndex, unit, unitText))}
+      {/* Unitless "55 × 10" (the KG column header names the unit): pure Latin digits, so ltr is safe here (L-3). */}
+      <AppText ltr style={{ color: p.muted, fontSize: ty.label, textAlign: "center" }}>
+        {previousCellText(lastSets, workingIndex, ex.measure, unit, qUnits)}
       </AppText>
     </View>
   );

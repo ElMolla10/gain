@@ -1,6 +1,6 @@
 import { PersonalProgressCard } from "../components/PersonalProgressCard";
-import { quantityText } from "../logic/quantity";
-import { leadTarget, targetText } from "../logic/nextTarget";
+import { leadTarget } from "../logic/nextTarget";
+import { plannedScheme, targetRowText } from "../logic/bidiText";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -12,7 +12,7 @@ import { MuscleVolumeCard } from "../components/MuscleVolumeCard";
 import { DeloadCard } from "../components/DeloadCard";
 import { PeriodizationCard } from "../components/PeriodizationCard";
 import { useServices } from "../AppContext";
-import { exerciseLabels, isolateLtr } from "../i18n/format";
+import { exerciseLabels } from "../i18n/format";
 import { estimateDayMinutes } from "../logic/duration";
 import { loadRestSettings } from "../logic/restAlert";
 import { useI18n } from "../i18n";
@@ -157,7 +157,6 @@ export function TodayScreen() {
   const anyWeight = dayTargets.some((tg) => tg.status !== "rejected" && tg.currency !== "none" && tg.effectiveLoad !== null)
     || (data.previews[chosen.id] ?? []).some((v) => v.proposal.currency !== "none" && v.proposal.load !== null);
   const lead = leadTarget(dayTargets, goalIds);
-  const loadText = (kg: number) => fmt(kg);
   const letters = { s: t("qty.s"), m: t("qty.m") };
   const action = sessionAction(chosen.id, data.openDayId);
   const openDay = data.openDayId ? data.days.find((d) => d.id === data.openDayId) : undefined;
@@ -220,13 +219,13 @@ export function TodayScreen() {
           {exercises.map((e, i) => {
             const l = exerciseLabels(e, lang);
             const tg = byExercise.get(e.exerciseId);
-            const planned = e.measure === "reps" ? `${e.sets} × ${e.repMin}-${e.repMax}` : `${e.sets} × ${e.repMin}-${quantityText(e.repMax, e.measure, letters)}`;
+            // Only the scheme is isolated; the tag and the other-language name follow the app's direction (T-2).
+            const planned = plannedScheme(e.sets, e.repMin, e.repMax, e.measure, letters);
             const preview = byPreview.get(e.exerciseId);
             const target = tg
-              ? (tg.status !== "rejected" && tg.currency !== "none" && tg.effectiveLoad !== null ? targetText(tg, loadText, letters) : null)
+              ? (tg.status !== "rejected" && tg.currency !== "none" && tg.effectiveLoad !== null ? targetRowText(tg, lang, unit, letters) : null)
               : (preview && preview.currency !== "none" && preview.load !== null
-                ? targetText({ exerciseId: e.exerciseId, status: "proposed", currency: preview.currency, measure: e.measure,
-                    reps: preview.reps, durationS: preview.durationS, distanceM: preview.distanceM, effectiveLoad: preview.load }, loadText, letters)
+                ? targetRowText({ measure: e.measure, reps: preview.reps, durationS: preview.durationS, distanceM: preview.distanceM, effectiveLoad: preview.load }, lang, unit, letters)
                 : null);
             const isLead = !!lead && lead.exerciseId === e.exerciseId && target !== null;
             return (
@@ -237,16 +236,17 @@ export function TodayScreen() {
                 <View style={{ flex: stack ? 0 : 1, gap: 2 }}>
                   {isLead ? <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent, letterSpacing: 0.4 }}>{t("target.label")}</AppText> : null}
                   <AppText style={{ fontWeight: "600" }}>{l.primary}</AppText>
-                  <AppText ltr style={{ fontSize: ty.label, color: p.muted }}>
-                    {isolateLtr(planned)}
+                  <AppText style={{ fontSize: ty.label, color: p.muted }}>
+                    {planned}
                     {e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}
                     {l.secondary ? ` · ${l.secondary}` : ""}
                   </AppText>
                 </View>
                 {target ? (
                   <View style={{ alignItems: stack ? "flex-start" : "flex-end", flexShrink: 0 }}>
-                    <AppText ltr style={{ fontSize: ty.section, fontWeight: "600", color: p.accent }}>
-                      {isolateLtr(target)}
+                    {/* Language direction, numbers isolated: "55 كجم × 9" reads from the right in Arabic (T-1). */}
+                    <AppText style={{ fontSize: ty.section, fontWeight: "600", color: p.accent, fontVariant: ["tabular-nums"] }}>
+                      {target}
                     </AppText>
                     {isLead && tg ? <QuietAction label={t("workout.whyShort")} icon="why" accessibilityLabel={`${t("workout.whyShort")}: ${l.primary}`} onPress={() => navigation.navigate("Why", { targetId: tg.id })} /> : null}
                   </View>

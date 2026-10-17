@@ -2,7 +2,7 @@
  * The numbers in the active workout's summary row (Duration / Volume / Sets) and the "PREVIOUS" column. Pure, so they are tested
  * without a phone. Volume and Sets count working sets only: warm-ups and sets the lifter rejected as typos never count.
  */
-import { kgToUnit, type Unit } from "./units";
+import { kgToUnit, weightText, type Unit } from "./units";
 
 export interface CountableSet {
   load: number;
@@ -42,13 +42,13 @@ export const volumeText = (volumeKg: number, unit: Unit): string => String(Math.
 
 /**
  * The PREVIOUS cell for a set row: the same-numbered WORKING set of the last finished session of this exercise at this gym and setup
- * (the same line), as "90kg x 12". Warm-up rows and rows past the last session's sets show a dash. `lastWorking` has no warm-ups.
+ * (the same line), as "90kg × 12" (weightText rounding; "×" so screen readers don't say "ex"). Warm-up rows and rows past the last session's sets show a dash. `lastWorking` has no warm-ups.
  */
 export function previousText(lastWorking: readonly { load: number; reps: number }[] | null, workingIndex: number | null, unit: Unit, unitText: string): string {
   if (!lastWorking || workingIndex === null) return "—";
   const s = lastWorking[workingIndex];
   if (!s) return "—";
-  return `${kgToUnit(s.load, unit)}${unitText} x ${s.reps}`;
+  return `${weightText(s.load, unit)}${unitText} × ${s.reps}`;
 }
 
 /** 0-based index among working rows for each row (null for warm-ups and drop sets): lines up with `rowLabels` and with the last session's working sets. */

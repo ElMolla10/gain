@@ -54,7 +54,7 @@ describe("quantity helpers", () => {
     const last = [{ load: 0, reps: 1, durationS: 40 }, { load: 10, reps: 1, durationS: 35 }];
     const kg = (x: number) => `${x}kg`;
     expect(previousQuantityText(last, 0, "time", kg)).toBe("40 s");
-    expect(previousQuantityText(last, 1, "time", kg)).toBe("10kg x 35 s");
+    expect(previousQuantityText(last, 1, "time", kg)).toBe("10kg × 35 s");
     expect(previousQuantityText(last, 2, "time", kg)).toBe("—");
     expect(previousQuantityText(null, 0, "time", kg)).toBe("—");
     expect(previousQuantityText(last, null, "time", kg)).toBe("—");

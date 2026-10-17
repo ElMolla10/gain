@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatDuration, liveSummary, previousText, volumeText, workingIndexes } from "../src/logic/liveSummary";
+import { weightText } from "../src/logic/units";
 
 describe("live summary (Duration / Volume / Sets)", () => {
   it("counts working sets only: warm-ups and rejected outliers are left out", () => {
@@ -32,12 +33,20 @@ describe("live summary (Duration / Volume / Sets)", () => {
 describe("PREVIOUS column", () => {
   const last = [{ load: 90, reps: 12 }, { load: 80, reps: 10 }];
   it("uses the same-numbered working set of the last session; warm-ups and extra rows get a dash", () => {
-    expect(previousText(last, 0, "kg", "kg")).toBe("90kg x 12");
-    expect(previousText(last, 1, "kg", "kg")).toBe("80kg x 10");
+    expect(previousText(last, 0, "kg", "kg")).toBe("90kg × 12");
+    expect(previousText(last, 1, "kg", "kg")).toBe("80kg × 10");
     expect(previousText(last, 2, "kg", "kg")).toBe("—");
     expect(previousText(last, null, "kg", "kg")).toBe("—");
     expect(previousText(null, 0, "kg", "kg")).toBe("—");
-    expect(previousText([{ load: 20, reps: 5 }], 0, "lb", "lb")).toBe("44.1lb x 5");
+    expect(previousText([{ load: 20, reps: 5 }], 0, "lb", "lb")).toBe("44.1lb × 5");
+  });
+  it("uses the multiplication sign and weightText's lb rounding (never a raw float)", () => {
+    const raw = 102.5 * 2.20462262185; // 225.97... lb unrounded
+    expect(String(raw).length).toBeGreaterThan(8);
+    const out = previousText([{ load: 102.5, reps: 8 }], 0, "lb", "lb");
+    expect(out).toBe(`${weightText(102.5, "lb")}lb \u00D7 8`);
+    expect(out).toBe("226lb × 8");
+    expect(out).not.toMatch(/ x /);
   });
   it("working index skips warm-ups (lines up with the W / 1 / 2 labels)", () => {
     expect(workingIndexes([{ warmup: true }, { warmup: false }, { warmup: false }])).toEqual([null, 0, 1]);

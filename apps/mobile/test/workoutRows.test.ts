@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, markSaved, mergeRows, removeRow, rowCanLog, rowLabels, rowReady, unloggedFilled, unlogRow, type SavedSet } from "../src/logic/workoutRows";
+import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, markSaved, loggableUnlogged, mergeRows, pendingCount, removeRow, rowCanLog, rowLabels, rowReady, unloggedFilled, unlogRow, type SavedSet } from "../src/logic/workoutRows";
 import { freshDb } from "./helpers";
 
 let n = 0;
@@ -126,6 +126,21 @@ describe("workout rows (single list)", () => {
     expect(unloggedFilled(typed)).toBe(1);
     expect(unloggedFilled(editRow(rows, rows[2]!.key, { load: 55 }))).toBe(1); // reps come from the ghost
     expect(unloggedFilled(initialRows([], 2, { load: null, reps: null }, key))).toBe(0);
+  });
+  it("loggableUnlogged: what Finish's 'Log N and finish' saves (data-loss item 5)", () => {
+    const rows = initialRows([s("a", 60, 8)], 4, target, key);
+    expect(loggableUnlogged(rows)).toHaveLength(0); // ghost-only rows are not counted
+    let r = editRow(rows, rows[1]!.key, { load: 60, reps: 8 }); // typed in full
+    r = editRow(r, rows[2]!.key, { load: 55 }); // typed load + ghost reps
+    r = editRow(r, rows[3]!.key, { invalidLoad: true }); // invalid
+    r = editRow(r, "a", { reps: 9 }); // ticked row typed over
+    expect(loggableUnlogged(r).map((x) => x.key)).toEqual(["a", rows[1]!.key, rows[2]!.key]);
+    expect(pendingCount(r) - loggableUnlogged(r).length).toBe(1); // the invalid row is "left out"
+    // half-filled: a weight with no reps and no ghost reps cannot be logged
+    const bare = initialRows([], 1, { load: null, reps: null }, key);
+    const half = editRow(bare, bare[0]!.key, { load: 50 });
+    expect(loggableUnlogged(half)).toHaveLength(0);
+    expect(pendingCount(half)).toBe(1);
   });
 });
 

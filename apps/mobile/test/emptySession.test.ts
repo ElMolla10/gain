@@ -14,11 +14,14 @@ async function setup() {
 }
 
 describe("P11 empty completed workouts", () => {
-  it("finishChoice: zero logged sets makes 'discard empty workout' the primary action", () => {
-    expect(finishChoice(0, 0)).toBe("discard-empty");
-    expect(finishChoice(0, 3)).toBe("discard-empty");
-    expect(finishChoice(4, 2)).toBe("confirm-unlogged");
-    expect(finishChoice(4, 0)).toBe("finish");
+  it("finishChoice: 'discard empty workout' only when nothing is logged AND nothing is typed (data-loss item 5)", () => {
+    expect(finishChoice(0, 0, 0)).toBe("discard-empty");
+    // typed but never ticked: never routed into "Discard empty workout"
+    expect(finishChoice(0, 2, 0)).toBe("confirm-unlogged");
+    expect(finishChoice(0, 0, 1)).toBe("confirm-unlogged");
+    expect(finishChoice(3, 0, 1)).toBe("confirm-unlogged");
+    expect(finishChoice(4, 2, 0)).toBe("confirm-unlogged");
+    expect(finishChoice(3, 0, 0)).toBe("finish");
   });
 
   it("discarding removes the empty session and lets Today plan the day again", async () => {

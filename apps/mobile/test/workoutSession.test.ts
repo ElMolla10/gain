@@ -49,6 +49,11 @@ vi.mock("../src/i18n", () => {
   const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate("en", key, params);
   return { useI18n: () => ({ t, lang: "en", unit: "kg", unitText: "kg", fmt: (kg: number) => String(kg) }) };
 });
+const recs = vi.hoisted(() => ({ n: 0 }));
+vi.mock("../src/logic/liveAdaptation", async (orig) => {
+  const actual = await orig<typeof import("../src/logic/liveAdaptation")>();
+  return { ...actual, tryLiveRecommendation: (...args: Parameters<typeof actual.tryLiveRecommendation>) => { recs.n++; return actual.tryLiveRecommendation(...args); } };
+});
 vi.mock("../src/diagnostics", () => ({ diagnostics: { record: vi.fn() } }));
 vi.mock("../src/native/workoutLiveActivity", () => ({ workoutLiveActivity: { sync: native.sync, stop: native.stop, reconcile: native.reconcile } }));
 vi.mock("../src/theme", () => ({ radius: { button: 8 }, space: { xs: 4, sm: 8, md: 12 }, type: { section: 20, label: 13 }, useLogPalette: () => ({}) }));
@@ -363,6 +368,26 @@ describe("typing into set 2 after set 1 is ticked (Android scroll twitch)", () =
     const back = layout(ready(), 0).props;
     expect(back.card?.key).toBe(back.list[1]!.key);
     expect(back.card!.performance).toBe(before.props.card!.performance);
+  });
+
+  it("typing into set 2 runs no recommendation, records no ML prediction and keeps the liveCards object (iOS audit 4); a tick does", async () => {
+    const { ex, before } = await setOneTicked(1);
+    const key = before.props.list[1]!.key;
+    const record = vi.spyOn(host.services.mlEvaluation, "record");
+    recs.n = 0;
+    const cards = ready().exerciseProps(ex, 1)!.card;
+    for (const change of [{ load: 6 }, { load: 65 }, { load: 6.5 }, { load: null }, { reps: 9 }, { reps: null }]) {
+      ready().patch(ex.exerciseId, key, change);
+      await settleAll();
+      expect(ready().exerciseProps(ex, 1)!.card).toBe(cards);
+    }
+    expect(recs.n).toBe(0);
+    expect(record).not.toHaveBeenCalled();
+    const s = ready();
+    await s.logRow(ex, s.rows[ex.exerciseId]![1]!);
+    await settleAll();
+    expect(recs.n).toBeGreaterThanOrEqual(1);
+    expect(ready().exerciseProps(ex, 1)!.card).not.toBe(cards);
   });
 
   it("patch() for the same exercise only sets the rows after the first keystroke (no setPreferredExercise / clearStrengthPr)", async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { expectationPenaltyReps, findSpec, orderAdjustedReps, readinessPenaltyReps, sessionOrderFatigue, type Decision, type ReadinessFlag } from "@gain/engine";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
@@ -11,6 +11,7 @@ import { applyExpectedReps, applyLiveTarget, liveContext, livePerformanceKey, tr
 import { muscleGroupOf } from "../logic/muscleVolume";
 import { evaluationPrediction } from "../logic/mlEvaluation";
 import { orderSlots } from "../logic/superset";
+import { liveCardsEqual, rowsSignature } from "../logic/liveSignature";
 
 /** Suggestions follow saved facts; cancellation prevents stale cards overwriting edits. */
 export function useWorkoutSuggestions({ loaded, rows, setRows, sets, exState, makeDisp, readiness }: {
@@ -28,11 +29,21 @@ export function useWorkoutSuggestions({ loaded, rows, setRows, sets, exState, ma
   const [liveDismissed, setLiveDismissed] = useState<Record<string, string>>({});
   const [liveManual, setLiveManual] = useState<Record<string, boolean>>({});
 
+  // Typing only changes draft values of unsaved rows, which never change a card (#219). The effect therefore follows a signature of
+  // what can (logged rows, the next row's key, ghosts and empty reps), reads the latest rows through a ref, and skips identical cards.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const rowsSig = useMemo(() => rowsSignature(rows), [rows]);
+  const cardsRef = useRef(liveCards);
+  cardsRef.current = liveCards;
+
   // Run after persistence has refreshed `sets`. Cancelling the scheduled work prevents stale cards after edits or leaving.
   useEffect(() => {
     if (!loaded || loaded === "nogym") return;
     let cancelled = false;
     const handle = setTimeout(async () => {
+      const rows = rowsRef.current;
+      const liveCards = cardsRef.current;
       const cards: typeof liveCards = {};
       const rowUpdates: Record<string, { before: string; after: SetRowDraft[] }> = {};
       const supportedExerciseIds = loaded.slots
@@ -126,11 +137,11 @@ export function useWorkoutSuggestions({ loaded, rows, setRows, sets, exState, ma
           }
           return changed ? nextRows : current;
         });
-        setLiveCards(cards);
+        if (!liveCardsEqual(liveCards, cards)) setLiveCards(cards);
       }
     }, 0);
     return () => { cancelled = true; clearTimeout(handle); };
-  }, [loaded, rows, sets, exState, liveDismissed, liveManual, reportedSymptoms, makeDisp, mlEvaluation, lang, readiness]);
+  }, [loaded, rowsSig, sets, exState, liveDismissed, liveManual, reportedSymptoms, makeDisp, mlEvaluation, lang, readiness]);
 
 
   return { liveCards, reportedSymptoms, setReportedSymptoms, liveDismissed, setLiveDismissed, liveManual, setLiveManual };

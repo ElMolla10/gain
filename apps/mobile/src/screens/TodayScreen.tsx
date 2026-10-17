@@ -3,7 +3,7 @@ import { quantityText } from "../logic/quantity";
 import { leadTarget, targetText } from "../logic/nextTarget";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
@@ -18,7 +18,7 @@ import { loadRestSettings } from "../logic/restAlert";
 import { useI18n } from "../i18n";
 import { radius, space, type as ty, usePalette } from "../theme";
 import { BrandLogo } from "../BrandLogo";
-import { dayLabel, initialSelection, markSuggested, sessionAction, startDay, type DayChoice } from "../logic/dayChoice";
+import { dayLabel, initialSelection, markSuggested, dayNeedingPreview, sessionAction, startDay, type DayChoice } from "../logic/dayChoice";
 import { AppText, BigButton, Card, ChoiceSheet, EmptyState, ErrorState, InlineStatus, ListCard, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
@@ -36,8 +36,11 @@ interface TodayData {
   restSeconds: number;
   /** The targets already written for each day (after a finished workout, or once a day is started); none before that. */
   targets: Record<string, TargetRow[]>;
-  /** Computed for future selectable days, without creating a planned session. */
+  /** Computed without creating a planned session, lazily: only for a day once it is on screen (17), cached until the next load. */
   previews: Record<string, DayLoadPreview[]>;
+  activeGym: string | null;
+  /** Which load these previews belong to: a late preview from an earlier focus is dropped. */
+  loadId: number;
 }
 
 export function TodayScreen() {
@@ -53,10 +56,13 @@ export function TodayScreen() {
   const [starting, setStarting] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
   const { fontScale } = useWindowDimensions();
+  const loadSeq = useRef(0);
+  const inflight = useRef(new Set<string>());
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
+      const loadId = ++loadSeq.current;
       void runLoad<TodayData>(async () => {
         // A new training week has begun: the normal program returns (if the lifter has not already edited it).
         await shortWeek.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
@@ -70,31 +76,51 @@ export function TodayScreen() {
         const marked = markSuggested(dayList.map((d, i) => ({ id: d.id, name: d.name, exercises: lists[i]!.length, sets: lists[i]!.reduce((n, e) => n + e.sets, 0) })), next.day.id);
         const open = await workout.getOpenSession();
         const targets: Record<string, TargetRow[]> = {};
-        for (const d of dayList) {
-          const planned = await finish.getPlannedSession(d.id);
-          if (planned) targets[d.id] = await finish.getTargets(planned.id);
-        }
+        // Independent reads: run together. Existing edited/accepted targets win over previews.
+        const planned = await Promise.all(dayList.map(async (d) => {
+          const ps = await finish.getPlannedSession(d.id);
+          return ps ? ([d.id, await finish.getTargets(ps.id)] as const) : null;
+        }));
+        for (const e of planned) if (e) targets[e[0]] = e[1];
+        // Previews (one engine run per exercise) are computed only for the day on screen, below.
         const previews: Record<string, DayLoadPreview[]> = {};
         const activeGym = await repos.getActiveGymId();
-        if (activeGym) {
-          // Preview the full program, not just the next exercise or day. Existing edited/accepted targets win.
-          for (const d of dayList) {
-            if (!targets[d.id]) previews[d.id] = await finish.previewDayLoads(d.id, activeGym);
-          }
-        }
         const active = await repos.getLatestProgrammeVersion();
         const pace = await goals.getPace(Date.now());
         const lib = pace.kind === "lift" ? await programmes.listExercises() : [];
         const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
         if (alive) setPaceLine(pace.kind === "none" ? "" : describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
         if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
-        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews };
+        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, loadId };
       }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
       return () => {
         alive = false;
       };
     }, [repos, goals, programmes, shortWeek, deload, workout, finish, t, fmt, lang, attempt]),
   );
+
+  // The day on screen gets its preview on demand; a late result is cached under its own day id (never shown for another day) and
+  // dropped when a newer load replaced the data.
+  const ready = state.kind === "ready" ? state.data : null;
+  const viewId = ready ? (ready.days.find((d) => d.id === picked) ?? ready.days[0])?.id ?? null : null;
+  const previewDay = ready ? dayNeedingPreview(viewId, !!ready.activeGym, ready.targets, ready.previews) : null;
+  const previewGym = ready?.activeGym ?? null;
+  const previewLoad = ready?.loadId ?? 0;
+  useEffect(() => {
+    if (!previewDay || !previewGym) return;
+    const key = `${previewLoad}:${previewDay}`;
+    if (inflight.current.has(key)) return;
+    inflight.current.add(key);
+    void finish.previewDayLoads(previewDay, previewGym)
+      .catch((e) => {
+        diagnostics.record("warn", "today preview", e);
+        return [] as DayLoadPreview[];
+      })
+      .then((rows) => {
+        inflight.current.delete(key);
+        setState((s) => (s.kind === "ready" && s.data.loadId === previewLoad ? { ...s, data: { ...s.data, previews: { ...s.data.previews, [previewDay]: rows } } } : s));
+      });
+  }, [finish, previewDay, previewGym, previewLoad]);
 
   if (state.kind === "loading") return <LoadingState />;
   if (state.kind === "error") {
@@ -188,7 +214,7 @@ export function TodayScreen() {
       <View style={{ gap: space.sm }}>
         <SectionTitle>{t("today.targets")}</SectionTitle>
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText>
-        {!anyWeight ? <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText> : null}
+        {previewDay ? <AppText style={{ color: p.muted }}>{t("common.loading")}</AppText> : !anyWeight ? <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText> : null}
         <Card style={{ paddingVertical: space.xs }}>
           {exercises.map((e, i) => {
             const l = exerciseLabels(e, lang);

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { dayLabel, initialSelection, markSuggested, sessionAction, startDay } from "../src/logic/dayChoice";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { dayLabel, dayNeedingPreview, initialSelection, markSuggested, sessionAction, startDay } from "../src/logic/dayChoice";
 import { freshDb } from "./helpers";
 
 const days = [
@@ -135,5 +137,24 @@ describe("14 Start never fails silently and planning never blocks training", () 
     await startDay({ kind: "resume", dayId: "c", elsewhere: true }, { plan, navigate, record: vi.fn() });
     expect(plan).not.toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith("c");
+  });
+});
+
+describe("17 Today previews only the day on screen", () => {
+  it("dayNeedingPreview: only the shown day, only with a gym, never over planned targets or a cached preview", () => {
+    expect(dayNeedingPreview("a", true, {}, {})).toBe("a");
+    expect(dayNeedingPreview(null, true, {}, {})).toBeNull();
+    expect(dayNeedingPreview("a", false, {}, {})).toBeNull(); // no active gym: no previews
+    expect(dayNeedingPreview("a", true, { a: [{}] }, {})).toBeNull(); // planned targets win
+    expect(dayNeedingPreview("a", true, {}, { a: [] })).toBeNull(); // cached (even an empty or failed preview)
+    expect(dayNeedingPreview("b", true, {}, { a: [] })).toBe("b"); // a newly viewed day
+  });
+  it("TodayScreen no longer loops previewDayLoads over every day, and reads planned targets together", () => {
+    const today = readFileSync(join(__dirname, "..", "src", "screens", "TodayScreen.tsx"), "utf8");
+    expect(today.match(/previewDayLoads\(/g)).toHaveLength(1);
+    expect(today).not.toMatch(/for \(const d of dayList\)[\s\S]{0,200}previewDayLoads/);
+    expect(today).toContain("dayNeedingPreview(");
+    expect(today).toContain("Promise.all(dayList.map(");
+    expect(today).toContain('diagnostics.record("warn", "today preview"');
   });
 });

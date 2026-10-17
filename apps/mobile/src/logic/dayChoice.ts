@@ -56,3 +56,12 @@ export async function startDay(action: SessionAction, deps: {
   }
   deps.navigate(action.dayId);
 }
+
+/**
+ * Today (17): the one day whose starting-weight preview still has to be computed, or null. Only the day on screen is previewed, and
+ * only when there is an active gym, the day has no planned targets (those win) and no preview cached since the last load.
+ */
+export function dayNeedingPreview(dayId: string | null, hasGym: boolean, targets: Record<string, unknown>, previews: Record<string, unknown>): string | null {
+  if (!dayId || !hasGym || targets[dayId] || previews[dayId] !== undefined) return null;
+  return dayId;
+}

@@ -19,9 +19,9 @@ const B = (c: Partial<ProposeContext> & Pick<ProposeContext, "history">) => prop
 const D = (c: Partial<ProposeContext> & Pick<ProposeContext, "history">) => proposeNext({ exercise: cDb(), gym: gymA, asOf: ASOF, ...c });
 
 describe("rule version", () => {
-  it("is rule-v0.4", () => {
-    expect(RULE_VERSION).toBe("rule-v0.6");
-    expect(B({ history: run(barLine, 100, [10, 10]) }).ruleVersion).toBe("rule-v0.6");
+  it("is rule-v0.7", () => {
+    expect(RULE_VERSION).toBe("rule-v0.7");
+    expect(B({ history: run(barLine, 100, [10, 10]) }).ruleVersion).toBe("rule-v0.7");
   });
 });
 
@@ -189,6 +189,25 @@ describe("stall handling", () => {
 });
 
 describe("step down needs more evidence", () => {
+  it.each([
+    { basis: "best_set" as const, reps: [10, 9, 5], stepDown: false },
+    { basis: "last_set" as const, reps: [5, 9, 10], stepDown: false },
+    { basis: "last_set" as const, reps: [10, 9, 5], stepDown: true },
+    { basis: "best_set" as const, reps: [7, 6, 5], stepDown: true },
+  ])("counts misses using $basis for $reps", ({ basis, reps, stepDown }) => {
+    const exercise = exBar({ repRange: { min: 8, max: 12 }, progression: { preset: "acsm_2009", stepDownAfterMisses: 2, ...(basis === "best_set" ? {} : { trigger: { repsBasis: basis } }) } });
+    const history = ["2026-09-26", "2026-09-29"].map(date => session(barLine, date, reps.map(r => S(80, r))));
+    const p = proposeNext({ exercise, gym: gymA, asOf: ASOF, history });
+    expect(p.reason.key === "step_down").toBe(stepDown);
+    expect(p.load).toBe(stepDown ? 77.5 : 80);
+    if (!stepDown) expect(p.reps).toBe(11);
+  });
+  it("coaching_conventions still counts a below-range minimum as a miss", () => {
+    const exercise = cBar({ repRange: { min: 8, max: 12 }, progression: { stepDownAfterMisses: 2 } });
+    const history = ["2026-09-26", "2026-09-29"].map(date => session(barLine, date, [S(80, 10), S(80, 9), S(80, 5)]));
+    const p = proposeNext({ exercise, gym: gymA, asOf: ASOF, history });
+    expect(p).toMatchObject({ load: 77.5, reps: 8, reason: { key: "step_down", params: { misses: 2 } } });
+  });
   it("configurable per lift", () => {
     const ex = cDb({ progression: { stepDownAfterMisses: 2 } });
     expect(proposeNext({ exercise: ex, gym: gymA, asOf: ASOF, history: run(dbLine, 30, [10, 6, 6]) }).reason.key).toBe("step_down");

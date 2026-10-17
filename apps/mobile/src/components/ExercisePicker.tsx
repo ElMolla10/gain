@@ -118,7 +118,7 @@ export function ExercisePicker(props: {
                   <AppText style={{fontWeight:"600"}}>{exerciseLabels(ex,lang).primary}</AppText>
                 </Pressable>)}
               </Card> : null}
-              <Field label={t("pick.search")} value={q} onChangeText={(v) => { setQ(v); setLimit(PICKER_PAGE); }} />
+              <Field label={t("pick.search")} search={{ clearLabel: t("pick.clearSearch") }} value={q} onChangeText={(v) => { setQ(v); setLimit(PICKER_PAGE); }} />
               <FilterPanel
                 title={t("pick.filters")}
                 activeCount={(group ? 1 : 0) + (gear ? 1 : 0)}

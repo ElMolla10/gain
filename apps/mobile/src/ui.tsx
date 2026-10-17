@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Animated, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type KeyboardTypeOptions, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, LayoutAnimation, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type KeyboardTypeOptions, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "./components/Icon";
 import { familyFor, hasArabic, ltrAllowed, scaleFor, textOf } from "./fonts";
 import { useI18n } from "./i18n";
 import { adjustKeyboardInsets, numberPadAccessory } from "./numberPad";
-import { choiceListMaxHeight, hasCollapsibleContent } from "./logic/sheetLayout";
+import { choiceListMaxHeight, hasCollapsibleContent, sheetMaxHeight, sheetRelease } from "./logic/sheetLayout";
 import { clampStep, parseTyped, REPEAT_DELAY_MS, REPEAT_EVERY_MS } from "./logic/stepper";
 import { INPUT_HEIGHT, MIN_TOUCH, PRIMARY_HEIGHT, radius, space, type as ty, usePalette } from "./theme";
 
@@ -476,8 +476,17 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
   const closing = useRef(false);
   const latest = useRef({ onClose, reduced, visible });
   latest.current = { onClose, reduced, visible };
+  // N-3: content height up to 60%; dragging the handle up grows it to 90%, down from there returns to 60%.
+  const [expanded, setExpanded] = useState(false);
+  const expandedRef = useRef(false);
+  expandedRef.current = expanded;
+  const resize = (next: boolean) => {
+    if (!latest.current.reduced) LayoutAnimation.configureNext(LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.scaleY));
+    setExpanded(next);
+  };
   useEffect(() => {
     closing.current = false;
+    setExpanded(false);
     if (!visible) return;
     if (reduced) { translateY.setValue(0); return; }
     translateY.setValue(cardHeight.current);
@@ -498,11 +507,13 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
     });
   }, [translateY]);
   const pan = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_e, g) => g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+    onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 4 && Math.abs(g.dy) > Math.abs(g.dx),
     onPanResponderMove: (_e, g) => translateY.setValue(Math.max(0, g.dy)),
     onPanResponderRelease: (_e, g) => {
-      if (sheetShouldDismiss(g.dy, g.vy, cardHeight.current)) close();
-      else Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+      const action = sheetRelease(g.dy, g.vy, expandedRef.current, sheetShouldDismiss(g.dy, g.vy, cardHeight.current));
+      if (action === "dismiss") return close();
+      if (action === "expand" || action === "collapse") resize(action === "expand");
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
     },
     onPanResponderTerminate: () => Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start(),
   }), [translateY, close]);
@@ -510,7 +521,7 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
     <Modal visible={visible} transparent animationType={reduced ? "none" : "fade"} onRequestClose={close} statusBarTranslucent navigationBarTranslucent>
       <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" }}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={close} style={{ flex: 1 }} />
-        <Animated.View accessibilityViewIsModal onLayout={(e) => { cardHeight.current = e.nativeEvent.layout.height; }} style={{ transform: [{ translateY }], maxHeight: height * 0.9, backgroundColor: p.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: p.border, paddingBottom: insets.bottom + space.md }}>
+        <Animated.View accessibilityViewIsModal onLayout={(e) => { cardHeight.current = e.nativeEvent.layout.height; }} style={{ transform: [{ translateY }], maxHeight: sheetMaxHeight(height, expanded), backgroundColor: p.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: p.border, paddingBottom: insets.bottom + space.md }}>
           <View {...pan.panHandlers}>
             <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: p.edge, marginTop: space.sm }} />
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingStart: space.lg, paddingEnd: space.xs, paddingVertical: space.xs, gap: space.sm }}>

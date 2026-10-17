@@ -1,6 +1,6 @@
 import type { EquipmentType, SetupType } from "@gain/engine";
 import React, { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, View } from "react-native";
 import type { LibraryExercise, NewExerciseInput } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
@@ -68,8 +68,8 @@ export function ExercisePicker(props: {
   }
 
   return (
-    <Modal visible={props.visible} animationType="slide" onRequestClose={props.onClose}>
-      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+    <Modal visible={props.visible} animationType="slide" onRequestClose={props.onClose} {...(Platform.OS === "ios" ? { presentationStyle: "pageSheet" as const, allowSwipeDismissal: true } : {})}>
+      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: Platform.OS === "ios" ? 0 : insets.top }}>
         <View style={{ flexDirection: "row", alignItems: "center", paddingStart: space.lg, paddingEnd: space.xs, gap: space.sm }}>
           <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", flex: 1 }}>{t("pick.title")}</AppText>
           <IconButton icon="close" label={t("pick.close")} onPress={props.onClose} />

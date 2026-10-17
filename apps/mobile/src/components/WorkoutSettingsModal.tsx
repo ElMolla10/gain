@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Modal, ScrollView, View } from "react-native";
+import { Modal, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useI18n } from "../i18n";
 import { MAX_SETS, updateExercise, type DraftDay } from "../logic/programmeDraft";
@@ -18,8 +18,8 @@ export function WorkoutSettingsModal(props: {
   const insets = useSafeAreaInsets();
   const [day, setDay] = useState(() => props.day);
   return (
-    <Modal visible animationType="slide" onRequestClose={props.onCancel}>
-      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+    <Modal visible animationType="slide" onRequestClose={props.onCancel} {...(Platform.OS === "ios" ? { presentationStyle: "pageSheet" as const, allowSwipeDismissal: true } : {})}>
+      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: Platform.OS === "ios" ? 0 : insets.top }}>
         <View style={{ padding: space.lg, gap: space.sm }}>
           <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{t("prog.workout.settings", { workout: day.name })}</AppText>
           <AppText style={{ color: p.muted }}>{t("prog.workout.setsHint")}</AppText>

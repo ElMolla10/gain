@@ -161,3 +161,7 @@ export function validateDraft(d: ProgrammeDraft): DraftProblem[] {
 /** Stable text of the parts of a draft that matter, to tell whether an edit changed anything. */
 export const draftFingerprint = (d: ProgrammeDraft): string =>
   JSON.stringify([d.name.trim(), d.days.map((day) => [day.name.trim(), day.exercises.map((e) => [e.exerciseId, e.sets, e.repMin, e.repMax, e.repCeiling, e.isGoalLift, e.trackEffort, e.topSets ?? null])])]);
+
+/** True when the editor holds edits that saving would persist (same fields as draftFingerprint). Before the first load (no initial) it's never dirty. */
+export const isDraftDirty = (initial: ProgrammeDraft | null, current: ProgrammeDraft | null): boolean =>
+  !!initial && !!current && draftFingerprint(initial) !== draftFingerprint(current);

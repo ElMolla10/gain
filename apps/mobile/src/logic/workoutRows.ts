@@ -154,6 +154,12 @@ export function rowLabels(rows: SetRowDraft[]): string[] {
 export const unloggedFilled = (rows: SetRowDraft[]): number => rows.filter((r) => (r.saved && r.dirty) || (!r.saved && (hasInvalidInput(r) || ((r.load !== null || r.reps !== null) && rowCanLog(r))))).length;
 
 /**
+ * Rows the Finish dialog's "Log N and finish" saves exactly as they appear: typed unticked rows that can be logged (an empty box takes the
+ * ghost value) and ticked rows typed over since. Ghost-only rows, invalid rows and half-filled rows are not included.
+ */
+export const loggableUnlogged = (rows: SetRowDraft[]): SetRowDraft[] => rows.filter((r) => rowCanLog(r) && ((r.saved && r.dirty) || (!r.saved && (r.load !== null || r.reps !== null))));
+
+/**
  * Rows whose numbers are not in the database yet: anything typed into a row that is not ticked (even if it cannot be ticked yet, e.g. a
  * weight with no reps), and a ticked row edited since (it needs "update"). Counted so the save status never hides them.
  */

@@ -221,16 +221,18 @@ describe("16 Why screen speaks plain language", () => {
     expect(clean(empty.flatMap((s) => s.lines).join("\n"))).toMatch(/Confidence: \w+ \(-\)/);
   });
   it("session dates use the logical training day and the locale", () => {
+    const NOW_2026 = Date.UTC(2026, 9, 18, 12);
     // 2026-10-17T00:30Z is 03:30 in Cairo: before 4 am, so it is the 16th's session.
     expect(logicalTrainingDate({ year: 2026, month: 10, day: 17, hour: 3, minute: 30 })).toBe("2026-10-16");
-    expect(localDateText("2026-10-16", "en")).toBe("16 Oct 2026");
-    expect(localDateText("2026-10-16", "ar")).toMatch(/[\u0600-\u06FF]/);
+    expect(localDateText("2026-10-16", "en", NOW_2026)).toBe("Fri 16 Oct");
+    expect(localDateText("2025-10-16", "en", NOW_2026)).toBe("Thu 16 Oct 2025");
+    expect(localDateText("2026-10-16", "ar", NOW_2026)).toBe("الجمعة 16 أكتوبر");
     expect(localDateText("garbage", "en")).toBe("garbage");
     const tz = process.env.TZ;
     process.env.TZ = "Africa/Cairo";
     try {
-      expect(sessionDateText("2026-10-17T00:30:00Z", "en")).toBe("16 Oct 2026");
-      expect(sessionDateText("2026-10-17T09:00:00Z", "en")).toBe("17 Oct 2026");
+      expect(sessionDateText("2026-10-17T00:30:00Z", "en", NOW_2026)).toBe("Fri 16 Oct");
+      expect(sessionDateText("2026-10-17T09:00:00Z", "en", NOW_2026)).toBe("Sat 17 Oct");
     } finally {
       if (tz === undefined) delete process.env.TZ;
       else process.env.TZ = tz;

@@ -428,3 +428,87 @@ describe("typing into set 2 after set 1 is ticked (Android scroll twitch)", () =
     expect(ready().rows[ex.exerciseId]![1]!.load).toBe(65);
   });
 });
+
+describe("Finish with typed but unticked rows (data-loss item 5)", () => {
+  type Button = { text: string; style?: string; onPress?: () => void };
+  const plain = (s: string) => s.replace(/[\u2066-\u2069]/g, "");
+  const statusOf = async (c: Awaited<ReturnType<typeof fixture>>, id: string) => (await c.db.get<{ status: string }>("SELECT status FROM session WHERE id = ?", [id]))!.status;
+  // Nothing ticked: row 1 typed in full, row 2 a typed weight (reps from the ghost), row 3 invalid.
+  async function typedNothingTicked() {
+    const c = await fixture();
+    let s = ready(); const ex = s.shown[0]!;
+    const [r1, r2, r3] = s.rows[ex.exerciseId]!;
+    s.patch(ex.exerciseId, r1!.key, { load: 62.5, reps: 9 });
+    ready().patch(ex.exerciseId, r2!.key, { load: 61 });
+    ready().patch(ex.exerciseId, r3!.key, { invalidLoad: true });
+    s = ready();
+    expect(s.sets).toHaveLength(0);
+    s.askFinish(s.loaded);
+    expect(native.alert).toHaveBeenCalledOnce();
+    const [title, body, buttons] = native.alert.mock.calls[0]! as [string, string, Button[]];
+    return { c, s, ex, r1: r1!, r2: r2!, title, body, buttons, ghostReps: r2!.ghostReps };
+  }
+
+  it("is never routed into 'Discard empty workout': three choices, the count only includes rows that will be saved", async () => {
+    const { title, body, buttons } = await typedNothingTicked();
+    expect(title).toBe(translate("en", "workout.finish.title"));
+    expect(plain(body)).toBe("You have 2 sets with numbers that aren't ticked. Log them before you finish?\n\n1 can't be logged (missing or invalid numbers) and will be left out.");
+    expect(buttons.map(b => [plain(b.text), b.style])).toEqual([["Cancel", "cancel"], ["Don't log them", "destructive"], ["Log 2 and finish", undefined]]);
+    expect(buttons.some(b => b.text === translate("en", "workout.discard.go"))).toBe(false);
+  });
+
+  it("'Log N and finish' logs each loggable row once with the typed/ghost values, then finishes", async () => {
+    const { c, s, ghostReps, buttons } = await typedNothingTicked();
+    const logSet = vi.spyOn(c.workout, "logSet");
+    buttons.at(-1)!.onPress!();
+    await vi.waitFor(async () => expect(await statusOf(c, s.loaded.sessionId)).toBe("finished"));
+    expect(logSet).toHaveBeenCalledTimes(2);
+    const sets = await c.workout.listSessionSets(s.loaded.sessionId);
+    expect(sets.map(x => [x.load, x.reps])).toEqual([[62.5, 9], [61, ghostReps]]);
+    expect(await c.repos.getSetting(`workout_drafts:${s.loaded.sessionId}`)).toBe("");
+  });
+
+  it("a failed save keeps the workout open: rows already saved stay saved, nothing is finished", async () => {
+    const { c, s, ex, r1, r2, buttons } = await typedNothingTicked();
+    const finish = vi.spyOn(c.workout, "finishSession");
+    const real = c.workout.logSet;
+    vi.spyOn(c.workout, "logSet").mockImplementationOnce(real).mockRejectedValueOnce(new Error("SQLITE_FULL"));
+    buttons.at(-1)!.onPress!();
+    await vi.waitFor(() => expect(native.alert).toHaveBeenCalledTimes(2));
+    expect(native.alert.mock.calls[1]![0]).toBe(translate("en", "workout.saveFailed.title"));
+    expect(finish).not.toHaveBeenCalled();
+    expect(await statusOf(c, s.loaded.sessionId)).toBe("in_progress");
+    const after = ready();
+    expect(after.finishing).toBe(false);
+    expect(after.status.kind).toBe("error");
+    expect(after.rows[ex.exerciseId]!.find(r => r.key === r1.key)!.saved).toBe(true);
+    expect(after.rows[ex.exerciseId]!.find(r => r.key === r2.key)).toMatchObject({ saved: false, load: 61 });
+    expect(await c.workout.listSessionSets(s.loaded.sessionId)).toHaveLength(1);
+  });
+
+  it("'Don't log them' with no set logged falls through to the existing 'Nothing logged' dialog", async () => {
+    const { c, s, buttons } = await typedNothingTicked();
+    buttons.find(b => b.style === "destructive")!.onPress!();
+    expect(native.alert).toHaveBeenCalledTimes(2);
+    const [title, , discard] = native.alert.mock.calls[1]! as [string, string, Button[]];
+    expect(title).toBe(translate("en", "workout.discard.title"));
+    expect(discard.at(-1)!.text).toBe(translate("en", "workout.discard.go"));
+    expect(await statusOf(c, s.loaded.sessionId)).toBe("in_progress");
+  });
+
+  it("with sets logged, 'Don't log them' finishes without saving the typed rows; nothing typed just finishes", async () => {
+    const c = await fixture();
+    let s = ready(); const ex = s.shown[0]!;
+    await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
+    s = ready();
+    s.patch(ex.exerciseId, s.rows[ex.exerciseId]![1]!.key, { load: 70, reps: 5 });
+    s = ready();
+    native.alert.mockClear();
+    s.askFinish(s.loaded);
+    const buttons = native.alert.mock.calls[0]![2] as Button[];
+    expect(plain(buttons.at(-1)!.text)).toBe("Log 1 and finish");
+    buttons.find(b => b.style === "destructive")!.onPress!();
+    await vi.waitFor(async () => expect(await statusOf(c, s.loaded.sessionId)).toBe("finished"));
+    expect(await c.workout.listSessionSets(s.loaded.sessionId)).toHaveLength(1);
+  });
+});

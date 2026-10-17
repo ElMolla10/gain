@@ -344,7 +344,7 @@ describe("production forecast capture", () => {
     expect(formatMlNumber(25, "en")).toBe("25");
     expect(formatMlNumber(2.0025, "en", 2)).toBe("2");
     expect(formatMlNumber(66.666, "en", 1)).toBe("66.7");
-    expect(formatMlNumber(25, "ar")).toBe("٢٥");
+    expect(formatMlNumber(25, "ar")).toBe("25"); // Western digits in Arabic too (S-2, plan 1.2)
   });
   it("snapshots the chosen load's features and raw prediction, excluding stops and typed outcome reps", async () => {
     const c = await setup();

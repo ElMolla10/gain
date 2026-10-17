@@ -5,6 +5,7 @@ import { translate, type Lang } from "../i18n/format";
 import { quantityText, setQuantity } from "./quantity";
 import { sessionMinutes } from "./historyRows";
 import { kgToUnit, weightText, unitLabel, type Unit } from "./units";
+import { formatDay } from "./dateText";
 
 /** Real logged-set statistics. Do not treat warm-ups, drops, questionable sets or holds as rep-based volume. */
 export function workoutRecapStats(detail: SessionDetail, summary: SessionSummary) {
@@ -47,7 +48,7 @@ export function formatWorkoutShareText(detail: SessionDetail, summary: SessionSu
   const stats = workoutRecapStats(detail, summary);
   const pb = personalBestLines(summary, lang, unit);
   const label = unitLabel(unit, lang);
-  const date = new Date(detail.finishedAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const date = formatDay(detail.finishedAt, lang);
   const lines = [
     `GAIN · ${detail.dayName}`,
     date,

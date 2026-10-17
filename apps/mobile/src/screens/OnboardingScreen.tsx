@@ -1,6 +1,6 @@
 import type { EquipmentType } from "@gain/engine";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View } from "react-native";
+import { ScrollView, useWindowDimensions, View, type LayoutChangeEvent } from "react-native";
 import { BrandLogo } from "../BrandLogo";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
@@ -25,7 +25,8 @@ import { serializeMusclePriorities } from "../logic/musclePriority";
 import { generateProgramme } from "../logic/programGenerator";
 import { progressColors } from "../logic/stateColors";
 import { space, type as ty, useIsDark, usePalette } from "../theme";
-import { AppText, ArDraftNote, BigButton, Card, Chip, Field, InlineStatus, Notice, RadioGroup, RadioRow, Screen } from "../ui";
+import { AppText, ArDraftNote, BigButton, Card, Chip, Field, InlineStatus, Notice, QuietAction, RadioGroup, RadioRow, Screen } from "../ui";
+import { firstInvalidGroup, footerMode, problemsFor, type ProblemGroup } from "../logic/onboardingLayout";
 import { HealthNote } from "../components/HealthNote";
 import { activeTemplates } from "../buildConfig";
 import { TemplateBrowser } from "../components/TemplateBrowser";
@@ -42,6 +43,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   const { t, lang, setLang, unit, setUnit, unitText, fmt } = useI18n();
   const p = usePalette();
   const bar = progressColors(p, !useIsDark());
+  const { fontScale } = useWindowDimensions();
   const [step, setStep] = useState<Step>("language");
   const [form, setForm] = useState<OnboardingForm>(() => emptyOnboardingForm(lang, unit));
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
@@ -109,8 +111,18 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
     setError(null);
     setStep(s);
   };
+  // Where each validation group sits in the scroll content, so a failed Next can bring the first problem into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const groupY = useRef<Partial<Record<ProblemGroup, number>>>({});
+  const at = (g: ProblemGroup) => (e: LayoutChangeEvent) => { groupY.current[g] = e.nativeEvent.layout.y; };
   const next = () => {
-    if (problems.length > 0) return setTouched(true);
+    if (problems.length > 0) {
+      setTouched(true);
+      const g = firstInvalidGroup(problems);
+      const y = g ? groupY.current[g] : undefined;
+      if (y !== undefined) scrollRef.current?.scrollTo({ y: Math.max(0, y - space.lg), animated: true });
+      return;
+    }
     if (step === "programme") {
       if (!draft || validateDraft(draft).length > 0) return setTouched(true);
     }
@@ -158,6 +170,15 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   }
 
   const problemLines = (codes: string[]) => (touched ? codes.map((c, i) => <InlineStatus key={i} kind="error" text={t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) })} />) : null);
+  const problemText = (c: string) => t(`ob.problem.${c}` as StringKey, { min: fmt(30), max: fmt(300) });
+  /** This group's problems, shown right under it once Next was tried (icon + text, not colour alone). */
+  const groupErrors = (g: ProblemGroup) => (touched ? problemsFor(g, problems).map((c) => <InlineStatus key={c} kind="error" text={problemText(c)} />) : null);
+  const fieldError = (g: ProblemGroup) => (touched ? problemsFor(g, problems).map(problemText).join(" ") || undefined : undefined);
+  /** A group heading; while the group is invalid it gets a 2 dp danger bar at its start edge. */
+  const groupLabel = (g: ProblemGroup, text: string, style?: object) => {
+    const bad = touched && problemsFor(g, problems).length > 0;
+    return <View style={[{ borderStartWidth: bad ? 2 : 0, borderColor: p.danger, paddingStart: bad ? space.sm : 0 }, style]}><AppText style={{ fontWeight: "600" }}>{text}</AppText></View>;
+  };
   const goalName = form.goalExerciseId ? (byId.get(form.goalExerciseId) ? exerciseLabels(byId.get(form.goalExerciseId)!, lang).primary : "") : "";
 
   const body = (() => {
@@ -191,11 +212,16 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
         return (
           <>
             <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.basics")}</AppText>
-            <AppText style={{ fontWeight: "600" }}>{t("ob.days")}</AppText>
-            <RadioGroup row label={t("ob.days")}>{DAYS_OPTIONS.map((d) => <Chip radio key={d} label={String(d)} selected={form.days === d} onPress={() => set({ days: d })} />)}</RadioGroup>
-            <AppText style={{ fontWeight: "600" }}>{t("ob.minutes")}</AppText>
-            <RadioGroup row label={t("ob.minutes")}>{MINUTES_OPTIONS.map((m) => <Chip radio key={m} label={t("ob.minutesValue", { n: m })} selected={form.minutes === m} onPress={() => set({ minutes: m })} />)}</RadioGroup>
-            {problemLines(problems)}
+            <View onLayout={at("days")} style={{ gap: space.sm }}>
+              {groupLabel("days", t("ob.days"))}
+              <RadioGroup row label={t("ob.days")}>{DAYS_OPTIONS.map((d) => <Chip radio key={d} label={String(d)} selected={form.days === d} onPress={() => set({ days: d })} />)}</RadioGroup>
+              {groupErrors("days")}
+            </View>
+            <View onLayout={at("minutes")} style={{ gap: space.sm }}>
+              {groupLabel("minutes", t("ob.minutes"))}
+              <RadioGroup row label={t("ob.minutes")}>{MINUTES_OPTIONS.map((m) => <Chip radio key={m} label={t("ob.minutesValue", { n: m })} selected={form.minutes === m} onPress={() => set({ minutes: m })} />)}</RadioGroup>
+              {groupErrors("minutes")}
+            </View>
           </>
         );
       case "goal":
@@ -203,32 +229,49 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
           <>
             <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.goal")}</AppText>
             <AppText style={{ color: p.muted }}>{t("ob.goalNote")}</AppText>
-            <RadioGroup row label={t("ob.goal")}>{(["none", "lift", "bodyweight", "muscle"] as const).map((k) => <Chip radio key={k} label={t(`ob.goal.${k}` as StringKey)} selected={form.goalKind === k} onPress={() => set({ goalKind: k })} />)}</RadioGroup>
+            <View onLayout={at("goalKind")} style={{ gap: space.sm }}>
+              <RadioGroup row label={t("ob.goal")}>{(["none", "lift", "bodyweight", "muscle"] as const).map((k) => <Chip radio key={k} label={t(`ob.goal.${k}` as StringKey)} selected={form.goalKind === k} onPress={() => set({ goalKind: k })} />)}</RadioGroup>
+              {groupErrors("goalKind")}
+            </View>
             {form.goalKind === "lift" ? (
               <>
-                <BigButton variant="secondary" icon="dumbbell" label={goalName || t("ob.goal.chooseExercise")} onPress={() => setPicker(true)} />
-                <Field label={t("ob.goal.load", { unit: unitText })} value={form.goalLoadText} onChangeText={(s) => set({ goalLoadText: s })} numeric />
-                <Field label={t("ob.goal.reps")} value={form.goalRepsText} onChangeText={(s) => set({ goalRepsText: s })} numeric />
-                <DateSelect label={t("ob.goal.date")} value={form.goalDateText} onChange={(s) => set({ goalDateText: s })} years="future" span={10} />
+                <View onLayout={at("exercise")} style={{ gap: space.sm }}>
+                  <BigButton variant="secondary" icon="dumbbell" label={goalName || t("ob.goal.chooseExercise")} onPress={() => setPicker(true)} />
+                  {groupErrors("exercise")}
+                </View>
+                <View onLayout={at("load")}><Field label={t("ob.goal.load", { unit: unitText })} value={form.goalLoadText} onChangeText={(s) => set({ goalLoadText: s })} numeric error={fieldError("load")} /></View>
+                <View onLayout={at("reps")}><Field label={t("ob.goal.reps")} value={form.goalRepsText} onChangeText={(s) => set({ goalRepsText: s })} numeric error={fieldError("reps")} /></View>
+                <View onLayout={at("goalDate")} style={{ gap: space.sm }}>
+                  <DateSelect label={t("ob.goal.date")} value={form.goalDateText} onChange={(s) => set({ goalDateText: s })} years="future" span={10} />
+                  {groupErrors("goalDate")}
+                </View>
               </>
             ) : null}
             {form.goalKind === "bodyweight" ? (
               <>
-                <Field label={t("ob.goal.weight", { unit: unitText })} value={form.goalWeightText} onChangeText={(s) => set({ goalWeightText: s })} numeric />
-                <DateSelect label={t("ob.goal.date")} value={form.goalDateText} onChange={(s) => set({ goalDateText: s })} years="future" span={10} />
+                <View onLayout={at("goalWeight")}><Field label={t("ob.goal.weight", { unit: unitText })} value={form.goalWeightText} onChangeText={(s) => set({ goalWeightText: s })} numeric error={fieldError("goalWeight")} /></View>
+                <View onLayout={at("goalDate")} style={{ gap: space.sm }}>
+                  <DateSelect label={t("ob.goal.date")} value={form.goalDateText} onChange={(s) => set({ goalDateText: s })} years="future" span={10} />
+                  {groupErrors("goalDate")}
+                </View>
               </>
             ) : null}
             {form.goalKind === "muscle" ? (
               <>
-                <AppText style={{ fontWeight: "600" }}>{t("ob.goal.muscle.pick")}</AppText>
-                <RadioGroup row label={t("ob.goal.muscle.pick")}>{MUSCLE_GROUPS.filter((m) => m !== "other").map((m) => <Chip radio key={m} label={t(`muscle.${m}` as StringKey)} selected={form.goalMuscle === m} onPress={() => set({ goalMuscle: m })} />)}</RadioGroup>
+                <View onLayout={at("muscle")} style={{ gap: space.sm }}>
+                  {groupLabel("muscle", t("ob.goal.muscle.pick"))}
+                  <RadioGroup row label={t("ob.goal.muscle.pick")}>{MUSCLE_GROUPS.filter((m) => m !== "other").map((m) => <Chip radio key={m} label={t(`muscle.${m}` as StringKey)} selected={form.goalMuscle === m} onPress={() => set({ goalMuscle: m })} />)}</RadioGroup>
+                  {groupErrors("muscle")}
+                </View>
               </>
             ) : null}
             <AppText style={{ fontWeight: "600", marginTop: space.md }}>{t("ob.body")}</AppText>
-            <Field label={t("ob.body.height")} value={form.heightText} onChangeText={(s) => set({ heightText: s })} numeric />
-            <DateSelect label={t("ob.body.birth")} value={form.birthDateText} onChange={(s) => set({ birthDateText: s })} years="past" span={100} minAge={10} />
-            <Field label={t("ob.body.weight", { unit: unitText })} hint={form.goalKind === "bodyweight" ? t("ob.body.weightRequired") : undefined} value={form.bodyweightText} onChangeText={(s) => set({ bodyweightText: s })} numeric />
-            {problemLines(problems)}
+            <View onLayout={at("height")}><Field label={t("ob.body.height")} value={form.heightText} onChangeText={(s) => set({ heightText: s })} numeric error={fieldError("height")} /></View>
+            <View onLayout={at("birth")} style={{ gap: space.sm }}>
+              <DateSelect label={t("ob.body.birth")} value={form.birthDateText} onChange={(s) => set({ birthDateText: s })} years="past" span={100} minAge={10} />
+              {groupErrors("birth")}
+            </View>
+            <View onLayout={at("bodyweight")}><Field label={t("ob.body.weight", { unit: unitText })} hint={form.goalKind === "bodyweight" ? t("ob.body.weightRequired") : undefined} value={form.bodyweightText} onChangeText={(s) => set({ bodyweightText: s })} numeric error={fieldError("bodyweight")} /></View>
             <ExercisePicker
               visible={picker}
               exercises={library}
@@ -369,8 +412,11 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   const footer = first ? (
     <>
       <BigButton hero label={t("ob.setup")} disabled={saving || resources !== "ready"} onPress={next} />
-      <BigButton variant="secondary" label={t("ob.skip")} disabled={saving} onPress={() => void quickStart()} />
-      <BigButton variant="quiet" label={t("ob.importFirst")} disabled={saving} onPress={() => void quickStart(true)} />
+      {/* One 48 dp row of two quiet actions instead of two more full-width buttons, so the footer stays short at large text. */}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: space.sm }}>
+        <QuietAction label={t("ob.skip")} onPress={() => { if (!saving) void quickStart(); }} />
+        <QuietAction label={t("ob.importFirst")} onPress={() => { if (!saving) void quickStart(true); }} />
+      </View>
     </>
   ) : (
     <>
@@ -380,7 +426,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   );
 
   return (
-    <Screen footer={footer} contentStyle={{ paddingTop: space.xl }}>
+    <Screen footer={footer} footerInline={footerMode(fontScale) === "inline"} scrollRef={scrollRef} contentStyle={{ paddingTop: space.xl }}>
       <View accessible accessibilityRole="progressbar" accessibilityLabel={t("ob.progress", { i: idx + 1, n: STEPS.length })} accessibilityValue={{ min: 1, max: STEPS.length, now: idx + 1 }} style={{ gap: space.xs }}>
         <View style={{ flexDirection: "row", gap: 4 }}>
           {STEPS.map((_, i) => (

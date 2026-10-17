@@ -27,7 +27,7 @@ import { loadsSummaryText, matchingJumpKg, TREND_LOAD_JUMPS_KG } from "../logic/
 import { exercisePath } from "../logic/exercisePath";
 import { kgToUnit, weightText } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, Screen } from "../ui";
+import { AppText, BigButton, Card, Chip, QuietAction, Screen } from "../ui";
 
 type Tab = "summary" | "history";
 
@@ -74,6 +74,7 @@ export function LiftTrendView({
   const [tab, setTab] = useState<Tab>("summary");
   const [metric, setMetric] = useState<ChartMetric>("weight");
   const [range, setRange] = useState<ChartRange>("all");
+  const [explainOpen, setExplainOpen] = useState(false);
   const assisted = lift.setup === "assisted";
   const timed = trend.timed ?? (isTimedMeasure(lift.measure) ? lift.measure : null);
   const letters = { s: t("qty.s"), m: t("qty.m") };
@@ -108,6 +109,34 @@ export function LiftTrendView({
 
   const summary = (
     <>
+      {/* H-4: the number first (latest top set, start-aligned), then the direction, then the chart. */}
+      <View style={{ gap: space.xs }}>
+        {trend.latest ? <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"], textAlign: "auto" }}>{setText(trend.latest)}</AppText> : null}
+        <AppText style={{ fontWeight: "600", fontSize: ty.section }}>{t(directionKey(trend.direction, assisted))}</AppText>
+        {trend.points.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : null}
+      </View>
+      <Card>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+          <Chip label={t("trend.metric.weight")} selected={metric === "weight"} onPress={() => setMetric("weight")} />
+          {timed ? null : <Chip label={t("trend.metric.e1rm")} selected={metric === "e1rm"} onPress={() => setMetric("e1rm")} />}
+          <Chip label={t("trend.metric.volume")} selected={metric === "volume"} onPress={() => setMetric("volume")} />
+        </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+          <Chip label={t("trend.range.3m")} selected={range === "3m"} onPress={() => setRange("3m")} />
+          <Chip label={t("trend.range.1y")} selected={range === "1y"} onPress={() => setRange("1y")} />
+          <Chip label={t("trend.range.all")} selected={range === "all"} onPress={() => setRange("all")} />
+        </View>
+        {chartPoints.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : (
+          <TrendChart
+            points={chartPoints}
+            assisted={metric === "weight" && assisted}
+            summary={t("trend.chartLabel", { dir: t(directionKey(trend.direction, assisted)), n: chartPoints.length })}
+            axisText={(from, to) => t("trend.axis", { from, to })}
+            valueText={(v, byQuantity) => isolateLtr(byQuantity ? `${Math.round(v * 10) / 10}${timed === "distance" ? letters.m : letters.s}` : metric === "volume" ? String(Math.round(kgToUnit(v, unit))) : weightText(v, unit))}
+          />
+        )}
+        {chartPoints.length > 0 ? <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("trend.chartHint")}</AppText> : null}
+      </Card>
       {path ? <Card>
         <AppText style={{ fontWeight: "600", fontSize: ty.section }}>{t("path.title")}</AppText>
         <AppText style={{ fontSize: ty.load, fontWeight: "600", color: p.accent }}>
@@ -122,6 +151,14 @@ export function LiftTrendView({
         </View>
         <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("path.rule")}</AppText>
       </Card> : null}
+      {/* "What this shows" on request (48 dp "?", expanded state). */}
+      <View style={{ gap: space.xs }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+          <AppText style={{ flex: 1, color: p.muted, fontSize: ty.label }}>{t("trend.whatShows")}</AppText>
+          <QuietAction label="?" accessibilityLabel={t("trend.whatShows")} expanded={explainOpen} onPress={() => setExplainOpen((o) => !o)} />
+        </View>
+        {explainOpen ? <AppText style={{ color: p.muted }}>{timed ? t("trend.timedMeasure") : assisted ? t("trend.measureAssisted") : t("trend.measure")}</AppText> : null}
+      </View>
       {paceHeadline ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("trend.pace")}</AppText>
@@ -143,10 +180,6 @@ export function LiftTrendView({
         </View>
       ) : null}
       <Card>
-        <AppText style={{ color: p.muted }}>{timed ? t("trend.timedMeasure") : assisted ? t("trend.measureAssisted") : t("trend.measure")}</AppText>
-        {trend.points.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : null}
-        <AppText style={{ fontWeight: "600", fontSize: ty.section }}>{t(directionKey(trend.direction, assisted))}</AppText>
-        {trend.latest ? <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{setText(trend.latest)}</AppText> : null}
         {timed && trend.quantityChangePer30d != null ? (
           <AppText style={{ color: p.muted }}>
             {t("trend.changeQuantity", { delta: String(Math.round(Math.abs(trend.quantityChangePer30d) * 10) / 10), unit: timed === "time" ? letters.s : letters.m, n: Math.min(trend.points.length, 10) })}
@@ -209,27 +242,6 @@ export function LiftTrendView({
           </View>
         </Card>
       ) : null}
-      <Card>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          <Chip label={t("trend.metric.weight")} selected={metric === "weight"} onPress={() => setMetric("weight")} />
-          {timed ? null : <Chip label={t("trend.metric.e1rm")} selected={metric === "e1rm"} onPress={() => setMetric("e1rm")} />}
-          <Chip label={t("trend.metric.volume")} selected={metric === "volume"} onPress={() => setMetric("volume")} />
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          <Chip label={t("trend.range.3m")} selected={range === "3m"} onPress={() => setRange("3m")} />
-          <Chip label={t("trend.range.1y")} selected={range === "1y"} onPress={() => setRange("1y")} />
-          <Chip label={t("trend.range.all")} selected={range === "all"} onPress={() => setRange("all")} />
-        </View>
-        {chartPoints.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : (
-          <TrendChart
-            points={chartPoints}
-            assisted={metric === "weight" && assisted}
-            summary={t("trend.chartLabel", { dir: t(directionKey(trend.direction, assisted)), n: chartPoints.length })}
-            axisText={(from, to) => t("trend.axis", { from, to })}
-          />
-        )}
-        {chartPoints.length > 0 ? <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("trend.chartHint")}</AppText> : null}
-      </Card>
       {records.reps.length > 0 ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("trend.repMaxes")}</AppText>

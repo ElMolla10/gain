@@ -51,19 +51,21 @@ export function LiveDuration({
   }, [paused]);
   const text = formatDuration(elapsedMs(startedAt, pausedMs, pausedAt, now), { h: t("workout.dur.h"), m: t("workout.dur.m"), s: t("workout.dur.s") });
   const action = paused ? t("workout.dur.resume") : t("workout.dur.pause");
+  // Without onToggle it is a read-out (the logger has one separate pause control beside it); with onToggle it is the button it was.
   const label = paused
-    ? `${t("workout.stat.duration")}, ${text}, ${t("workout.stat.paused")}. ${action}`
-    : `${t("workout.stat.duration")}, ${text}. ${action}`;
+    ? `${t("workout.stat.duration")}, ${text}, ${t("workout.stat.paused")}${onToggle ? `. ${action}` : ""}`
+    : `${t("workout.stat.duration")}, ${text}${onToggle ? `. ${action}` : ""}`;
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={onToggle ? "button" : "timer"}
       accessibilityLabel={label}
-      accessibilityState={{ selected: paused }}
+      accessibilityState={onToggle ? { selected: paused } : undefined}
       onPress={onToggle}
       disabled={!onToggle}
       style={{ minHeight: MIN_TOUCH, justifyContent: "center" }}
     >
-      <AppText ltr style={{ fontSize: 20, fontWeight: "600", color }}>
+      {/* "12 د 30 ث" holds Arabic unit letters: language direction (the formatter isolates the numbers), tabular figures. */}
+      <AppText style={{ fontSize: 20, fontWeight: "600", color, fontVariant: ["tabular-nums"] }}>
         {text}
       </AppText>
       {paused ? <AppText style={{ fontSize: 13, color }}>{t("workout.stat.paused")}</AppText> : null}

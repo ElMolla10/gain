@@ -29,6 +29,12 @@ export interface Palette {
   doneFill: string;
   doneEdge: string;
   onDone: string;
+  /**
+   * The done TICK, solid: the box is filled (not just tinted) so done vs ready reads as solid vs hollow at a glance, at least 3.9:1
+   * against `raised` in both themes, and the check inverts to `onDoneSolid` (about 5:1). Status is the fill + glyph, never hue alone.
+   */
+  doneSolid: string;
+  onDoneSolid: string;
   /** Selected-state background that is quieter than `fill` (target strip, selected row). */
   tint: string;
   /** Decoration only (hairlines, card borders). Not an interactive boundary. */
@@ -61,6 +67,8 @@ export const darkPalette: Palette = {
   doneFill: "#2E4A38",
   doneEdge: "#5E8F72",
   onDone: c.success,
+  doneSolid: "#5E8F72",
+  onDoneSolid: "#10120E",
   tint: "#2A3320",
   border: c.border,
   edge: "#8A9580",
@@ -88,6 +96,8 @@ export const lightPalette: Palette = {
   doneFill: "#CDE6D5",
   doneEdge: "#3F8A5F",
   onDone: "#1B6B3E",
+  doneSolid: "#2F7A50",
+  onDoneSolid: "#FFFFFF",
   tint: "#E7F2C4",
   border: "#D3D8C5",
   edge: c.lightBorder,
@@ -124,6 +134,9 @@ export interface LogPalette {
   doneFill: string;
   doneEdge: string;
   onDone: string;
+  /** Solid done tick and its inverted check (see Palette.doneSolid). */
+  doneSolid: string;
+  onDoneSolid: string;
   /** Background of a ticked (logged) row: only a quiet olive wash; the muted green check is what says "done". */
   doneBg: string;
   /** Background of the set the lifter is on now (the first unticked row of an exercise): clearly stronger than `doneBg`. */
@@ -135,9 +148,10 @@ export interface LogPalette {
   edge: string;
 }
 
-const logOf = (p: Palette, doneBg: string): LogPalette => ({ activeBg: p.tint, bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, fillPressed: p.fillPressed, doneFill: p.doneFill, doneEdge: p.doneEdge, onDone: p.onDone, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
+const logOf = (p: Palette, doneBg: string, activeBg: string = p.tint): LogPalette => ({ activeBg, doneSolid: p.doneSolid, onDoneSolid: p.onDoneSolid, bg: p.bg, card: p.card, field: p.raised, line: p.border, text: p.text, muted: p.muted, accent: p.accent, fill: p.fill, onFill: p.onFill, fillPressed: p.fillPressed, doneFill: p.doneFill, doneEdge: p.doneEdge, onDone: p.onDone, doneBg, warn: p.warn, danger: p.danger, onDanger: p.onDanger, edge: p.edge });
 export const logDarkPalette: LogPalette = logOf(darkPalette, "#1C2315");
-export const logLightPalette: LogPalette = logOf(lightPalette, "#EEF4DC");
+// Light: the current-set wash is a step stronger than `tint` (#E7F2C4 is only 1.08:1 on bone); text on it stays about 13:1.
+export const logLightPalette: LogPalette = logOf(lightPalette, "#EEF4DC", "#DCEBB0");
 
 /** Colours handed to the navigation container, so tab bar, headers and the logger all use the one identity. */
 export function navColors(p: Palette): { primary: string; background: string; card: string; text: string; border: string; notification: string } {

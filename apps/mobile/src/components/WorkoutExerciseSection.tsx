@@ -1,3 +1,5 @@
+import { canEditLoadsFor } from "../logic/setRowState";
+import { loadTargetText } from "../logic/bidiText";
 import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
 import React from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
@@ -115,7 +117,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
 
   // Only a stop warning opens on its own; any other suggestion is one tap away ("Next set details").
   const showCard = !!card && (card.decision.action === "stop" || suggestionOpen);
-  const canEditLoads = !!onPickJump && !timed && ex.setup !== "assisted" && ex.equipment !== "assisted";
+  const canEditLoads = !!onPickJump && canEditLoadsFor(ex);
   const live = card && showCard ? <LiveSuggestion decision={card.decision} state={nextSetState({ decision: card.decision, starting: card.starting, spec })}
     basis={basis} repMin={ex.repMin} repMax={ex.repMax} equipment={ex.equipment} loadSpec={spec}
     detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
@@ -141,10 +143,16 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
         </Pressable>
         {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
         <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} />
-        {canEditLoads ? <QuietAction label={t("workout.loads")} accessibilityLabel={`${t("workout.loads")}: ${labels.primary}`} expanded={loadsOpen} onPress={() => onToggleLoads?.()} /> : null}
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
       </View>
-      {canEditLoads && loadsOpen ? <LoadSettings loadSpec={spec} busy={busy} onPickJump={onPickJump!} listText={listText} onListChange={onListChange} onSaveList={onSaveList} /> : null}
+      {canEditLoads && loadsOpen ? (
+        <View style={{ gap: space.xs }}>
+          <LoadSettings loadSpec={spec} busy={busy} onPickJump={onPickJump!} listText={listText} onListChange={onListChange} onSaveList={onSaveList} />
+          <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
+            <QuietAction label={t("common.close")} accessibilityLabel={`${t("common.close")}: ${t("workout.loads")}, ${labels.primary}`} expanded onPress={() => onToggleLoads?.()} />
+          </View>
+        </View>
+      ) : null}
 
       {/* Tight vertical rhythm (spacing tokens): exercise block starts space.md below the previous one; heading, target line and set table sit directly on each other (the 48 dp controls already carry the breathing room), with space.xs above the column heads. */}
       {/* Compact target line: "Target 55 kg × 9 · Why". It wraps onto a second line when it is long and is never cut off. */}
@@ -176,16 +184,13 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
       </View>
 
 
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, marginTop: space.xs }}>
+      {/* Column heads, once per exercise. At large text Previous is a caption inside each row, so it has no column here (L-8). */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, marginTop: space.xs }}>
         <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
-        <View style={{ flex: 1.3 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>
-        {stacked ? null : (
-          <>
-            <View style={{ flex: 1 }}><AppText style={head}>{unitText.toUpperCase()}</AppText></View>
-            <View style={{ flex: 1 }}><AppText style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
-            {ex.trackEffort ? <View style={{ width: 52 }}><AppText style={head}>{t("workout.col.rir").toUpperCase()}</AppText></View> : null}
-          </>
-        )}
+        {stacked ? null : <View style={{ flex: 1.1 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>}
+        <View style={{ flex: 1 }}><AppText style={head}>{unitText.toUpperCase()}</AppText></View>
+        <View style={{ flex: 1 }}><AppText style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
+        {ex.trackEffort ? <View style={{ width: stacked ? 64 : 52 }}><AppText style={head}>{t("workout.col.rir").toUpperCase()}</AppText></View> : null}
         <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
       </View>
 
@@ -213,7 +218,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
               <AppText>
                 {timed
                   ? isolateLtr(quantityText(setQuantity(s, ex.measure), ex.measure, qUnits))
-                  : isolateLtr(`${weightText(s.load, unit)} ${unitText} × ${s.reps}`)} · {timed ? t("workout.outlier.bodyTimed") : t("workout.outlier.body", { load: o?.expected ? fmt(o.expected.medianLoad) : "?", reps: o?.expected?.medianReps ?? "?" })}
+                  : loadTargetText(s.load, s.reps, "reps", lang, unit, qUnits)} · {timed ? t("workout.outlier.bodyTimed") : t("workout.outlier.body", { load: o?.expected ? fmt(o.expected.medianLoad) : "?", reps: o?.expected?.medianReps ?? "?" })}
               </AppText>
               <AppText style={{ color: p.muted }}>{t("workout.outlier.note")}</AppText>
               <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>

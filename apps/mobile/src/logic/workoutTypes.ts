@@ -30,4 +30,6 @@ export interface LoadedWorkout {
   gym: GymFingerprint;
   slots: DayEx[];
   info: Record<string, ExInfo>;
+  /** The day's name ("Upper A"), shown as the logger's title so a glance confirms which session is open. */
+  dayName?: string;
 }

@@ -99,6 +99,23 @@ export function ProgrammeEditorView(props: {
     );
   };
 
+  // Removing a whole day asks first (it takes all its exercises and settings with it); an empty day goes straight away.
+  const confirmRemoveDay = (dayIndex: number) => {
+    const day = d.days[dayIndex];
+    if (!day) return;
+    const remove = () => { setExpandedExercise(null); props.onChange(removeDay(d, dayIndex)); };
+    if (day.exercises.length === 0) return remove();
+    const name = day.name.trim() || t("prog.day.default", { n: dayIndex + 1 });
+    Alert.alert(
+      t("prog.day.removeTitle", { day: name }),
+      t("prog.day.removeBody", { day: name, n: day.exercises.length }),
+      [
+        { text: t("finish.cancel"), style: "cancel" },
+        { text: t("prog.ex.remove"), style: "destructive", onPress: remove },
+      ],
+    );
+  };
+
   return (
     <View style={{ gap: space.md }}>
       <Field label={t("prog.name")} value={d.name} onChangeText={(s) => props.onChange(renameProgramme(d, s))} />
@@ -110,7 +127,7 @@ export function ProgrammeEditorView(props: {
             <IconButton icon="settings" label={t("prog.workout.settings", { workout: day.name })} onPress={() => setSettingsDay(di)} />
           </View>
           <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-            <Chip label={t("prog.day.remove")} tone="danger" onPress={() => { setExpandedExercise(null); props.onChange(removeDay(d, di)); }} />
+            <Chip label={t("prog.day.remove")} tone="danger" onPress={() => confirmRemoveDay(di)} />
           </View>
           {day.exercises.length > 1 ? <BigButton variant="secondary" label={t("prog.reorder.button")} onPress={() => setReorderDay(di)} /> : null}
           {day.exercises.map((e, ei) => (

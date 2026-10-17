@@ -55,6 +55,21 @@ describe("workout rows (single list)", () => {
     expect(addRow(typed, target, key)[2]).toMatchObject({ ghostLoad: 70, ghostReps: 6 });
     expect(removeRow(more, more[1]!.key).map((r) => r.key)).toEqual(["a"]);
   });
+  it("addRow ignores drop rows for the ghost", () => {
+    const rows = initialRows([s("a", 80, 8), { id: "b", load: 50, reps: 10, rir: null, warmup: false, tags: ["drop"] }], 2, target, key);
+    const more = addRow(rows, target, key);
+    expect(more[more.length - 1]).toMatchObject({ load: null, reps: null, ghostLoad: 80, ghostReps: 8, saved: false });
+  });
+  it("addRow falls back to target when only warm-ups/drops exist", () => {
+    const rows = initialRows([s("w", 40, 10, true), { id: "d", load: 50, reps: 10, rir: null, warmup: false, tags: ["drop"] }], 1, target, key);
+    const more = addRow(rows, target, key);
+    expect(more[more.length - 1]).toMatchObject({ load: null, reps: null, ghostLoad: 60, ghostReps: 8, saved: false });
+  });
+  it("failure sets still feed the ghost", () => {
+    const rows = initialRows([{ id: "a", load: 80, reps: 6, rir: null, warmup: false, tags: ["failure"] }], 1, target, key);
+    const more = addRow(rows, target, key);
+    expect(more[more.length - 1]).toMatchObject({ load: null, reps: null, ghostLoad: 80, ghostReps: 6, saved: false });
+  });
   it("typing over a logged row makes it dirty until it is saved again", () => {
     let rows = initialRows([s("a", 60, 8)], 1, target, key);
     rows = editRow(rows, "a", { load: 62.5 });

@@ -107,9 +107,9 @@ export function mergeRows(prev: SetRowDraft[], saved: SavedSet[]): SetRowDraft[]
   return [...out, ...prev.filter((r) => !r.saved)];
 }
 
-/** A new empty row whose ghost is the last working row (the common case is the same weight again), else the target. */
+/** A new empty row whose ghost is the last loggable row that is not a warm-up or drop set (the common case is the same weight again), else the target. */
 export function addRow(rows: SetRowDraft[], target: Prefill, newKey: () => string): SetRowDraft[] {
-  const last = [...rows].reverse().find((r) => !r.warmup && rowCanLog(r));
+  const last = [...rows].reverse().find((r) => !r.warmup && !isDropRow(r) && rowCanLog(r));
   return [...rows, blank(newKey(), last ? effectiveOf(last) : target)];
 }
 

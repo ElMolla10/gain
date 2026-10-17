@@ -69,6 +69,32 @@ describe("weigh-ins", () => {
     expect((await goals.listWeighIns()).map((w) => w.kg)).toEqual([82]);
     expect(Number((await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM bodyweight_entry"))!.n)).toBe(2); // soft delete: the row stays
   });
+  it("deleting the newest weigh-in falls back to the newest remaining one", async () => {
+    const { goals, repos } = await setup();
+    await goals.addWeighIn(82, NOW - 2 * DAY);
+    const typo = await goals.addWeighIn(81.5, NOW);
+    expect(await repos.getSetting("bodyweight_kg")).toBe("81.5");
+    await goals.deleteWeighIn(typo);
+    expect(await repos.getSetting("bodyweight_kg")).toBe("82");
+    await goals.deleteWeighIn(typo); // already deleted: no-op
+    await goals.deleteWeighIn("nope"); // unknown id: no-op
+    expect(await repos.getSetting("bodyweight_kg")).toBe("82");
+  });
+  it("deleting the only weigh-in does not change the bodyweight setting", async () => {
+    const { goals, repos } = await setup();
+    await repos.setSetting("bodyweight_kg", "85"); // e.g. from onboarding
+    const only = await goals.addWeighIn(58, NOW);
+    expect(await repos.getSetting("bodyweight_kg")).toBe("58");
+    await goals.deleteWeighIn(only);
+    expect(await goals.listWeighIns()).toEqual([]);
+    expect(await repos.getSetting("bodyweight_kg")).toBe("58");
+  });
+  it("a back-dated weigh-in keeps the setting at the newest entry", async () => {
+    const { goals, repos } = await setup();
+    await goals.addWeighIn(81.5, NOW);
+    await goals.addWeighIn(84, NOW - 5 * DAY);
+    expect(await repos.getSetting("bodyweight_kg")).toBe("81.5");
+  });
   it("typed weigh-ins convert from the lifter's unit and check the range", () => {
     expect(parseWeighIn("82.5", "kg", unitToKg, parseNumber)).toBe(82.5);
     expect(parseWeighIn("180", "lb", unitToKg, parseNumber)).toBeCloseTo(81.647, 3);

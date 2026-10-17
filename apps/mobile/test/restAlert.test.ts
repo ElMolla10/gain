@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultRestSettings, parseRestSettings, REST_CHOICES, syncRestAlert, type RestAlerts } from "../src/logic/restAlert";
+import { defaultRestSettings, parseRestSettings, REST_CHOICES, REST_KEYS, restOffFor, syncRestAlert, toggleRestChoice, type RestAlerts } from "../src/logic/restAlert";
 import { newTimer, startTimer, stopTimer } from "../src/logic/restTimer";
 
 const text = { title: "Rest is over", body: "Ready" };
@@ -20,16 +20,31 @@ function fake(opts: { fail?: boolean } = {}) {
 }
 
 describe("rest settings", () => {
-  it("defaults: 90 s, vibrate on, notification off", () => {
-    expect(defaultRestSettings()).toEqual({ seconds: 90, vibrate: true, notify: false });
+  it("defaults: 90 s, vibrate on, notification off, rest after a set off", () => {
+    expect(defaultRestSettings()).toEqual({ seconds: 90, vibrate: true, notify: false, auto: false });
     expect(parseRestSettings({ seconds: null, vibrate: null, notify: null })).toEqual(defaultRestSettings());
   });
   it("reads stored values, clamps and ignores junk", () => {
-    expect(parseRestSettings({ seconds: "120", vibrate: "0", notify: "1" })).toEqual({ seconds: 120, vibrate: false, notify: true });
+    expect(parseRestSettings({ seconds: "120", vibrate: "0", notify: "1" })).toEqual({ seconds: 120, vibrate: false, notify: true, auto: false });
+    expect(parseRestSettings({ seconds: "120", vibrate: "0", notify: "1", auto: "1" }).auto).toBe(true);
+    expect(parseRestSettings({ seconds: null, vibrate: null, notify: null, auto: "yes" }).auto).toBe(false);
     expect(parseRestSettings({ seconds: "5", vibrate: "1", notify: "0" }).seconds).toBe(15);
     expect(parseRestSettings({ seconds: "99999", vibrate: null, notify: null }).seconds).toBe(600);
     expect(parseRestSettings({ seconds: "abc", vibrate: null, notify: "yes" })).toEqual(defaultRestSettings());
     for (const c of REST_CHOICES) expect(parseRestSettings({ seconds: String(c), vibrate: null, notify: null }).seconds).toBe(c);
+  });
+  it("the rest timer starts off: no countdown unless it is on in general and not switched off for the exercise", () => {
+    expect(REST_KEYS.auto).toBe("rest_auto");
+    expect(restOffFor(defaultRestSettings().auto)).toBe(true);
+    expect(restOffFor(false, { restOff: false })).toBe(true);
+    expect(restOffFor(true)).toBe(false);
+    expect(restOffFor(true, { restOff: true })).toBe(true);
+  });
+  it("the logger switch turns rest on (and the saved preference with it); switching off affects only that exercise", () => {
+    expect(toggleRestChoice(false, false)).toEqual({ auto: true, restOff: false });
+    expect(toggleRestChoice(false, true)).toEqual({ auto: true, restOff: false });
+    expect(toggleRestChoice(true, true)).toEqual({ auto: true, restOff: false });
+    expect(toggleRestChoice(true, false)).toEqual({ auto: true, restOff: true });
   });
 });
 

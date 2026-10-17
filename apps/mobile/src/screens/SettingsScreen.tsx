@@ -232,6 +232,7 @@ function RestCard() {
           ))}
         </View>
       </Block>
+      <SwitchRow label={t("rest.auto")} value={s.auto} onChange={(on) => void save("auto", on ? "1" : "0", { ...s, auto: on })} />
       <SwitchRow label={t("rest.vibrate")} value={s.vibrate} onChange={(on) => void save("vibrate", on ? "1" : "0", { ...s, vibrate: on })} />
       <SwitchRow
         label={t("rest.notify")}

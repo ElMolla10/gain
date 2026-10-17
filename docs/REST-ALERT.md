@@ -7,7 +7,7 @@ Status: compiles; unit-tested only for the settings and scheduling logic; NOT de
 - The alert is one local notification (expo-notifications, channel "Rest timer", high importance) scheduled for the exact end time when a rest starts, replaced when you add or remove 15 s, cancelled when you stop the rest, leave the logger, or switch the setting off.
 - While GAIN is open the existing in-app buzz is used and the notification banner is suppressed.
 - Turning the alert on asks for the notification permission (Android 13+ prompt). If it is refused the setting stays off and the screen says how to allow it.
-- No new database migration: three rows in `setting` (`rest_seconds`, `rest_vibrate`, `rest_notify`).
+- No new database migration: rows in `setting` (`rest_seconds`, `rest_vibrate`, `rest_notify`, and `rest_auto`: start rest after each set, off by default; turning the logger's rest switch on saves it as on).
 
 ## What is not done or not known
 - Not a foreground service or ongoing notification with a live countdown; this is a single alert at zero.

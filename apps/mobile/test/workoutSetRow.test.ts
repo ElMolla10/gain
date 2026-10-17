@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { translate } from "../src/i18n/format";
 import type { Disp } from "../src/logic/workoutTypes";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
-import { LiveSuggestion } from "../src/components/LiveSuggestion";
+import { LiveSuggestion, LoadSettings } from "../src/components/LiveSuggestion";
 import { WorkoutExerciseSection } from "../src/components/WorkoutExerciseSection";
 import { WorkoutSetRow, type WorkoutSetRowProps } from "../src/components/WorkoutSetRow";
 import { PreviousSourceToggle, parsePreviousSource, PREVIOUS_SOURCE_KEY } from "../src/components/PreviousSourceToggle";
@@ -163,6 +163,7 @@ describe("extracted exercise section wiring", () => {
     p.info.previous = { any: { performedAt: "2026-10-16", sets: [{ load: 65, reps: 7 }] }, routine: { performedAt: "2026-10-14", sets: [{ load: 60, reps: 8 }] } };
     p.info.last = { performedAt: "2026-10-15", sets: [{ load: 62.5, reps: 9 }] };
     p.card = { decision: { action: "maintain", suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8, reason: "within_range" }, key: p.list[0]!.key, performance: "saved", snapshot: "snapshot" };
+    p.suggestionOpen = true;
     for (const lang of ["en", "ar"] as const) {
       settings.lang = lang;
       const before = nodes(WorkoutExerciseSection(p));
@@ -224,13 +225,70 @@ describe("extracted exercise section wiring", () => {
   it("only highlights the focused exercise and puts a normal suggestion before its target row", async () => {
     const p = await sectionProps();
     const card = { key: p.list[1]!.key, performance:"observed", snapshot:"draft", decision: {action:"maintain" as const, reason:"within_range" as const, predictedReps:8, suggestedWeightKg:60, suggestedReps:8} };
-    const tree = nodes(WorkoutExerciseSection({...p, active:false, card}));
+    const tree = nodes(WorkoutExerciseSection({...p, active:false, card, suggestionOpen: true}));
     expect(tree.filter(n => n.type === WorkoutSetRow).every(n => n.props.current === false)).toBe(true);
     const suggestion = tree.findIndex(n => n.type === LiveSuggestion);
     const target = tree.findIndex(n => n.type === WorkoutSetRow && n.props.row.key === card.key);
     expect(suggestion).toBeGreaterThan(0);
     expect(suggestion).toBeLessThan(target);
     expect(tree.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
+  });
+  it("the Next-set card is absent by default; the row keeps the ghost and a compact toggle opens the card", async () => {
+    const p = await sectionProps();
+    const card = { key: p.list[0]!.key, performance: "observed", snapshot: "draft", decision: { action: "increase" as const, reason: "above_range" as const, predictedReps: 8, suggestedWeightKg: 62.5, suggestedReps: 8 } };
+    p.list = [{ ...p.list[0]!, ghostLoad: 62.5, ghostReps: 8 }, ...p.list.slice(1)];
+    const onToggleSuggestion = vi.fn();
+    for (const lang of ["en", "ar"] as const) {
+      settings.lang = lang;
+      const tree = nodes(WorkoutExerciseSection({ ...p, card, onToggleSuggestion }));
+      expect(tree.some(n => n.type === LiveSuggestion)).toBe(false);
+      const text = tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ");
+      expect(text).not.toContain(translate(lang, "live.title"));
+      expect(tree.some(n => n.props.label === translate(lang, "live.apply"))).toBe(false);
+      expect(tree.some(n => n.props.label === translate(lang, "live.loads"))).toBe(false);
+      const row = tree.find(n => n.type === WorkoutSetRow && n.props.row.key === card.key)!;
+      expect([row.props.row.ghostLoad, row.props.row.ghostReps]).toEqual([62.5, 8]);
+      expect(row.props.onLog).toBe(p.onLog); // one-tap confirm is unchanged
+      const target = tree.find(n => (n.type as unknown) === "TargetLine")!;
+      expect(target.props.moreLabel).toBe(translate(lang, "workout.nextSetDetails"));
+      expect(target.props.moreExpanded).toBe(false);
+      target.props.onMore();
+    }
+    expect(onToggleSuggestion).toHaveBeenCalledTimes(2);
+    const open = nodes(WorkoutExerciseSection({ ...p, card, onToggleSuggestion, suggestionOpen: true }));
+    expect(open.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
+    expect(open.find(n => (n.type as unknown) === "TargetLine")!.props.moreExpanded).toBe(true);
+  });
+  it("a stop warning still shows without opening anything", async () => {
+    const p = await sectionProps();
+    const card = { key: p.list[0]!.key, performance: "observed", snapshot: "draft", decision: { action: "stop" as const, reason: "performance_stop" as const, predictedReps: 0, suggestedWeightKg: 60, suggestedReps: 8 } };
+    const tree = nodes(WorkoutExerciseSection({ ...p, card, onToggleSuggestion: vi.fn() }));
+    expect(tree.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
+    expect(tree.find(n => (n.type as unknown) === "TargetLine")!.props.moreLabel).toBeUndefined();
+  });
+  it("load settings are closed by default and reachable through the header's Loads control", async () => {
+    const p = await sectionProps();
+    const onToggleLoads = vi.fn(); const onPickJump = vi.fn(); const onSaveList = vi.fn(); const onListChange = vi.fn();
+    const base = { ...p, onToggleLoads, onPickJump, onSaveList, onListChange, listText: "20, 22.5" };
+    for (const lang of ["en", "ar"] as const) {
+      settings.lang = lang;
+      const closed = nodes(WorkoutExerciseSection(base));
+      expect(closed.some(n => n.type === LoadSettings)).toBe(false);
+      const button = closed.find(n => (n.type as unknown) === "QuietAction" && n.props.label === translate(lang, "workout.loads"))!;
+      expect(button.props.expanded).toBe(false);
+      expect(button.props.accessibilityLabel).toContain(translate(lang, "workout.loads"));
+      button.props.onPress();
+    }
+    expect(onToggleLoads).toHaveBeenCalledTimes(2);
+    settings.lang = "en";
+    const open = nodes(WorkoutExerciseSection({ ...base, loadsOpen: true }));
+    const panel = open.find(n => n.type === LoadSettings)!;
+    expect(panel.props.onPickJump).toBe(onPickJump);
+    expect(panel.props.onSaveList).toBe(onSaveList);
+    expect(open.find(n => (n.type as unknown) === "QuietAction" && n.props.label === "Loads")!.props.expanded).toBe(true);
+    // Timed exercises have no load settings to change.
+    const timed = nodes(WorkoutExerciseSection({ ...base, ex: { ...p.ex, measure: "time" } }));
+    expect(timed.some(n => (n.type as unknown) === "QuietAction" && n.props.label === "Loads")).toBe(false);
   });
 
 });
@@ -313,10 +371,11 @@ describe("live suggestion explanations", () => {
     expect(text).not.toContain("Estimate from logged sets");
     expect(tree.some(n => n.props.variant === "secondary")).toBe(false);
   });
-  it("in-card load chips call onPickJump", () => {
+  it("load chips (in the Loads settings) call onPickJump, and the card no longer carries them", () => {
     const p = presentation();
     const onPickJump = vi.fn();
-    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false, onPickJump, loadSpec: { equipment: "barbell", increment: 2.5, min: 20 } }));
+    expect(nodes(LiveSuggestion({ ...p, detailsOpen: false })).some(n => n.type as unknown === "Chip")).toBe(false);
+    const tree = nodes(LoadSettings({ busy: false, onPickJump, loadSpec: { equipment: "barbell", increment: 2.5, min: 20 } }));
     const strip = (s: unknown) => String(s).replace(/\u2066|\u2069/g, "");
     const chip = tree.find(n => n.type as unknown === "Chip" && strip(n.props.label) === "5 kg jumps")!;
     chip.props.onPress();

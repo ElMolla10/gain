@@ -3,12 +3,12 @@ import type { PendingPrediction } from "../db/mlEvaluationRepo";
 import type { SetRow } from "../db/workoutRepo";
 import type { SetRowDraft } from "./workoutRows";
 import { nextAdaptiveRow } from "./liveAdaptation";
+import { formatNumber } from "./dateText";
 
 export const LIVE_MODEL_VERSION: string = require("../../../../packages/engine/assets/live-adaptation-v2/schema.json").model_version;
 
 /** Repetitions, counts and percentages must never pass through the kg/lb formatter. */
-export const formatMlNumber = (value: number, lang: "en" | "ar", decimals = 0): string =>
-  value.toLocaleString(lang === "ar" ? "ar-EG" : "en-US", { maximumFractionDigits: decimals });
+export const formatMlNumber = (value: number, lang: "en" | "ar", decimals = 0): string => formatNumber(value, lang, decimals);
 
 /** The policy's chosen prediction is for suggestedWeightKg, not necessarily the original load.
  * Stop/symptom cards and targets with typed outcome reps are not evaluation forecasts. */

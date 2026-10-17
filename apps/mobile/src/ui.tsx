@@ -6,6 +6,7 @@ import { familyFor, hasArabic, ltrAllowed, scaleFor, textOf } from "./fonts";
 import { useI18n } from "./i18n";
 import { adjustKeyboardInsets, numberPadAccessory } from "./numberPad";
 import { choiceListMaxHeight, hasCollapsibleContent } from "./logic/sheetLayout";
+import { clampStep, parseTyped, REPEAT_DELAY_MS, REPEAT_EVERY_MS } from "./logic/stepper";
 import { INPUT_HEIGHT, MIN_TOUCH, PRIMARY_HEIGHT, radius, space, type as ty, usePalette } from "./theme";
 
 /**
@@ -311,12 +312,47 @@ export function ArDraftNote() {
 export function Stepper(props: { label: string; value: number; onChange: (n: number) => void; min: number; max: number; /** Size of one tap (default 1). */ step?: number }) {
   const step = props.step ?? 1;
   const p = usePalette();
+  // Long-press auto-repeat (P-9): first repeat after 400 ms, then every 120 ms; stops at min/max, on release and on unmount.
+  const live = useRef(props);
+  live.current = props;
+  const timers = useRef<{ delay?: ReturnType<typeof setTimeout>; every?: ReturnType<typeof setInterval>; repeated: boolean }>({ repeated: false });
+  const stop = () => {
+    if (timers.current.delay) clearTimeout(timers.current.delay);
+    if (timers.current.every) clearInterval(timers.current.every);
+    timers.current.delay = undefined;
+    timers.current.every = undefined;
+  };
+  useEffect(() => stop, []);
+  const apply = (delta: number) => {
+    const cur = live.current;
+    const next = clampStep(cur.value + delta * step, cur.min, cur.max);
+    if (next === cur.value) return stop();
+    cur.onChange(next);
+  };
+  const [typing, setTyping] = useState<string | null>(null);
+  const commit = () => {
+    if (typing !== null) props.onChange(parseTyped(typing, props.value, props.min, props.max, step));
+    setTyping(null);
+  };
   const btn = (icon: "plus" | "minus", delta: number, disabled: boolean) => (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${props.label} ${icon === "plus" ? "+" : "−"}`}
       disabled={disabled}
-      onPress={() => props.onChange(Math.min(props.max, Math.max(props.min, props.value + delta * step)))}
+      onPressIn={() => {
+        stop();
+        timers.current.repeated = false;
+        timers.current.delay = setTimeout(() => {
+          timers.current.repeated = true;
+          apply(delta);
+          timers.current.every = setInterval(() => apply(delta), REPEAT_EVERY_MS);
+        }, REPEAT_DELAY_MS);
+      }}
+      onPressOut={stop}
+      onPress={() => {
+        if (!timers.current.repeated) apply(delta);
+        timers.current.repeated = false;
+      }}
       style={({ pressed }) => ({ width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: radius.button, borderWidth: 1.5, borderColor: disabled ? p.border : p.edge, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? p.tint : p.raised })}
     >
       <Icon name={icon} color={disabled ? p.onDisabled : p.text} size={22} />
@@ -327,7 +363,24 @@ export function Stepper(props: { label: string; value: number; onChange: (n: num
       <AppText style={{ fontWeight: "600", flexShrink: 1 }}>{props.label}</AppText>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
         {btn("minus", -1, props.value <= props.min)}
-        <AppText ltr style={{ minWidth: 40, textAlign: "center", fontSize: ty.section, fontWeight: "600" }}>{String(props.value)}</AppText>
+        {typing !== null ? (
+          <TextInput
+            accessibilityLabel={props.label}
+            autoFocus
+            value={typing}
+            onChangeText={setTyping}
+            onBlur={commit}
+            onSubmitEditing={commit}
+            keyboardType={step >= 1 ? "number-pad" : "decimal-pad"}
+            selectTextOnFocus
+            style={{ minWidth: 40, minHeight: MIN_TOUCH, textAlign: "center", fontSize: ty.section, fontWeight: "600", color: p.text, fontVariant: ["tabular-nums"], borderBottomWidth: 2, borderColor: p.accent, writingDirection: "ltr" }}
+          />
+        ) : (
+          // Tap the number to type it (clamped on blur/submit).
+          <Pressable accessibilityRole="button" accessibilityLabel={`${props.label}: ${props.value}`} accessibilityHint={props.label} onPress={() => setTyping(String(props.value))} style={{ minWidth: 40, minHeight: MIN_TOUCH, justifyContent: "center" }}>
+            <AppText ltr style={{ textAlign: "center", fontSize: ty.section, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{String(props.value)}</AppText>
+          </Pressable>
+        )}
         {btn("plus", 1, props.value >= props.max)}
       </View>
     </View>

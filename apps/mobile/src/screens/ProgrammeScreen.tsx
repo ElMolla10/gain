@@ -9,6 +9,7 @@ import { exerciseLabels, isolateLtr, NBSP } from "../i18n/format";
 import type { ProgrammeDraft } from "../logic/programmeDraft";
 import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, EmptyState, ListRow, LoadingState, QuietAction, Screen, SectionTitle, Sheet } from "../ui";
+import { SchemePips } from "../components/SchemePips";
 import { EN_DASH } from "../logic/bidiText";
 import { ceilingForName } from "../logic/ceilings";
 import { effectiveRange, rangeText, sourceOfBasis } from "../logic/repRange";
@@ -127,7 +128,7 @@ export function ProgrammeScreen() {
                     const range = rangeOf(e);
                     const l = ex ? exerciseLabels(ex, lang) : null;
                     return (
-                      // Two lines (P-2): the name, then the scheme as one isolated run "3 × 6–10" with the badges.
+                      // Two lines (P-2): the name, then the scheme as one isolated run "3 × 6–10" with the pips and badges.
                       <View key={e.exerciseId} style={{ minHeight: MIN_TOUCH, justifyContent: "center", gap: 2, borderTopWidth: k === 0 ? 1 : 0, borderColor: p.border, paddingTop: k === 0 ? space.sm : 0 }}>
                         <AppText style={{ fontWeight: "600" }}>
                           {l ? l.primary : e.exerciseId}
@@ -136,9 +137,9 @@ export function ProgrammeScreen() {
                         <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: space.sm, rowGap: space.xs }}>
                           <AppText style={{ color: p.muted, fontSize: ty.label, fontVariant: ["tabular-nums"] }}>
                             {range ? isolateLtr(`${e.sets}${NBSP}×${NBSP}${range.min}${EN_DASH}${range.max}`) : isolateLtr(`${e.sets}${NBSP}×`)}
-                            {range && e.topSets ? ` · ${t("prog.ex.scheme.top")} (${e.topSets})` : ""}
                             {l && l.secondary ? ` · ${l.secondary}` : ""}
                           </AppText>
+                          {range && e.topSets ? <SchemePips sets={e.sets} topSets={e.topSets} size={12} caption={false} /> : null}
                           {range?.overridesProgramme ? (
                             <View accessible accessibilityLabel={t("prog.ceilingUp", { n: range.max })} style={{ minHeight: 24, paddingHorizontal: space.sm, borderRadius: 12, backgroundColor: p.tint, justifyContent: "center" }}>
                               <AppText style={{ color: p.accent, fontSize: ty.label, fontWeight: "600" }}>{isolateLtr(`↑ ${range.max}`)}</AppText>

@@ -32,7 +32,7 @@ export function PlateCalcScreen() {
   const line = spec && load !== null ? plateLine(spec, load, unit, t) : null;
 
   return (
-    <Screen title={t("plates.title")}>
+    <Screen>
       {spec ? (
         <Card>
           <Field label={t("plates.load")} value={text} onChangeText={setText} numeric hint={unitText} />

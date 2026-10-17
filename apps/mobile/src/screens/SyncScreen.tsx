@@ -1,6 +1,7 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Icon, type IconName } from "../components/Icon";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { isolateLtr } from "../i18n/format";
@@ -8,7 +9,7 @@ import type { StringKey } from "../i18n/strings";
 import { groupCode, normalizeCode } from "../logic/recoveryCodeText";
 import { formatDay } from "../logic/dateText";
 import type { SyncInfo } from "../sync/engine";
-import { radius, space, usePalette } from "../theme";
+import { radius, space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Field, InlineStatus, Notice, Screen } from "../ui";
 
 type Step = "idle" | "code" | "choice";
@@ -26,6 +27,7 @@ export function SyncScreen() {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("idle");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
   const [email, setEmail] = useState("");
@@ -163,14 +165,48 @@ export function SyncScreen() {
   }
 
   const status = info?.status ?? "off";
+  const idle = status === "off" && step === "idle";
   return (
     <Screen>
-      <Notice kind="warn">{t("sync.draft")}</Notice>
-      <Card>
-        <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.privacy.title")}</AppText>
-        <AppText>{t("sync.privacy.body")}</AppText>
-        <AppText>{t("sync.privacy.body2")}</AppText>
-      </Card>
+      {idle ? (
+        // ST-3, idle step only: a 3-line summary, then the decision, then the full text on request, then the draft notice.
+        <>
+          <Card>
+            <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.privacy.title")}</AppText>
+            {([["cloud", "sync.sum.what"], ["export", "sync.sum.where"], ["alert", "sync.sum.e2e"]] as const).map(([icon, key]) => (
+              <Bullet key={key} icon={icon} color={icon === "alert" ? p.warn : p.muted} text={t(key)} />
+            ))}
+          </Card>
+          <BigButton hero label={t("sync.on")} disabled={!!busy} onPress={() => turnOn()} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: detailsOpen }}
+            onPress={() => setDetailsOpen((o) => !o)}
+            style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.xs, backgroundColor: pressed ? p.raised : "transparent", borderRadius: radius.input })}
+          >
+            <AppText style={{ flex: 1, fontWeight: "600" }}>{t("sync.fullDetails")}</AppText>
+            <View style={{ transform: [{ rotate: detailsOpen ? "90deg" : "0deg" }] }}>
+              <Icon name="chevron" color={p.muted} size={20} mirror />
+            </View>
+          </Pressable>
+          {detailsOpen ? (
+            <Card>
+              <AppText>{t("sync.privacy.body")}</AppText>
+              <AppText>{t("sync.privacy.body2")}</AppText>
+            </Card>
+          ) : null}
+          <Notice kind="warn">{t("sync.draft")}</Notice>
+        </>
+      ) : (
+        <>
+          <Notice kind="warn">{t("sync.draft")}</Notice>
+          <Card>
+            <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.privacy.title")}</AppText>
+            <AppText>{t("sync.privacy.body")}</AppText>
+            <AppText>{t("sync.privacy.body2")}</AppText>
+          </Card>
+        </>
+      )}
 
       <InlineStatus kind={status === "on" && info && info.pendingOut === 0 && !info.lastError ? "success" : "info"} text={t(`sync.status.${status}` as StringKey)} />
       {status === "on" && !busy && !err && !(info?.lastError) ? <InlineStatus kind="info" text={t("sync.status.idle")} /> : null}
@@ -200,11 +236,8 @@ export function SyncScreen() {
         </Card>
       ) : null}
 
-      {status === "off" && step === "idle" ? (
+      {idle ? (
         <>
-          <Card>
-            <BigButton hero label={t("sync.on")} disabled={!!busy} onPress={() => turnOn()} />
-          </Card>
           <Card>
             <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.restoreTitle")}</AppText>
             <AppText style={{ color: p.muted }}>{t("sync.restoreNote")}</AppText>
@@ -276,5 +309,15 @@ export function SyncScreen() {
         </>
       ) : null}
     </Screen>
+  );
+}
+
+/** One summary line with a 20 dp icon at the start (16/24 text). */
+function Bullet({ icon, color, text }: { icon: IconName; color: string; text: string }) {
+  return (
+    <View style={{ flexDirection: "row", gap: space.md, alignItems: "flex-start" }}>
+      <View style={{ paddingTop: 2 }}><Icon name={icon} color={color} size={20} /></View>
+      <AppText style={{ flex: 1, fontSize: ty.body }}>{text}</AppText>
+    </View>
   );
 }

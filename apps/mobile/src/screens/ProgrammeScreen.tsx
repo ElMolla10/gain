@@ -151,7 +151,7 @@ export function ProgrammeScreen() {
                   })
                 : null}
               {/* Day settings inside the open card, as a row with a label (P-7); no gear beside the chevron. */}
-              {expanded ? <ListRow title={t("prog.workoutSettings")} accessibilityLabel={t("prog.workout.settings", { workout: day.name })} last onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId, settingsDay: i })} /> : null}
+              {expanded ? <ListRow title={t("prog.workoutSettings")} accessibilityLabel={t("prog.workout.settings", { workout: day.name })} accessibilityHint={t("prog.workoutSettingsHint")} last onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId, settingsDay: i })} /> : null}
             </Card>
           );
         })}

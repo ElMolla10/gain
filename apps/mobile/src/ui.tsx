@@ -430,7 +430,8 @@ export function EmptyState({ icon, title, body, actionLabel, onAction }: { icon:
       </View>
       <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", textAlign: "center" }}>{title}</AppText>
       {body ? <AppText style={{ color: p.muted, textAlign: "center" }}>{body}</AppText> : null}
-      {actionLabel && onAction ? <BigButton label={actionLabel} onPress={onAction} /> : null}
+      {/* 24 dp above the action (H-9): heading + body read as one block, the button as the next step. */}
+      {actionLabel && onAction ? <View style={{ marginTop: space.xl - space.md }}><BigButton label={actionLabel} onPress={onAction} /></View> : null}
     </View>
   );
 }

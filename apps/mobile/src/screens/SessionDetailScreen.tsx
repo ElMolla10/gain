@@ -66,7 +66,7 @@ export function SessionDetailScreen() {
   useLayoutEffect(() => { if (headerTitle) navigation.setOptions({ title: headerTitle }); }, [navigation, headerTitle]);
 
   if (detail === null) return <LoadingState />;
-  if (detail === "none") return <EmptyState icon="progress" title={t("history.err.missing")} />;
+  if (detail === "none") return <EmptyState icon="progress" title={t("empty.workoutMissing")} />;
 
   const startEdit = (s: HistorySetRow) => {
     setErr(null);

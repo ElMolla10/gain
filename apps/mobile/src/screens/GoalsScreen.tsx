@@ -11,11 +11,11 @@ import { ExercisePicker } from "../components/ExercisePicker";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
-import { buildGoal, emptyGoalForm, parseWeighIn, type GoalForm } from "../logic/goalForm";
+import { buildGoal, emptyGoalForm, keepOriginalKg, parseWeighIn, prefillFromGoal, type GoalForm, type GoalPrefillKg } from "../logic/goalForm";
 import { parseNumber } from "../logic/gymInput";
 import { MUSCLE_GROUPS } from "../logic/exposure";
 import { describePace } from "../logic/paceText";
-import { kgToUnit, unitToKg } from "../logic/units";
+import { unitToKg } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, Field, InlineStatus, Screen } from "../ui";
 import { HealthNote } from "../components/HealthNote";
@@ -30,6 +30,7 @@ export function GoalsScreen() {
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const [weighIns, setWeighIns] = useState<WeighIn[]>([]);
   const [form, setForm] = useState<GoalForm>(emptyGoalForm());
+  const [kept, setKept] = useState<GoalPrefillKg>({});
   const [editing, setEditing] = useState(false);
   const [picker, setPicker] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
@@ -57,12 +58,9 @@ export function GoalsScreen() {
   useEffect(() => {
     void goals.getGoal().then((g) => {
       if (!g) return;
-      const f = emptyGoalForm();
-      f.kind = g.kind;
-      if (g.kind === "lift") Object.assign(f, { exerciseId: g.exerciseId, loadText: String(kgToUnit(g.targetLoad, unit)), repsText: String(g.targetReps), dateText: g.targetDate ?? "" });
-      if (g.kind === "bodyweight") Object.assign(f, { weightText: String(kgToUnit(g.targetWeightKg, unit)), dateText: g.targetDate ?? "" });
-      if (g.kind === "muscle") f.muscle = g.muscle;
-      setForm(f);
+      const pre = prefillFromGoal(g, unit);
+      setKept(pre.kept);
+      setForm(pre.form);
     });
   }, [goals, unit]);
 
@@ -96,8 +94,8 @@ export function GoalsScreen() {
   async function save() {
     const r = buildGoal(form, unit, Date.now());
     setProblems(r.problems);
-    const goal = r.goal;
-    if (!goal) return;
+    if (!r.goal) return;
+    const goal = keepOriginalKg(r.goal, form, kept); // an untouched field saves the stored kg exactly
     await run("save", async () => {
       await goals.setGoal(goal);
       setSaved(true);

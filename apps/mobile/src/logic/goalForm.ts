@@ -1,7 +1,7 @@
 import type { MuscleGroup } from "./exposure";
 import { emptyOnboardingForm, buildProfile, type FormProblemCode } from "./onboardingForm";
 import type { GoalInput } from "./onboarding";
-import type { Unit } from "./units";
+import { weightText as formatWeight, type Unit } from "./units";
 
 /** What the Goals screen holds while the lifter edits one goal. Text stays text until `buildGoal`. */
 export interface GoalForm {
@@ -46,4 +46,36 @@ export function parseWeighIn(text: string, unit: Unit, toKg: (v: number, u: Unit
   if (n === null) return null;
   const kg = toKg(n, unit);
   return kg >= 30 && kg <= 300 ? kg : null;
+}
+
+/** The kilograms behind the prefilled text, so an untouched field saves exactly what was stored (no lb rounding drift). */
+export interface GoalPrefillKg {
+  loadText?: string;
+  loadKg?: number;
+  weightText?: string;
+  weightKg?: number;
+}
+
+/** The edit form started from the current goal, weights shown with the app's display rounding in the lifter's unit (19). */
+export function prefillFromGoal(g: GoalInput, unit: Unit): { form: GoalForm; kept: GoalPrefillKg } {
+  const f = emptyGoalForm();
+  f.kind = g.kind;
+  const kept: GoalPrefillKg = {};
+  if (g.kind === "lift") {
+    Object.assign(f, { exerciseId: g.exerciseId, loadText: formatWeight(g.targetLoad, unit), repsText: String(g.targetReps), dateText: g.targetDate ?? "" });
+    Object.assign(kept, { loadText: f.loadText, loadKg: g.targetLoad });
+  }
+  if (g.kind === "bodyweight") {
+    Object.assign(f, { weightText: formatWeight(g.targetWeightKg, unit), dateText: g.targetDate ?? "" });
+    Object.assign(kept, { weightText: f.weightText, weightKg: g.targetWeightKg });
+  }
+  if (g.kind === "muscle") f.muscle = g.muscle;
+  return { form: f, kept };
+}
+
+/** A built goal whose load / weight text is still the prefilled text keeps the original kilograms exactly. */
+export function keepOriginalKg(goal: GoalInput, form: GoalForm, kept: GoalPrefillKg): GoalInput {
+  if (goal.kind === "lift" && kept.loadKg !== undefined && form.loadText === kept.loadText) return { ...goal, targetLoad: kept.loadKg };
+  if (goal.kind === "bodyweight" && kept.weightKg !== undefined && form.weightText === kept.weightText) return { ...goal, targetWeightKg: kept.weightKg };
+  return goal;
 }

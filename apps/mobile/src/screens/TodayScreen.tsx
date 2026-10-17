@@ -44,7 +44,7 @@ interface TodayData {
 }
 
 export function TodayScreen() {
-  const { repos, goals, programmes, shortWeek, deload, finish, workout } = useServices();
+  const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout } = useServices();
   const { t, lang, fmt, unit } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why", params?: { dayId: string } | { targetId: string }) => void }>();
@@ -67,6 +67,7 @@ export function TodayScreen() {
         // A new training week has begun: the normal program returns (if the lifter has not already edited it).
         await shortWeek.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
         await deload.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
+        await weeklyPlan.endIfExpired(Date.now()).catch(() => undefined);
         const shortActive = await shortWeek.getActive();
         if (alive) setShort(shortActive);
         const next = await repos.getNextDay();
@@ -96,7 +97,7 @@ export function TodayScreen() {
       return () => {
         alive = false;
       };
-    }, [repos, goals, programmes, shortWeek, deload, workout, finish, t, fmt, lang, attempt]),
+    }, [repos, goals, programmes, shortWeek, deload, weeklyPlan, workout, finish, t, fmt, lang, attempt]),
   );
 
   // The day on screen gets its preview on demand; a late result is cached under its own day id (never shown for another day) and

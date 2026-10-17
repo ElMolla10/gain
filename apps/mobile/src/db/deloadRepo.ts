@@ -60,6 +60,8 @@ export function createDeloadRepo(db: Db, deps: Deps, repos: Repos, programmes: P
     const { weekStart } = await weekBounds(nowMs, tzOffsetMs);
     if (rec && rec.weekStart === weekStart) return rec;
     if (await shortWeek.getActive()) return { status: "none" };
+    // An easier week from the weekly review is already on: a deload is not stacked on top of it.
+    if (await db.get("SELECT id FROM weekly_review WHERE applied_version_id IS NOT NULL AND ended_at IS NULL AND deleted_at IS NULL AND applied_json LIKE '%\"change\":\"easier_week\"%'")) return { status: "none" };
     const lifts = await history.listLifts();
     for (const lift of lifts) {
       if (lift.sessions < 3) continue;

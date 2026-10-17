@@ -18,6 +18,7 @@ import type { ProgrammeRepo } from "./db/programmeRepo";
 import type { DeloadRepo } from "./db/deloadRepo";
 import type { ShortWeekRepo } from "./db/shortWeekRepo";
 import type { WeeklyRepo } from "./db/weeklyRepo";
+import type { WeeklyPlanRepo } from "./db/weeklyPlanRepo";
 import type { WorkoutRepo } from "./db/workoutRepo";
 import type { CoachLinks } from "./sync/coachLinks";
 import type { SyncEngine } from "./sync/engine";
@@ -34,6 +35,7 @@ export interface AppServices {
   imports: ImportRepo;
   goals: GoalRepo;
   weekly: WeeklyRepo;
+  weeklyPlan: WeeklyPlanRepo;
   shortWeek: ShortWeekRepo;
   deload: DeloadRepo;
   rejections: RejectionRepo;

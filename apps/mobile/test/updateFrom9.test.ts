@@ -7,7 +7,7 @@ import { copyAtVersion, dumpAll, populatedWithRealHistory } from "./realData";
 describe("update over install: schema 9 -> latest in one run, real data (Mohamed's 70-workout Hevy export + own sessions)", () => {
   it("runs the pending migrations together, keeps every row, adds top_sets and load_spec_json as NULL, and a second run changes nothing", async () => {
     const cur = await populatedWithRealHistory();
-    expect(LATEST_VERSION).toBe(17);
+    expect(LATEST_VERSION).toBe(18);
     const before = await dumpAll(cur.db);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);
     const old = await copyAtVersion(cur.db, 9);
@@ -27,6 +27,7 @@ describe("update over install: schema 9 -> latest in one run, real data (Mohamed
     expect((await old.all<{ name: string }>("PRAGMA table_info(exercise_line)")).map((c) => c.name)).toContain("load_spec_json");
     expect((await old.all<{ name: string }>("PRAGMA table_info(session)")).map((c) => c.name)).toContain("readiness");
     expect((await old.all<{ name: string }>("PRAGMA table_info(lift_pin)")).map((c) => c.name)).toEqual(expect.arrayContaining(["weeks", "started_week"]));
+    expect((await old.all<{ name: string }>("PRAGMA table_info(weekly_review)")).map((c) => c.name)).toEqual(expect.arrayContaining(["original_version_id", "applied_version_id", "ends_at", "ended_at", "ended_how"]));
 
     const after = await dumpAll(old);
     // Achievements are derived after import on latest; schema 9 had no such tables, so a v9 copy + migrate starts them empty.

@@ -202,7 +202,7 @@ export function GoalsScreen() {
             <AppText style={{ fontWeight: "600" }}>
               {t("weekly.week", { date: d.weekStart })} · {t(`weekly.status.${d.status}` as StringKey)}
             </AppText>
-            <AppText style={{ color: p.muted }}>{d.applied ? changeText({ kind: "move_date", newDate: d.applied.newDate }, t) : changeText(d.review.change, t)}</AppText>
+            <AppText style={{ color: p.muted }}>{d.applied?.kind === "move_date" ? changeText({ kind: "move_date", newDate: d.applied.newDate }, t) : changeText(d.review.change, t)}</AppText>
           </View>
         ))}
       </Card>

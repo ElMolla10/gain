@@ -1,6 +1,6 @@
 # Weekly review rules (weekly-v1, Step 3)
 
-Code: `packages/engine/src/weekly.ts` (rule), `apps/mobile/src/db/weeklyRepo.ts` (reads logs, stores, applies a date move), `apps/mobile/src/components/WeeklyReviewCard.tsx` (card on Today). Table `weekly_review` (migration 4).
+Code: `packages/engine/src/weekly.ts` (rule), `apps/mobile/src/db/weeklyRepo.ts` (reads logs, stores, applies a date move), `apps/mobile/src/db/weeklyPlanRepo.ts` (applies and reverts a program change), `apps/mobile/src/components/WeeklyReviewCard.tsx` (card on Today). Table `weekly_review` (migration 4; program-change columns in migration 18).
 
 ## What it does
 
@@ -23,8 +23,15 @@ The week starts on Monday unless the lifter picks another day in Settings. Weeks
 
 ## What accepting does
 
-- Move the date: edits the goal's target date (the only automatic change). The lifter may type another date instead.
-- Everything else (extra exposure, variation, easier week, new goal): the decision is recorded and the card says plainly that the program is NOT edited; the lifter makes the change in the Program tab. (An automatic program edit is not built.)
+- Move the date: edits the goal's target date. The lifter may type another date instead.
+- Keep / new goal: the decision is recorded; nothing changes.
+- Easier week, one more exposure, two-week variation: **Do it** opens a preview sheet first (for example "This week: + Bench press on Lower A (3 × 8 @ 80 kg)") with **Apply** and **Cancel**. The program changes only on Apply. The change is saved as a NEW, temporary program version, the same way as the deload "fewer sets" mode:
+  - easier week: one set fewer on every exercise (at least 1), loads unchanged, until the end of this training week;
+  - one more exposure: one session's worth of the goal lift (the sets, rep range and settings of its slot in the program; the preview shows its current target) is added at the end of the next program day in the rotation that does not already have it, until the end of this training week;
+  - two-week variation: the goal lift is swapped in every slot for its highest-ranked substitution at the active gym (one not in the program yet first, never one already on a day that has the goal lift), until the end of next training week. The variation is another exercise, so it has its own line and history.
+- `weekly_review` keeps `original_version_id` and `applied_version_id` (plus `ends_at`, `ended_at`, `ended_how`). While the change is on, Today shows it with an **Undo** chip. At `ends_at`, or on Undo, the original version's days and exercises come back as another new version. No version is ever deleted, so sessions logged on any version stay readable. A workout in progress postpones the revert to the next time Today opens.
+- If the lifter saved their own program edit after the change was applied, nothing is reverted on its own: a two-option sheet asks **keep my edits** or **restore original**.
+- The decision is only recorded (the program is not edited, and the card says why) when: a short week is on; a deload is on (an easier week is never stacked on a deload, and any change is refused while a deload "fewer sets" version is on, because that version would lose its own way back); an earlier weekly change is still on; the goal lift is not in the program (or the goal is not a lift); every program day already has the goal lift; no substitution fits the gym; or the change would not alter the program. While an easier week from the review is on, the deload card does not suggest a deload.
 
 Decisions are kept in `weekly_review` (inputs, proposal, what was applied, status, time) and listed in the Goals screen under "Past weekly reviews". They are not in `decision_log` because that table is keyed to a target.
 

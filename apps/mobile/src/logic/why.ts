@@ -4,6 +4,7 @@ import { jumpKindText } from "./jumpText";
 import { quantityText } from "./quantity";
 import { loadsSummaryText } from "./exerciseLoads";
 import { localizeReason, unitLabel, weightText, type Unit } from "./units";
+import { formatDay } from "./dateText";
 
 export interface DecisionPayload {
   proposal: {
@@ -105,17 +106,15 @@ export function factorText(token: string, L: Translate): string {
   return token;
 }
 
-/** A YYYY-MM-DD training day as a local date ("16 Oct 2026" / Arabic), built at local noon so no timezone shifts it. Bad input shows as it is. */
-export function localDateText(iso: string, locale: Locale): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return iso;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12).toLocaleDateString(locale === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+/** A YYYY-MM-DD training day in the app's date format ("Fri 16 Oct" / Arabic, Western digits; see dateText.ts). Bad input shows as it is. */
+export function localDateText(iso: string, locale: Locale, now?: number): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatDay(iso, locale, now) : iso;
 }
 
 /** A stored session time as the app's training day (before 4 am counts as the previous day), formatted for the locale. */
-export function sessionDateText(performedAt: string, locale: Locale): string {
+export function sessionDateText(performedAt: string, locale: Locale, now?: number): string {
   const ms = Date.parse(performedAt);
-  return Number.isFinite(ms) ? localDateText(logicalTrainingDateFromMs(ms), locale) : performedAt.slice(0, 10);
+  return Number.isFinite(ms) ? localDateText(logicalTrainingDateFromMs(ms), locale, now) : performedAt.slice(0, 10);
 }
 
 function actionFromCurrency(currency: string): WhyAction {

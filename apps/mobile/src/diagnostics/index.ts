@@ -4,8 +4,11 @@ import { createDiagnostics, type DiagStore } from "../logic/diagnostics";
 /** The crash log is one small JSON file in the app's private document folder (not shared, not backed up by us, never uploaded). */
 export const DIAG_FILE_NAME = "gain-diagnostics.json";
 
-function fileStore(): DiagStore {
-  const file = () => new File(Paths.document, DIAG_FILE_NAME);
+/** Developer Mode timings (src/perfMarks.ts) live in their own tiny file next to the crash log. */
+export const PERF_FILE_NAME = "gain-perf.json";
+
+export function fileStore(name: string = DIAG_FILE_NAME): DiagStore {
+  const file = () => new File(Paths.document, name);
   return {
     read() {
       const f = file();

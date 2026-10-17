@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useServices } from "./AppContext";
 import { diagnostics } from "./diagnostics";
+import { perfMarks } from "./perfMarks";
 import { createDeveloperMode } from "./logic/developerMode";
 
 const Context = createContext<ReturnType<typeof createDeveloperMode> | null>(null);
@@ -8,6 +9,12 @@ export function DeveloperModeProvider({ children }: { children: React.ReactNode 
   const { repos } = useServices();
   const store = useMemo(() => createDeveloperMode(repos), [repos]);
   useEffect(() => { void store.load().catch(error => diagnostics.record("warn", "load developer mode", error)); }, [store]);
+  // Timings are recorded only with Developer Mode on (decided once it has loaded).
+  useEffect(() => {
+    const apply = () => { const s = store.getSnapshot(); if (s.ready) perfMarks.setEnabled(s.enabled); };
+    apply();
+    return store.subscribe(apply);
+  }, [store]);
   return <Context.Provider value={store}>{children}</Context.Provider>;
 }
 export function useDeveloperMode() {

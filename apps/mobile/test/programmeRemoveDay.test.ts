@@ -13,7 +13,7 @@ const native = vi.hoisted(() => ({ alert: vi.fn() }));
 vi.mock("react-native", () => ({ Alert: { alert: native.alert }, Pressable: "Pressable", View: "View" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate("en", key, params), lang: "en" }) }));
 vi.mock("../src/theme", () => ({ space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 13 }, usePalette: () => ({}) }));
-vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", Card: "Card", Chip: "Chip", Field: "Field", IconButton: "IconButton", Stepper: "Stepper" }));
+vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", Card: "Card", Chip: "Chip", Field: "Field", IconButton: "IconButton", QuietAction: "QuietAction", Stepper: "Stepper" }));
 vi.mock("../src/components/ExposureView", () => ({ EffectView: "EffectView", ExposureView: "ExposureView" }));
 vi.mock("../src/components/ExercisePicker", () => ({ ExercisePicker: "ExercisePicker" }));
 vi.mock("../src/components/ExerciseReorderModal", () => ({ ExerciseReorderModal: "ExerciseReorderModal" }));
@@ -21,7 +21,7 @@ vi.mock("../src/components/WorkoutSettingsModal", () => ({ WorkoutSettingsModal:
 vi.mock("../src/components/LogParts", () => ({ MenuSheet: "MenuSheet" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
 
-const { ProgrammeEditorView } = await import("../src/components/ProgrammeEditorView");
+const { ProgrammeEditorView, removeBodyKey } = await import("../src/components/ProgrammeEditorView");
 
 type Node = ReactElement<Record<string, any>>;
 function nodes(value: unknown): Node[] {
@@ -42,7 +42,7 @@ const draft: ProgrammeDraft = {
 
 function removeChips(onChange: (d: ProgrammeDraft) => void) {
   const tree = nodes(ProgrammeEditorView({ draft, onChange, baseline: null, library: [], daysPerWeek: null, onCreateExercise: async () => "x" }));
-  return tree.filter(n => n.type === "Chip" && n.props.label === en["prog.day.remove"]);
+  return tree.filter(n => n.type === "QuietAction" && n.props.label === en["prog.day.remove"]);
 }
 
 beforeEach(() => native.alert.mockReset());
@@ -75,7 +75,7 @@ describe("'Remove this day' asks first (data-loss item 8)", () => {
   it("a blank day name falls back to 'Day N'", () => {
     removeChips(vi.fn())[1]!.props.onPress();
     expect(plain(native.alert.mock.calls[0]![0])).toBe("Remove Day 2?");
-    expect(plain(native.alert.mock.calls[0]![1])).toContain("Day 2 and its 1 exercises");
+    expect(plain(native.alert.mock.calls[0]![1])).toContain("Day 2 and its 1 exercise from");
   });
 
   it("an empty day is removed straight away, with no dialog", () => {
@@ -85,8 +85,30 @@ describe("'Remove this day' asks first (data-loss item 8)", () => {
     expect(onChange.mock.calls[0]![0].days.map((d: { name: string }) => d.name)).toEqual(["Push", ""]);
   });
 
+  it("counts read naturally: 1 exercise / N exercises; Arabic plural noun only for 3–10", () => {
+    expect(removeBodyKey(1, "en")).toBe("prog.day.removeBody.one");
+    for (const n of [2, 3, 11]) expect(removeBodyKey(n, "en")).toBe("prog.day.removeBody");
+    for (const n of [1, 2, 11, 20]) expect(removeBodyKey(n, "ar")).toBe("prog.day.removeBody.one");
+    for (const n of [3, 10]) expect(removeBodyKey(n, "ar")).toBe("prog.day.removeBody");
+    expect(plain(translate("en", "prog.day.removeBody.one", { day: "Legs", n: 1 }))).toContain("its 1 exercise from");
+    expect(plain(translate("ar", "prog.day.removeBody", { day: "رجل", n: 3 }))).toContain("3 تمارين");
+    expect(plain(translate("ar", "prog.day.removeBody.one", { day: "رجل", n: 1 }))).toContain("1 تمرين ");
+  });
+
+  it("the remove control sits at the bottom of the day card as a danger text action, after Add exercise", () => {
+    const tree = nodes(ProgrammeEditorView({ draft, onChange: vi.fn(), baseline: null, library: [], daysPerWeek: null, onCreateExercise: async () => "x" }));
+    const firstCard = tree.find(n => n.type === "Card")!;
+    const inCard = nodes(firstCard.props.children);
+    const add = inCard.findIndex(n => n.type === "BigButton" && n.props.label === en["prog.ex.add"]);
+    const remove = inCard.findIndex(n => n.type === "QuietAction" && n.props.label === en["prog.day.remove"]);
+    expect(add).toBeGreaterThan(-1);
+    expect(remove).toBeGreaterThan(add);
+    expect(inCard[remove]!.props).toMatchObject({ tone: "danger", icon: "trash" });
+    expect(tree.some(n => n.type === "Chip" && n.props.label === en["prog.day.remove"])).toBe(false);
+  });
+
   it("has English and Egyptian Arabic copy with matching placeholders", () => {
-    for (const key of ["prog.day.removeTitle", "prog.day.removeBody"] as const) {
+    for (const key of ["prog.day.removeTitle", "prog.day.removeBody", "prog.day.removeBody.one"] as const) {
       expect(ar[key]).toMatch(/[\u0600-\u06ff]/);
       expect((en[key].match(/\{\w+\}/g) ?? []).sort()).toEqual((ar[key].match(/\{\w+\}/g) ?? []).sort());
     }

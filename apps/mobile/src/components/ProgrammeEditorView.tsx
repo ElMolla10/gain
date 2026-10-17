@@ -11,7 +11,7 @@ import {
 } from "../logic/programmeDraft";
 import { substitutionCandidates } from "../logic/substitutions";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, Field, IconButton, Stepper } from "../ui";
+import { AppText, BigButton, Card, Chip, Field, IconButton, QuietAction, Stepper } from "../ui";
 import { EffectView, ExposureView } from "./ExposureView";
 import { ExercisePicker } from "./ExercisePicker";
 import { ExerciseReorderModal } from "./ExerciseReorderModal";
@@ -24,6 +24,10 @@ import { Icon } from "./Icon";
  * every edit returns a new draft; saving is the caller's job (a save writes a new version, see programmeRepo).
  * `baseline` is the saved version being edited; with it the editor shows what the edit changes in weekly exposure.
  */
+/** "1 exercise" / "3 exercises"; Arabic counts take the plural noun only from 3 to 10 ("3 تمارين", but "1 / 2 / 11 تمرين"). */
+export const removeBodyKey = (n: number, lang: string): "prog.day.removeBody" | "prog.day.removeBody.one" =>
+  (lang === "ar" ? n >= 3 && n <= 10 : n !== 1) ? "prog.day.removeBody" : "prog.day.removeBody.one";
+
 export function ProgrammeEditorView(props: {
   draft: ProgrammeDraft;
   initialSettingsDay?: number;
@@ -108,7 +112,7 @@ export function ProgrammeEditorView(props: {
     const name = day.name.trim() || t("prog.day.default", { n: dayIndex + 1 });
     Alert.alert(
       t("prog.day.removeTitle", { day: name }),
-      t("prog.day.removeBody", { day: name, n: day.exercises.length }),
+      t(removeBodyKey(day.exercises.length, lang), { day: name, n: day.exercises.length }),
       [
         { text: t("finish.cancel"), style: "cancel" },
         { text: t("prog.ex.remove"), style: "destructive", onPress: remove },
@@ -125,9 +129,6 @@ export function ProgrammeEditorView(props: {
           <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
             <View style={{ flex: 1 }}><Field label={t("prog.day.name")} value={day.name} onChangeText={(s) => props.onChange(renameDay(d, di, s))} /></View>
             <IconButton icon="settings" label={t("prog.workout.settings", { workout: day.name })} onPress={() => setSettingsDay(di)} />
-          </View>
-          <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-            <Chip label={t("prog.day.remove")} tone="danger" onPress={() => confirmRemoveDay(di)} />
           </View>
           {day.exercises.length > 1 ? <BigButton variant="secondary" label={t("prog.reorder.button")} onPress={() => setReorderDay(di)} /> : null}
           {day.exercises.map((e, ei) => (
@@ -240,6 +241,10 @@ export function ProgrammeEditorView(props: {
             </View>
           ))}
           <BigButton variant="secondary" icon="plus" label={t("prog.ex.add")} onPress={() => setPickerDay(di)} />
+          {/* Destructive, so last in the card and ≥24 dp below "Add exercise" (12 card gap + 12); it still asks first (confirmRemoveDay). */}
+          <View style={{ marginTop: space.md, alignItems: "flex-start" }}>
+            <QuietAction tone="danger" icon="trash" label={t("prog.day.remove")} onPress={() => confirmRemoveDay(di)} />
+          </View>
         </Card>
       ))}
       <BigButton variant="secondary" icon="plus" label={t("prog.day.add")} onPress={() => props.onChange(addDay(d, t("prog.day.default", { n: d.days.length + 1 }).replace(/[\u2066\u2069]/g, "")))} />

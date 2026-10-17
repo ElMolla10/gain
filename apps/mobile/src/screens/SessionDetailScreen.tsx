@@ -160,10 +160,10 @@ export function SessionDetailScreen() {
                   <BigButton variant="secondary" label={t("history.cancel")} onPress={() => { setEdit(null); setErr(null); }} />
                 </View>
               ) : asking === s.id ? (
-                <View style={{ gap: space.sm }}>
+                <View style={{ gap: space.lg }}>
                   <AppText>{t("history.deleteAsk")}</AppText>
                   <BigButton
-                    variant="danger"
+                    variant="dangerSolid"
                     label={t("history.deleteYes")}
                     onPress={async () => {
                       try {
@@ -180,7 +180,7 @@ export function SessionDetailScreen() {
               ) : (
                 <View style={{ flexDirection: "row", gap: space.sm }}>
                   <View style={{ flex: 1 }}><BigButton variant="secondary" icon="edit" label={t("history.edit")} onPress={() => startEdit(s)} /></View>
-                  <View style={{ flex: 1 }}><BigButton variant="quiet" label={t("history.delete")} onPress={() => { setEdit(null); setAsking(s.id); }} /></View>
+                  <View style={{ flex: 1 }}><BigButton variant="danger" icon="trash" label={t("history.delete")} onPress={() => { setEdit(null); setAsking(s.id); }} /></View>
                 </View>
               )}
             </View>

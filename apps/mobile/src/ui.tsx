@@ -5,6 +5,7 @@ import { Icon, type IconName } from "./components/Icon";
 import { familyFor, hasArabic, ltrAllowed, scaleFor, textOf } from "./fonts";
 import { useI18n } from "./i18n";
 import { adjustKeyboardInsets, numberPadAccessory } from "./numberPad";
+import { choiceListMaxHeight, hasCollapsibleContent } from "./logic/sheetLayout";
 import { INPUT_HEIGHT, MIN_TOUCH, PRIMARY_HEIGHT, radius, space, type as ty, usePalette } from "./theme";
 
 /**
@@ -90,8 +91,13 @@ export function Screen({ children, footer, scroll = true, contentStyle, title, t
 }
 
 type Tone = "default" | "raised" | "tint" | "success" | "warn" | "danger";
+/** Inside a CollapsibleCard a Card becomes a section of it (a divider, no second border or surface): no card-in-card. */
+const InsetCards = React.createContext(false);
+
 export function Card({ children, style, tone = "default" }: { children: React.ReactNode; style?: ViewStyle; tone?: Tone }) {
   const p = usePalette();
+  const inset = React.useContext(InsetCards);
+  if (inset && tone === "default") return <View style={[{ borderTopWidth: 1, borderColor: p.border, paddingTop: space.md, gap: space.sm }, style]}>{children}</View>;
   const bg = tone === "raised" ? p.raised : tone === "tint" ? p.tint : tone === "success" ? p.successBg : tone === "warn" ? p.warnBg : tone === "danger" ? p.dangerBg : p.card;
   const border = tone === "tint" ? p.tint : tone === "success" ? p.success : tone === "warn" ? p.warn : tone === "danger" ? p.danger : p.border;
   return <View style={[{ backgroundColor: bg, borderColor: border, borderWidth: 1, borderRadius: radius.card, padding: space.lg, gap: space.sm }, style]}>{children}</View>;
@@ -138,8 +144,8 @@ export function BigButton(props: { label: string; onPress?: () => void; disabled
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: variant === "primary" ? (props.disabled && !props.loading ? p.disabled : pressed ? p.fillPressed : p.fill) : variant === "secondary" ? (pressed ? p.tint : p.raised) : pressed ? p.raised : "transparent",
-        borderWidth: variant === "secondary" || variant === "danger" ? 1.5 : 0,
-        borderColor: variant === "danger" ? p.danger : p.edge,
+        borderWidth: variant === "secondary" || variant === "danger" ? 1.5 : variant === "primary" ? 1 : 0,
+        borderColor: variant === "danger" ? p.danger : variant === "primary" ? (props.disabled && !props.loading ? "transparent" : p.fillEdge) : p.edge,
       })}
     >
       {props.loading ? <ActivityIndicator color={fg} /> : props.icon ? <Icon name={props.icon} color={fg} size={20} mirror={props.icon === "chevron"} /> : null}
@@ -447,9 +453,12 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
  */
 export function ChoiceSheet(props: { visible: boolean; title: string; note?: string; onClose: () => void; onSelect: (id: string) => void; options: { id: string; label: string; detail?: string; /** A short status word such as "Suggested today". */ badge?: string; selected: boolean }[] }) {
   const p = usePalette();
+  const { height } = useWindowDimensions();
   return (
     <Sheet visible={props.visible} title={props.title} onClose={props.onClose}>
+      {/* The option list is capped so the last rows stay within thumb reach; the note is never cut off (keep its copy to one line). */}
       {props.note ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{props.note}</AppText> : null}
+      <ScrollView style={{ maxHeight: choiceListMaxHeight(height) }} contentContainerStyle={{ gap: space.sm }} nestedScrollEnabled>
       <View accessibilityRole="radiogroup" style={{ gap: space.sm }}>
         {props.options.map((o) => (
           <Pressable
@@ -472,6 +481,7 @@ export function ChoiceSheet(props: { visible: boolean; title: string; note?: str
           </Pressable>
         ))}
       </View>
+      </ScrollView>
     </Sheet>
   );
 }
@@ -542,6 +552,53 @@ export function ListRow(props: { title: string; note?: string; trailing?: string
     <Pressable accessibilityRole="button" accessibilityLabel={props.accessibilityLabel} onPress={props.onPress} style={({ pressed }) => [style, pressed ? { backgroundColor: p.raised } : null]}>{inner}</Pressable>
   ) : (
     <View style={style}>{inner}</View>
+  );
+}
+
+/**
+ * One collapsed card that holds several secondary cards (Today's "This week"): a 56 dp header row (title, note, chevron that turns
+ * when open, mirrored in RTL) and, when open, its children as sections of the same card. The children stay mounted while collapsed
+ * (they load their own data), clipped to zero height and hidden from screen readers; when none of them renders anything the whole
+ * card is hidden.
+ */
+export function CollapsibleCard({ title, note, children, defaultOpen = false }: { title: string; note?: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const p = usePalette();
+  const { direction } = useI18n();
+  const [open, setOpen] = useState(defaultOpen);
+  const [hasContent, setHasContent] = useState(false);
+  const shown = open && hasContent;
+  const clip = { height: 0, overflow: "hidden" } as const;
+  return (
+    <View style={hasContent ? { borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: p.card, overflow: "hidden" } : clip}>
+      {hasContent ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          accessibilityLabel={note ? `${title}, ${note}` : title}
+          onPress={() => setOpen((o) => !o)}
+          style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg, backgroundColor: pressed ? p.raised : "transparent" })}
+        >
+          <View style={{ flex: 1, gap: 2 }}>
+            <AppText style={{ fontWeight: "600" }}>{title}</AppText>
+            {note ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{note}</AppText> : null}
+          </View>
+          {/* Collapsed: points to the end edge (mirrored in RTL). Open: turned a quarter so it points down in both directions. */}
+          <View style={{ transform: [{ rotate: open ? (direction === "rtl" ? "-90deg" : "90deg") : "0deg" }] }}>
+            <Icon name="chevron" color={p.muted} size={20} mirror />
+          </View>
+        </Pressable>
+      ) : null}
+      <View
+        style={shown ? { paddingHorizontal: space.lg, paddingBottom: space.lg } : clip}
+        accessibilityElementsHidden={!shown}
+        importantForAccessibility={shown ? "auto" : "no-hide-descendants"}
+        aria-hidden={!shown}
+      >
+        <View onLayout={(e) => setHasContent(hasCollapsibleContent(e.nativeEvent.layout.height))} style={{ gap: space.md }}>
+          <InsetCards.Provider value>{children}</InsetCards.Provider>
+        </View>
+      </View>
+    </View>
   );
 }
 

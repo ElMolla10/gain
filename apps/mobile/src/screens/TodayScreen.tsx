@@ -4,7 +4,7 @@ import { plannedScheme, targetRowText } from "../logic/bidiText";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useWindowDimensions, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
 import { WeeklyReviewCard } from "../components/WeeklyReviewCard";
@@ -16,10 +16,11 @@ import { exerciseLabels } from "../i18n/format";
 import { estimateDayMinutes } from "../logic/duration";
 import { loadRestSettings } from "../logic/restAlert";
 import { useI18n } from "../i18n";
-import { radius, space, type as ty, usePalette } from "../theme";
+import { MIN_TOUCH, radius, space, type as ty, usePalette } from "../theme";
+import { Icon } from "../components/Icon";
 import { BrandLogo } from "../BrandLogo";
 import { dayLabel, initialSelection, markSuggested, dayNeedingPreview, sessionAction, startDay, type DayChoice } from "../logic/dayChoice";
-import { AppText, BigButton, Card, ChoiceSheet, EmptyState, ErrorState, InlineStatus, ListCard, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
+import { AppText, BigButton, Card, ChoiceSheet, CollapsibleCard, EmptyState, ErrorState, InlineStatus, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { LOADING, runLoad, type Load } from "../logic/loadState";
@@ -55,6 +56,7 @@ export function TodayScreen() {
   const [picked, setPicked] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   const { fontScale } = useWindowDimensions();
   const loadSeq = useRef(0);
   const inflight = useRef(new Set<string>());
@@ -201,19 +203,33 @@ export function TodayScreen() {
           {data.days.length > 1 ? <QuietAction label={t("today.change")} accessibilityLabel={t("today.changeLabel", { day: chosen.name })} onPress={() => setChangeOpen(true)} /> : null}
         </View>
         <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{chosen.name}</AppText>
-        {/* Separate runs, so a Latin program name never scrambles the order of an Arabic sentence. */}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xs }}>
-          <AppText style={{ color: p.muted }}>{data.programmeName} ·</AppText>
+        {/* The program name on its own line (14 muted), then sets and minutes: no separator left dangling when a line wraps, and no
+            bidi joint between a Latin program name and an Arabic sentence (T-3). */}
+        <View style={{ gap: 2 }}>
+          <AppText style={{ color: p.muted, fontSize: ty.label }}>{data.programmeName}</AppText>
           <AppText style={{ color: p.muted }}>{t("today.meta", { sets: chosen.sets, min: estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds) })}</AppText>
         </View>
         {action.kind === "resume" ? <InlineStatus kind={action.elsewhere ? "warn" : "info"} text={action.elsewhere ? t("today.finishOpenFirst") : t("today.openWorkout")} /> : null}
         <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />
+        {/* Goal pace in one line, right under Start (T-5): a 48 dp link to Goals. */}
+        {paceLine ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t("goals.entry")}: ${paceLine}`}
+            onPress={() => navigation.navigate("Goals")}
+            style={({ pressed }) => ({ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.raised : "transparent" })}
+          >
+            <AppText style={{ flex: 1, fontSize: ty.label, color: p.muted }}>{paceLine}</AppText>
+            <Icon name="chevron" color={p.muted} size={18} mirror />
+          </Pressable>
+        ) : null}
         {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.starterNote")}</AppText> : null}
       </Card>
 
       <View style={{ gap: space.sm }}>
-        <SectionTitle>{t("today.targets")}</SectionTitle>
-        <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText>
+        {/* The explanation of where these weights come from sits behind a "?" instead of 2-3 lines above the list (T-6). */}
+        <SectionTitle action={<QuietAction label="?" accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen} onPress={() => setNoteOpen((o) => !o)} />}>{t("today.targets")}</SectionTitle>
+        {noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}
         {previewDay ? <AppText style={{ color: p.muted }}>{t("common.loading")}</AppText> : !anyWeight ? <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText> : null}
         <Card style={{ paddingVertical: space.xs }}>
           {exercises.map((e, i) => {
@@ -231,7 +247,7 @@ export function TodayScreen() {
             return (
               <View
                 key={e.id}
-                style={{ flexDirection: stack ? "column" : "row", justifyContent: "space-between", alignItems: stack ? "flex-start" : isLead ? "flex-start" : "center", gap: stack ? space.xs : space.md, minHeight: 56, paddingVertical: space.sm, paddingHorizontal: isLead ? space.md : 0, marginVertical: isLead ? space.xs : 0, borderRadius: isLead ? radius.button : 0, backgroundColor: isLead ? p.tint : "transparent", borderBottomWidth: i === exercises.length - 1 || isLead ? 0 : 1, borderColor: p.border }}
+                style={{ flexDirection: stack ? "column" : "row", justifyContent: "space-between", alignItems: stack ? "flex-start" : isLead ? "flex-start" : "center", gap: stack ? space.xs : space.md, minHeight: 56, paddingVertical: space.sm, paddingHorizontal: isLead ? space.md : 0, marginVertical: isLead ? space.xs : 0, borderRadius: isLead ? radius.button : 0, backgroundColor: isLead ? p.tint : "transparent", borderStartWidth: isLead ? 4 : 0, borderStartColor: p.accent, borderBottomWidth: i === exercises.length - 1 || isLead ? 0 : 1, borderColor: p.border }}
               >
                 <View style={{ flex: stack ? 0 : 1, gap: 2 }}>
                   {isLead ? <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent, letterSpacing: 0.4 }}>{t("target.label")}</AppText> : null}
@@ -259,13 +275,15 @@ export function TodayScreen() {
         </Card>
       </View>
 
-      <PersonalProgressCard />
-      <WeeklyReviewCard />
-      <MuscleVolumeCard />
-      <DeloadCard />
-      <PeriodizationCard />
-
-      {paceLine ? <ListCard title={t("goals.entry")} note={paceLine} onPress={() => navigation.navigate("Goals")} /> : null}
+      {/* Everything else about the week in ONE collapsed card instead of five stacked ones (T-5). Each section still loads itself and
+          keeps its own actions; a section with nothing to say renders nothing, and with no sections the card is not drawn. */}
+      <CollapsibleCard title={t("today.thisWeek")} note={t("today.thisWeekNote")}>
+        <PersonalProgressCard />
+        <WeeklyReviewCard />
+        <MuscleVolumeCard />
+        <DeloadCard />
+        <PeriodizationCard />
+      </CollapsibleCard>
 
       <View style={{ gap: space.xs }}>
         {short ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("short.active", { days: short.days })}</AppText> : null}
@@ -276,7 +294,7 @@ export function TodayScreen() {
       <ChoiceSheet
         visible={changeOpen}
         title={t("today.choose")}
-        note={t("today.chooseNote")}
+        note={t("today.chooseNoteShort")}
         onClose={() => setChangeOpen(false)}
         onSelect={setPicked}
         options={data.days.map((d) => ({

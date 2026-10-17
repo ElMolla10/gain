@@ -26,6 +26,10 @@ export const enDesign = {
   "today.noTargetsYet": "Suggested weights appear as you log workouts. No made-up weights for untrained lifts.",
   "today.planned": "Plan {plan}",
   "today.setupPlan": "Set up a plan",
+  "today.previewNoteToggle": "About these weights",
+  "today.thisWeek": "This week",
+  "today.thisWeekNote": "Weekly review, volume and suggestions",
+  "today.chooseNoteShort": "Any day is fine. Skipped days don't stack up.",
 } as const;
 
 export const arDesign: Record<keyof typeof enDesign, string> = {
@@ -52,4 +56,8 @@ export const arDesign: Record<keyof typeof enDesign, string> = {
   "today.noTargetsYet": "الأوزان المقترحة هتظهر لما تسجل تمريناتك. مش بنخمن أوزان حركات مجربتهاش.",
   "today.planned": "الخطة {plan}",
   "today.setupPlan": "جهّز خطة",
+  "today.previewNoteToggle": "عن الأوزان دي",
+  "today.thisWeek": "الأسبوع ده",
+  "today.thisWeekNote": "مراجعة الأسبوع والحجم والاقتراحات",
+  "today.chooseNoteShort": "أي يوم مناسب. الأيام اللي بتعديها مش بتتكدس.",
 };

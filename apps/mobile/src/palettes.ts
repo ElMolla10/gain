@@ -23,6 +23,11 @@ export interface Palette {
   /** `fill` while pressed (slightly darker). */
   fillPressed: string;
   /**
+   * 1 dp edge around a `fill` (primary button) so its shape survives glare: olive #5C8A00 in light (lime on white is only 1.31:1;
+   * the edge is 3.8:1 against bone), transparent in dark where lime already stands out.
+   */
+  fillEdge: string;
+  /**
    * "Done" treatment (a ticked set): a muted green fill with a green outline and a green check, so a finished set never competes with the
    * lime that is reserved for the current unfinished row and the primary actions. Done is carried by the check mark + the checkbox state, not by colour alone.
    */
@@ -58,6 +63,7 @@ export const darkPalette: Palette = {
   fill: c.lime,
   onFill: c.darkAccentText,
   fillPressed: "#9FD816",
+  fillEdge: "transparent",
   doneFill: "#2E4A38",
   doneEdge: "#5E8F72",
   onDone: c.success,
@@ -85,6 +91,7 @@ export const lightPalette: Palette = {
   fill: c.lime,
   onFill: c.ink,
   fillPressed: "#9FD816",
+  fillEdge: "#5C8A00",
   doneFill: "#CDE6D5",
   doneEdge: "#3F8A5F",
   onDone: "#1B6B3E",

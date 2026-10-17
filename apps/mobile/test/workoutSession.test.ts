@@ -93,10 +93,12 @@ beforeEach(() => { host.values = []; host.effects = []; host.index = 0; vi.clear
 afterEach(() => { host.values.forEach(v => v?.cleanup?.()); vi.useRealTimers(); });
 
 describe("one tap on the real session checkmark", () => {
-  it.each([false, true])("logs ghost or edited values (edited: %s), starts rest, and refreshes the next card", async edited => {
+  it.each([false, true])("logs ghost or edited values (edited: %s), starts opted-in rest, and refreshes the next card", async edited => {
     const c = await fixture();
     let s = ready();
     const ex = s.shown[0]!;
+    await s.exerciseProps(ex, 0)!.onToggleRest();
+    s = ready();
     const row = s.rows[ex.exerciseId]![0]!;
     expect(row.ghostLoad).toBe(60);
     const expectedReps = row.ghostReps;
@@ -122,12 +124,9 @@ describe("one tap on the real session checkmark", () => {
     expect(native.sync).toHaveBeenLastCalledWith(expect.objectContaining({ endsAt: ready().timer.endsAt }));
   });
 
-  it("preserves an explicit rest-off choice", async () => {
+  it("keeps rest off by default", async () => {
     await fixture();
     let s = ready(); const ex = s.shown[0]!; const row = s.rows[ex.exerciseId]![0]!;
-    // The public toggle persists the session's off choice.
-    await s.exerciseProps(ex, 0)!.onToggleRest();
-    s = ready();
     await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
     expect(ready().timer.endsAt).toBeNull();
   });
@@ -135,6 +134,8 @@ describe("one tap on the real session checkmark", () => {
   it.each(["warmup", "drop"] as const)("does not auto-start rest for a %s set", async kind => {
     await fixture();
     let s = ready(); const ex = s.shown[0]!; const row = s.rows[ex.exerciseId]![0]!;
+    await s.exerciseProps(ex, 0)!.onToggleRest();
+    s = ready();
     s.patch(ex.exerciseId, row.key, kind === "warmup" ? { warmup: true } : { tags: ["drop"] });
     s = ready();
     await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
@@ -155,7 +156,9 @@ describe("one tap on the real session checkmark", () => {
 
   it("ends the rest presentation at the deadline and on leaving the logger", async () => {
     await fixture();
-    const s = ready(); const ex = s.shown[0]!;
+    let s = ready(); const ex = s.shown[0]!;
+    await s.exerciseProps(ex, 0)!.onToggleRest();
+    s = ready();
     await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
     const running = ready();
     await vi.advanceTimersByTimeAsync(running.timer.durationMs);

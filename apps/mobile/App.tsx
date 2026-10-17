@@ -46,6 +46,7 @@ import { createRejectionRepo } from "./src/db/rejectionRepo";
 import { createDeloadRepo } from "./src/db/deloadRepo";
 import { createShortWeekRepo } from "./src/db/shortWeekRepo";
 import { createWeeklyRepo } from "./src/db/weeklyRepo";
+import { createWeeklyPlanRepo } from "./src/db/weeklyPlanRepo";
 import { createWorkoutRepo } from "./src/db/workoutRepo";
 import { createMlEvaluationRepo } from "./src/db/mlEvaluationRepo";
 import { FinishScreen } from "./src/screens/FinishScreen";
@@ -276,6 +277,7 @@ export default function App() {
       const goals = createGoalRepo(db, deps, repos);
       const weekly = createWeeklyRepo(db, deps, repos, goals);
       const shortWeek = createShortWeekRepo(db, deps, repos, programmes, goals);
+      const weeklyPlan = createWeeklyPlanRepo(db, deps, repos, goals, programmes, finish, shortWeek);
       await onboarding.markExistingInstall();
       setAppearance(parseAppearance(await repos.getSetting("appearance")));
       const rejections = createRejectionRepo(db, deps);
@@ -298,7 +300,7 @@ export default function App() {
         if (rs.on) await syncReminders(reminders, rs, reminderText(await repos.getLanguage()));
       })().catch(() => undefined);
       autoSync(true); // does one local read and nothing else unless the lifter turned Back up and sync on
-      setBoot({ services: { db, repos, workout, mlEvaluation, finish, gyms, programmes, onboarding, imports, goals, weekly, shortWeek, deload, rejections, history, achievements, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), showSecond: (await repos.getSetting("second_name")) === "1", needsOnboarding: (await onboarding.getState()) === null });
+      setBoot({ services: { db, repos, workout, mlEvaluation, finish, gyms, programmes, onboarding, imports, goals, weekly, weeklyPlan, shortWeek, deload, rejections, history, achievements, decisions, data, restAlerts: createRestAlerts(), reminders, sync, coachLinks: createCoachLinks(sync), autoSync, restart }, lang: await repos.getLanguage(), override: await repos.getRtlOverride(), unit: await repos.getUnits(), showSecond: (await repos.getSetting("second_name")) === "1", needsOnboarding: (await onboarding.getState()) === null });
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
       setBoot("error");

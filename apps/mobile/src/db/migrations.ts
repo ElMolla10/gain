@@ -476,6 +476,20 @@ ALTER TABLE lift_pin ADD COLUMN weeks INTEGER;
 ALTER TABLE lift_pin ADD COLUMN started_week TEXT;
 `,
   },
+  {
+    version: 18,
+    name: "weekly review applies to the program",
+    sql: `
+-- An accepted weekly change (easier week / one more exposure / two-week variation) saved as a temporary program version, like the deload
+-- "sets" mode. original_version_id comes back at ends_at or on undo (as a NEW version: versions are never deleted). All NULL for a decision
+-- that was only recorded. ended_at / ended_how: when and how the change ended (ended / undone / kept_edits / restored).
+ALTER TABLE weekly_review ADD COLUMN original_version_id TEXT REFERENCES programme_version(id);
+ALTER TABLE weekly_review ADD COLUMN applied_version_id TEXT REFERENCES programme_version(id);
+ALTER TABLE weekly_review ADD COLUMN ends_at INTEGER;
+ALTER TABLE weekly_review ADD COLUMN ended_at INTEGER;
+ALTER TABLE weekly_review ADD COLUMN ended_how TEXT;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

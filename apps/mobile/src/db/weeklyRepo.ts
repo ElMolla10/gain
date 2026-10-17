@@ -16,8 +16,8 @@ export interface StoredReview {
   status: ReviewStatus;
   review: WeeklyReview;
   inputs: WeeklyInput;
-  /** What the tap changed, or null when nothing was changed. */
-  applied: { kind: "move_date"; newDate: string } | null;
+  /** What the tap changed, or null when nothing was changed. "plan" = a temporary program version (see weeklyPlanRepo). */
+  applied: { kind: "move_date"; newDate: string } | { kind: "plan"; change: "extra_exposure" | "variation" | "easier_week"; programmeId: string; lines: unknown[] } | null;
   decidedAt: number | null;
 }
 
@@ -37,8 +37,8 @@ const toStored = (r: Row): StoredReview => ({
 
 /**
  * Weekly one-decision review data layer. One review per training week, written once the week is over. It reads the lifter's logs,
- * runs the weekly rule, stores the proposal, and changes NOTHING until the lifter taps. Only a "move the date" proposal edits
- * anything (the goal's target date); the other proposals are recorded and shown, and the lifter applies them in the Program tab.
+ * runs the weekly rule, stores the proposal, and changes NOTHING until the lifter taps. A "move the date" proposal edits the goal's
+ * target date; easier week / one more exposure / variation are applied to the program by weeklyPlanRepo after a preview and the Apply tap.
  * Weeks are computed in the lifter's local time: pass `tzOffsetMs` (local minus UTC, in ms; `-getTimezoneOffset() * 60000` on a phone).
  */
 export function createWeeklyRepo(db: Db, deps: Deps, repos: Repos, goals: GoalRepo) {

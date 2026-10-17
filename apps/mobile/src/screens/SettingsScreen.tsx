@@ -10,7 +10,7 @@ import { osTextKey } from "../logic/platform";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
-import { AppText, Chip, InlineStatus, Screen, Stepper } from "../ui";
+import { AppText, Chip, InlineStatus, RadioGroup, RadioRow, Screen, Stepper } from "../ui";
 import { Block, Group, LinkRow, SelectRow, SwitchRow } from "../components/SettingsRows";
 import { unitLabel } from "../logic/units";
 import type { StringKey } from "../i18n/strings";
@@ -226,12 +226,13 @@ function RestCard() {
   return (
     <>
       <Block title={t("rest.settings")}>
-        <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("rest.default")}</AppText>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          {REST_CHOICES.map((n) => (
-            <Chip key={n} label={t("rest.defaultValue", { n })} selected={s.seconds === n} onPress={() => void save("seconds", String(n), { ...s, seconds: n })} />
-          ))}
-        </View>
+        {/* Five segments on one line (ST-7): "240 s" never wraps alone. */}
+        <SelectRow
+          label={t("rest.default")}
+          value={String(s.seconds)}
+          options={REST_CHOICES.map((n) => ({ value: String(n), label: t("rest.defaultValue", { n: isolateLtr(String(n)) }) }))}
+          onChange={(v) => { const n = Number(v); void save("seconds", v, { ...s, seconds: n }); }}
+        />
       </Block>
       <SwitchRow label={t("rest.auto")} value={s.auto} onChange={(on) => void save("auto", on ? "1" : "0", { ...s, auto: on })} />
       <SwitchRow label={t("rest.vibrate")} value={s.vibrate} onChange={(on) => void save("vibrate", on ? "1" : "0", { ...s, vibrate: on })} />
@@ -278,19 +279,7 @@ export function SettingsScreen() {
   const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
   return (
     <Screen tab title={t("tab.settings")}>
-      <Group title={t("settings.group.training")}>
-        <CeilingsCard />
-        <GymStepsCard />
-        <RestCard />
-        <WeekStartCard />
-        <ReminderCard />
-        <LinkRow label={t("gyms.entry")} note={t("gyms.entryNote")} onPress={() => nav.navigate("Gyms")} />
-        <LinkRow label={t("coach.priority.entry")} note={t("coach.priority.note")} onPress={() => nav.navigate("MusclePriority")} />
-        <PeriodizationSettings />
-        <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
-        <LinkRow label={t("settings.setupAgain")} note={t("settings.setupAgainNote")} onPress={() => nav.navigate("Setup")} />
-      </Group>
-
+      {/* ST-1: Display first (language is the first row), then Workout, Program & gyms, Advanced, Data, About. Blocks are moved, not rewritten. */}
       <Group title={t("settings.group.display")}>
         <SelectRow
           label={t("settings.language")}
@@ -313,6 +302,7 @@ export function SettingsScreen() {
         />
         <SelectRow
           label={t("settings.appearance")}
+          note={t("settings.textSizeNote")}
           value={appearance}
           options={APPEARANCES.map((a) => ({ value: a, label: t(`settings.appearance.${a}` as const) }))}
           onChange={(a) => {
@@ -322,19 +312,38 @@ export function SettingsScreen() {
         />
       </Group>
 
+      <Group title={t("settings.group.workout")}>
+        <RestCard />
+        <ReminderCard />
+        <WeekStartCard />
+      </Group>
+
+      <Group title={t("settings.group.programGyms")}>
+        <LinkRow label={t("gyms.entry")} note={t("gyms.entryNote")} onPress={() => nav.navigate("Gyms")} />
+        <GymStepsCard />
+        <LinkRow label={t("coach.priority.entry")} note={t("coach.priority.note")} onPress={() => nav.navigate("MusclePriority")} />
+        <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
+        <LinkRow label={t("settings.setupAgain")} note={t("settings.setupAgainNote")} onPress={() => nav.navigate("Setup")} />
+      </Group>
+
       <Group title={t("settings.group.advanced")}>
-        <SelectRow
-          label={t("settings.direction")}
-          note={needsRestart ? t("settings.restartNote") : undefined}
-          value={rtlOverride}
-          options={[
-            { value: "auto", label: t("settings.direction.auto") },
-            { value: "on", label: t("settings.direction.rtl") },
-            { value: "off", label: t("settings.direction.ltr") },
-          ]}
-          onChange={setRtlOverride}
-        />
+        <CeilingsCard />
+        {/* Three choices as radio rows (ST-9): readable at 1.5x, no wrapping segments. */}
+        <View style={{ paddingVertical: space.md, gap: space.sm }}>
+          <AppText style={{ fontSize: ty.body }}>{t("settings.direction")}</AppText>
+          <RadioGroup label={t("settings.direction")}>
+            {([
+              { value: "auto", label: t("settings.direction.auto") },
+              { value: "on", label: t("settings.direction.rtl") },
+              { value: "off", label: t("settings.direction.ltr") },
+            ] as const).map((o) => (
+              <RadioRow key={o.value} label={o.label} selected={rtlOverride === o.value} onPress={() => setRtlOverride(o.value)} />
+            ))}
+          </RadioGroup>
+          {needsRestart ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("settings.restartNote")}</AppText> : null}
+        </View>
         <SwitchRow label={t("settings.secondName")} note={t("settings.secondNameNote")} value={showSecondName} onChange={setShowSecond} />
+        <PeriodizationSettings />
       </Group>
 
       <Group title={t("settings.group.data")}>

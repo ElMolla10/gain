@@ -146,12 +146,12 @@ describe("lift exposures and pace from the database", () => {
     const bidi = (s: string) => s.replace(/[\u2066-\u2069]/g, "");
     const tr = (k: StringKey, p?: Record<string, string | number>) => bidi(translate("en", k, p));
     const txt = describePace(r, { t: tr, fmt: (kg) => formatLoad(kg, "en", "kg"), exerciseName: "Bench Press", muscleName: (m) => m });
-    expect(txt.headline).toBe("Bench Press 100 kg x 5: ahead of pace");
-    expect(txt.details.some((d) => d.startsWith("Now: estimated one-rep max 99.17 kg"))).toBe(true);
+    expect(txt.headline).toBe("Bench Press 100\u00A0kg x 5: ahead of pace");
+    expect(txt.details.some((d) => d.startsWith("Now: estimated one-rep max 99.17\u00A0kg"))).toBe(true);
     expect(txt.details.some((d) => d.startsWith("Needed to hit the date"))).toBe(true);
     expect(txt.details.at(-1)).toBe("Target date: 2027-06-30");
     const lb = describePace(r, { t: tr, fmt: (kg) => formatLoad(kg, "en", "lb"), exerciseName: "Bench Press", muscleName: (m) => m });
-    expect(lb.headline).toBe(`Bench Press ${kgToUnit(100, "lb")} lb x 5: ahead of pace`);
+    expect(lb.headline).toBe(`Bench Press ${kgToUnit(100, "lb")} lb x 5: ahead of pace`);
     const ar = describePace(r, { t: (k, p) => translate("ar", k, p), fmt: (kg) => formatLoad(kg, "ar", "kg"), exerciseName: "بنش", muscleName: (m) => m });
     expect(ar.headline).toContain("بنش");
     expect(ar.short).not.toContain("{");

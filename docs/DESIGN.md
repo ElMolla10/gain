@@ -150,6 +150,8 @@ tokens or sizes that land with the Today, logger and Finish PRs; the rule applie
 - Load format everywhere: `formatLoad()` (→ `55 kg` / `55 كجم`, number isolated) then ` × ` then the isolated reps. Use the helpers in
   `src/logic/bidiText.ts`: `loadTargetText`, `targetRowText`, `plannedScheme`, `previousCellText`.
 - Ranges use an en dash U+2013 with no spaces, inside one isolate: `isolateLtr("3 × 6–10")`.
+- Number–unit and `×` use **no-break spaces** (U+00A0, `NBSP` in `src/i18n/format.ts`), so a load never wraps away from its unit
+  or its reps (`55 كجم × 9` stays on one line). U+00A0 is bidi class CS, so it does not change the reading order.
 - `writingDirection` only has an effect on iOS in React Native. On Android only the isolates protect the order, which makes these rules
   essential there. **Verify on an Android device in Arabic.**
 - For tabular figures without forcing a direction, set `fontVariant: ["tabular-nums"]` (or `TargetStrip isNumeric`) instead of `ltr`.

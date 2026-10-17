@@ -33,19 +33,19 @@ describe("live summary (Duration / Volume / Sets)", () => {
 describe("PREVIOUS column", () => {
   const last = [{ load: 90, reps: 12 }, { load: 80, reps: 10 }];
   it("is unitless (the column header names the unit) and uses the same-numbered working set of the last session; warm-ups and extra rows get a dash", () => {
-    expect(previousText(last, 0, "kg")).toBe("90 × 12");
-    expect(previousText(last, 1, "kg")).toBe("80 × 10");
+    expect(previousText(last, 0, "kg")).toBe("90 × 12");
+    expect(previousText(last, 1, "kg")).toBe("80 × 10");
     expect(previousText(last, 2, "kg")).toBe("—");
     expect(previousText(last, null, "kg")).toBe("—");
     expect(previousText(null, 0, "kg")).toBe("—");
-    expect(previousText([{ load: 20, reps: 5 }], 0, "lb")).toBe("44.1 × 5");
+    expect(previousText([{ load: 20, reps: 5 }], 0, "lb")).toBe("44.1 × 5");
   });
   it("uses the multiplication sign and weightText's lb rounding (never a raw float)", () => {
     const raw = 102.5 * 2.20462262185; // 225.97... lb unrounded
     expect(String(raw).length).toBeGreaterThan(8);
     const out = previousText([{ load: 102.5, reps: 8 }], 0, "lb");
-    expect(out).toBe(`${weightText(102.5, "lb")} \u00D7 8`);
-    expect(out).toBe("226 × 8");
+    expect(out).toBe(`${weightText(102.5, "lb")}\u00A0\u00D7\u00A08`);
+    expect(out).toBe("226 × 8");
     expect(out).not.toMatch(/ x /);
   });
   it("working index skips warm-ups (lines up with the W / 1 / 2 labels)", () => {

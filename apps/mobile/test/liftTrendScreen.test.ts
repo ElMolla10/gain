@@ -146,8 +146,8 @@ describe("LiftTrendView tabs", () => {
     const copy = texts(tree).join(" ");
     expect(copy).toContain("2026-01-05");
     expect(copy).toContain("2026-01-12");
-    expect(copy).toContain("80 kg");
-    expect(copy).toContain("70 kg");
+    expect(copy).toContain("80\u00A0kg");
+    expect(copy).toContain("70\u00A0kg");
     expect(copy).toContain("left in the tank");
     expect(copy).toContain("Heaviest");
     (tree.find((n) => n.type === "Chip" && n.props.label === "Summary")!.props.onPress as () => void)();

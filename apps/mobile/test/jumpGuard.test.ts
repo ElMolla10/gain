@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkJump, DEFAULT_JUMP_CONFIRM_PCT, jumpOptions, jumpPct, parseJumpThreshold } from "../src/logic/jumpGuard";
+import { checkJump, DEFAULT_JUMP_CONFIRM_PCT, isAcceptedTarget, jumpOptions, jumpPct, parseJumpThreshold } from "../src/logic/jumpGuard";
 import { ar, en } from "../src/i18n/strings";
 
 const base = { prevLoad: 60, prevReps: 8, targetReps: 6, setup: "free" } as const;
@@ -69,5 +69,27 @@ describe("P04 confirm big load jumps", () => {
     const forecast = readFileSync(join(root, "components/FinishedDayForecast.tsx"), "utf8");
     expect(forecast).not.toContain("onPress=");
     expect(forecast).toContain("proposal.currency");
+  });
+});
+
+describe("P04 skips the app's own accepted target", () => {
+  it("untouched row whose ghost is the target is accepted", () => {
+    expect(isAcceptedTarget({ load: null, ghostLoad: 22.5 }, 22.5)).toBe(true);
+  });
+  it("a typed load never counts, even when it equals the target", () => {
+    expect(isAcceptedTarget({ load: 22.5, ghostLoad: 22.5 }, 22.5)).toBe(false);
+    expect(isAcceptedTarget({ load: 22.5, ghostLoad: null }, 22.5)).toBe(false);
+  });
+  it("a ghost that is not the target is not accepted", () => {
+    expect(isAcceptedTarget({ load: null, ghostLoad: 20 }, 22.5)).toBe(false);
+    expect(isAcceptedTarget({ load: null, ghostLoad: null }, 22.5)).toBe(false);
+  });
+  it("no target: the guard behaves as before", () => {
+    expect(isAcceptedTarget({ load: null, ghostLoad: 22.5 }, null)).toBe(false);
+  });
+  it("float tolerance of 1e-6 kg", () => {
+    expect(isAcceptedTarget({ load: null, ghostLoad: 0.1 + 0.2 }, 0.3)).toBe(true);
+    expect(isAcceptedTarget({ load: null, ghostLoad: 12.5 + 5e-7 }, 12.5)).toBe(true);
+    expect(isAcceptedTarget({ load: null, ghostLoad: 12.5 + 1e-5 }, 12.5)).toBe(false);
   });
 });

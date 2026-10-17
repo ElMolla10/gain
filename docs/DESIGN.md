@@ -192,3 +192,39 @@ an `ltr` run never contains Arabic, so digits keep the same Plex Sans metrics on
 Only directional arrows and disclosure chevrons mirror (`mirror` / `back` props). Media (play, pause), check, timer, pencil, why and the
 brand mark never mirror. Start-edge bars use `borderStart*` / `start:` so they move to the right in Arabic; the current-set bar position
 in RTL must be checked on iOS and Android (react-native-web draws it on the left).
+
+## 9. System rules, rest of the app: dates, selection, light-mode state, destructive actions, one title
+
+From the rest-of-app design audit (2026-10-18, §11 S-8 to S-12). Binding for new UI, like S-1 to S-7.
+
+### S-8. Dates
+- One formatter: `formatDay()` in `src/logic/dateText.ts`. EN "Wed 16 Sep", AR "الأربعاء 16 سبتمبر"; the year appears only when it
+  isn't the current year. Digits are Western in both languages (S-2).
+- No `toLocaleDateString("ar-EG", …)` anywhere: `ar-EG` prints Eastern Arabic-Indic digits. `rg '"ar-EG"' apps/mobile/src` should
+  find nothing outside `dateText.ts`.
+- ISO dates (`2026-09-16`) only in exports and file names, never in the UI.
+- Hermes' Intl support differs by platform, so check dates on an iOS and an Android device in Arabic.
+
+### S-9. Selection controls
+- 2–5 short options → segmented `SelectRow`.
+- Options that need a description → `RadioRow` inside a `RadioGroup`.
+- Multi-select filters → `Chip` with a check; a single-select chip group uses `Chip radio`.
+- Every single-select gets `radio` + `checked` semantics and a non-colour selected cue (a check, or a 2 dp `accent` border), so the
+  choice reads in grayscale.
+- Lime **fill** means "selected chip/segment" or "primary action", never both on the same row. No `BigButton selected` for choices.
+
+### S-10. Light mode: lime is not a state colour
+Lime #B7F51B on light surfaces is 1.12–1.31:1 (bone, white, raised), so a state drawn with lime fill alone (selected control, switch
+track, progress segment, tab tint) disappears in sun. In light mode state boundaries use `accent` #3C5700 (7.6–8.2:1). Lime fill is
+allowed only on a primary action with an ink label, which reads by its label (14.4:1). Extends S-4.
+
+### S-11. Destructive actions: one ladder
+- First tap: outlined `danger` (`BigButton variant="danger"`, or a `danger` text / trash icon).
+- Final confirm: solid `danger` fill with an `onDanger` label (`variant="dangerSolid"`), with Cancel (secondary) at least 16 dp away.
+- Never style a destructive action `quiet` (which renders in accent), and never make one a one-tap `Chip`.
+- Anything that loses logged data keeps its confirm; the data-loss guards themselves are owned by their own PRs, not by styling work.
+
+### S-12. One title per screen
+A stack screen shows the native header title only (17/22 semibold on iOS, 20/26 on Android) and does not also pass `Screen title`;
+tab roots keep `Screen title` and hide the native header. A long name (e.g. an exercise on Loads or the lift trend) goes in the body as
+a 20/26 heading instead of a long header. `test/oneTitle.test.ts` lists the stack screens that must not render `Screen title`.

@@ -29,6 +29,9 @@ export interface Bar {
   frac: number;
   imported: boolean;
   at: number;
+  /** What the bar stands for: the load (or e1RM / volume), or the seconds / metres when drawn by quantity. */
+  value: number;
+  byQuantity: boolean;
 }
 
 /**
@@ -43,7 +46,7 @@ export function chartBars(points: TrendPoint[], assisted: boolean): Bar[] {
   const score = (p: TrendPoint) => (byQuantity ? p.quantity! : assisted ? -p.load : p.load);
   const lo = Math.min(...shown.map(score));
   const hi = Math.max(...shown.map(score));
-  return shown.map((p) => ({ frac: hi === lo ? 0.6 : 0.15 + (0.85 * (score(p) - lo)) / (hi - lo), imported: !!p.imported, at: p.at }));
+  return shown.map((p) => ({ frac: hi === lo ? 0.6 : 0.15 + (0.85 * (score(p) - lo)) / (hi - lo), imported: !!p.imported, at: p.at, value: byQuantity ? p.quantity! : p.load, byQuantity }));
 }
 
 export const directionKey = (d: TrendDirection, assisted: boolean): StringKey =>

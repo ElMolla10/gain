@@ -251,11 +251,11 @@ describe("live suggestion explanations", () => {
     expect(tree.some(n => n.props.label === "Use this")).toBe(true);
     expect(p.decision).toEqual(before);
   });
-  it("shows Next load×reps, Hold, predicted range, and Use this / Enter my own", () => {
+  it("shows the recommendation and actions when set options are expanded", () => {
     const p = presentation();
-    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false }));
+    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: true }));
     const text = tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
-    expect(text).toContain("Next set");
+
     expect(text).toContain("Next:");
     expect(text).toContain("60");
     expect(text).toContain("8");
@@ -269,17 +269,27 @@ describe("live suggestion explanations", () => {
   });
   it("labels increase, decrease, no-heavier and starting states", () => {
     const p = presentation();
-    const increase = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "increase", decision: { ...p.decision, action: "increase", reason: "above_range", suggestedWeightKg: 62.5 } }));
+    const increase = nodes(LiveSuggestion({ ...p, detailsOpen: true, state: "increase", decision: { ...p.decision, action: "increase", reason: "above_range", suggestedWeightKg: 62.5 } }));
     expect(increase.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("Increase");
-    const decrease = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "decrease", decision: { ...p.decision, action: "decrease", reason: "below_range", suggestedWeightKg: 57.5 } }));
+    const decrease = nodes(LiveSuggestion({ ...p, detailsOpen: true, state: "decrease", decision: { ...p.decision, action: "decrease", reason: "below_range", suggestedWeightKg: 57.5 } }));
     expect(decrease.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("Decrease");
-    const none = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "no_heavier", equipment: "dumbbell", decision: { ...p.decision, action: "maintain", reason: "no_suitable_increase", suggestedWeightKg: 16, suggestedReps: 8 } }));
+    const none = nodes(LiveSuggestion({ ...p, detailsOpen: true, state: "no_heavier", equipment: "dumbbell", decision: { ...p.decision, action: "maintain", reason: "no_suitable_increase", suggestedWeightKg: 16, suggestedReps: 8 } }));
     const noneText = none.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
     expect(noneText).toContain("No heavier load");
     expect(noneText).toContain("Keep");
     expect(noneText).toContain("16");
-    const start = nodes(LiveSuggestion({ ...p, detailsOpen: false, state: "starting", decision: { ...p.decision, predictionAvailable: false } }));
+    const start = nodes(LiveSuggestion({ ...p, detailsOpen: true, state: "starting", decision: { ...p.decision, predictionAvailable: false } }));
     expect(start.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("Starting estimate");
+  });
+  it("hides suggestions and load controls behind a collapsed dropdown by default", () => {
+    const p = presentation();
+    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false, onPickJump: vi.fn(), onSaveList: vi.fn(), onListChange: vi.fn() }));
+    expect(tree.some(n => n.type as unknown === "Chip" || n.type as unknown === "Field")).toBe(false);
+    expect(tree.some(n => n.props.label === "Use this" || n.props.label === "Enter my own")).toBe(false);
+    const toggle = tree.find(n => n.props.label === "Set options")!;
+    expect(toggle.props.expanded).toBe(false);
+    toggle.props.onPress();
+    expect(p.onToggleDetails).toHaveBeenCalledOnce();
   });
   it("keeps stop reasons visible even when Details is collapsed", () => {
     const p = presentation();
@@ -313,10 +323,10 @@ describe("live suggestion explanations", () => {
     expect(text).not.toContain("Estimate from logged sets");
     expect(tree.some(n => n.props.variant === "secondary")).toBe(false);
   });
-  it("in-card load chips call onPickJump", () => {
+  it("expanded load options call onPickJump", () => {
     const p = presentation();
     const onPickJump = vi.fn();
-    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: false, onPickJump, loadSpec: { equipment: "barbell", increment: 2.5, min: 20 } }));
+    const tree = nodes(LiveSuggestion({ ...p, detailsOpen: true, onPickJump, loadSpec: { equipment: "barbell", increment: 2.5, min: 20 } }));
     const strip = (s: unknown) => String(s).replace(/\u2066|\u2069/g, "");
     const chip = tree.find(n => n.type as unknown === "Chip" && strip(n.props.label) === "5 kg jumps")!;
     chip.props.onPress();

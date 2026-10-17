@@ -2,9 +2,8 @@ import { MenuSheet } from "../components/LogParts";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { ExerciseReorderModal } from "../components/ExerciseReorderModal";
 import { WorkoutHelp } from "../components/WorkoutHelp";
-import { exerciseLabels, formatLoad } from "../i18n/format";
+import { exerciseLabels } from "../i18n/format";
 import { joinSuperset, leaveSuperset } from "../logic/superset";
-import { jumpOptions } from "../logic/jumpGuard";
 import { kindOf, kindPatch, SET_KINDS, type SetKind } from "../logic/workoutRows";
 import type { WorkoutSession } from "../hooks/useWorkoutSession";
 
@@ -13,8 +12,7 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
   const {
     reorderOpen, t, busy, reorderSaving, reorderGroups,
     namesBySlot, setReorderOpen, commitReorder, helpOpen, setHelpOpen,
-    jumpAsk, lang, unit, setJumpAsk, okJumps,
-    logRow, patch, menuEx, setMenuFor, noteInputs,
+    lang, patch, menuEx, setMenuFor, noteInputs,
     focus, setMachineFor, exState, startReplace, shown,
     setSsFor, ssLabel, applySuperset, askRemove, machineEx,
     machineChoice, chooseMachineStep, kindFor, setKindFor, rows,
@@ -33,29 +31,6 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
         onDone={(ids) => void commitReorder(ids)}
       />
       <WorkoutHelp visible={helpOpen} onClose={() => setHelpOpen(false)} />
-      <MenuSheet
-        visible={jumpAsk !== null}
-        wrapTitle
-        title={jumpAsk ? t("jump.title", { pct: jumpAsk.check.pct, prev: formatLoad(jumpAsk.prev, lang, unit), next: formatLoad(jumpAsk.load, lang, unit) }) : ""}
-        onClose={() => setJumpAsk(null)}
-        items={
-          jumpAsk
-            ? jumpOptions(jumpAsk.check, { load: jumpAsk.load, reps: jumpAsk.reps }, (k, params) => t(k, params), (kg) => formatLoad(kg, lang, unit)).map((o) => ({
-                label: o.label,
-                onPress: () => {
-                  const { ex, row } = jumpAsk;
-                  if (o.kind === "anyway") {
-                    okJumps.current.add(`${ex.exerciseId}:${o.load}`);
-                    void logRow(ex, row);
-                  } else {
-                    // A smaller step replaces the numbers in the row; the lifter ticks it when ready.
-                    patch(ex.exerciseId, row.key, { load: o.load, reps: o.reps });
-                  }
-                },
-              }))
-            : []
-        }
-      />
       <MenuSheet
         visible={menuEx !== undefined}
         title={menuEx ? exerciseLabels(menuEx, lang).primary : ""}

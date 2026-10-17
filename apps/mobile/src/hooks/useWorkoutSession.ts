@@ -2,7 +2,7 @@ import { useWorkoutSuggestions } from "./useWorkoutSuggestions";
 import type { LoadedWorkout as Loaded } from "../logic/workoutTypes";
 import { useWorkoutRest } from "./useWorkoutRest";
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { estimateStartingLoad, findSpec, nextLoadAbove, parseReadiness, sessionOrderFatigue, type GymFingerprint, type GymLoadSpec, type OutlierResult, type ReadinessFlag } from "@gain/engine";
+import { estimateStartingLoad, findSpec, parseReadiness, sessionOrderFatigue, type GymFingerprint, type GymLoadSpec, type OutlierResult, type ReadinessFlag } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, TextInput } from "react-native";
@@ -21,7 +21,7 @@ import { initialDraft } from "../logic/draft";
 import { upgradeLegacyKgDumbbells } from "../logic/defaultGym";
 import { finishChoice } from "../logic/finishChoice";
 import { attemptFinish } from "../logic/loadState";
-import { checkJump, isAcceptedTarget, JUMP_SETTING_KEY, parseJumpThreshold, topTrustedSet, type JumpCheck } from "../logic/jumpGuard";
+import { topTrustedSet } from "../logic/lastTop";
 import { isTimed, quantityFields, setQuantity } from "../logic/quantity";
 import { replacementDisplay } from "../logic/replacement";
 import { substitutionCandidates } from "../logic/substitutions";
@@ -61,9 +61,6 @@ export function useWorkoutSession() {
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [finishFailed, setFinishFailed] = useState(false);
-  /** A big proposed jump waiting for the lifter's decision (P04). `okJumps` remembers "use it anyway" per exercise + load. */
-  const [jumpAsk, setJumpAsk] = useState<{ ex: Disp; row: SetRowDraft; check: JumpCheck; load: number; reps: number; prev: number } | null>(null);
-  const okJumps = useRef<Set<string>>(new Set());
   const [rows, setRows] = useState<Record<string, SetRowDraft[]>>({});
   const [focusRow, setFocusRow] = useState<{ exId: string; key: string; nonce: number } | null>(null);
   const [cardListText, setCardListText] = useState<Record<string, string>>({});
@@ -105,7 +102,6 @@ export function useWorkoutSession() {
   const [busy, setBusy] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver } = useWorkoutRest();
-  const [jumpThreshold, setJumpThreshold] = useState(10);
   const startedRef = useRef(false);
   const libRef = useRef<LibraryExercise[]>([]);
   const noteInputs = useRef<Record<string, TextInput | null>>({});
@@ -253,10 +249,6 @@ export function useWorkoutSession() {
     }
   }
 
-  useEffect(() => {
-    void repos.getSetting(JUMP_SETTING_KEY).then((v) => setJumpThreshold(parseJumpThreshold(v)));
-  }, [repos]);
-
   // Leaving the logger drops the in-app timer, so drop its alert too (no stray buzz after the workout). Pending notes are saved.
   useEffect(
     () => () => {
@@ -302,19 +294,7 @@ export function useWorkoutSession() {
 
   async function logRow(ex: Disp, row: SetRowDraft) {
     if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
-    // P04: a proposed load more than 10% above last time is confirmed first (or swapped for a smaller step); nothing is saved yet.
-    // An untouched row carrying the app's own target is the lifter accepting it: no confirmation.
-    if (!row.saved && !row.warmup && !isDropRow(row) && !isTimed(ex.measure)) {
-      const e0 = effectiveOf(row);
-      const info0 = loaded.info[ex.exerciseId];
-      const lastTop = topTrustedSet(info0?.last?.sets);
-      if (e0.load !== null && e0.reps !== null && lastTop && !isAcceptedTarget(row, info0?.prefill.load ?? null) && !okJumps.current.has(`${ex.exerciseId}:${e0.load}`)) {
-        const spec0 = ex.loadSpec ?? findSpec(loaded.gym, ex.equipment);
-        const micro = spec0 ? nextLoadAbove(spec0, lastTop.load, false) : lastTop.load + 1.25;
-        const check = checkJump({ prevLoad: lastTop.load, prevReps: lastTop.reps, targetLoad: e0.load, targetReps: e0.reps, setup: ex.setup, thresholdPct: jumpThreshold, microLoad: micro });
-        if (check.needsConfirm) return void setJumpAsk({ ex, row, check, load: e0.load, reps: e0.reps, prev: lastTop.load });
-      }
-    }
+    // Ticking logs the boxes as they are (target or typed): no big-jump confirmation.
     setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
     setBusy(row.key);
     clearStrengthPr();
@@ -869,8 +849,8 @@ export function useWorkoutSession() {
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
     restore, unlogged, restFor, setTimer, reorderOpen,
     t, busy, reorderSaving, reorderGroups, namesBySlot,
-    commitReorder, helpOpen, jumpAsk, lang, unit,
-    setJumpAsk, okJumps, logRow, patch, menuEx,
+    commitReorder, helpOpen, lang, unit,
+    logRow, patch, menuEx,
     setMenuFor, noteInputs, focus, setMachineFor, exState,
     startReplace, setSsFor, ssLabel, applySuperset, askRemove,
     machineEx, machineChoice, chooseMachineStep, kindFor, setKindFor,

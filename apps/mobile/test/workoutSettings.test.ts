@@ -13,7 +13,7 @@ vi.mock("react", async importOriginal => {
     return [state.day, (update: (day: DraftDay) => DraftDay) => { state.day = update(state.day!); }];
   } };
 });
-vi.mock("react-native", () => ({ Modal: "Modal", View: "View", ScrollView: "ScrollView" }));
+vi.mock("react-native", () => ({ Modal: "Modal", View: "View", ScrollView: "ScrollView", Platform: { OS: "android" } }));
 vi.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(state.lang, key, params) }) }));
 vi.mock("../src/theme", () => ({ space: { sm: 8, md: 12, lg: 16 }, type: { section: 20 }, usePalette: () => ({ bg: "bg", muted: "muted", border: "border" }) }));

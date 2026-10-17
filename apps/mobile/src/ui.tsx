@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type KeyboardTypeOptions, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AccessibilityInfo, ActivityIndicator, Animated, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, type KeyboardTypeOptions, type StyleProp, type TextProps, type TextStyle, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "./components/Icon";
 import { familyFor, hasArabic, scaleFor, textOf } from "./fonts";
@@ -370,27 +370,68 @@ export function ErrorState({ title, body, retryLabel, onRetry }: { title: string
  * Bottom sheet: labelled heading, an explicit close button, Android back dismisses, content scrolls inside the safe area.
  * Destructive actions belong in `footer`, separated from the content, and are confirmed by the caller.
  */
+/** Drag-to-dismiss threshold for a sheet: past 30% of the card's height, or a fast downward flick. */
+export const sheetShouldDismiss = (dy: number, vy: number, cardHeight: number): boolean => dy > cardHeight * 0.3 || vy > 1.0;
+
 export function Sheet({ visible, title, onClose, children, footer }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   const p = usePalette();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const reduced = useReducedMotion();
+  // Only the backdrop fades (Modal "fade"); the card slides on its own and follows a downward drag on the grabber + header.
+  const translateY = useRef(new Animated.Value(height)).current;
+  const cardHeight = useRef(height);
+  const closing = useRef(false);
+  const latest = useRef({ onClose, reduced, visible });
+  latest.current = { onClose, reduced, visible };
+  useEffect(() => {
+    closing.current = false;
+    if (!visible) return;
+    if (reduced) { translateY.setValue(0); return; }
+    translateY.setValue(cardHeight.current);
+    Animated.timing(translateY, { toValue: 0, duration: 250, useNativeDriver: true }).start();
+  }, [visible, reduced, translateY]);
+  const close = useMemo(() => () => {
+    if (closing.current) return;
+    if (latest.current.reduced) return latest.current.onClose();
+    closing.current = true;
+    Animated.timing(translateY, { toValue: cardHeight.current, duration: 200, useNativeDriver: true }).start(() => {
+      latest.current.onClose();
+      // If the caller kept the sheet open (e.g. a guarded close), bring the card back instead of leaving it off-screen.
+      setTimeout(() => {
+        if (!closing.current || !latest.current.visible) return;
+        closing.current = false;
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+      }, 50);
+    });
+  }, [translateY]);
+  const pan = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_e, g) => g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+    onPanResponderMove: (_e, g) => translateY.setValue(Math.max(0, g.dy)),
+    onPanResponderRelease: (_e, g) => {
+      if (sheetShouldDismiss(g.dy, g.vy, cardHeight.current)) close();
+      else Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+    },
+    onPanResponderTerminate: () => Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start(),
+  }), [translateY, close]);
   return (
-    <Modal visible={visible} transparent animationType={reduced ? "none" : "slide"} onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+    <Modal visible={visible} transparent animationType={reduced ? "none" : "fade"} onRequestClose={close} statusBarTranslucent navigationBarTranslucent>
       <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={onClose} style={{ flex: 1 }} />
-        <View accessibilityViewIsModal style={{ maxHeight: height * 0.9, backgroundColor: p.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: p.border, paddingBottom: insets.bottom + space.md }}>
-          <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: p.edge, marginTop: space.sm }} />
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingStart: space.lg, paddingEnd: space.xs, paddingVertical: space.xs, gap: space.sm }}>
-            <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", flex: 1 }}>{title}</AppText>
-            <IconButton icon="close" label={t("common.close")} onPress={onClose} />
+        <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={close} style={{ flex: 1 }} />
+        <Animated.View accessibilityViewIsModal onLayout={(e) => { cardHeight.current = e.nativeEvent.layout.height; }} style={{ transform: [{ translateY }], maxHeight: height * 0.9, backgroundColor: p.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: p.border, paddingBottom: insets.bottom + space.md }}>
+          <View {...pan.panHandlers}>
+            <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: p.edge, marginTop: space.sm }} />
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingStart: space.lg, paddingEnd: space.xs, paddingVertical: space.xs, gap: space.sm }}>
+              <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600", flex: 1 }}>{title}</AppText>
+              <IconButton icon="close" label={t("common.close")} onPress={close} />
+            </View>
           </View>
           <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: space.sm, gap: space.md }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
             {children}
           </ScrollView>
           {footer ? <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, gap: space.sm }}>{footer}</View> : null}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

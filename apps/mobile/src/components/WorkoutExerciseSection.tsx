@@ -22,7 +22,7 @@ import { AppText, BigButton, IconButton, InlineStatus, Notice, QuietAction } fro
 import { RestToggle, TargetLine } from "./LogParts";
 import { Icon } from "./Icon";
 import { LiveSuggestion, LoadSettings } from "./LiveSuggestion";
-import { WorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
+import { MemoWorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
 import type { PreviousSource } from "./PreviousSourceToggle";
 
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string; starting?: boolean }
@@ -194,7 +194,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
         {list.map((row, i) => (
           <React.Fragment key={row.key}>
             {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
-            <WorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
+            <MemoWorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
               workingIndex={widx[i] ?? null} lastSets={(info.previous ? info.previous[previousSource] : info.last)?.sets ?? null}
               strengthPr={strengthPrSetId === row.key}
               current={active && currentKey === row.key} stacked={stacked} busy={busy}

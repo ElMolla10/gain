@@ -154,3 +154,19 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
     </SwipeRow>
   );
 }
+
+/** The row's view of the exercise: only these fields are read, so a fresh `ex` object with the same values is the same row. */
+const sameEx = (a: Disp, b: Disp) => a === b || (a.exerciseId === b.exerciseId && a.nameEn === b.nameEn && a.nameAr === b.nameAr && a.measure === b.measure && a.trackEffort === b.trackEffort);
+
+/** Shallow compare, except `ex` (rebuilt each logger render) by the fields above. Handlers must be stable (WorkoutExerciseSection passes ref-backed ones). */
+export function sameRowProps(a: WorkoutSetRowProps, b: WorkoutSetRowProps): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof WorkoutSetRowProps>;
+  for (const k of keys) {
+    if (k === "ex") { if (!sameEx(a.ex, b.ex)) return false; }
+    else if (!Object.is(a[k], b[k])) return false;
+  }
+  return true;
+}
+
+/** Memoised row: a keystroke re-renders only the edited row, not every row of every exercise. */
+export const MemoWorkoutSetRow = React.memo(WorkoutSetRow, sameRowProps);

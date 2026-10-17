@@ -1,5 +1,6 @@
 import {
   ACHIEVEMENT_CATALOG,
+  ACHIEVEMENT_RULE_VERSION,
   evaluateAchievements,
   logicalTrainingDateFromMs,
   monthKey,
@@ -492,13 +493,40 @@ export async function syncAchievements(db: Db, deps: Deps, opts: { weekStartsOn:
   });
 }
 
+/** Stored after every successful sync; launch skips the full re-evaluation while it still matches. */
+export const ACHV_FINGERPRINT = "achv_fingerprint";
+/** Bump to force one re-evaluation after an app update (with the engine's rule version and badge catalogue, also part of the print). */
+export const ACHIEVEMENT_FINGERPRINT_VERSION = 1;
+
+/**
+ * A cheap print of everything the evaluation reads: per table the row count, deleted count, last update and last rowid, plus content
+ * totals for sets, sessions, pins and quests (so an edit within the same millisecond still changes it), the week start, the active
+ * programme version and the rule/catalogue version. One SELECT plus a few setting reads; no transaction.
+ */
+export async function achievementFingerprint(db: Db, repos: Repos): Promise<string> {
+  const base = (t: string) => `(SELECT COUNT(*) || ':' || COUNT(deleted_at) || ':' || IFNULL(MAX(updated_at), '') || ':' || IFNULL(MAX(rowid), '') FROM ${t})`;
+  const row = await db.get<Record<string, string | number | null>>(
+    `SELECT ${base("session")} AS s, ${base("workout_set")} AS w, ${base("lift_pin")} AS p, ${base("user_quest")} AS q, ${base("exercise")} AS e, ${base("programme_day_exercise")} AS d,
+       (SELECT TOTAL(load) || ':' || TOTAL(reps) || ':' || TOTAL(is_warmup) || ':' || TOTAL(IFNULL(duration_s, 0) + IFNULL(distance_m, 0)) || ':' || TOTAL(length(tags_json)) || ':' || TOTAL(length(outlier_status)) || ':' || TOTAL(length(session_id) * position) FROM workout_set WHERE deleted_at IS NULL) AS wc,
+       (SELECT TOTAL(length(status)) || ':' || TOTAL(IFNULL(finished_at, 0)) || ':' || TOTAL(length(IFNULL(local_calendar_date, ''))) FROM session WHERE deleted_at IS NULL) AS sc,
+       (SELECT TOTAL(load) || ':' || TOTAL(reps) || ':' || TOTAL(IFNULL(reached_at_utc, 0)) FROM lift_pin WHERE deleted_at IS NULL) AS pc,
+       (SELECT TOTAL(length(status)) || ':' || TOTAL(IFNULL(completed_at_utc, 0)) FROM user_quest WHERE deleted_at IS NULL) AS qc`,
+  );
+  const version = await repos.getLatestProgrammeVersion();
+  return JSON.stringify([ACHIEVEMENT_FINGERPRINT_VERSION, ACHIEVEMENT_RULE_VERSION, ACHIEVEMENT_CATALOG.length, await weekStartsOn(repos), version?.versionId ?? null, row]);
+}
+
 export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
   async function sync(opts: { backfill?: boolean } = {}): Promise<{ inserted: number; reanchored: number; revoked: number }> {
-    return syncAchievements(db, deps, { weekStartsOn: await weekStartsOn(repos), backfill: opts.backfill === true, repos });
+    const result = await syncAchievements(db, deps, { weekStartsOn: await weekStartsOn(repos), backfill: opts.backfill === true, repos });
+    await repos.setSetting(ACHV_FINGERPRINT, await achievementFingerprint(db, repos));
+    return result;
   }
 
   async function ensureBackfill(): Promise<{ inserted: number; reanchored: number; revoked: number }> {
     const done = (await repos.getSetting(BACKFILL_DONE)) === "1";
+    // Launch path: nothing the evaluation reads changed since the last sync, so the result would be identical.
+    if (done && (await repos.getSetting(ACHV_FINGERPRINT)) === (await achievementFingerprint(db, repos))) return { inserted: 0, reanchored: 0, revoked: 0 };
     const result = await sync({ backfill: !done });
     if (!done) {
       await repos.setSetting(BACKFILL_DONE, "1");

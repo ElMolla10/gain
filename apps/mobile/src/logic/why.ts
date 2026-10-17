@@ -1,5 +1,6 @@
-import { renderReason, type DecisionInputs, type GymLoadSpec, type Locale, type ReasonText } from "@gain/engine";
+import { logicalTrainingDateFromMs, renderReason, type DecisionInputs, type GymLoadSpec, type Locale, type ReasonText } from "@gain/engine";
 import { isolateLtr } from "../i18n/format";
+import { jumpKindText } from "./jumpText";
 import { quantityText } from "./quantity";
 import { loadsSummaryText } from "./exerciseLoads";
 import { localizeReason, unitLabel, weightText, type Unit } from "./units";
@@ -92,6 +93,31 @@ export function describeWhyWeight(
   return { sentence, details };
 }
 
+type Translate = (k: string, params?: Record<string, string | number>) => string;
+
+/** One engine confidence factor (`sessions:3`, `stale:40d`, `high_variance`, ...) as a plain phrase. An unknown token shows as it is; never throws. */
+export function factorText(token: string, L: Translate): string {
+  const sessions = /^sessions:(\d+)$/.exec(token);
+  if (sessions) return L("why.factor.sessions", { n: Number(sessions[1]) });
+  const stale = /^stale:(\d+)d$/.exec(token);
+  if (stale) return L("why.factor.stale", { n: Number(stale[1]) });
+  if (token === "high_variance" || token === "pending_outlier" || token === "anchor_off_gym_loads") return L(`why.factor.${token}`);
+  return token;
+}
+
+/** A YYYY-MM-DD training day as a local date ("16 Oct 2026" / Arabic), built at local noon so no timezone shifts it. Bad input shows as it is. */
+export function localDateText(iso: string, locale: Locale): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12).toLocaleDateString(locale === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** A stored session time as the app's training day (before 4 am counts as the previous day), formatted for the locale. */
+export function sessionDateText(performedAt: string, locale: Locale): string {
+  const ms = Date.parse(performedAt);
+  return Number.isFinite(ms) ? localDateText(logicalTrainingDateFromMs(ms), locale) : performedAt.slice(0, 10);
+}
+
 function actionFromCurrency(currency: string): WhyAction {
   if (currency === "load" || currency === "reps" || currency === "effort" || currency === "quality" || currency === "none") return currency;
   return "none";
@@ -136,9 +162,9 @@ export function describeDecision(
         ? [L("why.noSessions")]
         : i.sessions.map((s) =>
             i.measure === "time" || i.measure === "distance"
-              ? L(s.topLoad > 0 ? "why.sessionTimed" : "why.sessionTimedBare", { date: s.performedAt.slice(0, 10), load: W(s.topLoad), q: quantityText(s.repsAtTop, i.measure, { s: L("qty.s"), m: L("qty.m") }), sets: s.setsAtTop })
+              ? L(s.topLoad > 0 ? "why.sessionTimed" : "why.sessionTimedBare", { date: sessionDateText(s.performedAt, locale), load: W(s.topLoad), q: quantityText(s.repsAtTop, i.measure, { s: L("qty.s"), m: L("qty.m") }), sets: s.setsAtTop })
               : L(i.policy.trigger.repsBasis === "best_set" ? "why.sessionBest" : "why.session", {
-              date: s.performedAt.slice(0, 10),
+              date: sessionDateText(s.performedAt, locale),
               load: W(s.topLoad),
               reps: i.policy.trigger.repsBasis === "best_set" ? (s.bestRepsAtTop ?? s.repsAtTop) : s.repsAtTop,
               sets: s.setsAtTop,
@@ -173,7 +199,7 @@ export function describeDecision(
 
   const ruleLines = [
     L("why.currency", { currency: L(`why.currency.${p.currency}`) }),
-    L("why.confidence", { confidence: L(`why.confidence.${p.confidence}`), factors: i.confidenceFactors.join(", ") || "-" }),
+    L("why.confidence", { confidence: L(`why.confidence.${p.confidence}`), factors: i.confidenceFactors.map((f) => factorText(f, L)).join(L("why.weight.missing.join")) || "-" }),
     L("why.ruleVersion", { version: meta.ruleVersion, path: meta.path }),
     L("why.range", { min: i.repRange.min, max: i.repRange.max }),
   ];
@@ -202,7 +228,7 @@ export function describeDecision(
   if (i.rejections.length > 0) {
     out.push({
       title: L("why.rejections"),
-      lines: i.rejections.map((r) => L("why.rejection", { kind: r.jumpKind, count: r.count, blocked: r.blocked ? L("why.blocked") : L("why.notBlocked") })),
+      lines: i.rejections.map((r) => L("why.rejection", { kind: jumpKindText(r.jumpKind, unit, L), count: r.count, blocked: r.blocked ? L("why.blocked") : L("why.notBlocked") })),
     });
   }
   return out;

@@ -6,6 +6,7 @@ import { useI18n } from "../i18n";
 import { describeDecisionSafe, type WhySection } from "../logic/why";
 import { space, usePalette } from "../theme";
 import { AppText, Card, EmptyState, LoadingState, Screen } from "../ui";
+import { diagnostics } from "../diagnostics";
 
 export function WhyScreen() {
   const { finish } = useServices();
@@ -21,7 +22,10 @@ export function WhyScreen() {
       const tg = await finish.getTarget(targetId);
       const reason = tg?.reason ?? d.payload?.proposal?.reason ?? { key: "unknown", params: {} };
       setSections(describeDecisionSafe(d.payload, { ruleVersion: d.ruleVersion, path: d.path, reason }, (k, params) => t(k as StringKey, params), lang, unit));
-    })().catch(() => setSections("missing"));
+    })().catch((e) => {
+      diagnostics.record("warn", "why load", e);
+      setSections("missing");
+    });
   }, [finish, targetId, t, lang, unit]);
 
   if (sections === null) return <LoadingState />;

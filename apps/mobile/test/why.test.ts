@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { describeDecision, describeWhyWeight, type DecisionPayload } from "../src/logic/why";
+import { describeDecision, describeWhyWeight, factorText, localDateText, sessionDateText, type DecisionPayload } from "../src/logic/why";
+import { logicalTrainingDate } from "@gain/engine";
 import { LRI, translate } from "../src/i18n/format";
 import type { StringKey } from "../src/i18n/strings";
 import { freshDb } from "./helpers";
@@ -176,5 +177,64 @@ describe("Why this weight? from a logged set", () => {
       "ar",
     );
     expect(ar.sentence).toMatch(/[\u0600-\u06FF]/);
+  });
+});
+
+describe("16 Why screen speaks plain language", () => {
+  it("factorText renders every known token in en and ar, and passes unknown tokens through", () => {
+    const en = L("en"), ar = L("ar");
+    expect(clean(factorText("sessions:3", en))).toBe("3 session(s) so far");
+    expect(clean(factorText("stale:40d", en))).toBe("last session 40 days ago");
+    expect(factorText("high_variance", en)).toBe("results vary a lot");
+    expect(factorText("pending_outlier", en)).toBe("a set is waiting for your confirmation");
+    expect(factorText("anchor_off_gym_loads", en)).toBe("last weight isn't one of your gym's steps");
+    for (const tok of ["sessions:3", "stale:40d", "high_variance", "pending_outlier", "anchor_off_gym_loads"]) {
+      const a = factorText(tok, ar);
+      expect(a, tok).toMatch(/[\u0600-\u06FF]/);
+      expect(a, tok).not.toMatch(/[a-z_]{3,}|\{\w+\}/);
+    }
+    expect(clean(factorText("stale:40d", ar))).toContain("40");
+    expect(factorText("new_engine_factor", en)).toBe("new_engine_factor");
+    expect(factorText("sessions:x", ar)).toBe("sessions:x");
+  });
+  it("describeDecision shows no raw factor or jump-kind tokens (en and ar), and lb rejections are in lb", async () => {
+    const { d } = await benchDecision();
+    const base = d.payload as DecisionPayload;
+    const payload: DecisionPayload = {
+      ...base,
+      inputs: { ...base.inputs, confidenceFactors: ["sessions:2", "stale:35d", "pending_outlier"], rejections: [{ jumpKind: "load:harder:2.5", count: 3, blocked: true }, { jumpKind: "effort:rir1", count: 1, blocked: false }] },
+    };
+    for (const lang of ["en", "ar"] as const) {
+      const text = clean(describeDecision(payload, { ruleVersion: d.ruleVersion, path: d.path }, L(lang), lang).flatMap((s) => [s.title, ...s.lines]).join("\n"));
+      expect(text, lang).not.toContain("sessions:");
+      expect(text, lang).not.toContain("stale:");
+      expect(text, lang).not.toContain("pending_outlier");
+      expect(text, lang).not.toContain("load:harder:");
+      expect(text, lang).not.toContain("effort:rir");
+    }
+    const en = clean(describeDecision(payload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en").flatMap((s) => s.lines).join("\n"));
+    expect(en).toContain("Heavier by 2.5 kg: declined 3 times");
+    expect(en).toContain("2 session(s) so far, last session 35 days ago, a set is waiting for your confirmation");
+    const lb = clean(describeDecision(payload, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en", "lb").flatMap((s) => s.lines).join("\n"));
+    expect(lb).toMatch(/Heavier by 5(\.5)? lb/);
+    const empty = describeDecision({ ...base, inputs: { ...base.inputs, confidenceFactors: [] } }, { ruleVersion: d.ruleVersion, path: d.path }, L("en"), "en");
+    expect(clean(empty.flatMap((s) => s.lines).join("\n"))).toMatch(/Confidence: \w+ \(-\)/);
+  });
+  it("session dates use the logical training day and the locale", () => {
+    // 2026-10-17T00:30Z is 03:30 in Cairo: before 4 am, so it is the 16th's session.
+    expect(logicalTrainingDate({ year: 2026, month: 10, day: 17, hour: 3, minute: 30 })).toBe("2026-10-16");
+    expect(localDateText("2026-10-16", "en")).toBe("16 Oct 2026");
+    expect(localDateText("2026-10-16", "ar")).toMatch(/[\u0600-\u06FF]/);
+    expect(localDateText("garbage", "en")).toBe("garbage");
+    const tz = process.env.TZ;
+    process.env.TZ = "Africa/Cairo";
+    try {
+      expect(sessionDateText("2026-10-17T00:30:00Z", "en")).toBe("16 Oct 2026");
+      expect(sessionDateText("2026-10-17T09:00:00Z", "en")).toBe("17 Oct 2026");
+    } finally {
+      if (tz === undefined) delete process.env.TZ;
+      else process.env.TZ = tz;
+    }
+    expect(sessionDateText("not a date", "en")).toBe("not a date");
   });
 });

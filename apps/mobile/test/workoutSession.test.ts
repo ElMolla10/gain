@@ -5,6 +5,9 @@ import { createMlEvaluationRepo } from "../src/db/mlEvaluationRepo";
 import { translate } from "../src/i18n/format";
 import { useWorkoutSession, type WorkoutSession } from "../src/hooks/useWorkoutSession";
 import { WorkoutSetRow } from "../src/components/WorkoutSetRow";
+import { REST_KEYS } from "../src/logic/restAlert";
+import { elapsedMs } from "../src/logic/workoutClock";
+import { sessionMinutes } from "../src/logic/historyRows";
 
 // Run the session hook against the real SQLite repositories. Only React's host and
 // native delivery are substituted; no logging, prescription, or rest logic is mocked.
@@ -71,7 +74,7 @@ function ready(): WorkoutSession {
   if (result.phase !== "ready") throw new Error("session is not ready");
   return result;
 }
-async function fixture() {
+async function fixture(opts: { restOn?: boolean } = {}) {
   const c = await freshDb();
   await c.repos.seedIfNeeded();
   const day = (await c.repos.getNextDay())!.day;
@@ -83,10 +86,12 @@ async function fixture() {
   c.deps.tick();
   await c.workout.finishSession(baseline.id);
   c.deps.tick();
+  if (opts.restOn) await c.repos.setSetting(REST_KEYS.auto, "1");
   host.dayId = day.id;
   host.services = { ...c, mlEvaluation: createMlEvaluationRepo(c.db, c.deps), restAlerts: { cancel: vi.fn(async () => {}), schedule: vi.fn(async () => {}) } };
   render();
   await vi.waitFor(() => { ready(); });
+  if (opts.restOn) await vi.waitFor(() => { const s = ready(); expect(s.exerciseProps(s.shown[0]!, 0)!.st.restOff).toBe(false); });
   return c;
 }
 beforeEach(() => { host.values = []; host.effects = []; host.index = 0; vi.clearAllMocks(); vi.useFakeTimers(); });
@@ -94,7 +99,7 @@ afterEach(() => { host.values.forEach(v => v?.cleanup?.()); vi.useRealTimers(); 
 
 describe("one tap on the real session checkmark", () => {
   it.each([false, true])("logs ghost or edited values (edited: %s), starts rest, and refreshes the next card", async edited => {
-    const c = await fixture();
+    const c = await fixture({ restOn: true });
     let s = ready();
     const ex = s.shown[0]!;
     const row = s.rows[ex.exerciseId]![0]!;
@@ -123,7 +128,7 @@ describe("one tap on the real session checkmark", () => {
   });
 
   it("preserves an explicit rest-off choice", async () => {
-    await fixture();
+    await fixture({ restOn: true });
     let s = ready(); const ex = s.shown[0]!; const row = s.rows[ex.exerciseId]![0]!;
     // The public toggle persists the session's off choice.
     await s.exerciseProps(ex, 0)!.onToggleRest();
@@ -154,7 +159,7 @@ describe("one tap on the real session checkmark", () => {
   });
 
   it("ends the rest presentation at the deadline and on leaving the logger", async () => {
-    await fixture();
+    await fixture({ restOn: true });
     const s = ready(); const ex = s.shown[0]!;
     await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
     const running = ready();
@@ -167,6 +172,48 @@ describe("one tap on the real session checkmark", () => {
     expect(native.stop).toHaveBeenCalled();
   });
 
+});
+
+describe("rest timer default and workout pause", () => {
+  it("the rest timer starts off; turning it on in the logger saves the preference for the next workout", async () => {
+    const c = await fixture();
+    let s = ready(); const ex = s.shown[0]!;
+    expect(s.exerciseProps(ex, 0)!.st.restOff).toBe(true);
+    await s.logRow(ex, s.rows[ex.exerciseId]![0]!);
+    s = ready();
+    expect(s.rows[ex.exerciseId]![0]!.saved).toBe(true);
+    expect(s.timer.endsAt).toBeNull();
+    expect(await c.repos.getSetting(REST_KEYS.auto)).toBeNull();
+    await s.exerciseProps(ex, 0)!.onToggleRest();
+    s = ready();
+    expect(s.exerciseProps(ex, 0)!.st.restOff).toBe(false);
+    expect(await c.repos.getSetting(REST_KEYS.auto)).toBe("1");
+    await s.logRow(ex, s.rows[ex.exerciseId]![1]!);
+    expect(ready().timer.endsAt).toBeGreaterThan(Date.now());
+  });
+
+  it("pause freezes the duration, resume continues, and Finish excludes the paused time", async () => {
+    const c = await fixture();
+    let s = ready();
+    const sessionId = s.loaded.sessionId;
+    await s.toggleDurationPause();
+    s = ready();
+    expect(s.loaded.pausedAt).not.toBeNull();
+    expect((await c.workout.getSession(sessionId))!.paused_at).not.toBeNull();
+    const frozen = elapsedMs(s.loaded.startedAt, s.loaded.pausedMs, s.loaded.pausedAt, Date.now());
+    vi.advanceTimersByTime(3 * 60_000);
+    c.deps.tick(3 * 60_000);
+    expect(elapsedMs(s.loaded.startedAt, s.loaded.pausedMs, s.loaded.pausedAt, Date.now())).toBe(frozen);
+    await s.toggleDurationPause();
+    s = ready();
+    expect(s.loaded.pausedAt).toBeNull();
+    expect(s.loaded.pausedMs).toBeGreaterThanOrEqual(3 * 60_000);
+    c.deps.tick(60_000);
+    await c.workout.finishSession(sessionId);
+    const done = (await c.workout.getSession(sessionId))!;
+    expect(done.paused_ms).toBe(3 * 60_000);
+    expect(sessionMinutes(done.started_at, done.finished_at!, false, done.paused_ms)).toBe(1);
+  });
 });
 
 describe("untick and delete failures", () => {

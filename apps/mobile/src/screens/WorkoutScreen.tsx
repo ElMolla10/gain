@@ -89,6 +89,10 @@ export function WorkoutScreen() {
           <Stat label={t("workout.stat.duration")}>
             <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} onToggle={() => void toggleDurationPause()} />
           </Stat>
+          {/* Pause / resume the whole workout: the duration freezes and Finish records active time only. The rest timer is separate. */}
+          <View style={{ justifyContent: "flex-end" }}>
+            <QuietAction icon={loaded.pausedAt != null ? "play" : undefined} label={loaded.pausedAt != null ? t("workout.resume") : t("workout.pause")} onPress={() => void toggleDurationPause()} />
+          </View>
           <Stat label={t("workout.stat.sets")}>
             <AppText ltr style={{ fontSize: 20, fontWeight: "600" }}>{summary.sets}</AppText>
           </Stat>

@@ -27,15 +27,11 @@ interface Props {
   onKeep: () => void;
   onReport: (symptom: ReportedSymptom) => void;
   whySentence?: string | null;
-  onPickJump?: (kg: number) => void;
-  listText?: string;
-  onListChange?: (text: string) => void;
-  onSaveList?: () => void;
 }
 
 /** Presentation only: the logger owns persistence, staleness checks and acceptance. */
-export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleDetails, basis, repMin, repMax, equipment, loadSpec, manualLoad, busy, onApply, onOwn, onKeep, onReport, whySentence, onPickJump, listText, onListChange, onSaveList }: Props) {
-  const { t, lang, unit, unitText } = useI18n();
+export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleDetails, basis, repMin, repMax, equipment, loadSpec, manualLoad, busy, onApply, onOwn, onKeep, onReport, whySentence }: Props) {
+  const { t, lang, unit } = useI18n();
   const p = useLogPalette();
   const load = formatLoad(decision.suggestedWeightKg, lang, unit);
   const stop = state === "stop";
@@ -49,7 +45,6 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
       : state === "no_heavier"
         ? t("live.noHeavier", { equipment: t(`equipment.${equipment}` as never), load, min: repMin, max: repMax })
         : whySentence ?? (basis ? t("live.afterSet", { load: formatLoad(basis.load, lang, unit), reps: basis.reps }) : null);
-  const selectedJump = matchingJumpKg(loadSpec ?? null);
 
   return (
     <View accessibilityLiveRegion={stop ? "assertive" : "polite"} style={{ marginHorizontal: space.md, marginVertical: space.sm, padding: space.md, gap: space.sm, borderRadius: radius.card, backgroundColor: p.card, borderWidth: 2, borderColor: stop ? p.danger : p.fill }}>
@@ -86,30 +81,43 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
             </View>
           </View>
           {manualLoad ? <AppText style={{ color: p.muted }}>{t("live.manual")}</AppText> : null}
-          {onPickJump ? (
-            <View style={{ gap: space.xs }}>
-              <AppText style={{ fontWeight: "600", fontSize: ty.label }}>{t("live.loads")}</AppText>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-                {TREND_LOAD_JUMPS_KG.map((kg) => (
-                  <Chip
-                    key={kg}
-                    label={t("loads.jump", { step: weightText(kg, unit), unit: unitText })}
-                    selected={selectedJump === kg}
-                    onPress={() => onPickJump(kg)}
-                  />
-                ))}
-              </View>
-              {onSaveList && onListChange ? (
-                <>
-                  <Field label={t("loads.mode.list")} hint={t("loads.list.hint")} value={listText ?? ""} onChangeText={onListChange} keyboardType="numbers-and-punctuation" />
-                  <BigButton variant="quiet" label={t("loads.save")} disabled={busy || !(listText ?? "").trim()} onPress={onSaveList} />
-                </>
-              ) : null}
-            </View>
-          ) : null}
           <QuietAction label={detailsOpen ? t("live.less") : t("live.details")} expanded={detailsOpen} onPress={onToggleDetails ?? (() => undefined)} />
         </>
       )}
+    </View>
+  );
+}
+
+/**
+ * Available-load settings for one exercise (jump chips and a custom list), opened from the exercise header's Loads control.
+ * Saving changes later suggestions and the plate line; weights already logged stay as they are.
+ */
+export function LoadSettings({ loadSpec, busy, onPickJump, listText, onListChange, onSaveList }: {
+  loadSpec?: GymLoadSpec | null; busy: boolean; onPickJump: (kg: number) => void;
+  listText?: string; onListChange?: (text: string) => void; onSaveList?: () => void;
+}) {
+  const { t, unit, unitText } = useI18n();
+  const p = useLogPalette();
+  const selectedJump = matchingJumpKg(loadSpec ?? null);
+  return (
+    <View style={{ marginHorizontal: space.md, marginBottom: space.xs, padding: space.sm, gap: space.xs, borderRadius: radius.card, backgroundColor: p.card }}>
+      <AppText style={{ fontWeight: "600", fontSize: ty.label }}>{t("live.loads")}</AppText>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+        {TREND_LOAD_JUMPS_KG.map((kg) => (
+          <Chip
+            key={kg}
+            label={t("loads.jump", { step: weightText(kg, unit), unit: unitText })}
+            selected={selectedJump === kg}
+            onPress={() => onPickJump(kg)}
+          />
+        ))}
+      </View>
+      {onSaveList && onListChange ? (
+        <>
+          <Field label={t("loads.mode.list")} hint={t("loads.list.hint")} value={listText ?? ""} onChangeText={onListChange} keyboardType="numbers-and-punctuation" />
+          <BigButton variant="quiet" label={t("loads.save")} disabled={busy || !(listText ?? "").trim()} onPress={onSaveList} />
+        </>
+      ) : null}
     </View>
   );
 }

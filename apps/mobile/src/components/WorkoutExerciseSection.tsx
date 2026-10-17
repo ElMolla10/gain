@@ -18,16 +18,20 @@ import { nextSetState } from "../logic/nextSetCard";
 import { describeWhyWeight, sessionPosition } from "../logic/why";
 import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, IconButton, InlineStatus, Notice } from "../ui";
+import { AppText, BigButton, IconButton, InlineStatus, Notice, QuietAction } from "../ui";
 import { RestToggle, TargetLine } from "./LogParts";
 import { Icon } from "./Icon";
-import { LiveSuggestion } from "./LiveSuggestion";
+import { LiveSuggestion, LoadSettings } from "./LiveSuggestion";
 import { WorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
 import type { PreviousSource } from "./PreviousSourceToggle";
 
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string; starting?: boolean }
 interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
   active?: boolean; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
+  /** The Next-set card is closed by default (a stop warning always shows); the row still carries the suggestion as ghost values. */
+  suggestionOpen?: boolean; onToggleSuggestion?: () => void;
+  /** Available-load settings, closed by default behind the header's Loads control. */
+  loadsOpen?: boolean; onToggleLoads?: () => void;
   ex: Disp; position: number; info: ExInfo; list: SetRowDraft[]; st: ExerciseState;
   gym: GymFingerprint; exSets: SetRow[]; outliers: Record<string, OutlierResult>;
   candidate?: LiveCard; card?: LiveCard; expanded: boolean; supersetLabel?: string;
@@ -49,7 +53,7 @@ interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDe
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId }: Props) {
+export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId }: Props) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
@@ -109,12 +113,14 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   // At large font sizes the five columns no longer fit side by side: the row becomes two lines (set, previous, tick / weight, reps).
   const stacked = fontScale > 1.3;
 
-  const live = card ? <LiveSuggestion decision={card.decision} state={nextSetState({ decision: card.decision, starting: card.starting, spec })}
+  // Only a stop warning opens on its own; any other suggestion is one tap away ("Next set details").
+  const showCard = !!card && (card.decision.action === "stop" || suggestionOpen);
+  const canEditLoads = !!onPickJump && !timed && ex.setup !== "assisted" && ex.equipment !== "assisted";
+  const live = card && showCard ? <LiveSuggestion decision={card.decision} state={nextSetState({ decision: card.decision, starting: card.starting, spec })}
     basis={basis} repMin={ex.repMin} repMax={ex.repMax} equipment={ex.equipment} loadSpec={spec}
     detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
     manualLoad={nextAdaptiveRow(list)?.load !== null || nextAdaptiveRow(list)?.reps !== null} busy={busy}
-    onApply={onLiveApply} onOwn={onLiveOwn} onReport={onLiveReport} onKeep={onLiveKeep} whySentence={whySentence}
-    onPickJump={onPickJump} listText={listText} onListChange={onListChange} onSaveList={onSaveList} /> : null;
+    onApply={onLiveApply} onOwn={onLiveOwn} onReport={onLiveReport} onKeep={onLiveKeep} whySentence={whySentence} /> : null;
 
   return (
     <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
@@ -135,8 +141,10 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
         </Pressable>
         {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
         <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} />
+        {canEditLoads ? <QuietAction label={t("workout.loads")} accessibilityLabel={`${t("workout.loads")}: ${labels.primary}`} expanded={loadsOpen} onPress={() => onToggleLoads?.()} /> : null}
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
       </View>
+      {canEditLoads && loadsOpen ? <LoadSettings loadSpec={spec} busy={busy} onPickJump={onPickJump!} listText={listText} onListChange={onListChange} onSaveList={onSaveList} /> : null}
 
       {/* Tight vertical rhythm (spacing tokens): exercise block starts space.md below the previous one; heading, target line and set table sit directly on each other (the 48 dp controls already carry the breathing room), with space.xs above the column heads. */}
       {/* Compact target line: "Target 55 kg × 9 · Why". It wraps onto a second line when it is long and is never cut off. */}
@@ -145,13 +153,17 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
           label={t("workout.nextTarget")}
           value={targetText}
           whyLabel={t("workout.whyShort")}
-          suggestedLabel={suggestedWeight && !card ? t("workout.suggestedWeight") : undefined}
+          suggestedLabel={suggestedWeight && !showCard ? t("workout.suggestedWeight") : undefined}
           suggestedValue={suggestedWeight}
           whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
           expanded={info.stored ? undefined : expanded}
           reason={reasonText}
           onWhy={() => onWhy()}
           onWhyLong={() => onWhyLong()}
+          moreLabel={card && card.decision.action !== "stop" && onToggleSuggestion ? t("workout.nextSetDetails") : undefined}
+          moreA11y={`${t("workout.nextSetDetails")}: ${labels.primary}`}
+          moreExpanded={suggestionOpen}
+          onMore={() => onToggleSuggestion?.()}
         />
         {!why && afterExercise ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("why.weight.afterExercise", { exercise: afterExercise })}</AppText> : null}
         {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}

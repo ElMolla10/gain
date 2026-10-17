@@ -29,7 +29,7 @@ import { gridFor, resolveLoads } from "./exerciseGrid";
 import { foldPausedMs } from "../logic/workoutClock";
 import { orderSlots, validReorder } from "../logic/superset";
 
-/** A checked working set starts rest unless the lifter explicitly switches it off. */
+/** No per-exercise opt-out by default. Whether rest runs at all is the `rest_auto` setting (off by default, see restOffFor). */
 export const DEFAULT_EXERCISE_REST_OFF = false;
 
 export interface SetRow {

@@ -49,6 +49,7 @@ export const SYNCED_SETTING_KEYS = [
   "rest_seconds",
   "rest_vibrate",
   "rest_notify",
+  "rest_auto",
   "rep_ceilings",
   "use_gain_ceilings",
   "days_per_week",

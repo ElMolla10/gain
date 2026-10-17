@@ -158,6 +158,10 @@ export const enWorkout = {
   "today.finishOpenFirst": "Finish or resume your open workout first.",
   "today.resume": "Resume workout",
   "today.startDay": "Start {day}",
+  "workout.loads": "Loads",
+  "workout.nextSetDetails": "Next set details",
+  "workout.pause": "Pause workout",
+  "workout.resume": "Resume workout",
 } as const;
 
 export const arWorkout: Record<keyof typeof enWorkout, string> = {
@@ -319,4 +323,8 @@ export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "today.finishOpenFirst": "خلّص أو كمّل تمرينتك المفتوحة الأول.",
   "today.resume": "كمّل التمرينة",
   "today.startDay": "ابدأ {day}",
+  "workout.loads": "الأوزان",
+  "workout.nextSetDetails": "تفاصيل المجموعة الجاية",
+  "workout.pause": "وقّف التمرينة مؤقتًا",
+  "workout.resume": "كمّل التمرينة",
 };

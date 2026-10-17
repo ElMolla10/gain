@@ -6,20 +6,34 @@ export interface RestSettings {
   vibrate: boolean;
   /** A local notification at zero, so the alert arrives with the screen off. Off until the lifter allows notifications. */
   notify: boolean;
+  /** Start a rest countdown when a working set is ticked. Off until the lifter turns it on (in the logger or Settings). */
+  auto: boolean;
 }
 
 export const REST_CHOICES = [60, 90, 120, 180, 240] as const;
-export const REST_KEYS = { seconds: "rest_seconds", vibrate: "rest_vibrate", notify: "rest_notify" } as const;
+export const REST_KEYS = { seconds: "rest_seconds", vibrate: "rest_vibrate", notify: "rest_notify", auto: "rest_auto" } as const;
 
-export const defaultRestSettings = (): RestSettings => ({ seconds: DEFAULT_REST_SECONDS, vibrate: true, notify: false });
+export const defaultRestSettings = (): RestSettings => ({ seconds: DEFAULT_REST_SECONDS, vibrate: true, notify: false, auto: false });
 
-export function parseRestSettings(raw: { seconds: string | null; vibrate: string | null; notify: string | null }): RestSettings {
+export function parseRestSettings(raw: { seconds: string | null; vibrate: string | null; notify: string | null; auto?: string | null }): RestSettings {
   const n = raw.seconds === null ? NaN : Number(raw.seconds);
   return {
     seconds: Number.isFinite(n) ? clampSeconds(n) : DEFAULT_REST_SECONDS,
     vibrate: raw.vibrate !== "0",
     notify: raw.notify === "1",
+    auto: raw.auto === "1",
   };
+}
+
+/** Whether a ticked working set of this exercise starts no rest: the timer is off unless it is on in general and not switched off here. */
+export const restOffFor = (auto: boolean, state?: { restOff: boolean }): boolean => !auto || (state?.restOff ?? false);
+
+/**
+ * The logger's per-exercise rest switch. Turning it on also turns the rest timer on in general (the saved preference),
+ * so the next workout starts with it on; turning it off only affects this exercise in this workout.
+ */
+export function toggleRestChoice(auto: boolean, restOff: boolean): { auto: boolean; restOff: boolean } {
+  return restOffFor(auto, { restOff }) ? { auto: true, restOff: false } : { auto, restOff: true };
 }
 
 export type PermissionResult = "granted" | "denied" | "unavailable";
@@ -50,11 +64,12 @@ export async function syncRestAlert(a: RestAlerts, timer: RestTimer, s: RestSett
   }
 }
 
-/** Read the three rest settings through any object with `getSetting`. */
+/** Read the rest settings through any object with `getSetting`. */
 export async function loadRestSettings(repos: { getSetting(key: string): Promise<string | null> }): Promise<RestSettings> {
   return parseRestSettings({
     seconds: await repos.getSetting(REST_KEYS.seconds),
     vibrate: await repos.getSetting(REST_KEYS.vibrate),
     notify: await repos.getSetting(REST_KEYS.notify),
+    auto: await repos.getSetting(REST_KEYS.auto),
   });
 }

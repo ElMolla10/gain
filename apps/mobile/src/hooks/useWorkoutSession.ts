@@ -35,6 +35,7 @@ import { RESUMED_NOTE_MS, saveStatusKind } from "../logic/saveStatus";
 import { LIVE_MODEL_VERSION, resumeEvaluationTarget } from "../logic/mlEvaluation";
 import { staleOffGridTarget } from "../logic/targetRefresh";
 import { startTimer } from "../logic/restTimer";
+import { REST_KEYS, restOffFor, toggleRestChoice } from "../logic/restAlert";
 import { pauseClock, resumeClock } from "../logic/workoutClock";
 import { attachLoads, resolveLoads } from "../db/exerciseGrid";
 import type { DayEx, Disp, ExInfo } from "../logic/workoutTypes";
@@ -82,6 +83,9 @@ export function useWorkoutSession() {
   const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
   const [preferredExercise, setPreferredExercise] = useState<string | null>(null);
   const [liveDetails, setLiveDetails] = useState<string | null>(null);
+  /** The Next-set card and the load settings stay closed until the lifter opens them (per exercise). */
+  const [suggestionOpen, setSuggestionOpen] = useState<Record<string, boolean>>({});
+  const [loadsOpen, setLoadsOpen] = useState<Record<string, boolean>>({});
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState<Record<string, boolean>>({});
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -100,7 +104,7 @@ export function useWorkoutSession() {
   const [kindFor, setKindFor] = useState<{ exId: string; key: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
-  const { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, restOver, setRestOver } = useWorkoutRest();
+  const { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver } = useWorkoutRest();
   const [jumpThreshold, setJumpThreshold] = useState(10);
   const startedRef = useRef(false);
   const libRef = useRef<LibraryExercise[]>([]);
@@ -326,7 +330,7 @@ export function useWorkoutSession() {
         if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
         // No rest timer after a warm-up or a drop set (the next set follows straight away).
         // In a superset the rest comes after the last exercise of the round only.
-        if (!row.warmup && !isDropRow(row) && !(exState[ex.slot]?.restOff ?? DEFAULT_EXERCISE_REST_OFF) && restAfterSet(order, exState, ex.slot)) {
+        if (!row.warmup && !isDropRow(row) && !restOffFor(rest.auto, exState[ex.slot]) && restAfterSet(order, exState, ex.slot)) {
           setRestOver(false);
           setRestFor(exerciseLabels(ex, lang).primary);
           setTimer((tm) => startTimer(tm, Date.now()));
@@ -424,9 +428,13 @@ export function useWorkoutSession() {
 
   async function toggleRest(slot: string) {
     if (!loaded || loaded === "nogym") return;
-    const off = !(exState[slot]?.restOff ?? DEFAULT_EXERCISE_REST_OFF);
-    setState(slot, { restOff: off });
-    await workout.patchExerciseState(loaded.sessionId, slot, { restOff: off });
+    const next = toggleRestChoice(rest.auto, exState[slot]?.restOff ?? DEFAULT_EXERCISE_REST_OFF);
+    if (next.auto !== rest.auto) {
+      setRest((r) => ({ ...r, auto: next.auto }));
+      await repos.setSetting(REST_KEYS.auto, next.auto ? "1" : "0").catch((e) => diagnostics.record("warn", "save rest preference", e));
+    }
+    setState(slot, { restOff: next.restOff });
+    await workout.patchExerciseState(loaded.sessionId, slot, { restOff: next.restOff });
   }
 
   const durationBusy = useRef(false);
@@ -704,11 +712,15 @@ export function useWorkoutSession() {
       strengthPrSetId: strengthPr?.setId,
       liveDetailsOpen: detailKey !== null && liveDetails === detailKey,
       onLiveDetails: () => setLiveDetails(current => current === detailKey ? null : detailKey),
+      suggestionOpen: !!suggestionOpen[ex.exerciseId],
+      onToggleSuggestion: () => setSuggestionOpen(o => ({ ...o, [ex.exerciseId]: !o[ex.exerciseId] })),
+      loadsOpen: !!loadsOpen[ex.exerciseId],
+      onToggleLoads: () => setLoadsOpen(o => ({ ...o, [ex.exerciseId]: !o[ex.exerciseId] })),
       ex: ex,
       position: position,
       info: info,
       list: list,
-      st: exState[ex.slot] ?? NO_STATE(ex.slot),
+      st: { ...(exState[ex.slot] ?? NO_STATE(ex.slot)), restOff: restOffFor(rest.auto, exState[ex.slot]) },
       gym: loaded.gym,
       exSets: setsByEx.get(ex.exerciseId) ?? [],
       outliers: outliers,

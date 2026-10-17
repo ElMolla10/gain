@@ -55,5 +55,5 @@ export function useWorkoutRest() {
     void restAlerts.cancel().catch(() => undefined);
     void restLiveActivity.stop();
   }, [restAlerts]);
-  return { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, restOver, setRestOver };
+  return { timer, setTimer, timerOpen, setTimerOpen, restFor, setRestFor, rest, setRest, restOver, setRestOver };
 }

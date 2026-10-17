@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("../src/haptics", () => ({ haptics: { tick: () => {}, untick: () => {}, restOver: () => {}, celebrate: () => {} } }));
 vi.mock("react-native", () => ({ Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ t: (k: string) => k, lang: "en", unit: "kg" }) }));
 vi.mock("../src/theme", () => ({ radius: {}, space: {}, useLogPalette: () => ({}) }));

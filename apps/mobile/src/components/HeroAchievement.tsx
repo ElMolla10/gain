@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Share, Vibration, View } from "react-native";
+import { AccessibilityInfo, Animated, Share, View } from "react-native";
+import { haptics } from "../haptics";
 import { SwitchRow } from "./SettingsRows";
 import { telemetry } from "../achievementTelemetry";
 import { diagnostics } from "../diagnostics";
@@ -37,7 +38,7 @@ export function HeroAchievement(props: { hero: SurfaceBadge; rest: SurfaceBadge[
         }
         opacity.setValue(0);
         Animated.timing(opacity, { toValue: 1, duration: motion.transition, useNativeDriver: true }).start();
-        Vibration.vibrate(40);
+        haptics.celebrate();
       })
       .catch(() => {
         if (alive) opacity.setValue(1);

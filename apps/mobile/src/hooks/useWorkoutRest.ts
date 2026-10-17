@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Vibration } from "react-native";
+import { haptics } from "../haptics";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { defaultRestSettings, loadRestSettings, syncRestAlert, type RestSettings } from "../logic/restAlert";
@@ -67,7 +67,7 @@ export function useWorkoutRest(sessionId: string | null = null) {
   useEffect(() => {
     if (timer.endsAt === null) return;
     const fire = () => {
-      if (rest.vibrate) Vibration.vibrate(400);
+      if (rest.vibrate) haptics.restOver();
       setRestOver(true);
       setTimer((tm) => stopTimer(tm));
     };

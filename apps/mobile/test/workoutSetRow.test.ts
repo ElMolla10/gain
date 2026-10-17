@@ -10,6 +10,7 @@ import { PreviousSourceToggle, parsePreviousSource, PREVIOUS_SOURCE_KEY } from "
 
 // Inspect the presentation tree and invoke its callbacks. Native keyboard/gesture delivery needs a phone.
 const settings = vi.hoisted(() => ({ unit: "kg" as "kg" | "lb", lang: "en" as "en" | "ar", fontScale: 1 }));
+vi.mock("../src/haptics", () => ({ haptics: { tick: () => {}, untick: () => {}, restOver: () => {}, celebrate: () => {} } }));
 vi.mock("react-native", () => ({ View: "View", Alert: { alert: vi.fn() }, Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale }) }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ ...settings, unitText: settings.unit, fmt: (kg: number) => `${kg} kg`, t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(settings.lang, key, params) }) }));
 vi.mock("../src/theme", () => ({ radius: { button: 8, card: 12, pill: 24 }, space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 13, load: 36, caption: 13 }, useLogPalette: () => ({ doneBg: "done", activeBg: "active", bg: "page", card: "card", line: "line", fill: "fill", accent: "accent", muted: "muted", danger: "danger", text: "text" }), usePalette: () => ({ muted: "muted", border: "border", text: "text", fill: "fill", onFill: "onFill", edge: "edge", danger: "danger" }) }));

@@ -12,7 +12,8 @@ import { StackActions, useNavigation, useRoute } from "@react-navigation/native"
 import { estimateStartingLoad, findSpec, parseReadiness, sessionOrderFatigue, type GymFingerprint, type GymLoadSpec, type OutlierResult, type ReadinessFlag } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, TextInput } from "react-native";
+import { Alert, AppState, TextInput } from "react-native";
+import { applyDrafts, draftKey, parseDrafts, serializeDrafts } from "../logic/draftPersist";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
 import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
@@ -220,7 +221,9 @@ export function useWorkoutSession() {
       setReadiness(flag === "fatigued" || flag === "returning" ? flag : null);
       setExState(states);
       setSets(all);
-      setRows(initial);
+      // Typed-but-unticked numbers kept when the app went to the background (iOS may have terminated it since).
+      const drafts = parseDrafts(await repos.getSetting(draftKey(id)).catch(() => null));
+      setRows(drafts.length ? applyDrafts(initial, drafts) : initial);
       setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), pausedMs: session?.paused_ms ?? 0, pausedAt: session?.paused_at ?? null, gym, slots, info });
       if (resumed) setResumeNote(true);
     })().catch((e) => {
@@ -259,18 +262,35 @@ export function useWorkoutSession() {
     }
   }
 
-  // Leaving the logger drops the in-app timer, so drop its alert too (no stray buzz after the workout). Pending notes are saved.
-  useEffect(
-    () => () => {
+  const flushNotes = useCallback(() => {
+    const sid = sessionRef.current;
+    if (!sid) return;
+    for (const [slot, text] of Object.entries(notesPending.current)) {
+      clearTimeout(noteTimers.current[slot]);
+      delete notesPending.current[slot];
+      void workout.patchExerciseState(sid, slot, { note: text }).catch(() => undefined);
+    }
+  }, [workout]);
+  // Leaving the logger saves pending notes.
+  useEffect(() => () => flushNotes(), [flushNotes]);
+
+  // iOS may terminate a backgrounded app without running JS: on background, save pending notes and ONE draft snapshot (never per keystroke).
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const ended = useRef(false);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (s) => {
       const sid = sessionRef.current;
-      if (!sid) return;
-      for (const [slot, text] of Object.entries(notesPending.current)) {
-        clearTimeout(noteTimers.current[slot]);
-        void workout.patchExerciseState(sid, slot, { note: text }).catch(() => undefined);
-      }
-    },
-    [workout],
-  );
+      if ((s !== "background" && s !== "inactive") || !sid || ended.current) return;
+      flushNotes();
+      void repos.setSetting(draftKey(sid), serializeDrafts(rowsRef.current)).catch((e) => diagnostics.record("warn", "save drafts", e));
+    });
+    return () => sub.remove();
+  }, [repos, flushNotes]);
+  const clearDrafts = (sid: string) => {
+    ended.current = true;
+    void repos.setSetting(draftKey(sid), "").catch(() => undefined);
+  };
 
   const setsByEx = useMemo(() => {
     const m = new Map<string, SetRow[]>();
@@ -660,7 +680,7 @@ export function useWorkoutSession() {
     setFinishing(true);
     setFinishFailed(false);
     const r = await attemptFinish(
-      () => workout.finishSession(lo.sessionId).then(() => { void endRest(); void workoutLiveActivity.stop(); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
+      () => workout.finishSession(lo.sessionId).then(() => { void endRest(); void workoutLiveActivity.stop(); clearDrafts(lo.sessionId); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
       () => navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId })),
       (e) => diagnostics.record("error", "finish workout", e),
     );
@@ -676,6 +696,7 @@ export function useWorkoutSession() {
       if (!(await workout.discardEmptySession(lo.sessionId))) throw new Error("not empty");
       void endRest();
       void workoutLiveActivity.stop();
+      clearDrafts(lo.sessionId);
       navigation.goBack();
     } catch (e) {
       diagnostics.record("error", "discard empty workout", e);

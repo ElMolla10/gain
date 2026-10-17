@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { derivePlates, platesOf, type GymLoadSpec, type SetupType } from "@gain/engine";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import { Alert, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
@@ -20,8 +20,10 @@ export function GymEditScreen() {
   const { gyms, repos } = useServices();
   const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
-  const nav = useNavigation<{ navigate: (name: string, params?: object) => void; goBack: () => void }>();
+  const nav = useNavigation<{ navigate: (name: string, params?: object) => void; goBack: () => void; setOptions: (o: { title: string }) => void }>();
   const gymId = (useRoute().params as { gymId?: string } | undefined)?.gymId;
+  // One title (N-2): the native header says Add or Edit; the body has no second title.
+  useLayoutEffect(() => nav.setOptions({ title: gymId ? t("gyms.edit") : t("gyms.add") }), [nav, gymId, t]);
   const [name, setName] = useState("");
   const [loads, setLoads] = useState<GymLoadSpec[] | null>(null);
   const [platesText, setPlatesText] = useState("");
@@ -93,7 +95,7 @@ export function GymEditScreen() {
   const cable = loads.find((l) => l.equipment === "cable");
 
   return (
-    <Screen title={gymId ? t("gyms.edit") : t("gyms.add")}>
+    <Screen>
       <Field label={t("gyms.name")} value={name} onChangeText={(s) => { setName(s); setSaved(false); }} />
       {bar ? (
         <Card>

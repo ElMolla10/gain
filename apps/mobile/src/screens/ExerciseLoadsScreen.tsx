@@ -80,7 +80,9 @@ export function ExerciseLoadsScreen() {
   const state = data.spec ? t("loads.state.own", { what: loadsSummaryText(data.spec, unit, unitText, t as never) }) : t("loads.state.default", { equipment });
 
   return (
-    <Screen title={`${t("loads.title")}: ${names.primary}`}>
+    <Screen>
+      {/* Short native title ("Available weights"); the exercise is a 20/26 heading here (N-2). */}
+      <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{names.primary}</AppText>
       <Card>
         <AppText style={{ fontWeight: "600" }}>{state}</AppText>
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.intro")}</AppText>

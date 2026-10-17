@@ -10,7 +10,7 @@ import { useI18n } from "../i18n";
  */
 export type IconName =
   | "today" | "plan" | "progress" | "settings" | "dumbbell" | "timer" | "why" | "check" | "chevron" | "arrowUp" | "export" | "more"
-  | "close" | "plus" | "minus" | "alert" | "phone" | "cloud" | "play" | "pause" | "trophy" | "edit" | "drag" | "trash";
+  | "close" | "plus" | "minus" | "alert" | "phone" | "cloud" | "play" | "pause" | "trophy" | "edit" | "drag" | "trash" | "search";
 
 type Shape = { t: "p"; d: string } | { t: "c"; cx: number; cy: number; r: number } | { t: "r"; x: number; y: number; w: number; h: number; rx: number };
 const p = (d: string): Shape => ({ t: "p", d });
@@ -40,6 +40,7 @@ export const ICONS: Record<IconName, Shape[]> = {
   play: [p("M8 4.5v15l12-7.5Z")],
   pause: [p("M8 5v14"), p("M16 5v14")],
   trophy: [p("M8 4h8v5a4 4 0 0 1-8 0Z"), p("M8 6H5a3 3 0 0 0 3 4"), p("M16 6h3a3 3 0 0 1-3 4"), p("M12 13v4"), p("M8 20h8")],
+  search: [c(10.5, 10.5, 6.5), p("m15.5 15.5 5 5")],
   edit: [p("M4 20h4L19 9l-4-4L4 16Z"), p("m13.5 6.5 4 4")],
 };
 

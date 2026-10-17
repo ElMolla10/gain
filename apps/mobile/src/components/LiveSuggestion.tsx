@@ -7,7 +7,7 @@ import { matchingJumpKg, TREND_LOAD_JUMPS_KG } from "../logic/exerciseLoads";
 import type { ReportedSymptom } from "../logic/liveAdaptation";
 import type { NextSetState } from "../logic/nextSetCard";
 import { weightText } from "../logic/units";
-import { radius, space, type as ty, useLogPalette } from "../theme";
+import { space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, Chip, Field, IconButton, QuietAction } from "../ui";
 
 interface Props {
@@ -51,10 +51,18 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
         : whySentence ?? (basis ? t("live.afterSet", { load: formatLoad(basis.load, lang, unit), reps: basis.reps }) : null);
   const selectedJump = matchingJumpKg(loadSpec ?? null);
 
+  if (!stop && !detailsOpen) {
+    return (
+      <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
+        <QuietAction label={t("live.options")} expanded={false} onPress={onToggleDetails ?? (() => undefined)} />
+      </View>
+    );
+  }
+
   return (
-    <View accessibilityLiveRegion={stop ? "assertive" : "polite"} style={{ marginHorizontal: space.md, marginVertical: space.sm, padding: space.md, gap: space.sm, borderRadius: radius.card, backgroundColor: p.card, borderWidth: 2, borderColor: stop ? p.danger : p.fill }}>
+    <View accessibilityLiveRegion={stop ? "assertive" : "polite"} style={{ marginHorizontal: space.md, marginVertical: space.xs, paddingVertical: space.sm, gap: space.sm }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-        <AppText style={{ flex: 1, fontWeight: "600" }}>{t("live.title")}</AppText>
+        <View style={{ flex: 1 }}><QuietAction label={t("live.options")} expanded={detailsOpen} onPress={onToggleDetails ?? (() => undefined)} /></View>
         <IconButton icon="alert" label={t("live.report")} onPress={() => Alert.alert(t("live.report"), undefined, [
           { text: t("live.severePain"), onPress: () => onReport("severe_pain") },
           { text: t("live.dizziness"), onPress: () => onReport("dizziness") },
@@ -62,7 +70,7 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
         ])} />
       </View>
       <AppText style={{ fontWeight: "700", color: p.accent }}>{t(stateKey as never)}</AppText>
-      {stop ? null : <AppText ltr style={{ fontWeight: "700", fontSize: ty.load, color: p.accent }}>{t("live.next", { load, reps: decision.suggestedReps })}</AppText>}
+      {stop ? null : <AppText ltr style={{ fontWeight: "700", fontSize: ty.label, color: p.accent }}>{t("live.next", { load, reps: decision.suggestedReps })}</AppText>}
       {reason ? <AppText style={{ color: p.muted }}>{reason}</AppText> : null}
       {predictedOk ? <AppText>{t("live.predicted", { reps: Math.round(decision.predictedReps * 10) / 10, min: repMin, max: repMax })}</AppText> : null}
       {detailsOpen ? <View style={{ gap: space.xs }}>
@@ -73,7 +81,6 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
       {stop ? (
         <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap", alignItems: "center" }}>
           <BigButton variant="quiet" label={t("live.dismiss")} disabled={busy} onPress={onKeep} />
-          <QuietAction label={detailsOpen ? t("live.less") : t("live.details")} expanded={detailsOpen} onPress={onToggleDetails ?? (() => undefined)} />
         </View>
       ) : (
         <>
@@ -107,7 +114,6 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
               ) : null}
             </View>
           ) : null}
-          <QuietAction label={detailsOpen ? t("live.less") : t("live.details")} expanded={detailsOpen} onPress={onToggleDetails ?? (() => undefined)} />
         </>
       )}
     </View>

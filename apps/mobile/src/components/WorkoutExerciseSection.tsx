@@ -164,6 +164,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
       </View>
 
 
+      {live}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: space.md, marginTop: space.xs }}>
         <View style={colSet}><AppText style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
         <View style={{ flex: 1.3 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>
@@ -177,11 +178,9 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
         <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
       </View>
 
-      {card?.decision.action === "stop" ? live : null}
       <View>
         {list.map((row, i) => (
           <React.Fragment key={row.key}>
-            {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
             <WorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
               workingIndex={widx[i] ?? null} lastSets={(info.previous ? info.previous[previousSource] : info.last)?.sets ?? null}
               strengthPr={strengthPrSetId === row.key}

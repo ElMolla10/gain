@@ -80,8 +80,9 @@ export function WorkoutScreen() {
       </View>
 
       {/* Save status: one line under the header, outside the scroll so it is always in view, in words + icon. Failures and unsaved work come before any friendlier message; "resumed" goes away after a few seconds. */}
-      <View accessibilityLiveRegion="polite" style={{ paddingHorizontal: space.lg, paddingBottom: space.xs }}>
-        <InlineStatus compact kind={status.kind} icon={status.icon} text={status.text} />
+      <View accessibilityLiveRegion="polite" style={{ paddingHorizontal: space.lg, paddingBottom: space.xs, flexDirection: "row", alignItems: "center", gap: space.sm }}>
+        <View style={{ flex: 1 }}><InlineStatus compact kind={status.kind} icon={status.icon} text={status.text} /></View>
+        <QuietAction label={t(loaded.pausedAt != null ? "workout.resume" : "workout.pause")} onPress={() => void toggleDurationPause()} />
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>

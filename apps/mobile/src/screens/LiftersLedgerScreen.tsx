@@ -53,7 +53,7 @@ export function LiftersLedgerScreen() {
   return (
     <Screen>
       {items.length === 0 ? (
-        <EmptyState icon="progress" title={t("achv.ledger.empty")} />
+        <EmptyState icon="progress" title={t("empty.noMilestones")} body={t("achv.ledger.empty")} />
       ) : (
         <Card style={{ paddingVertical: space.xs }}>
           {items.map((row, i) => (

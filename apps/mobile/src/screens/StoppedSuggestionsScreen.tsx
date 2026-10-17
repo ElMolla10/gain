@@ -45,7 +45,7 @@ export function StoppedSuggestionsScreen() {
           ) : null}
         </Card>
       ) : null}
-      {items.length === 0 ? <EmptyState icon="settings" title={t("stop.empty")} /> : null}
+      {items.length === 0 ? <EmptyState icon="settings" title={t("empty.noDeclined")} body={t("stop.empty")} /> : null}
       {items.map((it) => (
         <Card key={it.id}>
           <AppText style={{ fontSize: 20, fontWeight: "600" }}>{jumpKindText(it.jumpKind, unit, t as never)}</AppText>

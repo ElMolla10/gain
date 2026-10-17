@@ -29,7 +29,7 @@ export function WhyScreen() {
   }, [finish, targetId, t, lang, unit]);
 
   if (sections === null) return <LoadingState />;
-  if (sections === "missing") return <EmptyState icon="why" title={t("why.missing")} />;
+  if (sections === "missing") return <EmptyState icon="why" title={t("empty.nothingToExplain")} body={t("why.missing")} />;
   return (
     <Screen>
       {sections.map((s) => (

@@ -591,7 +591,33 @@ export function TargetStrip(props: { label: string; value?: string | null; /** T
 }
 
 /** A tappable list row with title, note, optional trailing text and a chevron that mirrors in RTL. */
-export function ListRow(props: { title: string; note?: string; trailing?: string; onPress?: () => void; last?: boolean; accessibilityLabel?: string }) {
+/**
+ * Two or three tabs that switch content in place (History's Sessions / Exercises, H-7): a full-width segmented control,
+ * 48 dp, first segment on the start edge. Exposed as a tablist with selected tabs, not as chips.
+ */
+export function SegmentedTabs<T extends string>(props: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  const p = usePalette();
+  return (
+    <View accessibilityRole="tablist" style={{ flexDirection: "row", borderWidth: 1.5, borderColor: p.edge, borderRadius: radius.button, overflow: "hidden" }}>
+      {props.options.map((o, i) => {
+        const on = o.value === props.value;
+        return (
+          <Pressable
+            key={o.value}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            onPress={() => props.onChange(o.value)}
+            style={{ flex: 1, minHeight: MIN_TOUCH, alignItems: "center", justifyContent: "center", paddingHorizontal: space.sm, backgroundColor: on ? p.fill : "transparent", borderStartWidth: i === 0 ? 0 : 1.5, borderColor: p.edge }}
+          >
+            <AppText style={{ fontSize: ty.bodySmall, fontWeight: "600", textAlign: "center", color: on ? p.onFill : p.text }}>{o.label}</AppText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export function ListRow(props: { title: string; note?: string; trailing?: string; /** Extra trailing content (a pill, a value with a glyph); kept within 45% of the row. */ trailingIcon?: React.ReactNode; onPress?: () => void; last?: boolean; accessibilityLabel?: string }) {
   const p = usePalette();
   const inner = (
     <>
@@ -600,6 +626,7 @@ export function ListRow(props: { title: string; note?: string; trailing?: string
         {props.note ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.note}</AppText> : null}
       </View>
       {props.trailing ? <AppText ltr style={{ fontSize: ty.label, color: p.muted, maxWidth: "45%" }}>{props.trailing}</AppText> : null}
+      {props.trailingIcon ? <View style={{ maxWidth: "45%", flexDirection: "row", alignItems: "center", gap: space.xs }}>{props.trailingIcon}</View> : null}
       {props.onPress ? <Icon name="chevron" color={p.muted} size={20} mirror /> : null}
     </>
   );

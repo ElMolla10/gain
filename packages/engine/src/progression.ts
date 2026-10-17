@@ -373,9 +373,9 @@ export function proposeNext(ctx: ProposeContext): Proposal {
     warnings,
   });
 
-  // 4. Low confidence: a smaller suggestion, never a jump. Say why.
+  // 4. Low confidence: add a rep inside the range, never change load. Say why.
   if (confidence === "low") {
-    const reps = Math.min(hi, Math.max(lo, r));
+    const reps = r < lo ? lo : Math.min(hi, r + 1);
     return make({
       load: anchor,
       reps,

@@ -59,8 +59,20 @@ describe("low confidence gives a smaller suggestion", () => {
     expect(p.jumpKind).toBe("repeat");
     expect(p.reason.key).toBe("low_confidence_repeat");
   });
-  it("one session below the top: repeat the same reps, do not add one", () => {
-    expect(P({ history: run(dbLine, 30, [9]) }).reps).toBe(9);
+  it.each([8, 9, 11])("one session at %i reps: add one rep without changing load", (r) => {
+    const p = P({ history: run(dbLine, 30, [r]) });
+    // Low confidence now permits the smallest rep step inside the range, while still forbidding load changes.
+    expect(p).toMatchObject({ confidence: "low", load: 30, reps: r + 1, currency: "reps", jumpKind: "repeat" });
+    expect(p.reason).toMatchObject({ key: "low_confidence_repeat", params: { reps: r + 1 } });
+  });
+  it("one session above the range: repeat at the top without changing load", () => {
+    expect(P({ history: run(dbLine, 30, [14]) })).toMatchObject({ confidence: "low", load: 30, reps: 12 });
+  });
+  it.each([8, 12])("stale two-session history at %i reps never changes load", (r) => {
+    const p = P({ history: run(dbLine, 30, [r, r], "2026-07-01") });
+    expect(p).toMatchObject({ confidence: "low", load: 30, reps: r < 12 ? r + 1 : 12, currency: "reps", jumpKind: "repeat" });
+    expect(p.needsModel).toMatchObject({ needed: true });
+    expect(p.needsModel.reasons).toContain("stale_history");
   });
   it("one session below the range: aim for the bottom of the range", () => {
     expect(P({ history: run(dbLine, 30, [5]) }).reps).toBe(8);
@@ -433,7 +445,7 @@ describe("assisted and bodyweight lines", () => {
 describe("result shape", () => {
   it("carries rule version, inputs, reason key + params and is JSON-safe", () => {
     const p = P({ history: run(dbLine, 30, [10, 10, 11]) });
-    expect(p.ruleVersion).toBe("rule-v0.5");
+    expect(p.ruleVersion).toBe("rule-v0.6");
     expect(p.reason.key).toBe("reps_in_range");
     expect(p.reason.params).toMatchObject({ load: 30, reps: 12, nextLoad: 32.5, equipment: "dumbbell" });
     expect(p.inputs.sessions[0]).toMatchObject({ topLoad: 30, repsAtTop: 11 });

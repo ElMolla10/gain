@@ -40,8 +40,8 @@ vi.mock("react", async original => {
     },
   };
 });
-const native = vi.hoisted(() => ({ alert: vi.fn(), sync: vi.fn(async (_p?: any) => {}), stop: vi.fn(async () => {}), reconcile: vi.fn(async (_open?: () => Promise<boolean>) => {}) }));
-vi.mock("react-native", () => ({ Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
+const native = vi.hoisted(() => ({ appState: [] as ((s: string) => void)[], alert: vi.fn(), sync: vi.fn(async (_p?: any) => {}), stop: vi.fn(async () => {}), reconcile: vi.fn(async (_open?: () => Promise<boolean>) => {}) }));
+vi.mock("react-native", () => ({ AppState: { addEventListener: (_e: string, fn: (s: string) => void) => { native.appState.push(fn); return { remove: () => { native.appState.splice(native.appState.indexOf(fn), 1); } }; } }, Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
 vi.mock("@react-navigation/native", () => ({ useRoute: () => ({ params: { dayId: host.dayId } }), useNavigation: () => ({ dispatch: vi.fn(), goBack: vi.fn() }), StackActions: { push: vi.fn(), replace: vi.fn() } }));
 vi.mock("../src/AppContext", () => ({ useServices: () => host.services }));
@@ -203,6 +203,31 @@ describe("one tap on the real session checkmark", () => {
     expect(native.stop).toHaveBeenCalled();
   });
 
+});
+
+describe("typed drafts survive iOS terminating the app (iOS audit 10)", () => {
+  it("backgrounding saves one draft snapshot; reopening restores it unticked; ticking logs exactly that; finishing clears it", async () => {
+    const c = await fixture();
+    let s = ready(); const ex = s.shown[0]!;
+    const sid = s.loaded.sessionId;
+    s.patch(ex.exerciseId, s.rows[ex.exerciseId]![1]!.key, { load: 62.5, reps: 8 });
+    ready();
+    native.appState.forEach(fn => fn("background"));
+    await vi.waitFor(async () => expect(await c.repos.getSetting(`workout_drafts:${sid}`)).toContain("62.5"));
+    // iOS killed the app: a fresh logger opens and resumes the same session.
+    host.values.forEach(v => v?.cleanup?.());
+    host.values = []; host.effects = [];
+    render();
+    await vi.waitFor(() => { expect(ready().rows[ex.exerciseId]![1]!).toMatchObject({ load: 62.5, reps: 8, saved: false }); });
+    s = ready();
+    expect(s.rows[ex.exerciseId]![0]!.load).toBeNull();
+    await s.logRow(ex, s.rows[ex.exerciseId]![1]!);
+    const sets = await c.workout.listSessionSets(sid);
+    expect(sets.at(-1)).toMatchObject({ load: 62.5, reps: 8 });
+    s = ready();
+    await s.doFinish(s.loaded);
+    await vi.waitFor(async () => expect(await c.repos.getSetting(`workout_drafts:${sid}`)).toBe(""));
+  });
 });
 
 describe("rest timer default and workout pause", () => {

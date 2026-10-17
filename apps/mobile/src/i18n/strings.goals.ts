@@ -19,6 +19,11 @@ export const enGoals = {
   "goals.weighIn.recent": "Recent weigh-ins",
   "goals.weighIn.none": "No weigh-ins yet. Weigh in the same way each time, a few times a week.",
   "goals.weighIn.delete": "Delete",
+  "goals.weighIn.deleteTitle": "Delete this weigh-in?",
+  "goals.weighIn.deleteBody": "{weight} on {date} will be removed.",
+  "goals.clear.confirmTitle": "Remove your goal?",
+  "goals.clear.confirmBody": "Your goal and its pace will be removed. Your workouts and weigh-ins stay.",
+  "goals.saveFailed": "Could not save this on your phone. Nothing was changed; try again.",
   "goals.chooseExercise": "Choose the exercise",
 
   "pace.none": "No goal set yet. Open Goals to set one.",
@@ -76,6 +81,11 @@ export const arGoals: Record<keyof typeof enGoals, string> = {
   "goals.weighIn.recent": "آخر الأوزان",
   "goals.weighIn.none": "لسه مفيش أوزان. اتوزن بنفس الطريقة كل مرة، كام مرة في الأسبوع.",
   "goals.weighIn.delete": "امسح",
+  "goals.weighIn.deleteTitle": "تمسح الوزن ده؟",
+  "goals.weighIn.deleteBody": "{weight} بتاع يوم {date} هيتمسح.",
+  "goals.clear.confirmTitle": "تشيل هدفك؟",
+  "goals.clear.confirmBody": "الهدف ومتابعته هيتشالوا. تمريناتك وأوزانك هتفضل زي ما هي.",
+  "goals.saveFailed": "معرفناش نحفظ ده على التليفون. ما اتغيرش حاجة، جرّب تاني.",
   "goals.chooseExercise": "اختار التمرين",
 
   "pace.none": "لسه مفيش هدف. افتح الأهداف وحدد واحد.",

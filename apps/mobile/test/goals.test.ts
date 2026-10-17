@@ -8,7 +8,7 @@ import { parseNumber } from "../src/logic/gymInput";
 import { unitToKg, kgToUnit } from "../src/logic/units";
 import { translate } from "../src/i18n/format";
 import { formatLoad } from "../src/i18n/format";
-import type { StringKey } from "../src/i18n/strings";
+import { ar, en, type StringKey } from "../src/i18n/strings";
 import { freshDb } from "./helpers";
 
 const DAY = 86_400_000;
@@ -219,5 +219,36 @@ describe("replay of the real Hevy history", () => {
     expect(r.pace.exposures).toBe(exposures.length);
     expect(r.pace.currentE1rm).not.toBeNull();
     console.log("HEVY REPLAY bench:", JSON.stringify(r.pace));
+  });
+});
+
+describe("18 Goals: destructive actions ask first, writes never fail silently", () => {
+  const screen = readFileSync(join(__dirname, "..", "src", "screens", "GoalsScreen.tsx"), "utf8");
+  it("Remove goal and Delete weigh-in go through Alert.alert with a cancel and a destructive confirm", () => {
+    expect(screen).toMatch(/Alert\.alert\(t\("goals\.clear\.confirmTitle"\)/);
+    expect(screen).toMatch(/Alert\.alert\(t\("goals\.weighIn\.deleteTitle"\)/);
+    expect(screen.match(/style: "destructive"/g)).toHaveLength(2);
+    expect(screen.match(/style: "cancel"/g)).toHaveLength(2);
+    expect(screen).not.toContain("goals.clearGoal().then(");
+    expect(screen).not.toContain("deleteWeighIn(w.id).then(");
+    // The destructive calls live only inside the confirm buttons.
+    for (const call of ["goals.clearGoal()", "goals.deleteWeighIn(w.id)"]) {
+      const at = screen.indexOf(call);
+      expect(screen.lastIndexOf("Alert.alert(", at)).toBeGreaterThan(-1);
+      expect(screen.slice(screen.lastIndexOf("onPress:", at), at)).toContain('run("');
+    }
+  });
+  it("every write runs through one guarded runner that records errors and shows an inline error", () => {
+    for (const a of ["save", "weigh", "clear", "delete"]) expect(screen).toContain(`run("${a}"`);
+    expect(screen).toContain("diagnostics.record(\"error\", `goals ${action}`, e)");
+    expect(screen).toContain('t("goals.saveFailed")');
+    expect(screen).toContain("busyRef.current");
+  });
+  it("the new strings exist in en and ar with matching placeholders", () => {
+    for (const k of ["goals.clear.confirmTitle", "goals.clear.confirmBody", "goals.weighIn.deleteTitle", "goals.weighIn.deleteBody", "goals.saveFailed"] as const) {
+      expect(en[k].length, k).toBeGreaterThan(5);
+      expect(ar[k], k).toMatch(/[\u0600-\u06FF]/);
+      expect((ar[k].match(/\{\w+\}/g) ?? []).sort(), k).toEqual((en[k].match(/\{\w+\}/g) ?? []).sort());
+    }
   });
 });

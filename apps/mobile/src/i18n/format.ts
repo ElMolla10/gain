@@ -81,4 +81,6 @@ export function matchesExercise(query: string, ex: NamedExercise & { aliasesAr: 
 export const estimateMinutes = (totalSets: number): number => Math.round(totalSets * 3);
 
 /** "32.5 kg" / "71.6 lb" (a kilogram weight shown in the lifter's unit) with the number isolated so it reads correctly in RTL. */
-export const formatLoad = (load: number, lang: Lang, unit: Unit = "kg"): string => `${isolateLtr(weightText(load, unit))} ${unitLabel(unit, lang)}`;
+/** U+00A0: a load never wraps away from its unit or its reps (DESIGN.md S-1). Bidi class CS, so it does not change reading order. */
+export const NBSP = "\u00A0";
+export const formatLoad = (load: number, lang: Lang, unit: Unit = "kg"): string => `${isolateLtr(weightText(load, unit))}${NBSP}${unitLabel(unit, lang)}`;

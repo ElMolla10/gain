@@ -2,7 +2,7 @@ import React from "react";
 import { Alert, View } from "react-native";
 import type { Decision, EquipmentType, GymLoadSpec } from "@gain/engine";
 import { useI18n } from "../i18n";
-import { formatLoad, isolateLtr } from "../i18n/format";
+import { formatLoad, isolateLtr, NBSP } from "../i18n/format";
 import { matchingJumpKg, TREND_LOAD_JUMPS_KG } from "../logic/exerciseLoads";
 import type { ReportedSymptom } from "../logic/liveAdaptation";
 import type { NextSetState } from "../logic/nextSetCard";
@@ -34,7 +34,7 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
   const { t, lang, unit } = useI18n();
   const p = useLogPalette();
   const load = formatLoad(decision.suggestedWeightKg, lang, unit);
-  const nextValue = `${load} × ${isolateLtr(String(decision.suggestedReps))}`;
+  const nextValue = `${load}${NBSP}×${NBSP}${isolateLtr(String(decision.suggestedReps))}`;
   const stop = state === "stop";
   const starting = state === "starting";
   const predictedOk = !stop && !starting && decision.predictionAvailable !== false && decision.reason !== "reported_symptoms";
@@ -60,7 +60,7 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
       <AppText style={{ fontWeight: "700", color: p.accent }}>{t(stateKey as never)}</AppText>
       {/* Label on its own line, value in the language's order with only the numbers isolated (L-10): never ltr-forced. */}
       {stop ? null : (
-        <View accessible accessibilityLabel={`${t("live.nextLabel")}: ${nextValue}`} style={{ gap: 2 }}>
+        <View accessible accessibilityLabel={`${t("live.nextLabel")}: ${nextValue}`} style={{ gap: space.xs }}>
           <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("live.nextLabel")}</AppText>
           <AppText style={{ fontWeight: "700", fontSize: ty.load, color: p.accent, fontVariant: ["tabular-nums"] }}>{nextValue}</AppText>
         </View>

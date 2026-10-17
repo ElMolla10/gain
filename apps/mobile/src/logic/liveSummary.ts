@@ -50,7 +50,7 @@ export function previousText(lastWorking: readonly { load: number; reps: number 
   if (!lastWorking || workingIndex === null) return "—";
   const s = lastWorking[workingIndex];
   if (!s) return "—";
-  return `${weightText(s.load, unit)} × ${s.reps}`;
+  return `${weightText(s.load, unit)}\u00A0×\u00A0${s.reps}`;
 }
 
 /** 0-based index among working rows for each row (null for warm-ups and drop sets): lines up with `rowLabels` and with the last session's working sets. */

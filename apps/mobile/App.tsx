@@ -174,7 +174,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
         >
           <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
           <Stack.Screen name="Workout" component={WorkoutScreen} options={{ title: t("workout.title"), headerShown: false }} />
-          <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false }} />
+          <Stack.Screen name="Finish" component={FinishScreen} options={{ title: t("finish.title"), headerBackVisible: false, gestureEnabled: false }} />
           <Stack.Screen name="ProgrammeEdit" component={ProgrammeEditScreen} options={{ title: t("prog.edit.title") }} />
           <Stack.Screen name="ProgrammeExposure" component={ProgrammeExposureScreen} options={{ title: t("prog.exposure.title") }} />
           <Stack.Screen name="ProgrammeVersions" component={ProgrammeVersionsScreen} options={{ title: t("prog.versions") }} />

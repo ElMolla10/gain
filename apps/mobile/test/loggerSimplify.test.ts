@@ -9,7 +9,10 @@ describe("simplified logger (presentation wiring)", () => {
   it("has a visible pause / resume workout control wired to the existing duration pause", () => {
     const screen = src("screens/WorkoutScreen.tsx");
     expect(screen).toContain('t("workout.resume") : t("workout.pause")');
-    expect(screen).toMatch(/QuietAction[^\n]*workout\.pause[^\n]*onPress=\{\(\) => void toggleDurationPause\(\)\}/);
+    // L-7: exactly one pause control, a 48 dp icon button beside the duration (the duration itself no longer toggles).
+    expect(screen).toMatch(/<IconButton icon=\{loaded\.pausedAt != null \? "play" : "pause"\}[^\n]*workout\.pause[^\n]*onPress=\{\(\) => void toggleDurationPause\(\)\}/);
+    expect(screen.match(/toggleDurationPause\(\)/g)).toHaveLength(1);
+    expect(screen).not.toMatch(/<LiveDuration[^>]*onToggle/);
     // The rest dock keeps its own start/stop, independent of the workout pause.
     expect(screen).toContain("startTimer(tm, Date.now())");
   });

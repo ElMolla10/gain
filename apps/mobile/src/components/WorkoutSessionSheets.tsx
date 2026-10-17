@@ -5,6 +5,7 @@ import { WorkoutHelp } from "../components/WorkoutHelp";
 import { exerciseLabels } from "../i18n/format";
 import { joinSuperset, leaveSuperset } from "../logic/superset";
 import { kindOf, kindPatch, SET_KINDS, type SetKind } from "../logic/workoutRows";
+import { canEditLoadsFor } from "../logic/setRowState";
 import type { WorkoutSession } from "../hooks/useWorkoutSession";
 
 /** Exercise actions, pickers, and exceptional confirmations. */
@@ -19,7 +20,7 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
     ssFor, subFor, subCands, setSubFor, replaceWith,
     setPickFor, addOpen, library, loaded, setAddOpen,
     addExerciseToday, programmes, libRef, setLibrary, pickFor,
-    alternatives,
+    alternatives, setLoadsOpen,
   } = session;
   return <>
       <ExerciseReorderModal
@@ -40,6 +41,8 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
             ? [
                 { label: t("workout.menu.notes"), onPress: () => setTimeout(() => noteInputs.current[menuEx.slot]?.focus(), 150) },
                 ...(menuEx.equipment === "machine" ? [{ label: t("workout.menu.machineSteps"), onPress: () => setMachineFor(menuEx.slot) }] : []),
+                // Available weights moved here from the exercise header, so a long name keeps the header to one line (L-12).
+                ...(canEditLoadsFor(menuEx) ? [{ label: t("workout.loads"), onPress: () => setLoadsOpen(o => ({ ...o, [menuEx.exerciseId]: true })) }] : []),
                 ...(exState[menuEx.slot]?.added ? [] : [{ label: t("workout.menu.replace"), onPress: () => startReplace(menuEx) }]),
                 ...(shown.length > 1 ? [{ label: t("workout.menu.superset"), onPress: () => setSsFor(menuEx.slot) }] : []),
                 ...(ssLabel[menuEx.slot] ? [{ label: t("workout.menu.supersetLeave"), onPress: () => void applySuperset(leaveSuperset(menuEx.slot)) }] : []),

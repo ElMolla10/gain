@@ -1,6 +1,8 @@
 import { useWorkoutSuggestions } from "./useWorkoutSuggestions";
 import type { LoadedWorkout as Loaded } from "../logic/workoutTypes";
 import { useWorkoutRest } from "./useWorkoutRest";
+import { createHandlerMap } from "../logic/stableHandlers";
+import type { WorkoutSetRowProps } from "../components/WorkoutSetRow";
 import { perfMark, perfNow } from "../perfMarks";
 import { useWorkoutLiveActivity } from "./useWorkoutLiveActivity";
 import { workoutLiveActivity } from "../native/workoutLiveActivity";
@@ -115,6 +117,7 @@ export function useWorkoutSession() {
   const noteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const notesPending = useRef<Record<string, string>>({});
   const sessionRef = useRef<string | null>(null);
+  const rowHandlers = useRef(createHandlerMap<Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick">>());
 
   /** The exercise shown for a program slot today. */
   const makeDisp = useCallback((slotEx: DayEx, st?: ExerciseState): Disp => {
@@ -757,12 +760,15 @@ export function useWorkoutSession() {
       onOpenTrend: () => (navigation as { navigate: (name: string, params?: object) => void }).navigate("LiftTrend", { lineId: info.lineId }),
       onWhy: () => info.stored ? navigation.dispatch(StackActions.push("Why", { targetId: info.stored.id })) : setWhyOpen(w => ({ ...w, [ex.exerciseId]: !whyOpen[ex.exerciseId] })),
       onWhyLong: () => setWhyOpen(w => ({ ...w, [ex.exerciseId]: !whyOpen[ex.exerciseId] })),
-      onPatch: (key, change) => patch(ex.exerciseId, key, change),
-      onKind: row => setKindFor({ exId: ex.exerciseId, key: row.key }),
-      onAskDelete: row => askDrop(ex, row),
-      onDelete: row => void dropRow(ex, row),
-      onLog: row => { setPreferredExercise(ex.exerciseId); void logRow(ex, row); },
-      onUntick: row => void untick(ex, row),
+      // Set-row handlers are stable per exercise (they call the latest closures), so memoised rows skip unrelated keystrokes.
+      ...rowHandlers.current(ex.exerciseId, {
+        onPatch: (key: string, change: Parameters<typeof editRow>[2]) => patch(ex.exerciseId, key, change),
+        onKind: (row: SetRowDraft) => setKindFor({ exId: ex.exerciseId, key: row.key }),
+        onAskDelete: (row: SetRowDraft) => askDrop(ex, row),
+        onDelete: (row: SetRowDraft) => void dropRow(ex, row),
+        onLog: (row: SetRowDraft) => { setPreferredExercise(ex.exerciseId); void logRow(ex, row); },
+        onUntick: (row: SetRowDraft) => void untick(ex, row),
+      }),
       onLiveApply: () => {
           if (!card || card.decision.action === "stop") return;
           setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });

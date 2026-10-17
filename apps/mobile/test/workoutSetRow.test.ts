@@ -5,7 +5,7 @@ import type { Disp } from "../src/logic/workoutTypes";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
 import { LiveSuggestion, LoadSettings } from "../src/components/LiveSuggestion";
 import { WorkoutExerciseSection } from "../src/components/WorkoutExerciseSection";
-import { WorkoutSetRow, type WorkoutSetRowProps } from "../src/components/WorkoutSetRow";
+import { MemoWorkoutSetRow, WorkoutSetRow, type WorkoutSetRowProps } from "../src/components/WorkoutSetRow";
 import { PreviousSourceToggle, parsePreviousSource, PREVIOUS_SOURCE_KEY } from "../src/components/PreviousSourceToggle";
 
 // Inspect the presentation tree and invoke its callbacks. Native keyboard/gesture delivery needs a phone.
@@ -156,7 +156,7 @@ describe("extracted exercise section wiring", () => {
     const p = await sectionProps();
     p.info.previous = { any: { performedAt: "2026-10-16", sets: [{ load: 65, reps: 7 }] }, routine: null };
     p.previousSource = "routine";
-    expect(nodes(WorkoutExerciseSection(p)).find(n => n.type === WorkoutSetRow)!.props.lastSets).toBeNull();
+    expect(nodes(WorkoutExerciseSection(p)).find(n => n.type === MemoWorkoutSetRow)!.props.lastSets).toBeNull();
   });
   it("changes only Previous when its source switches, preserving suggestions and editable fields", async () => {
     const p = await sectionProps();
@@ -167,7 +167,7 @@ describe("extracted exercise section wiring", () => {
     for (const lang of ["en", "ar"] as const) {
       settings.lang = lang;
       const before = nodes(WorkoutExerciseSection(p));
-      const row = before.find(n => n.type === WorkoutSetRow)!;
+      const row = before.find(n => n.type === MemoWorkoutSetRow)!;
       const fields = nodes(WorkoutSetRow(row.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "CellInput").map(n => [n.props.value, n.props.placeholder]);
       expect(row.props.lastSets).toEqual([{ load: 65, reps: 7 }]);
       const onChange = (source: "any" | "routine") => { p.previousSource = source; };
@@ -176,7 +176,7 @@ describe("extracted exercise section wiring", () => {
       expect(options.map(n => n.props.accessibilityState.checked)).toEqual([true, false]);
       options[1]!.props.onPress();
       const after = nodes(WorkoutExerciseSection(p));
-      const nextRow = after.find(n => n.type === WorkoutSetRow)!;
+      const nextRow = after.find(n => n.type === MemoWorkoutSetRow)!;
       expect(nextRow.props.lastSets).toEqual([{ load: 60, reps: 8 }]);
       const previousText = nodes(WorkoutSetRow(nextRow.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
       expect(previousText).toContain("\u206660kg × 8\u2069");
@@ -189,7 +189,7 @@ describe("extracted exercise section wiring", () => {
   it("preserves warm-up numbering, prior working-set indexes and the current-row identity", async () => {
     const p = await sectionProps();
     p.list = markSaved(editRow(p.list, p.list[0]!.key, { warmup: true }), p.list[0]!.key);
-    const rows = nodes(WorkoutExerciseSection(p)).filter(n => n.type === WorkoutSetRow);
+    const rows = nodes(WorkoutExerciseSection(p)).filter(n => n.type === MemoWorkoutSetRow);
     expect(rows.map(n => n.props.label)).toEqual(["W", "1", "2"]);
     expect(rows.map(n => n.props.workingIndex)).toEqual([null, 0, 1]);
     expect(rows.map(n => n.props.current)).toEqual([false, true, false]);
@@ -217,7 +217,7 @@ describe("extracted exercise section wiring", () => {
   it("adapts every set row to large text without changing the action callbacks", async () => {
     settings.fontScale = 1.6;
     const p = await sectionProps();
-    const rows = nodes(WorkoutExerciseSection(p)).filter(n => n.type === WorkoutSetRow);
+    const rows = nodes(WorkoutExerciseSection(p)).filter(n => n.type === MemoWorkoutSetRow);
     expect(rows).toHaveLength(p.list.length);
     expect(rows.every(n => n.props.stacked === true)).toBe(true);
     expect(rows.every(n => n.props.onLog === p.onLog && n.props.onDelete === p.onDelete)).toBe(true);
@@ -226,9 +226,9 @@ describe("extracted exercise section wiring", () => {
     const p = await sectionProps();
     const card = { key: p.list[1]!.key, performance:"observed", snapshot:"draft", decision: {action:"maintain" as const, reason:"within_range" as const, predictedReps:8, suggestedWeightKg:60, suggestedReps:8} };
     const tree = nodes(WorkoutExerciseSection({...p, active:false, card, suggestionOpen: true}));
-    expect(tree.filter(n => n.type === WorkoutSetRow).every(n => n.props.current === false)).toBe(true);
+    expect(tree.filter(n => n.type === MemoWorkoutSetRow).every(n => n.props.current === false)).toBe(true);
     const suggestion = tree.findIndex(n => n.type === LiveSuggestion);
-    const target = tree.findIndex(n => n.type === WorkoutSetRow && n.props.row.key === card.key);
+    const target = tree.findIndex(n => n.type === MemoWorkoutSetRow && n.props.row.key === card.key);
     expect(suggestion).toBeGreaterThan(0);
     expect(suggestion).toBeLessThan(target);
     expect(tree.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
@@ -246,7 +246,7 @@ describe("extracted exercise section wiring", () => {
       expect(text).not.toContain(translate(lang, "live.title"));
       expect(tree.some(n => n.props.label === translate(lang, "live.apply"))).toBe(false);
       expect(tree.some(n => n.props.label === translate(lang, "live.loads"))).toBe(false);
-      const row = tree.find(n => n.type === WorkoutSetRow && n.props.row.key === card.key)!;
+      const row = tree.find(n => n.type === MemoWorkoutSetRow && n.props.row.key === card.key)!;
       expect([row.props.row.ghostLoad, row.props.row.ghostReps]).toEqual([62.5, 8]);
       expect(row.props.onLog).toBe(p.onLog); // one-tap confirm is unchanged
       const target = tree.find(n => (n.type as unknown) === "TargetLine")!;

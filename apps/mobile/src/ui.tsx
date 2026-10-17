@@ -236,30 +236,33 @@ export function Field(props: {
 }
 
 /** Compact neutral outline; lime fill only for the selected choice, and a check mark so selection is not colour alone. */
-export function Chip(props: { label: string; selected?: boolean; disabled?: boolean; onPress?: () => void; /** danger = outlined in the danger colour (remove actions). */ tone?: "danger" }) {
+export function Chip(props: { label: string; selected?: boolean; disabled?: boolean; onPress?: () => void; /** danger = outlined in the danger colour (remove actions). */ tone?: "danger"; /** One of a single-select group: radio + checked semantics, and the selected chip is drawn like a RadioRow (tint, accent border, check), not lime. */ radio?: boolean }) {
   const p = usePalette();
+  const radioOn = !!props.radio && !!props.selected;
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: !!props.selected, disabled: !!props.disabled }}
+      accessibilityRole={props.radio ? "radio" : "button"}
+      accessibilityState={props.radio ? { checked: !!props.selected, disabled: !!props.disabled } : { selected: !!props.selected, disabled: !!props.disabled }}
       disabled={props.disabled}
       onPress={props.onPress}
       style={({ pressed }) => ({
         opacity: props.disabled ? 0.45 : 1,
         minHeight: MIN_TOUCH,
+        minWidth: MIN_TOUCH,
         borderRadius: radius.pill,
         paddingHorizontal: space.lg,
         paddingVertical: space.sm,
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "center",
         gap: space.xs,
-        borderWidth: props.selected ? 0 : 1.5,
-        borderColor: props.tone === "danger" ? p.danger : p.edge,
-        backgroundColor: props.selected ? p.fill : pressed ? p.raised : "transparent",
+        borderWidth: radioOn ? 2 : props.selected ? 0 : 1.5,
+        borderColor: radioOn ? p.accent : props.tone === "danger" ? p.danger : p.edge,
+        backgroundColor: radioOn ? p.tint : props.selected ? p.fill : pressed ? p.raised : "transparent",
       })}
     >
-      {props.selected ? <Icon name="check" color={p.onFill} size={18} /> : null}
-      <AppText style={{ fontWeight: "600", fontSize: ty.label, color: props.selected ? p.onFill : props.tone === "danger" ? p.danger : p.text, flexShrink: 1 }}>{props.label}</AppText>
+      {props.selected ? <Icon name="check" color={radioOn ? p.accent : p.onFill} size={18} /> : null}
+      <AppText style={{ fontWeight: "600", fontSize: ty.label, color: radioOn ? p.text : props.selected ? p.onFill : props.tone === "danger" ? p.danger : p.text, flexShrink: 1 }}>{props.label}</AppText>
     </Pressable>
   );
 }
@@ -444,33 +447,61 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
  * A one-of-many picker in a Sheet (e.g. which workout day). Rows are radio buttons: the chosen one carries a check mark AND a different
  * surface (never colour alone), each row speaks "name, badge, detail", picking closes the sheet. 56 dp rows; long names wrap.
  */
+/**
+ * One option of a single-select list (language, units, programme mode, ChoiceSheet). Unselected: transparent with a 1.5 dp edge.
+ * Selected: tint fill, 2 dp accent border and a check at the END edge, so it reads in grayscale and isn't mistaken for the lime CTA.
+ * Screen readers hear "radio, checked". Put a group of them inside RadioGroup.
+ */
+export function RadioRow(props: { label: string; detail?: string; /** A short status word such as "Suggested today". */ badge?: string; selected: boolean; onPress: () => void; disabled?: boolean }) {
+  const p = usePalette();
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityLabel={[props.label, props.badge, props.detail].filter(Boolean).join(", ")}
+      accessibilityState={{ checked: props.selected, selected: props.selected, disabled: !!props.disabled }}
+      disabled={props.disabled}
+      onPress={props.onPress}
+      style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.md, paddingHorizontal: space.lg, borderRadius: radius.card, borderWidth: props.selected ? 2 : 1.5, borderColor: props.selected ? p.accent : p.edge, backgroundColor: props.selected ? p.tint : pressed ? p.raised : "transparent", opacity: props.disabled ? 0.45 : 1 })}
+    >
+      <View style={{ flex: 1, gap: 2 }}>
+        <AppText style={{ fontWeight: "600" }}>{props.label}</AppText>
+        {props.badge ? <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent }}>{props.badge}</AppText> : null}
+        {props.detail ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.detail}</AppText> : null}
+      </View>
+      {props.selected ? <Icon name="check" color={p.accent} size={22} /> : null}
+    </Pressable>
+  );
+}
+
+/** A labelled radiogroup of RadioRows (or radio Chips when `row`). */
+export function RadioGroup(props: { label?: string; children: React.ReactNode; row?: boolean }) {
+  return (
+    <View accessibilityRole="radiogroup" accessibilityLabel={props.label} style={props.row ? { flexDirection: "row", flexWrap: "wrap", gap: space.sm } : { gap: space.sm }}>
+      {props.children}
+    </View>
+  );
+}
+
 export function ChoiceSheet(props: { visible: boolean; title: string; note?: string; onClose: () => void; onSelect: (id: string) => void; options: { id: string; label: string; detail?: string; /** A short status word such as "Suggested today". */ badge?: string; selected: boolean }[] }) {
   const p = usePalette();
   return (
     <Sheet visible={props.visible} title={props.title} onClose={props.onClose}>
       {props.note ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{props.note}</AppText> : null}
-      <View accessibilityRole="radiogroup" style={{ gap: space.sm }}>
+      <RadioGroup>
         {props.options.map((o) => (
-          <Pressable
+          <RadioRow
             key={o.id}
-            accessibilityRole="radio"
-            accessibilityLabel={[o.label, o.badge, o.detail].filter(Boolean).join(", ")}
-            accessibilityState={{ checked: o.selected, selected: o.selected }}
+            label={o.label}
+            detail={o.detail}
+            badge={o.badge}
+            selected={o.selected}
             onPress={() => {
               props.onSelect(o.id);
               props.onClose();
             }}
-            style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.sm, paddingHorizontal: space.lg, borderRadius: radius.card, borderWidth: o.selected ? 2 : 1, borderColor: o.selected ? p.accent : p.border, backgroundColor: o.selected ? p.tint : pressed ? p.raised : "transparent" })}
-          >
-            <View style={{ flex: 1, gap: 2 }}>
-              <AppText style={{ fontWeight: "600" }}>{o.label}</AppText>
-              {o.badge ? <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent }}>{o.badge}</AppText> : null}
-              {o.detail ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{o.detail}</AppText> : null}
-            </View>
-            {o.selected ? <Icon name="check" color={p.accent} size={22} /> : null}
-          </Pressable>
+          />
         ))}
-      </View>
+      </RadioGroup>
     </Sheet>
   );
 }

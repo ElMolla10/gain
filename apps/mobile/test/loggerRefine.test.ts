@@ -90,10 +90,12 @@ describe("logger and Today: layout rules (source)", () => {
     expect(today).toContain("<QuietAction");
   });
   it("the picker is an accessible radio group with a check mark (selection is not colour alone) and wraps long names", () => {
-    const c = ui.slice(ui.indexOf("export function ChoiceSheet"), ui.indexOf("Where the data lives"));
+    // ChoiceSheet renders its options through the shared RadioRow / RadioGroup (plan 1.4).
+    const c = ui.slice(ui.indexOf("export function RadioRow"), ui.indexOf("Where the data lives"));
     expect(c).toContain('accessibilityRole="radiogroup"');
     expect(c).toContain('accessibilityRole="radio"');
-    expect(c).toContain("checked: o.selected");
+    expect(c).toContain("checked: props.selected");
+    expect(c).toContain("selected={o.selected}");
     expect(c).toContain('<Icon name="check"');
     expect(c).not.toContain("numberOfLines");
     expect(c).toContain("<Sheet"); // close button, Android back, safe area come from the shared Sheet

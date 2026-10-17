@@ -99,6 +99,9 @@ describe("two years of history (Step 15)", () => {
       await run("todayNextDay", () => repos.getNextDay());
       await run("planNextSession", () => finish.planNextSession(ctx.gymId));
       await run("previousDisplay", () => workout.previousPerformances(ex.exerciseId, next.day.id));
+      // Launch path after a prior sync (iOS audit 6): the fingerprint matches, so no full re-evaluation.
+      await achievements.ensureBackfill();
+      await run("launchAchievements", () => achievements.ensureBackfill());
       const { id } = await workout.startOrResumeSession(next.day.id, ctx.gymId);
       const checked = await workout.logSet({ sessionId: id, exerciseId: ex.exerciseId, load: 60, reps: 9 }, { gym, equipment: ex.equipment, setup: ex.setup });
       await run("checkedPrPreview", () => achievements.previewStrengthPr(id, checked.id));
@@ -108,6 +111,7 @@ describe("two years of history (Step 15)", () => {
     const a = await measure(small);
     const b = await measure(big);
     if (process.env.PERF_REPORT) console.log(JSON.stringify({ weeks8: a, weeks104: b, sets: big.sets }, (k, v) => (typeof v === "number" ? Math.round(v * 10) / 10 : v)));
+    expect(b.launchAchievements!.stmts).toBeLessThanOrEqual(8);
     for (const [name, r] of Object.entries(b)) {
       // 1. no screen read is slow on 2 years of history, even on Node (generous: a phone is slower; see docs/PERFORMANCE.md)
       expect(r.ms, `${name}: ${r.ms.toFixed(0)} ms`).toBeLessThan(1500);

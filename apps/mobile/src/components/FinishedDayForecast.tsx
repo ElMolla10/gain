@@ -18,7 +18,14 @@ export type SameDayForecast = NonNullable<Awaited<ReturnType<FinishRepo["preview
  * first line, the load at 36 and the reason as a readable 16 sentence with a "Why" that opens the full reasoning in place; the other
  * exercises are compact 56 dp rows like the Today list. Loads are built in the language's order (F-2).
  */
-export function FinishedDayForecast({ value, leadExerciseId }: { value: SameDayForecast | "none"; leadExerciseId?: string | null }) {
+export function FinishedDayForecast({ value, leadExerciseId, whyTargets, onWhy }: {
+  value: SameDayForecast | "none";
+  leadExerciseId?: string | null;
+  /** exerciseId -> targetId for exercises with a saved decision record (see resolveWhyTargets). */
+  whyTargets?: Record<string, string>;
+  /** Opens the real Why / decision detail for a saved target. */
+  onWhy?: (targetId: string) => void;
+}) {
   const { t, lang, unit } = useI18n();
   const p = usePalette();
   const [whyOpen, setWhyOpen] = useState(false);
@@ -33,6 +40,8 @@ export function FinishedDayForecast({ value, leadExerciseId }: { value: SameDayF
   const fullReason = lead ? renderReason(localizeReason(lead.proposal.reason, unit, lang), lang) : "";
   const sentence = shortReason(fullReason);
   const more = whyDetail(fullReason, sentence);
+  // A saved decision record wins: Why opens the same Why screen as everywhere else. Only without one does it expand in place.
+  const savedTargetId = lead && onWhy ? whyTargets?.[lead.exerciseId] ?? null : null;
   return (
     <View style={{ gap: space.md }}>
       <View style={{ gap: space.xs }}>
@@ -46,9 +55,13 @@ export function FinishedDayForecast({ value, leadExerciseId }: { value: SameDayF
           <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent, letterSpacing: 0.4 }}>{t("target.label")}</AppText>
           {leadTarget ? <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{leadTarget}</AppText> : <AppText style={{ color: p.muted }}>{t("finish.noTarget")}</AppText>}
           {sentence ? <AppText>{sentence}</AppText> : null}
-          {whyOpen && more ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{more}</AppText> : null}
-          {/* Only when there is more to say than the sentence above; hidden, not disabled, otherwise (F-3). */}
-          {more ? (
+          {!savedTargetId && whyOpen && more ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{more}</AppText> : null}
+          {/* Saved record: open Why. Otherwise only when there is more to say than the sentence; hidden, not disabled (F-3). */}
+          {savedTargetId ? (
+            <View style={{ alignItems: "flex-start" }}>
+              <QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${name(lead!)}`} onPress={() => onWhy!(savedTargetId)} />
+            </View>
+          ) : more ? (
             <View style={{ alignItems: "flex-start" }}>
               <QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${name(lead)}`} expanded={whyOpen} onPress={() => setWhyOpen((o) => !o)} />
             </View>

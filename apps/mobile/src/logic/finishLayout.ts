@@ -31,3 +31,31 @@ export function finishStatCells(
   if (v.minutes !== null) cells.push({ key: "duration", value: `${iso(v.minutes)} ${l.min}`, label: l.duration });
   return cells;
 }
+
+/**
+ * Which forecast exercises have a REAL saved decision behind them: a target in the day's planned session with a decision_log row.
+ * Those open the Why screen (same destination as Today and the decision log); the rest fall back to the in-place reasoning.
+ * Read-only; any failure just means "no record".
+ */
+export async function resolveWhyTargets(
+  dayId: string,
+  exerciseIds: readonly string[],
+  repo: {
+    getPlannedSession: (dayId: string) => Promise<{ id: string } | null>;
+    getTargetForExercise: (sessionId: string, exerciseId: string) => Promise<{ id: string } | null>;
+    getDecision: (targetId: string) => Promise<unknown | null>;
+  },
+): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  try {
+    const planned = await repo.getPlannedSession(dayId);
+    if (!planned) return out;
+    for (const id of exerciseIds) {
+      const target = await repo.getTargetForExercise(planned.id, id);
+      if (target && (await repo.getDecision(target.id))) out[id] = target.id;
+    }
+  } catch {
+    return {};
+  }
+  return out;
+}

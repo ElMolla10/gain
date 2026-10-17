@@ -22,7 +22,7 @@ import { AppText, BigButton, Card, ErrorState, InlineStatus, LoadingState, Notic
 import { FinishedDayForecast, type SameDayForecast } from "../components/FinishedDayForecast";
 import { MenuSheet } from "../components/LogParts";
 import { Icon } from "../components/Icon";
-import { finishStatCells } from "../logic/finishLayout";
+import { finishStatCells, resolveWhyTargets } from "../logic/finishLayout";
 import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
@@ -53,6 +53,14 @@ export function FinishScreen() {
   const [heroRest, setHeroRest] = useState<SurfaceBadge[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
   const [goalLiftId, setGoalLiftId] = useState<string | null>(null);
+  const [whyTargets, setWhyTargets] = useState<Record<string, string>>({});
+  // Saved decision records for the forecast exercises: those open the real Why screen (read-only lookup).
+  useEffect(() => {
+    if (next === null || next === "none") return;
+    let alive = true;
+    void resolveWhyTargets(next.dayId, next.exercises.map((e) => e.exerciseId), finish).then((m) => { if (alive) setWhyTargets(m); });
+    return () => { alive = false; };
+  }, [next, finish]);
   // The goal lift leads the next-workout block when it is in it (F-1). Read-only; a failure just leaves the first exercise leading.
   useEffect(() => {
     let alive = true;
@@ -260,7 +268,7 @@ export function FinishScreen() {
       {/* 2. The hand-off: the next workout's weights, right under the title (F-1). Forecast of the next occurrence of THIS day. */}
       {next === null
         ? <Card><AppText style={{ color: p.muted }}>{t("common.loading")}</AppText></Card>
-        : <FinishedDayForecast value={next} leadExerciseId={goalLiftId} />}
+        : <FinishedDayForecast value={next} leadExerciseId={goalLiftId} whyTargets={whyTargets} onWhy={(targetId) => navigation.navigate("Why", { targetId })} />}
 
       {/* 3. One row of stats: values 20/26, labels 13; only the next load is drawn at 36 (F-5). */}
       <Card>

@@ -28,13 +28,14 @@ export function RestTimerBar({ timer, restFor, restOver, onAdjust, onToggle }: {
           <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: space.sm, rowGap: space.sm }}>
             <RestClock timer={timer} style={{ fontSize: 36, fontWeight: "600", minWidth: 110, color: restOver && !timerRunning ? p.accent : p.text }} />
             <View style={{ flexDirection: "row", gap: space.sm, flexGrow: 1, flexBasis: 220 }}>
-              {[-15, 30].map((d) => (
+              {[-15, 15].map((d) => ( /* symmetric: +15 then −15 is the original duration */
                 <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${d > 0 ? "+" : "−"}${Math.abs(d)} ${t("qty.s")}`} onPress={() => onAdjust(d)} style={({ pressed }) => ({ flex: 1, minHeight: 48, borderRadius: radius.button, borderWidth: 1.5, borderColor: p.edge, backgroundColor: pressed ? p.line : p.field, alignItems: "center", justifyContent: "center" })}>
                   <AppText ltr style={{ fontWeight: "600", fontSize: 16 }}>{d > 0 ? `+${d}` : `−${-d}`}</AppText>
                 </Pressable>
               ))}
               <Pressable
                 accessibilityRole="button"
+                accessibilityState={{ busy: timerRunning }}
                 onPress={onToggle}
                 style={({ pressed }) => ({ flex: 1.4, minHeight: 48, borderRadius: radius.button, backgroundColor: pressed ? p.fillPressed : p.fill, alignItems: "center", justifyContent: "center", paddingHorizontal: space.sm })}
               >

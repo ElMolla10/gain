@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { GymLoadSpec } from "@gain/engine";
 import { canLog, initialDraft, repeatLast, stepLoad, stepReps } from "../src/logic/draft";
@@ -97,6 +99,19 @@ describe("rest timer (simple, in-app)", () => {
     expect(adjustTimer(newTimer(MIN_REST_SECONDS), -15, 0).durationMs).toBe(MIN_REST_SECONDS * 1000);
     expect(adjustTimer(newTimer(MAX_REST_SECONDS), 15, 0).durationMs).toBe(MAX_REST_SECONDS * 1000);
     expect(clampSeconds(1)).toBe(MIN_REST_SECONDS);
+  });
+  it("+15 then −15 returns to the original duration, running or stopped (symmetric rest buttons)", () => {
+    expect(adjustTimer(adjustTimer(newTimer(90), 15, 0), -15, 0).durationMs).toBe(90_000);
+    const running = startTimer(newTimer(90), 0);
+    const back = adjustTimer(adjustTimer(running, 15, 5_000), -15, 6_000);
+    expect(back.durationMs).toBe(running.durationMs);
+    expect(remainingMs(back, 6_000)).toBe(remainingMs(running, 6_000));
+  });
+  it("the rest bar offers −15 / +15 and tells screen readers whether the timer runs", () => {
+    const bar = readFileSync(join(__dirname, "..", "src", "components", "RestTimerBar.tsx"), "utf8");
+    expect(bar).toContain("[-15, 15].map(");
+    expect(bar).not.toContain("[-15, 30]");
+    expect(bar).toContain("accessibilityState={{ busy: timerRunning }}");
   });
   it("formats m:ss and rounds partial seconds up", () => {
     expect(formatClock(90_000)).toBe("1:30");

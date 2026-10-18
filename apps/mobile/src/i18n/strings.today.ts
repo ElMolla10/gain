@@ -69,6 +69,13 @@ export const enToday = {
   "today.week.in": "This week is in. Train or rest, both count.",
   "today.week.planned": "{done} of {goal} planned sessions",
   "today.week.muscles": "This week's sets by muscle",
+  "today.path.title": "Warm-ups to {load}",
+  "today.path.skipped": "Usually skipped here",
+  "today.path.close": "Close",
+  "today.path.work": "Work set",
+  "today.pager.a11y": "Day {n} of {total}: {day}",
+  "today.pager.next": "Next day",
+  "today.pager.prev": "Previous day",
 } as const;
 
 export const arToday: Record<keyof typeof enToday, string> = {
@@ -205,4 +212,18 @@ export const arToday: Record<keyof typeof enToday, string> = {
   "today.week.planned": "{done} من {goal} تمارين متخططة",
   // DRAFT ar
   "today.week.muscles": "مجموعات الأسبوع ده حسب العضلة",
+  // DRAFT ar
+  "today.path.title": "التسخين لحد {load}",
+  // DRAFT ar
+  "today.path.skipped": "عادةً بتتخطّاه هنا",
+  // DRAFT ar
+  "today.path.close": "اقفل",
+  // DRAFT ar
+  "today.path.work": "المجموعة الأساسية",
+  // DRAFT ar
+  "today.pager.a11y": "يوم {n} من {total}: {day}",
+  // DRAFT ar
+  "today.pager.next": "اليوم اللي بعده",
+  // DRAFT ar
+  "today.pager.prev": "اليوم اللي قبله",
 };

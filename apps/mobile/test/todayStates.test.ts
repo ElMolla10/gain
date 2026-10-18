@@ -111,7 +111,7 @@ describe("TodayScreen wiring (source)", () => {
   });
   it("another day open hides the rack and the week; Ease in marks the session returning after navigate; no 'missed' anywhere", () => {
     expect(today).toContain('{mode !== "openElsewhere" ? (\n      <View style={{ gap: space.sm }}>');
-    expect(today).toContain('workout.setSessionReadiness(o.id, "returning")');
+    expect(today).toContain('workout.setSessionReadiness(ps.id, "returning")');
     expect(today).toContain('accessibilityRole="checkbox"');
     expect(today.toLowerCase()).not.toContain("missed\")");
     const strings = readFileSync(join(__dirname, "..", "src", "i18n", "strings.today.ts"), "utf8").toLowerCase();

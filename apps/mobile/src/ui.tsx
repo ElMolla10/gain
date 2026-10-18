@@ -69,7 +69,7 @@ export function useReducedMotion(): boolean {
  * The page: a scrolling column with 16 px gutters, 24 px between sections, the bottom safe area, and taps that keep working while the
  * keyboard is open. `footer` is pinned above the safe area (a sticky primary action) and never covers the content.
  */
-export function Screen({ children, footer, scroll = true, contentStyle, title, tab, footerInline, scrollRef }: { children: React.ReactNode; footer?: React.ReactNode; scroll?: boolean; contentStyle?: StyleProp<ViewStyle>; /** Screen title, 28/34 semibold, announced as a heading. */ title?: string; /** A tab root: no native header above it, so the top safe area is added here. */ tab?: boolean; /** Render the footer at the end of the scrolling content instead of pinned (very large text: it would cover the content). */ footerInline?: boolean; scrollRef?: React.Ref<ScrollView> }) {
+export function Screen({ children, footer, scroll = true, scrollEnabled = true, contentStyle, title, tab, footerInline, scrollRef }: { children: React.ReactNode; footer?: React.ReactNode; scroll?: boolean; /** Lock the scroll without remounting (Today locks it while the day pager owns a drag). */ scrollEnabled?: boolean; contentStyle?: StyleProp<ViewStyle>; /** Screen title, 28/34 semibold, announced as a heading. */ title?: string; /** A tab root: no native header above it, so the top safe area is added here. */ tab?: boolean; /** Render the footer at the end of the scrolling content instead of pinned (very large text: it would cover the content). */ footerInline?: boolean; scrollRef?: React.Ref<ScrollView> }) {
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const pinned = footer && !(footerInline && scroll) ? footer : null;
@@ -78,7 +78,7 @@ export function Screen({ children, footer, scroll = true, contentStyle, title, t
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
       {scroll ? (
-        <ScrollView ref={scrollRef} contentContainerStyle={body} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
+        <ScrollView ref={scrollRef} scrollEnabled={scrollEnabled} contentContainerStyle={body} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
           {heading}
           {children}
           {footer && !pinned ? <View style={{ gap: space.sm }}>{footer}</View> : null}

@@ -38,7 +38,7 @@ describe("Today layout (design audit T-3..T-8)", () => {
     const week = today.indexOf("<WeekBlock");
     expect(header).toBeGreaterThan(0);
     for (const [a, b] of [[header, hero], [hero, stub], [stub, list], [list, programme], [programme, week]] as const) expect(b).toBeGreaterThan(a);
-    expect(today).toContain("<Screen tab footer={footer} footerInline={stack}>");
+    expect(today).toContain("<Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>");
     expect(today).toContain("const footer =");
     expect(today).toContain('<BigButton hero icon={action.kind === "start" ? "play" : undefined}');
     // The five stacked cards are gone from Today: one decision card at most, no badge level (PersonalProgressCard).

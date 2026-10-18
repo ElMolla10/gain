@@ -28,6 +28,9 @@ import { createRestAlerts } from "./src/notifications/restAlerts";
 import { createDataRepo } from "./src/db/dataRepo";
 import { Icon, type IconName } from "./src/components/Icon";
 import { BootError, BootLoading, MigrationBlocked } from "./src/components/BootScreens";
+import { bootFailure, type BootFailure, type BootStage } from "./src/logic/bootFailure";
+import { LATEST_VERSION } from "./src/db/migrations";
+import Constants from "expo-constants";
 import { useBrandFonts } from "./src/useBrandFonts";
 import * as SplashScreen from "expo-splash-screen";
 import { familyFor } from "./src/fonts";
@@ -264,14 +267,18 @@ export default function App() {
   const dbRef = useRef<Db | null>(null);
   const maintRef = useRef<Db | null>(null);
   const skipBackupRef = useRef(false);
+  const [failure, setFailure] = useState<BootFailure | null>(null);
   const restart = useCallback(() => {
     setBoot(null);
+    setFailure(null);
     setEpoch((e) => e + 1);
   }, []);
 
   useEffect(() => {
+    let stage: BootStage = "open";
     (async () => {
       const db = dbRef.current ?? (dbRef.current = await openExpoDb());
+      stage = "backup";
       const deps = { newId: () => Crypto.randomUUID(), now: () => Date.now() };
       // Before an update changes the database layout, keep a full private copy of the data (Step 15 safety rule).
       const safety = await backupBeforeMigrate(
@@ -290,7 +297,10 @@ export default function App() {
         setBoot("migration_blocked");
         return;
       }
-      await migrate(db);
+      stage = "migrate";
+      const migrated = await migrate(db);
+      if (migrated.repaired) diagnostics.record("warn", "schema repaired", new Error(migrated.repaired.join(", ")));
+      stage = "repos";
       const repos = createRepos(db, deps);
       await repos.seedIfNeeded();
       await repos.topUpLibrary();
@@ -305,6 +315,7 @@ export default function App() {
       const shortWeek = createShortWeekRepo(db, deps, repos, programmes, goals);
       const weeklyPlan = createWeeklyPlanRepo(db, deps, repos, goals, programmes, finish, shortWeek);
       await onboarding.markExistingInstall();
+      stage = "settings";
       setAppearance(parseAppearance(await repos.getSetting("appearance")));
       const rejections = createRejectionRepo(db, deps);
       const history = createHistoryRepo(db, deps, repos, finish);
@@ -330,6 +341,10 @@ export default function App() {
       perfMark("boot", perfNow() - BOOT_T0);
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
+      const f = bootFailure(stage, e, { appSchema: LATEST_VERSION, appVersion: Constants.expoConfig?.version, platform: `${Platform.OS} ${String(Platform.Version)}` });
+      // One greppable line in the Xcode / Logcat console: search for "[GAIN boot]".
+      console.error(`[GAIN boot] ${f.details.replace(/\n/g, " | ")}`);
+      setFailure(f);
       setBoot("error");
     });
   }, [epoch]);
@@ -368,7 +383,7 @@ export default function App() {
       />
     );
   }
-  if (boot === "error") return <BootError onRetry={restart} />;
+  if (boot === "error") return <BootError onRetry={restart} newer={failure?.kind === "db_newer"} details={failure?.details} />;
 
   return (
     <SafeAreaProvider>

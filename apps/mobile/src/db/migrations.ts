@@ -1,6 +1,7 @@
 import type { Db } from "./driver";
 import { TIMED_LIBRARY } from "./library/measures";
 import { ML_EVALUATION_SQL } from "./mlEvaluationSchema";
+import { applyTolerant, repairSchema } from "./schemaHeal";
 
 /**
  * Schema. Conventions for every table (so sync can come later without a rewrite):
@@ -501,21 +502,43 @@ export async function migrationInfo(db: Db, migrations: readonly { version: numb
 }
 
 /**
+ * The database on this phone was written by a NEWER GAIN than this one (for example: main was installed, then an older branch build went on
+ * top). This app must not touch it: it does not know the newer tables, and it never downgrades. The data is intact; installing the newer
+ * build opens it again.
+ */
+export class DbNewerError extends Error {
+  readonly code = "db_newer";
+  constructor(
+    readonly from: number,
+    readonly to: number,
+  ) {
+    super(`Database is newer (v${from}) than this app (v${to})`);
+    this.name = "DbNewerError";
+  }
+}
+
+/**
  * Applies pending migrations in order, each in its own transaction together with its `user_version` bump, so a failure (or the process
  * being killed) leaves the database at the last complete version, never half-migrated. Safety rule: callers take a backup first when
  * `migrationInfo` says `0 < from < to` (see preMigrate.ts).
+ *
+ * Self-healing (schemaHeal.ts): a migration skips a table / index / trigger / column that already exists, so a database that already has
+ * part of a pending migration (another build, a half-run older migration) still updates instead of failing on "duplicate column". After the
+ * numbered steps, structure that the version number claims but the file lacks is re-added (`repaired`). Only additions, never removals.
  */
-export async function migrate(db: Db, migrations: readonly { version: number; name: string; sql: string }[] = MIGRATIONS): Promise<{ from: number; to: number }> {
+export async function migrate(db: Db, migrations: readonly { version: number; name: string; sql: string }[] = MIGRATIONS): Promise<{ from: number; to: number; repaired?: string[] }> {
   const { from, to } = await migrationInfo(db, migrations);
-  if (from > to) throw new Error(`Database is newer (v${from}) than this app (v${to})`);
+  if (from > to) throw new DbNewerError(from, to);
   let current = from;
   for (const m of migrations) {
     if (m.version <= current) continue;
     await db.transaction(async () => {
-      await db.exec(m.sql);
+      await applyTolerant(db, m.sql);
       await db.exec(`PRAGMA user_version = ${m.version}`);
     });
     current = m.version;
   }
-  return { from, to: current };
+  // Brand-new databases were just built from these same migrations; only an existing one can be missing something.
+  const repaired = from > 0 ? await repairSchema(db, migrations.filter((m) => m.version <= current)) : [];
+  return repaired.length ? { from, to: current, repaired } : { from, to: current };
 }

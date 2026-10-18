@@ -1,7 +1,6 @@
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
-import { AchievementEvidenceSheet } from "../components/AchievementEvidenceSheet";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
@@ -13,6 +12,7 @@ import { AlmostThere } from "../components/achievements/AlmostThere";
 import { CabinetShelf } from "../components/achievements/CabinetShelf";
 import { LedgerTeaser } from "../components/achievements/LedgerTeaser";
 import { LifetimePlate } from "../components/achievements/LifetimePlate";
+import { MedalDetailSheet } from "../components/achievements/MedalDetailSheet";
 import { MonthSeal } from "../components/achievements/MonthSeal";
 import { PrPlaques, PrSpotlight } from "../components/achievements/PrSpotlight";
 import { StatTileRow } from "../components/achievements/StatTiles";
@@ -135,8 +135,9 @@ export function AchievementsScreen() {
         ))}
       </View>
       <LedgerTeaser earned={home.earned} onOpenLedger={() => nav.navigate("Ledger", {})} onOpen={setDetail} />
-      <AchievementEvidenceSheet
+      <MedalDetailSheet
         row={detail}
+        cabinet={items}
         qualifiedWeeksLifetime={lifetime}
         weeks12Earned={weeks12Earned}
         onClose={() => setDetail(null)}

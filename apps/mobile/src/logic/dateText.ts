@@ -35,6 +35,17 @@ export function formatDay(when: number | string, lang: DateLang, now: number = D
   return toWesternDigits(`${short ? "" : `${days[d.getDay()]} `}${d.getDate()} ${months[d.getMonth()]}${year}`);
 }
 
+/**
+ * The day with the year always shown and no weekday: "21 Sep 2026" / "21 سبتمبر 2026" (Western digits). For engraved medal backs and
+ * share posters, which outlive the current year (spec §7).
+ */
+export function formatDayFull(when: number | string, lang: DateLang): string {
+  const d = toDate(when);
+  if (!d) return String(when);
+  const months = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+  return toWesternDigits(`${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`);
+}
+
 /** A plain number with Western digits in both languages (counts, percentages); never for loads. */
 export const formatNumber = (n: number, _lang: DateLang, decimals = 0): string =>
   toWesternDigits(n.toLocaleString("en-US", { maximumFractionDigits: decimals }));

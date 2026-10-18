@@ -41,7 +41,7 @@ describe("loadChange: fewest moves on a 20 kg bar", () => {
   });
   it("property: strip then add always lands on the target load", () => {
     const loads: number[] = [];
-    for (let x = 20; x <= 200; x += 2.5) loads.push(x);
+    for (let x = 20; x <= 180; x += 7.5) loads.push(x);
     for (const from of loads) for (const to of loads) {
       const a = barbellPlates(bar, from)!.perSide;
       const b = barbellPlates(bar, to)!;

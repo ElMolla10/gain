@@ -90,6 +90,24 @@ describe("history screen layout", () => {
     expect(f.indexOf("<EvidenceAchievementsCard />")).toBeGreaterThan(f.indexOf('mode === "sessions" ?'));
     expect(f.indexOf("<EvidenceAchievementsCard />")).toBeGreaterThan(f.indexOf("lifts.map("));
   });
+  it("the Trophy Cabinet entry comes first: straight under the title, above the tabs and both lists", () => {
+    const body = f.slice(f.indexOf('<Screen tab title={t("history.title")}>'));
+    const firstElement = body.slice(body.indexOf(">") + 1).match(/<([A-Z]\w*)/)?.[1];
+    expect(firstElement).toBe("CabinetEntry");
+    const at = f.indexOf("<CabinetEntry />");
+    for (const later of ["<SegmentedTabs", 'mode === "sessions" ?', "sessions.map(", "lifts.map(", "<EvidenceAchievementsCard />"]) expect(at, later).toBeLessThan(f.indexOf(later));
+  });
+  it("the cabinet entry opens the cabinet (with the medal count) and the ledger; the bottom card no longer repeats them", () => {
+    const entry = readFileSync(join(__dirname, "..", "src", "components", "achievements", "CabinetEntry.tsx"), "utf8");
+    expect(entry).toContain('nav.navigate("Achievements", {})');
+    expect(entry).toContain('nav.navigate("Ledger", {})');
+    expect(entry).toContain('t("achv.r2.cabinet.count"');
+    expect(entry).toContain("achievements\n        .listCabinet()");
+    expect(entry).not.toContain("getHome(");
+    const card = readFileSync(join(__dirname, "..", "src", "components", "EvidenceAchievementsCard.tsx"), "utf8");
+    expect(card).not.toContain('nav.navigate("Achievements"');
+    expect(card).not.toContain('t("achv.cabinet.open")');
+  });
   it("lift rows show formatLoad × isolated reps and a trend glyph with its meaning spoken", () => {
     expect(f).toContain("${formatLoad(l.latest.load, lang, unit)}${NBSP}×${NBSP}${isolateLtr(String(l.latest.reps))}");
     expect(f).toMatch(/history\.trend\./);

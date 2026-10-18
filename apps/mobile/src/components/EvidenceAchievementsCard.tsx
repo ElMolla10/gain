@@ -13,7 +13,7 @@ import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, ListRow } from "../ui";
 import { AchievementEvidenceSheet } from "./AchievementEvidenceSheet";
 
-/** Progress landing: this week's pulse, last two earned badges, next-up, cabinet and ledger entries. */
+/** Progress, below the lists: this week's pulse, last two earned badges and next-up. The cabinet and ledger entries are CabinetEntry, at the top. */
 export function EvidenceAchievementsCard() {
   const { achievements } = useServices();
   const { t, lang, unit } = useI18n();
@@ -128,8 +128,6 @@ export function EvidenceAchievementsCard() {
           ))
         )}
       </Card>
-      <BigButton variant="secondary" label={t("achv.cabinet.open")} onPress={() => nav.navigate("Achievements", {})} />
-      <BigButton variant="secondary" label={t("achv.ledger.open")} onPress={() => nav.navigate("Ledger", {})} />
       <AchievementEvidenceSheet
         row={detail}
         qualifiedWeeksLifetime={home.stats.qualifiedWeeksLifetime}

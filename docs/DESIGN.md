@@ -70,6 +70,9 @@ additions: close, plus, minus, alert, phone, cloud, play, edit) - `SettingsRows`
 - **Progress.** Sessions / Lifts toggle, `ListRow` sessions (day, date, minutes, sets), empty states that say what will appear and offer a
   next step. Lift trend: direction in words, latest set at 36 sp, bars (outlined = imported) with first/last date, the same data as a
   text list below (the chart has a spoken summary).
+  The Trophy Cabinet entry (`CabinetEntry`: trophy, "x of 17 medals", plus the Lifter's Ledger row) is the first thing under the
+  Progress title, above the tabs; this week's pulse, recent badges and next-up stay below the lists. The Trophy Cabinet screen opens on
+  its shelves, then the Lifetime Plate, sleeve, stats, PR spotlight, Almost there, month seal and ledger.
 - **Settings.** Groups: Training, Display, Advanced (layout direction override, both-names switch), Data, About. Real switches (row is the
   target), segmented selectors for language / units / appearance with a check on the selected one.
 - **Onboarding and supporting screens.** Welcome with logo; step bar with text "Step i of n" (`progressbar`); sticky Next / Back footer;

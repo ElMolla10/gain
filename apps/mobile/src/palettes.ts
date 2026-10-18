@@ -226,6 +226,16 @@ export interface AchievementArt {
   stage: string;
   ledge: string;
   ledgeHi: string;
+  /** Medal in progress: matte graphite silhouette, its edge, the dimmed motif and the boss (numeral disc) with its numeral. */
+  medalProgressFill: string;
+  medalProgressEdge: string;
+  medalProgressMotif: string;
+  medalProgressBoss: string;
+  medalProgressBossText: string;
+  /** Locked medal: flat recessed fill (the dashed contour is `ghost`). */
+  medalLockedFill: string;
+  /** Track behind a medal's progress ring (the ring itself is `arcDone`: lime on dark, olive on light). */
+  ringTrack: string;
 }
 
 export const achievementArtDark: AchievementArt = {
@@ -252,6 +262,13 @@ export const achievementArtDark: AchievementArt = {
   stage: "#151912",
   ledge: "#2C3326",
   ledgeHi: "#3A4332",
+  medalProgressFill: "#3A4135",
+  medalProgressEdge: "#6E7766",
+  medalProgressMotif: "#5E6657",
+  medalProgressBoss: "#2A3026",
+  medalProgressBossText: "#C9CFC0",
+  medalLockedFill: "#1E231A",
+  ringTrack: "#414A36",
 };
 
 export const achievementArtLight: AchievementArt = {
@@ -278,4 +295,44 @@ export const achievementArtLight: AchievementArt = {
   stage: "#ECEFE2",
   ledge: "#DDE2D0",
   ledgeHi: "#F2F4EA",
+  medalProgressFill: "#CDD3C2",
+  medalProgressEdge: "#8D987F",
+  medalProgressMotif: "#6D7862",
+  medalProgressBoss: "#5E6A53",
+  medalProgressBossText: "#F2F4EC",
+  medalLockedFill: "#E9ECE1",
+  ringTrack: "#D3D8C5",
+};
+
+/** Medal materials, one per prestige tier (spec §3.2). Metals look the same on both themes; only the surroundings change. */
+export type MedalMaterialName = "iron" | "steel" | "bronze" | "lime" | "seal";
+export interface MedalMaterial {
+  hi: string;
+  base: string;
+  lo: string;
+  edge: string;
+  /** The motif colour (stamped into the face). */
+  ink: string;
+  /** Numeral disc and its numeral (decorative duplicates of the caption). */
+  boss: string;
+  bossText: string;
+}
+/**
+ * Quest seals use ONE wax colour for every month (owner decision, not the 12 monthly colourways in the spec); the month numeral on the
+ * boss and the month in text still say which month it was.
+ */
+export const SEAL_COLOUR = "#B0654F";
+export const MEDAL_MATERIALS: Record<MedalMaterialName, MedalMaterial> = {
+  iron: { hi: "#7A8172", base: "#4A5045", lo: "#262A22", edge: "#8C9384", ink: "#1A1D17", boss: "#262A22", bossText: "#8C9384" },
+  steel: { hi: "#E4E9EC", base: "#A7B0B6", lo: "#5E676D", edge: "#F2F5F7", ink: "#2A3034", boss: "#5E676D", bossText: "#F2F5F7" },
+  bronze: { hi: "#F0C88A", base: "#B9813F", lo: "#6B4320", edge: "#E2B06D", ink: "#3A230F", boss: "#6B4320", bossText: "#E2B06D" },
+  lime: { hi: "#E9FF8F", base: "#A9E21A", lo: "#4F7406", edge: "#F4F6EC", ink: "#22320A", boss: "#4F7406", bossText: "#E9FF8F" },
+  seal: { hi: "#D99A86", base: SEAL_COLOUR, lo: "#7A3F2F", edge: "#F4F6EC", ink: "#10120E", boss: "#10120E", bossText: "#F4F6EC" },
+};
+/** prestigeForBadge tier → material (iron_hold, iron_carry and full_spectrum_12 fall through to Foundation = iron, unchanged). */
+export const MATERIAL_FOR_PRESTIGE: Record<"foundation" | "forged" | "masterwork" | "legacy", MedalMaterialName> = {
+  foundation: "iron",
+  forged: "steel",
+  masterwork: "bronze",
+  legacy: "lime",
 };

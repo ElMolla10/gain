@@ -37,13 +37,13 @@ describe("workout Live Activity props", () => {
     expect(done.detail).toBeNull();
   });
   it("detail: typed over ghost, kg and lb, bodyweight, timed seconds and metres, null when incomplete", () => {
-    expect(workoutActivityProps(input()).detail).toBe("80 kg × 8");
-    expect(workoutActivityProps(input({ rows: { bench: [row({ load: 82.5 })], row: [] } })).detail).toBe("82.5 kg × 8");
-    expect(workoutActivityProps(input({ unit: "lb", rows: { bench: [row({ ghostLoad: 45.359237 })], row: [] } })).detail).toBe("100 lb × 8");
+    expect(workoutActivityProps(input()).detail?.replace(/\u00a0/g, " ")).toBe("80 kg × 8");
+    expect(workoutActivityProps(input({ rows: { bench: [row({ load: 82.5 })], row: [] } })).detail?.replace(/\u00a0/g, " ")).toBe("82.5 kg × 8");
+    expect(workoutActivityProps(input({ unit: "lb", rows: { bench: [row({ ghostLoad: 45.359237 })], row: [] } })).detail?.replace(/\u00a0/g, " ")).toBe("100 lb × 8");
     const bw = { ...bench, setup: "bodyweight_plus_added" };
-    expect(workoutActivityProps(input({ shown: [bw], rows: { bench: [row({ ghostLoad: 0, ghostReps: 12 })] } })).detail).toBe("× 12");
-    expect(workoutActivityProps(input({ shown: [{ ...bench, measure: "time" }], rows: { bench: [row({ ghostReps: 45 })] } })).detail).toBe("45 s");
-    expect(workoutActivityProps(input({ shown: [{ ...bench, measure: "distance" }], rows: { bench: [row({ ghostReps: 400 })] } })).detail).toBe("400 m");
+    expect(workoutActivityProps(input({ shown: [bw], rows: { bench: [row({ ghostLoad: 0, ghostReps: 12 })] } })).detail?.replace(/\u00a0/g, " ")).toBe("× 12");
+    expect(workoutActivityProps(input({ shown: [{ ...bench, measure: "time" }], rows: { bench: [row({ ghostReps: 45 })] } })).detail?.replace(/\u00a0/g, " ")).toBe("45 s");
+    expect(workoutActivityProps(input({ shown: [{ ...bench, measure: "distance" }], rows: { bench: [row({ ghostReps: 400 })] } })).detail?.replace(/\u00a0/g, " ")).toBe("400 m");
     expect(workoutActivityProps(input({ rows: { bench: [row({ ghostReps: null })], row: [] } })).detail).toBeNull();
   });
   it("includes the rest block only while it is running", () => {
@@ -63,7 +63,7 @@ describe("workout Live Activity props", () => {
     expect(p.title).toBe("التمرين");
     expect(p.exercise).toBe("بنش برس");
     expect(plain(p.setLine)).toBe("المجموعة 2 من 2");
-    expect(p.detail).toBe("80 كجم × 8");
+    expect(p.detail?.replace(/\u00a0/g, " ")).toBe("80 كجم × 8");
     expect(p.rtl).toBe(true);
   });
   it("stays under 1 KB with long names", () => {
@@ -73,5 +73,25 @@ describe("workout Live Activity props", () => {
       expect(new TextEncoder().encode(JSON.stringify(p)).length).toBeLessThan(1024);
       expect(p.exercise!.length).toBeLessThanOrEqual(32);
     }
+  });
+});
+
+describe("workout Live Activity v2", () => {
+  const spec = { equipment: "barbell" as const, min: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25] };
+  const benchBar: ActivityExercise = { ...bench, equipment: "barbell", loadSpec: spec };
+  it("carries plates per side and the change", () => {
+    const rows = { bench: [row({ saved: true, load: 100, reps: 8 }), row({ ghostLoad: 120 })], row: [row()] };
+    const p = workoutActivityProps(input({ shown: [benchBar, row2], rows }));
+    expect(p.v).toBe(2);
+    expect(p.plates).toEqual([25, 25]);
+    expect(plain(p.change).replace(/\u00a0/g, " ")).toBe("+10 each side");
+    expect(p.detail).toContain("\u00a0kg\u00a0×\u00a0");
+  });
+  it("worst case stays under ActivityKit's 4 KB", () => {
+    const long: ActivityExercise = { ...benchBar, nameAr: "ضغط صدر بالبار على بنش مائل بزاوية عالية جداً".repeat(3), nameEn: "x".repeat(200), loadSpec: { equipment: "barbell", min: 20, plates: [1.25] } };
+    const rows = { bench: [row({ saved: true, load: 20, reps: 8 }), row({ ghostLoad: 40 })], row: [row()] };
+    const p = workoutActivityProps(input({ lang: "ar", shown: [long, row2], rows, timer: { endsAt: 99_000, durationMs: 90_000 } }));
+    expect(p.plates.length).toBeLessThanOrEqual(8);
+    expect(new TextEncoder().encode(JSON.stringify(p)).length).toBeLessThanOrEqual(4096);
   });
 });

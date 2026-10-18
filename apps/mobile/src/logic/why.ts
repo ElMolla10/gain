@@ -85,7 +85,10 @@ export function describeWhyWeight(
   } else {
     parts.push(L(input.loadSource === "gym" ? "why.weight.loads.gymDefault" : "why.weight.loads.unknown"));
   }
-  const sentence = parts.join(L("why.weight.join"));
+  // Each part is its own sentence in English (the fragments start lower-case), so capitalise after the ". " join; always end with ".".
+  // Arabic has no case and keeps its "، " join; it gets the same terminal ".".
+  const joined = parts.map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1) : p)).join(L("why.weight.join"));
+  const sentence = /[.!?]$/.test(joined) ? joined : `${joined}.`;
   const details: string[] = [];
   if (input.experimental) {
     details.push(L("why.weight.experimental"));

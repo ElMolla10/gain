@@ -103,8 +103,8 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   const targetNone = info.stored ? info.stored.status === "rejected" || info.stored.effectiveLoad === null || storedQ === null : !(pr.status === "proposed" && pr.load !== null && proposedQ !== null);
   const tLoad = info.stored ? info.stored.effectiveLoad : pr.load;
   const tReps = info.stored ? storedQ : proposedQ;
-  const plates = !timed ? plateLine(spec, typeof tLoad === "number" ? tLoad : workingLoad, unit, t) : null;
-  const suggestedPlates = !timed && suggestedKg !== null ? plateLine(spec, suggestedKg, unit, t) : null;
+  const plates = !timed ? plateLine(spec, typeof tLoad === "number" ? tLoad : workingLoad, unit, lang, t) : null;
+  const suggestedPlates = !timed && suggestedKg !== null ? plateLine(spec, suggestedKg, unit, lang, t) : null;
   // A hold or carry target: "45 s" (or "24 kg × 45 s" when it is loaded); a reps target: "60 kg × 8".
   const targetText = targetNone ? t("workout.targetNone") : timed ? ((tLoad as number) > 0 ? `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(quantityText(tReps as number, ex.measure, qUnits))}` : isolateLtr(quantityText(tReps as number, ex.measure, qUnits))) : `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(String(tReps))}`;
   const reasonText = info.stored?.status === "rejected" ? t("finish.rejectedNote") : renderReason(localizeReason(info.stored ? info.stored.reason : pr.reason, unit, lang), lang);

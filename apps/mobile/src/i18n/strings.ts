@@ -14,6 +14,7 @@ import { arGoals, enGoals } from "./strings.goals";
 import { arHistory, enHistory } from "./strings.history";
 import { arDesign, enDesign } from "./strings.design";
 import { arToday, enToday } from "./strings.today";
+import { arRack, enRack } from "./strings.rack";
 import { arFixes, enFixes } from "./strings.fixes";
 import { arLoads, enLoads } from "./strings.loads";
 import { arImport, enImport } from "./strings.import";
@@ -231,6 +232,7 @@ export const en = {
   ...enLoads,
   ...enDesign,
   ...enToday,
+  ...enRack,
   ...enGym,
   ...enCoach,
 } as const;
@@ -303,7 +305,7 @@ export const ar: Record<StringKey, string> = {
   "workout.effort": "كام عدّة كانت فاضلة (اختياري)",
   "workout.effort.none": "تخطي",
   "workout.effort.n": "فاضل {n}",
-  "workout.warmup": "إحماء",
+  "workout.warmup": "تسخين",
   "workout.working": "مجموعة أساسية",
   "workout.log": "سجّل المجموعة",
   "workout.repeat": "كرّر آخر مجموعة",
@@ -311,7 +313,7 @@ export const ar: Record<StringKey, string> = {
   "workout.saved": "اتحفظ على التليفون الساعة {time}",
   "workout.notSaved": "لسه مسجلتش حاجة",
   "workout.setsToday": "مجموعات النهارده",
-  "workout.warmupTag": "إحماء",
+  "workout.warmupTag": "تسخين",
   "workout.unconfirmedTag": "مش مؤكدة",
   "workout.outlier.title": "الرقم ده بعيد عن اللي بتعمله عادةً",
   "workout.outlier.body": "الخط بتاعك الأخير حوالي {load} لـ{reps} عدّات. راجع البلاطة أو الماكينة أو احتمال غلطة كتابة.",
@@ -331,7 +333,7 @@ export const ar: Record<StringKey, string> = {
   "finish.title": "التمرين خلص",
   "finish.counted": "اللي اتحسب",
   "finish.countedLine": "{n} مجموعات أساسية",
-  "finish.excludedNote": "مش محسوب: {warmups} إحماء، {unconfirmed} مجموعات مش مؤكدة",
+  "finish.excludedNote": "مش محسوب: {warmups} تسخين، {unconfirmed} مجموعات مش مؤكدة",
   "finish.records": "الأرقام القياسية",
   "finish.record.load": "أتقل وزن أساسي اتسجل: {load}",
   "finish.record.reps": "أكتر عدّات اتسجلت على {load}: {reps}",
@@ -379,7 +381,7 @@ export const ar: Record<StringKey, string> = {
   "why.jumpSmall": "القفزة دي {pct}% من الوزن، صغيرة كفاية تتاخد.",
   "why.jumpBigTaken": "القفزة دي {pct}% من الوزن، أكتر من الحد الإرشادي {max}%، بس دي أصغر زيادة متاحة هنا، فبنقترحها.",
   "why.excluded": "اللي اتساب",
-  "why.excludedCounts": "إحماء: {warmups}. مجموعات نزول: {drops}. مش مؤكد: {unconfirmed}. أوضاع تانية: {other}.",
+  "why.excludedCounts": "تسخين: {warmups}. مجموعات نزول: {drops}. مش مؤكد: {unconfirmed}. أوضاع تانية: {other}.",
   "why.rule": "قراءة القاعدة (تفسير)",
   "why.currency": "اللي اتصرف: {currency}",
   "why.currency.reps": "عدّة زيادة",
@@ -438,6 +440,7 @@ export const ar: Record<StringKey, string> = {
   ...arLoads,
   ...arDesign,
   ...arToday,
+  ...arRack,
   ...arGym,
   ...arCoach,
 };

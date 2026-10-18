@@ -55,7 +55,10 @@ describe("L-4 typed but unticked", () => {
     expect(row).toContain("pending={pending.reps}");
   });
   it("the save status line is 14/20 with a 16 dp icon (not the 13 compact size)", () => {
-    expect(screen).toContain("<InlineStatus kind={status.kind} icon={status.icon} text={status.text} />");
+    // Logger 10x §5: the status lives in the session line, still 14 (ty.label) with a 16 dp icon, and it is the only live region there.
+    expect(screen).toContain('<Icon name={status.icon} color={warns ? p.warn : p.muted} size={16} />');
+    expect(screen).toMatch(/<View accessibilityLiveRegion="polite"[^>]*>\s*<Icon name=\{status\.icon\}/);
+    expect(screen).toMatch(/fontSize: ty\.label, color: warns \? p\.warn : p\.muted \}\}>\{statusShort\}/);
   });
 });
 
@@ -106,8 +109,11 @@ describe("L-7, L-9, L-11..L-14", () => {
 
 describe("design QA round 1 (C-R1..C-R3)", () => {
   const read = (p: string) => require("node:fs").readFileSync(require("node:path").join(__dirname, "..", "src", p), "utf8") as string;
-  it("C-R1: the Sets value sits in the same 48 dp box as Duration", () => {
-    expect(read("screens/WorkoutScreen.tsx")).toMatch(/<Stat label=\{t\("workout\.stat\.sets"\)\}>\s*\{[^}]*\}\s*<View style=\{\{ minHeight: MIN_TOUCH, justifyContent: "center" \}\}>/);
+  it("C-R1 (superseded by logger 10x §5): duration, Pause, sets, status and Details share one session line", () => {
+    const f = read("screens/WorkoutScreen.tsx");
+    expect(f).toMatch(/<LiveDuration [^>]*\/>\s*\{\/\*[^*]*\*\/\}\s*<IconButton icon=\{loaded\.pausedAt != null \? "play" : "pause"\}/);
+    expect(f).toContain('t("rack.setsOf", { x: summary.sets');
+    expect(f).not.toContain('<Stat label={t("workout.stat.sets")}>');
   });
   it("C-R2: the set and RIR column heads shrink to fit instead of overflowing", () => {
     const f = read("components/WorkoutExerciseSection.tsx");

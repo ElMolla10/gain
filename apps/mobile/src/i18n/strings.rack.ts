@@ -34,6 +34,8 @@ export const enRack = {
   "rack.fold.hint": "Shows the sets",
   "rack.menu.rest": "Rest after this exercise: {time}",
   "rack.menu.pain": "Report pain or dizziness",
+  "rack.savedShort": "Saved {time}",
+  "rack.setsOf": "{x} of {y} sets",
 } as const;
 
 export const arRack: Record<keyof typeof enRack, string> = {
@@ -99,4 +101,8 @@ export const arRack: Record<keyof typeof enRack, string> = {
   "rack.menu.rest": "الراحة بعد التمرين ده: {time}",
   // DRAFT ar
   "rack.menu.pain": "بلّغ عن ألم أو دوخة",
+  // DRAFT ar
+  "rack.savedShort": "اتحفظ {time}",
+  // DRAFT ar
+  "rack.setsOf": "{x} من {y} مجموعة",
 };

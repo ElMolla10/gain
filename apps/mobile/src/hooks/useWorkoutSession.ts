@@ -658,6 +658,8 @@ export function useWorkoutSession() {
     : statusKind === "resumed" ? ({ kind: "success", icon: "check", text: t("workout.resumed") } as const)
     : statusKind === "saved" ? ({ kind: "info", icon: "phone", text: savedAt ? t("workout.saved", { time: clock(savedAt) }) : t("status.savedLocal") } as const)
     : ({ kind: "info", icon: "why", text: t("workout.notSaved") } as const);
+  // The session line's short form (logger spec §5): "Saved 06:31"; every other state keeps its words.
+  const statusShort = statusKind === "saved" && savedAt ? t("rack.savedShort", { time: clock(savedAt) }) : status.text;
   const { order, shown } = shownExercises(loaded.slots, exState, makeDisp);
   const ssLabel = supersetLabels(order, exState);
   const fatigueSlots = shown.map((ex) => ({
@@ -978,7 +980,7 @@ export function useWorkoutSession() {
     replaceWith, setPickFor, addOpen, library, addExerciseToday,
     programmes, libRef, setLibrary, pickFor, alternatives,
     reload, setLoadsOpen,
-    dock, dockName, dockLog, dockExpand, setKeyboardUp,
+    dock, dockName, dockLog, dockExpand, setKeyboardUp, statusKind, statusShort,
   } as const;
 }
 

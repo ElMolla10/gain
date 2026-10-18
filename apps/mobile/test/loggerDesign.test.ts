@@ -13,7 +13,7 @@ const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Mat
 const row = src("components/WorkoutSetRow.tsx");
 const parts = src("components/LogParts.tsx");
 const screen = src("screens/WorkoutScreen.tsx");
-const dock = src("components/RestTimerBar.tsx");
+const dock = src("components/RackDock.tsx");
 const sheets = src("components/WorkoutSessionSheets.tsx");
 const section = src("components/WorkoutExerciseSection.tsx");
 
@@ -82,8 +82,8 @@ describe("L-1, L-5, L-6, L-15 set table", () => {
 
 describe("L-7, L-9, L-11..L-14", () => {
   it("L-9: rest over is text + icon at 28 on a tint dock with a 4 dp accent top edge", () => {
-    expect(dock).toContain("borderTopWidth: over ? 4 : 1, borderColor: over ? p.accent : p.line");
-    expect(dock).toContain("backgroundColor: over ? p.activeBg : p.card");
+    expect(dock).toContain("borderTopWidth: over ? 4 : 1, borderColor: over ? lp.accent : lp.line");
+    expect(dock).toContain("backgroundColor: over ? lp.activeBg : lp.card");
     expect(dock).toMatch(/<Icon name="check"[^\n]*\n\s*<AppText style=\{\{ fontSize: ty\.title, fontWeight: "600"/);
   });
   it("L-11: Why and Next set details never share a wrap row", () => {

@@ -33,7 +33,9 @@ import { topTrustedSet } from "../logic/lastTop";
 import { isTimed, quantityFields, setQuantity } from "../logic/quantity";
 import { replacementDisplay } from "../logic/replacement";
 import { substitutionCandidates } from "../logic/substitutions";
-import { focusedExercise, supersetGroups, livePromptVisible } from "../logic/workoutFocus";
+import { focusedExercise, focusedRowKey, supersetGroups, livePromptVisible } from "../logic/workoutFocus";
+import { dockModel } from "../logic/dockModel";
+import { dockExpandInfo } from "../logic/dockExpand";
 import { liveSummary } from "../logic/liveSummary";
 import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, markSaved, loggableUnlogged, mergeRows, pendingCount, removeRow, rowCanLog, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
 import { takeLiveTarget, clearLiveTarget, liveCardCurrent, livePerformanceKey, reportedSymptomDecision, trustedWorkingSet } from "../logic/liveAdaptation";
@@ -87,6 +89,8 @@ export function useWorkoutSession() {
   const [warmOpen, setWarmOpen] = useState<string | null>(null);
   const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
   const [preferredExercise, setPreferredExercise] = useState<string | null>(null);
+  // The number pad is up (a CellInput is focused): the dock hides and reads the focused row as not committed yet.
+  const [keyboardUp, setKeyboardUp] = useState(false);
   const [liveDetails, setLiveDetails] = useState<string | null>(null);
   /** The Next-set card and the load settings stay closed until the lifter opens them (per exercise). */
   const [suggestionOpen, setSuggestionOpen] = useState<Record<string, boolean>>({});
@@ -765,6 +769,19 @@ export function useWorkoutSession() {
 
   const focus = focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise, supersetGroups(shown, exState));
 
+  // The Rack Dock (logger spec §2): primitives only; Log set goes through the same logRow as the row tick.
+  const dockEx = focus ? shown.find(ex => ex.exerciseId === focus) ?? null : null;
+  const dock = dockModel(shown, rows, preferredExercise, { on: timerOpen || timerRunning || restOver, open: timerOpen, endsAt: timer.endsAt, over: restOver, now: Date.now() }, { groups: supersetGroups(shown, exState), editing: keyboardUp && focus ? focusedRowKey(rows[focus] ?? []) : null });
+  const dockName = dockEx ? exerciseLabels(dockEx, lang).primary : "";
+  const dockLog = () => {
+    const ex = shown.find(e => e.exerciseId === dock.exId);
+    const row = ex ? (rows[ex.exerciseId] ?? []).find(r => r.key === dock.rowKey) : undefined;
+    if (!ex || !row) return;
+    setPreferredExercise(ex.exerciseId);
+    void logRow(ex, row);
+  };
+  const dockExpand = () => (dockEx ? dockExpandInfo(dock, dockEx, rows[dockEx.exerciseId] ?? [], shown.indexOf(dockEx), dockName, unit) : null);
+
   const replacing = shown.find(ex => ex.slot === pickFor);
   const source = replacing ? library.find(ex => ex.id === replacing.exerciseId) : undefined;
   const alternatives = source ? substitutionCandidates({
@@ -960,6 +977,7 @@ export function useWorkoutSession() {
     replaceWith, setPickFor, addOpen, library, addExerciseToday,
     programmes, libRef, setLibrary, pickFor, alternatives,
     reload, setLoadsOpen,
+    dock, dockName, dockLog, dockExpand, setKeyboardUp,
   } as const;
 }
 

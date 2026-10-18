@@ -1,7 +1,7 @@
-import { RestTimerBar } from "../components/RestTimerBar";
+import { RackDock, type DockActions } from "../components/RackDock";
 import { Profiler, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import { perfMark, perfMarks, perfNow } from "../perfMarks";
-import { Pressable, ScrollView, View } from "react-native";
+import { Keyboard, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { adjustKeyboardInsets } from "../numberPad";
 import { Icon } from "../components/Icon";
@@ -34,6 +34,17 @@ export function WorkoutScreen() {
   // Developer Mode timings: mount → session ready, once.
   const openT0 = useRef(perfNow());
   const openMarked = useRef(false);
+  // The dock hides while the number pad is up and comes back on blur (spec §2.1); it never hides on scroll.
+  const [keyboardUp, setKeyboardUpLocal] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardUpLocal(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardUpLocal(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const syncKeyboard = session.phase === "ready" ? session.setKeyboardUp : null;
+  useEffect(() => { syncKeyboard?.(keyboardUp); }, [keyboardUp, syncKeyboard]);
+  // Handlers reach the memoised dock through a ref, so a new closure each render never re-renders it.
+  const dockActions = useRef<DockActions>({ log: () => {}, finish: () => {}, adjustRest: () => {}, toggleRest: () => {}, expandInfo: () => null });
   useEffect(() => {
     if (session.phase !== "ready" || openMarked.current) return;
     openMarked.current = true;
@@ -62,9 +73,16 @@ export function WorkoutScreen() {
     summaryOpen, setSummaryOpen, readiness, setReadiness, workout,
     source, previousSource, choosePreviousSource, finishFailed, doFinish,
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
-    restore, unlogged, restFor, setTimer,
+    restore, unlogged, restFor, setTimer, dock, dockName, dockLog, dockExpand, busy,
   } = session;
   const dockVisible = timerOpen || timerRunning || restOver;
+  dockActions.current = {
+    log: dockLog,
+    finish: () => askFinish(loaded),
+    adjustRest: (d) => setTimer((tm) => adjustTimer(tm, d, Date.now())),
+    toggleRest: () => { setRestOver(false); setTimer((tm) => (tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm))); },
+    expandInfo: dockExpand,
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
@@ -104,7 +122,7 @@ export function WorkoutScreen() {
         <InlineStatus kind={status.kind} icon={status.icon} text={status.text} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: (dockVisible ? space.lg : insets.bottom) + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
+      <ScrollView contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
         <Profiler id="logger" onRender={onLoggerRender}>
         {/* Row 1: duration with ONE pause/resume control beside it, sets at the end. Row 2: a full-width "Workout details" disclosure (L-7). */}
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: space.sm, paddingHorizontal: space.lg }}>
@@ -186,9 +204,8 @@ export function WorkoutScreen() {
       </ScrollView>
 
       {restPermDenied ? <View style={{ paddingHorizontal: space.lg }}><InlineStatus kind="warn" text={t("rest.perm.denied")} /></View> : null}
-      {dockVisible ? <RestTimerBar timer={timer} restFor={restFor} restOver={restOver}
-        onAdjust={d => setTimer(tm => adjustTimer(tm, d, Date.now()))}
-        onToggle={() => { setRestOver(false); setTimer(tm => tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm)); }} /> : null}
+      {/* The Rack Dock (logger spec §2) replaces the rest bar and absorbs it (rest mode). */}
+      <RackDock model={dock} name={dockName} logged={sets.length} timer={timer} restFor={restFor} saving={busy !== null && busy === dock.rowKey} unit={unit} actions={dockActions} />
 
       <WorkoutSessionSheets session={session} />
     </View>

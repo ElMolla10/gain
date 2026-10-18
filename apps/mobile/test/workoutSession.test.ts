@@ -4,7 +4,8 @@ import { freshDb } from "./helpers";
 import { createMlEvaluationRepo } from "../src/db/mlEvaluationRepo";
 import { translate } from "../src/i18n/format";
 import { useWorkoutSession, type WorkoutSession } from "../src/hooks/useWorkoutSession";
-import { WorkoutSetRow } from "../src/components/WorkoutSetRow";
+import { MemoWorkoutSetRow, sameRowProps, WorkoutSetRow, type WorkoutSetRowProps } from "../src/components/WorkoutSetRow";
+import { dockKey } from "../src/logic/dockModel";
 import { WorkoutExerciseSection } from "../src/components/WorkoutExerciseSection";
 import { REST_KEYS } from "../src/logic/restAlert";
 import { elapsedMs } from "../src/logic/workoutClock";
@@ -510,5 +511,37 @@ describe("Finish with typed but unticked rows (data-loss item 5)", () => {
     buttons.find(b => b.style === "destructive")!.onPress!();
     await vi.waitFor(async () => expect(await statusOf(c, s.loaded.sessionId)).toBe("finished"));
     expect(await c.workout.listSessionSets(s.loaded.sessionId)).toHaveLength(1);
+  });
+});
+
+describe("a keystroke re-renders only one row (logger 10x render count)", () => {
+  // Every memoised set row on screen, with the props React.memo compares; and the dock's memo inputs.
+  const rowProps = (s: WorkoutSession) => s.shown.flatMap((ex, i) => {
+    const props = s.exerciseProps(ex, i);
+    return props ? nodes(WorkoutExerciseSection(props)).filter(n => n.type === MemoWorkoutSetRow).map(n => n.props as unknown as WorkoutSetRowProps) : [];
+  });
+  const dockInputs = (s: WorkoutSession) => [dockKey(s.dock), s.dockName, s.sets.length, s.timer.endsAt, s.timer.durationMs, s.restFor, s.busy].join("|");
+  const rerendered = (a: WorkoutSetRowProps[], b: WorkoutSetRowProps[]) => a.filter((p, i) => !b[i] || !sameRowProps(p, b[i]!)).length;
+
+  it.each([0, 1])("typing into row %i of the first exercise: one row re-renders, the dock does not", async (rowIndex) => {
+    await fixture();
+    ready().setKeyboardUp(true);
+    let s = ready();
+    const ex = s.shown[0]!;
+    const key = s.rows[ex.exerciseId]![rowIndex]!.key;
+    // The first keystroke can flip the row's "pending" look; count from there, the way a lifter types "6", "62", "62.", "62.5".
+    s.patch(ex.exerciseId, key, { load: 6 });
+    s = ready();
+    for (const load of [62, 62, 62.5]) {
+      const rowsBefore = rowProps(s);
+      const dockBefore = dockInputs(s);
+      s.patch(ex.exerciseId, key, { load });
+      s = ready();
+      const rowsAfter = rowProps(s);
+      expect(rowsAfter.length).toBe(rowsBefore.length);
+      expect(rowsBefore.length).toBeGreaterThan(2);
+      expect(rerendered(rowsBefore, rowsAfter)).toBe(1);
+      expect(dockInputs(s)).toBe(dockBefore);
+    }
   });
 });

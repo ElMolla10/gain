@@ -26,6 +26,8 @@ export interface DockTimer {
   endsAt: number | null;
   over: boolean;
   now: number;
+  /** The lifter opened the rest controls from the header (Start rest before the clock runs). */
+  open?: boolean;
 }
 
 export interface DockModel {
@@ -101,7 +103,7 @@ export function dockModel(
     else if (objKind === "horn") perSide = calculatePlates(load, 0, platesOf(spec))?.perSide ?? [];
   }
   const resting = timer.on && timer.endsAt !== null && timer.endsAt > timer.now;
-  const mode: DockMode = editing ? "hidden" : resting ? "rest" : timer.on && timer.over ? "over" : "compact";
+  const mode: DockMode = editing ? "hidden" : resting || (timer.on && timer.open && !timer.over) ? "rest" : timer.on && timer.over ? "over" : "compact";
   return {
     exId: ex.exerciseId,
     rowKey: raw.key,

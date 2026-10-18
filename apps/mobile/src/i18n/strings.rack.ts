@@ -15,6 +15,20 @@ export const enRack = {
   "load.change.assist": "Assistance {from} {arrow} {to} (less is stronger)",
   "load.change.work": "{change}: work sets",
   "load.change.backoff": "{change}: back-off sets",
+  "rack.log": "Log set",
+  "rack.update": "Update set {n}",
+  "rack.reason.fixWeight": "Fix the weight to log",
+  "rack.reason.fixReps": "Fix the reps to log",
+  "rack.reason.fixEffort": "Fix the RIR to log",
+  "rack.reason.empty": "Type the weight and reps to log",
+  "rack.done": "All {n} sets logged",
+  "rack.a11y.group": "{set}, {exercise}. {what}",
+  "rack.a11y.what": "{load} for {reps} reps",
+  "rack.a11y.log": "Log {set} of {exercise}",
+  "rack.a11y.logged": "{set} logged. Next: {next}",
+  "rack.a11y.loggedLast": "{set} logged",
+  "rack.expand": "Show plates and warm-ups",
+  "rack.perSide": "per side {plates}",
 } as const;
 
 export const arRack: Record<keyof typeof enRack, string> = {
@@ -42,4 +56,32 @@ export const arRack: Record<keyof typeof enRack, string> = {
   "load.change.work": "{change}: المجموعات الأساسية",
   // DRAFT ar
   "load.change.backoff": "{change}: مجموعات أخف",
+  // DRAFT ar
+  "rack.log": "سجّل المجموعة",
+  // DRAFT ar
+  "rack.update": "حدّث المجموعة {n}",
+  // DRAFT ar
+  "rack.reason.fixWeight": "صلّح الوزن عشان تسجّل",
+  // DRAFT ar
+  "rack.reason.fixReps": "صلّح العدّات عشان تسجّل",
+  // DRAFT ar
+  "rack.reason.fixEffort": "صلّح الـRIR عشان تسجّل",
+  // DRAFT ar
+  "rack.reason.empty": "اكتب الوزن والعدّات عشان تسجّل",
+  // DRAFT ar
+  "rack.done": "اتسجّلت كل المجموعات ({n})",
+  // DRAFT ar
+  "rack.a11y.group": "{set}، {exercise}. {what}",
+  // DRAFT ar
+  "rack.a11y.what": "{load} لعدد {reps}",
+  // DRAFT ar
+  "rack.a11y.log": "سجّل {set} من {exercise}",
+  // DRAFT ar
+  "rack.a11y.logged": "اتسجّلت {set}. اللي بعدها: {next}",
+  // DRAFT ar
+  "rack.a11y.loggedLast": "اتسجّلت {set}",
+  // DRAFT ar
+  "rack.expand": "اعرض الأطباق والتسخين",
+  // DRAFT ar
+  "rack.perSide": "في كل ناحية {plates}",
 };

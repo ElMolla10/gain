@@ -111,3 +111,12 @@ export function barShapeCount(layout: BarLayout): number {
 
 export const SLEEVE_LEN = SLEEVE;
 export const INNER_COLLAR_W = INNER_COLLAR;
+
+/** Plates per side the dock's grid mini can draw: up to 4 blocks per side; above 4 the outer plates merge into one block (≤12 shapes). */
+export const GRID_MAX_PER_SIDE = 4;
+export function gridPlates(perSide: readonly number[]): number[] {
+  if (perSide.length <= GRID_MAX_PER_SIDE) return [...perSide];
+  return [...perSide.slice(0, GRID_MAX_PER_SIDE - 1), perSide[GRID_MAX_PER_SIDE - 1]!];
+}
+/** Shapes in the grid mini: shaft + 2 collars + one rect per drawn plate. */
+export const gridShapeCount = (perSide: readonly number[]): number => 3 + 2 * gridPlates(perSide).length;

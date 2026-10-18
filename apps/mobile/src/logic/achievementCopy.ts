@@ -3,9 +3,12 @@
  * Pure (no React Native), so EN and AR output can be checked to the code point. Numbers are isolated by `t` (translate), the
  * Arabic count nouns follow arPluralKey (3–10 plural, otherwise singular), and Arabic never uses a slash fraction.
  */
-import { isolateLtr, type Lang } from "../i18n/format";
+import { isolateLtr, NBSP, type Lang } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
-import { arPluralKey, daysToNext, nextPlate, plateTier, type MedalState, type PlateTier } from "./achievementShowcase";
+import type { AchievementEvidence } from "@gain/engine";
+import { arPluralKey, daysToNext, nextPlate, plateTier, prDelta, prStair, type MedalState, type PlateTier } from "./achievementShowcase";
+import { formatSetEvidence } from "./achievementEvidence";
+import type { Unit } from "./units";
 import { prestigeForBadge, type SurfaceBadge } from "./achievementSurface";
 import { formatDay } from "./dateText";
 
@@ -99,4 +102,52 @@ export function medalA11y(item: MedalSlotInfo, name: string, lang: Lang, t: T, n
   }
   if (item.state === "in_progress") return t("achv.r2.medal.a11y.progress", { name, x: item.row?.progressCurrent ?? 0, y: item.row?.progressTarget ?? 0 });
   return t("achv.r2.medal.a11y.locked", { name });
+}
+
+type PrRow = SurfaceBadge & { evidence: Extract<AchievementEvidence, { kind: "strength_pr" }> };
+
+export const exerciseName = (row: Pick<SurfaceBadge, "exerciseNameEn" | "exerciseNameAr">, lang: Lang): string =>
+  (lang === "ar" ? row.exerciseNameAr : row.exerciseNameEn) || row.exerciseNameEn || row.exerciseNameAr || "";
+
+export interface PrCopy {
+  exercise: string;
+  date: string;
+  before: string;
+  after: string;
+  delta: string;
+  /** "4 verified PRs on this lift since 3 Mar". */
+  caption: string;
+  /** Spoken staircase: "4 verified PRs on Preacher Curl since 3 Mar, latest 16 kg × 6". */
+  stairA11y: string;
+  /** The whole card as one sentence. */
+  a11y: string;
+  stepCount: number;
+}
+
+/**
+ * Words for the PR spotlight: "Latest verified PR" (never "best"), before → after as real sets ("16 كجم × 6" in Arabic: number
+ * isolated, unit in the language, × between no-break spaces), the delta chip and the staircase caption / spoken summary.
+ */
+export function prCopy(pr: PrRow, cabinet: readonly SurfaceBadge[], lang: Lang, unit: Unit, t: T, now?: number): PrCopy {
+  const e = pr.evidence;
+  const exercise = exerciseName(pr, lang);
+  const steps = prStair(cabinet, e.identity);
+  const n = Math.max(1, steps.length);
+  // A short date stays on one line ("3\u00a0Mar").
+  const since = formatDay(steps[0]?.localDate ?? e.newBest.localDate, lang, now, true).replace(/ /g, NBSP);
+  const before = formatSetEvidence(e.previousBest.load, e.previousBest.reps, lang, unit);
+  const after = formatSetEvidence(e.newBest.load, e.newBest.reps, lang, unit);
+  const delta = prDelta(e, lang, unit, t);
+  const date = formatDay(pr.earnedLocalDate ?? e.newBest.localDate, lang, now);
+  return {
+    exercise,
+    date,
+    before,
+    after,
+    delta,
+    caption: t(countKey(n, lang, "achv.r2.stair.caption.one", "achv.r2.stair.caption.few"), { n, date: since }),
+    stairA11y: t(countKey(n, lang, "achv.r2.stair.a11y.one", "achv.r2.stair.a11y.few"), { n, exercise, date: since, latest: after }),
+    a11y: t("achv.r2.pr.a11y", { date, exercise, before, after, delta }),
+    stepCount: n,
+  };
 }

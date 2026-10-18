@@ -133,6 +133,76 @@ export function prStair(cabinet: readonly SurfaceBadge[], identity: IdentityRef)
     }));
 }
 
+/** Staircase geometry in a 128 × 72 box (never mirrored, no axis values). */
+export const STAIR_W = 128;
+export const STAIR_H = 72;
+export interface StairGeometry {
+  /** The whole outline, baseline first: "M x y H x V y …". */
+  path: string;
+  /** The latest step only (drawn in the accent) and its end dot. */
+  last: string;
+  dot: { x: number; y: number };
+  /** Area under the outline (a faint fill). */
+  area: string;
+  /** x of each rep-only step (a small vertical tick instead of a rise). */
+  ticks: { x: number; y: number }[];
+}
+
+/**
+ * Shape of the PR staircase: one step per verified PR, oldest on the left. Heights follow the real loads (less assistance = higher
+ * for an assisted lift) and never come down (a path-B PR at a lighter load holds the height); a rep-only PR is flat with a tick. When
+ * every step sits at one height the rises are spread evenly so the stair still reads as a stair. Shapes only; no numbers are drawn.
+ */
+export function stairGeometry(steps: readonly StairStep[], baseline: number | null, assisted = false): StairGeometry {
+  const v = (load: number) => (assisted ? -load : load);
+  const n = Math.max(1, steps.length);
+  const start = baseline === null ? (steps[0] ? v(steps[0].load) : 0) : v(baseline);
+  let high = start;
+  const heights = steps.map((s) => (high = Math.max(high, v(s.load))));
+  const span = (heights[heights.length - 1] ?? start) - start;
+  const top = 8;
+  const bottom = STAIR_H - 6;
+  let rank = 0;
+  const ys = steps.map((s, i) => {
+    if (!s.repOnly) rank++;
+    if (span > LOAD_EPS) return bottom - ((heights[i]! - start) / span) * (bottom - top);
+    const rises = steps.filter((x) => !x.repOnly).length || 1;
+    return bottom - (rank / rises) * (bottom - top);
+  });
+  const r = (x: number) => Math.round(x * 10) / 10;
+  const x0 = 4;
+  const end = STAIR_W - 4;
+  const lead = 22;
+  const w = (end - x0 - lead) / n;
+  const xs = steps.map((_, i) => x0 + lead + i * w);
+  let d = `M${x0} ${bottom}`;
+  steps.forEach((_, i) => {
+    d += ` H${r(xs[i]!)} V${r(ys[i]!)}`;
+  });
+  d += ` H${end}`;
+  const li = steps.length - 1;
+  const lastY = li >= 0 ? ys[li]! : bottom;
+  const prevY = li > 0 ? ys[li - 1]! : bottom;
+  const last = li >= 0 ? `M${r(xs[li]!)} ${r(prevY)} V${r(lastY)} H${end}` : `M${x0} ${bottom} H${end}`;
+  return {
+    path: d,
+    last,
+    dot: { x: end, y: r(lastY) },
+    area: `${d} V${STAIR_H} H${x0} Z`,
+    ticks: steps.map((s, i) => (s.repOnly ? { x: r(xs[i]!), y: r(ys[i]!) } : null)).filter((x): x is { x: number; y: number } => x !== null),
+  };
+}
+
+/** The set the first verified PR on this lift beat: where the staircase starts. */
+export function prBaseline(cabinet: readonly SurfaceBadge[], identity: IdentityRef): number | null {
+  const key = prIdentityKey(identity);
+  const first = cabinet
+    .filter(isPr)
+    .filter((r) => prIdentityKey(r.evidence.identity) === key)
+    .sort((a, b) => a.evidence.newBest.localDate.localeCompare(b.evidence.newBest.localDate) || (a.earnedAtUtc ?? 0) - (b.earnedAtUtc ?? 0))[0];
+  return first ? first.evidence.previousBest.load : null;
+}
+
 export interface Plaque {
   row: SurfaceBadge & { evidence: StrengthPrEvidence };
   /** Verified PRs on this lift. */

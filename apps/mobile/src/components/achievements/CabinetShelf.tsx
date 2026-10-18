@@ -6,6 +6,7 @@ import { medalA11y, medalStateLine } from "../../logic/achievementCopy";
 import { collapseForPartial, monthOf, shelfSections, slotNameKey, type Shelf, type ShelfItem } from "../../logic/achievementShowcase";
 import { radius, space, type as ty, useAchievementArt, usePalette } from "../../theme";
 import { AppText, QuietAction } from "../../ui";
+import { UnveilMedal } from "./UnveilMedal";
 import { Medal } from "./Medal";
 
 /** Medal size on a shelf (dp): at the LOD threshold, so shelves draw the simple masters. */
@@ -50,19 +51,21 @@ export function MedalSlot({ item, cols, onOpen }: { item: ShelfItem; cols: numbe
         backgroundColor: pressed ? p.raised : "transparent",
       })}
     >
-      <View style={{ width: SHELF_MEDAL, height: SHELF_MEDAL }}>
-        {stack ? (
-          <>
-            <View style={{ position: "absolute", transform: [{ translateX: 8 }] }}>
-              <Medal badgeId={item.badgeId} state="earned" size={SHELF_MEDAL} month={month} opacity={0.4} />
-            </View>
-            <View style={{ position: "absolute", transform: [{ translateX: 4 }] }}>
-              <Medal badgeId={item.badgeId} state="earned" size={SHELF_MEDAL} month={month} opacity={0.7} />
-            </View>
-          </>
-        ) : null}
-        <Medal badgeId={item.badgeId} state={item.state} size={SHELF_MEDAL} progress={progress} month={month} />
-      </View>
+      <UnveilMedal slot={item.slot}>
+        <View style={{ width: SHELF_MEDAL, height: SHELF_MEDAL }}>
+          {stack ? (
+            <>
+              <View style={{ position: "absolute", transform: [{ translateX: 8 }] }}>
+                <Medal badgeId={item.badgeId} state="earned" size={SHELF_MEDAL} month={month} opacity={0.4} />
+              </View>
+              <View style={{ position: "absolute", transform: [{ translateX: 4 }] }}>
+                <Medal badgeId={item.badgeId} state="earned" size={SHELF_MEDAL} month={month} opacity={0.7} />
+              </View>
+            </>
+          ) : null}
+          <Medal badgeId={item.badgeId} state={item.state} size={SHELF_MEDAL} progress={progress} month={month} />
+        </View>
+      </UnveilMedal>
       <AppText style={{ fontSize: ty.label, fontWeight: "600", textAlign: "center", color: item.state === "locked" ? p.muted : p.text }}>{name}</AppText>
       <AppText style={{ fontSize: ty.caption, color: p.muted, textAlign: "center" }}>{medalStateLine(item, lang, t)}</AppText>
     </Pressable>

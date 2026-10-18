@@ -332,6 +332,8 @@ export const enProgress = {
   "achv.r2.unit.years.few": "years",
   "achv.r2.unit.weeks.one": "week",
   "achv.r2.unit.weeks.few": "weeks",
+  "achv.r2.earn.announce": "{name} earned",
+  "achv.r2.unveil.announce": "{n} medals added to your cabinet",
 } as const;
 export const arProgress: Record<keyof typeof enProgress, string> = {
   "progress.title": "تقدمك الشخصي",
@@ -667,4 +669,6 @@ export const arProgress: Record<keyof typeof enProgress, string> = {
   "achv.r2.unit.years.few": "سنين",
   "achv.r2.unit.weeks.one": "أسبوع",
   "achv.r2.unit.weeks.few": "أسابيع",
+  "achv.r2.earn.announce": "اتكسبت: {name}",
+  "achv.r2.unveil.announce": "{n} ميداليات اتضافت لخزانتك",
 };

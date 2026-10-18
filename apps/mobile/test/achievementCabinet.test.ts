@@ -10,7 +10,7 @@ import { earned, progress, row, sampleCabinet } from "./achievementFixtures";
 
 const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar", fontScale: 1, dark: true }));
 const services = vi.hoisted(() => ({ pickQuest: vi.fn(async () => {}) }));
-vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig()));
+vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig(), { useContext: () => null }));
 vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", ScrollView: "ScrollView", useWindowDimensions: () => ({ fontScale: settings.fontScale, width: 400, height: 800 }) }));
 vi.mock("react-native-svg", () => ({ default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: settings.lang, unit: "kg", direction: settings.lang === "ar" ? "rtl" : "ltr", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(settings.lang, k, p) }) }));

@@ -7,13 +7,14 @@ import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
 import type { SurfaceBadge } from "../logic/achievementSurface";
 import { medalsValue } from "../logic/achievementCopy";
-import { almostThere, isPartialCabinet, medalCount, shelves, slotRow, trainingDays, verifiedPrs, type ShelfItem } from "../logic/achievementShowcase";
+import { almostThere, isPartialCabinet, latestPr, medalCount, shelves, slotRow, trainingDays, verifiedPrs, type ShelfItem } from "../logic/achievementShowcase";
 import type { AchievementHome } from "../db/achievementRepo";
 import { AlmostThere } from "../components/achievements/AlmostThere";
 import { CabinetShelf } from "../components/achievements/CabinetShelf";
 import { LedgerTeaser } from "../components/achievements/LedgerTeaser";
 import { LifetimePlate } from "../components/achievements/LifetimePlate";
 import { MonthSeal } from "../components/achievements/MonthSeal";
+import { PrPlaques, PrSpotlight } from "../components/achievements/PrSpotlight";
 import { StatTileRow } from "../components/achievements/StatTiles";
 import { WeekSleeve } from "../components/achievements/WeekSleeve";
 import { space, type as ty, usePalette } from "../theme";
@@ -24,7 +25,7 @@ import { AppText, BigButton, ErrorState, LoadingState, Screen, SectionTitle } fr
  * (four shelves) · Lifter's Ledger teaser. Presentation only: everything is read from listCabinet() and getHome().
  */
 export function AchievementsScreen() {
-  const { achievements } = useServices();
+  const { achievements, history } = useServices();
   const { t } = useI18n();
   const nav = useNavigation<{ navigate: (name: string, params: object) => void }>();
   const [items, setItems] = useState<SurfaceBadge[] | null>(null);
@@ -35,6 +36,7 @@ export function AchievementsScreen() {
   const [detail, setDetail] = useState<SurfaceBadge | null>(null);
   const scroll = useRef<ScrollView>(null);
   const cabinetY = useRef(0);
+  const prY = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -72,6 +74,18 @@ export function AchievementsScreen() {
   const nothingYet = groups.every((g) => g.earned === 0);
   const firstMedal = nothingYet ? items.find((r) => r.badgeId === "first_session") ?? null : null;
   const openSlot = (item: ShelfItem) => setDetail(slotRow(item));
+  const pr = latestPr(items);
+  // The lift trend is keyed by line (exercise + gym + setup); open the most recent line for this PR's exercise and setup.
+  const openTrend = (row: NonNullable<typeof pr>) =>
+    void history
+      .listLifts()
+      .then((lifts) => {
+        const id = row.evidence.identity;
+        const line = lifts.filter((l) => l.exerciseId === id.exerciseId && l.setup === id.setup).sort((a, b) => b.lastAt - a.lastAt)[0];
+        if (line) nav.navigate("LiftTrend", { lineId: line.lineId });
+        else setDetail(row);
+      })
+      .catch((e) => diagnostics.record("warn", "cabinet", e));
   const refreshHome = () => void achievements.getHome().then(setHome).catch((e) => diagnostics.record("warn", "cabinet", e));
 
   return (
@@ -86,7 +100,7 @@ export function AchievementsScreen() {
         <StatTileRow
           tiles={[
             { value: String(lifetime), label: t("achv.r2.stat.weeks"), onPress: () => nav.navigate("Ledger", {}), hint: t("achv.ledger.open") },
-            { value: String(verifiedPrs(items).length), label: t("achv.r2.stat.prs") },
+            { value: String(verifiedPrs(items).length), label: t("achv.r2.stat.prs"), onPress: () => scroll.current?.scrollTo({ y: prY.current, animated: true }), hint: t("achv.r2.pr.eyebrow") },
             {
               value: medalsValue(medals.earned, medals.total, t),
               label: t("achv.r2.stat.medals"),
@@ -96,6 +110,15 @@ export function AchievementsScreen() {
           ]}
         />
       )}
+      <View
+        style={{ gap: space.xl }}
+        onLayout={(e) => {
+          prY.current = e.nativeEvent.layout.y;
+        }}
+      >
+        <PrSpotlight pr={pr} cabinet={items} onOpenTrend={openTrend} onOpen={setDetail} />
+        <PrPlaques cabinet={items} onOpen={setDetail} />
+      </View>
       <AlmostThere rows={almostThere(items)} first={firstMedal} onOpen={setDetail} />
       <MonthSeal quest={home.quest} onChanged={refreshHome} />
       <View

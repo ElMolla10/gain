@@ -1,7 +1,7 @@
 import { RackDock, type DockActions } from "../components/RackDock";
 import { Profiler, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import { perfMark, perfMarks, perfNow } from "../perfMarks";
-import { Keyboard, Pressable, ScrollView, View } from "react-native";
+import { Keyboard, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { adjustKeyboardInsets } from "../numberPad";
 import { Icon } from "../components/Icon";
@@ -11,6 +11,7 @@ import { RestClock, LiveDuration, Stat } from "../components/WorkoutStats";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { useI18n } from "../i18n";
 import { volumeText } from "../logic/liveSummary";
+import { plannedWorkRows, sessionLineWarns } from "../logic/sessionLine";
 import { adjustTimer, startTimer, stopTimer } from "../logic/restTimer";
 import { MIN_TOUCH, radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
@@ -29,6 +30,7 @@ export function WorkoutScreen() {
   const { t, lang, unit, unitText, fmt, direction } = useI18n();
   const p = useLogPalette();
   const insets = useSafeAreaInsets();
+  const largeText = useWindowDimensions().fontScale > 1.3;
   // Session-only: the Workout details panel always starts closed and is not persisted.
   const [detailsOpen, setDetailsOpen] = useState(false);
   // Developer Mode timings: mount → session ready, once.
@@ -74,7 +76,9 @@ export function WorkoutScreen() {
     source, previousSource, choosePreviousSource, finishFailed, doFinish,
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
     restore, unlogged, restFor, setTimer, dock, dockName, dockLog, dockExpand, busy,
+    statusKind, statusShort, rows,
   } = session;
+  const warns = sessionLineWarns(statusKind);
   const dockVisible = timerOpen || timerRunning || restOver;
   dockActions.current = {
     log: dockLog,
@@ -116,40 +120,39 @@ export function WorkoutScreen() {
         </Pressable>
       </View>
 
-      {/* Save status: one line under the header, outside the scroll so it is always in view, in words + icon. Failures and unsaved work come before any friendlier message; "resumed" goes away after a few seconds. */}
-      <View accessibilityLiveRegion="polite" style={{ paddingHorizontal: space.lg, paddingBottom: space.xs }}>
-        {/* 14/20 with a 16 dp icon (pencil when sets are typed but not ticked) (L-4c). */}
-        <InlineStatus kind={status.kind} icon={status.icon} text={status.text} />
-      </View>
-
       <ScrollView contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
         <Profiler id="logger" onRender={onLoggerRender}>
-        {/* Row 1: duration with ONE pause/resume control beside it, sets at the end. Row 2: a full-width "Workout details" disclosure (L-7). */}
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: space.sm, paddingHorizontal: space.lg }}>
-          <Stat label={t("workout.stat.duration")}>
-            <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} />
-          </Stat>
+        {/* The session line (logger spec §5): duration · Pause · "x of y sets" · save status · Details ▾. A failure or unsaved work takes
+            over the middle in warn and never hides Pause. Large text wraps it into two rows. Only the status is a live region. */}
+        <View style={{ flexDirection: "row", flexWrap: largeText ? "wrap" : "nowrap", alignItems: "center", columnGap: space.sm, paddingHorizontal: space.lg }}>
+          <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} />
           {/* Pause / resume the whole workout: the duration freezes and Finish records active time only. The rest timer is separate. */}
           <IconButton icon={loaded.pausedAt != null ? "play" : "pause"} label={loaded.pausedAt != null ? t("workout.resume") : t("workout.pause")} onPress={() => void toggleDurationPause()} />
-          <View style={{ flex: 1 }} />
-          <Stat label={t("workout.stat.sets")}>
-            {/* Same 48 dp value box as Duration, so both labels share a top line and both values a baseline (C-R1). */}
-            <View style={{ minHeight: MIN_TOUCH, justifyContent: "center" }}>
-              <AppText ltr style={{ fontSize: 20, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{summary.sets}</AppText>
+          {largeText ? <View style={{ flexBasis: "100%", height: 0 }} /> : null}
+          <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: space.xs }}>
+            {warns ? null : (
+              <AppText numberOfLines={1} style={{ fontSize: ty.label, color: p.muted, fontVariant: ["tabular-nums"] }}>
+                {t("rack.setsOf", { x: summary.sets, y: Math.max(summary.sets, plannedWorkRows(rows, shown.map((e) => e.exerciseId))) })}
+              </AppText>
+            )}
+            {warns ? null : <AppText style={{ fontSize: ty.label, color: p.muted }}>·</AppText>}
+            <View accessibilityLiveRegion="polite" style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: space.xs }}>
+              <Icon name={status.icon} color={warns ? p.warn : p.muted} size={16} />
+              <AppText numberOfLines={largeText ? 2 : 1} style={{ flex: 1, fontSize: ty.label, color: warns ? p.warn : p.muted }}>{statusShort}</AppText>
             </View>
-          </Stat>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: detailsOpen }}
-          onPress={() => setDetailsOpen(open => !open)}
-          style={({ pressed }) => ({ minHeight: MIN_TOUCH, marginHorizontal: space.lg, marginBottom: space.xs, flexDirection: "row", alignItems: "center", gap: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
-        >
-          <AppText style={{ flex: 1, fontSize: ty.label, fontWeight: "600", color: p.accent }}>{t("workout.details")}</AppText>
-          <View style={{ transform: [{ rotate: detailsOpen ? (direction === "rtl" ? "-90deg" : "90deg") : "0deg" }] }}>
-            <Icon name="chevron" color={p.accent} size={20} mirror />
           </View>
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: detailsOpen }}
+            onPress={() => setDetailsOpen(open => !open)}
+            style={({ pressed }) => ({ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: space.xs, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
+          >
+            <AppText style={{ fontSize: ty.label, fontWeight: "600", color: p.accent }}>{t("workout.details")}</AppText>
+            <View style={{ transform: [{ rotate: detailsOpen ? (direction === "rtl" ? "-90deg" : "90deg") : "0deg" }] }}>
+              <Icon name="chevron" color={p.accent} size={20} mirror />
+            </View>
+          </Pressable>
+        </View>
         <WorkoutDetailsPanel
           open={detailsOpen}
           readiness={readiness}

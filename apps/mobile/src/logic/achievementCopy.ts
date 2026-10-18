@@ -6,11 +6,11 @@
 import { isolateLtr, NBSP, type Lang } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import type { AchievementEvidence } from "@gain/engine";
-import { arPluralKey, daysToNext, nextPlate, plateTier, prDelta, prStair, type MedalState, type PlateTier } from "./achievementShowcase";
+import { arPluralKey, daysToNext, medalCount, medalOrdinal, nextPlate, plateTier, prDelta, prStair, type MedalState, type PlateTier } from "./achievementShowcase";
 import { formatSetEvidence } from "./achievementEvidence";
-import type { Unit } from "./units";
+import { unitLabel, weightText, type Unit } from "./units";
 import { prestigeForBadge, type SurfaceBadge } from "./achievementSurface";
-import { formatDay } from "./dateText";
+import { formatDay, formatDayFull } from "./dateText";
 
 type T = (key: StringKey, params?: Record<string, string | number>) => string;
 
@@ -150,4 +150,56 @@ export function prCopy(pr: PrRow, cabinet: readonly SurfaceBadge[], lang: Lang, 
     a11y: t("achv.r2.pr.a11y", { date, exercise, before, after, delta }),
     stepCount: n,
   };
+}
+
+const TIERED: Record<string, { track: string; unit: string }> = {
+  dedicated: { track: "dedicated", unit: "sessions" },
+  hundred_club: { track: "days", unit: "days" },
+  multi_year: { track: "years", unit: "years" },
+  qualified_weeks: { track: "weeks", unit: "weeks" },
+  full_spectrum: { track: "spectrum", unit: "weeks" },
+};
+
+/** The tiered family of a badge ("dedicated" for dedicated_25), or null. */
+export const tieredFamily = (badgeId: string): string | null => Object.keys(TIERED).find((f) => badgeId.startsWith(`${f}_`)) ?? null;
+
+/** "Dedicated track" / "مسار التزام" for the detail sheet's family track. */
+export function trackTitle(badgeId: string, t: T): string | null {
+  const f = tieredFamily(badgeId);
+  return f ? t("achv.r2.detail.track", { track: t(`achv.r2.track.${TIERED[f]!.track}` as StringKey) }) : null;
+}
+
+export interface MedalBack {
+  /** Top line: the track ("Dedicated"), the lift for a PR, otherwise the badge name. */
+  title: string;
+  value: string | null;
+  unit: string | null;
+  /** Always with the year ("21 Sep 2026"). */
+  date: string;
+  /** "Medal 10 of 17" (uniques only). */
+  ordinal: string | null;
+}
+
+/** What the engraved back says (UI text over the art, Plex / Plex Sans Arabic). Only numbers already in the row. */
+export function medalBack(row: SurfaceBadge, cabinet: readonly SurfaceBadge[], lang: Lang, unit: Unit, t: T): MedalBack {
+  const date = row.earnedLocalDate ? formatDayFull(row.earnedLocalDate, lang) : row.earnedAtUtc ? formatDayFull(row.earnedAtUtc, lang) : "";
+  const n = medalOrdinal(cabinet, row.id);
+  const ordinal = n === null ? null : t("achv.r2.medal.ordinal", { n, total: medalCount(cabinet).total });
+  const e = row.evidence;
+  if (e?.kind === "strength_pr") {
+    return { title: exerciseName(row, lang), value: weightText(e.newBest.load, unit), unit: `${unitLabel(unit, lang)} × ${isolateLtr(String(e.newBest.reps))}`, date, ordinal };
+  }
+  const f = tieredFamily(row.badgeId);
+  if (f) {
+    const tier = Number(row.badgeId.slice(f.length + 1));
+    const u = TIERED[f]!.unit;
+    return {
+      title: t(`achv.r2.track.${TIERED[f]!.track}` as StringKey),
+      value: String(tier),
+      unit: t(countKey(tier, lang, `achv.r2.unit.${u}.one` as StringKey, `achv.r2.unit.${u}.few` as StringKey)),
+      date,
+      ordinal,
+    };
+  }
+  return { title: t(row.i18nKey as StringKey), value: null, unit: null, date, ordinal };
 }

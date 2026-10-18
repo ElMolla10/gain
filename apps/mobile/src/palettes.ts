@@ -316,6 +316,8 @@ export interface MedalMaterial {
   /** Numeral disc and its numeral (decorative duplicates of the caption). */
   boss: string;
   bossText: string;
+  /** Engraved text on the medal back (UI text over the art; on `lo`, ≥4.5:1). */
+  engrave: string;
 }
 /**
  * Quest seals use ONE wax colour for every month (owner decision, not the 12 monthly colourways in the spec); the month numeral on the
@@ -323,11 +325,11 @@ export interface MedalMaterial {
  */
 export const SEAL_COLOUR = "#B0654F";
 export const MEDAL_MATERIALS: Record<MedalMaterialName, MedalMaterial> = {
-  iron: { hi: "#7A8172", base: "#4A5045", lo: "#262A22", edge: "#8C9384", ink: "#1A1D17", boss: "#262A22", bossText: "#8C9384" },
-  steel: { hi: "#E4E9EC", base: "#A7B0B6", lo: "#5E676D", edge: "#F2F5F7", ink: "#2A3034", boss: "#5E676D", bossText: "#F2F5F7" },
-  bronze: { hi: "#F0C88A", base: "#B9813F", lo: "#6B4320", edge: "#E2B06D", ink: "#3A230F", boss: "#6B4320", bossText: "#E2B06D" },
-  lime: { hi: "#E9FF8F", base: "#A9E21A", lo: "#4F7406", edge: "#F4F6EC", ink: "#22320A", boss: "#4F7406", bossText: "#E9FF8F" },
-  seal: { hi: "#D99A86", base: SEAL_COLOUR, lo: "#7A3F2F", edge: "#F4F6EC", ink: "#10120E", boss: "#10120E", bossText: "#F4F6EC" },
+  iron: { hi: "#7A8172", base: "#4A5045", lo: "#262A22", edge: "#8C9384", ink: "#1A1D17", boss: "#262A22", bossText: "#8C9384", engrave: "#C9CFC0" },
+  steel: { hi: "#E4E9EC", base: "#A7B0B6", lo: "#5E676D", edge: "#F2F5F7", ink: "#2A3034", boss: "#5E676D", bossText: "#F2F5F7", engrave: "#F2F5F7" },
+  bronze: { hi: "#F0C88A", base: "#B9813F", lo: "#6B4320", edge: "#E2B06D", ink: "#3A230F", boss: "#6B4320", bossText: "#E2B06D", engrave: "#F4DDB2" },
+  lime: { hi: "#E9FF8F", base: "#A9E21A", lo: "#4F7406", edge: "#F4F6EC", ink: "#22320A", boss: "#4F7406", bossText: "#E9FF8F", engrave: "#E9FF8F" },
+  seal: { hi: "#D99A86", base: SEAL_COLOUR, lo: "#7A3F2F", edge: "#F4F6EC", ink: "#10120E", boss: "#10120E", bossText: "#F4F6EC", engrave: "#F4F6EC" },
 };
 /** prestigeForBadge tier → material (iron_hold, iron_carry and full_spectrum_12 fall through to Foundation = iron, unchanged). */
 export const MATERIAL_FOR_PRESTIGE: Record<"foundation" | "forged" | "masterwork" | "legacy", MedalMaterialName> = {

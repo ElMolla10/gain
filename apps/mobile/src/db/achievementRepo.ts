@@ -16,6 +16,7 @@ import {
   type AchievementSession,
   type AchievementSet,
   type AchievementStatus,
+  type EvaluateAchievementsResult,
   type ActiveQuestEval,
   type EquipmentType,
   type LiftPin,
@@ -51,7 +52,7 @@ export interface AchievementHome {
   recent: EarnedAchievementRow[];
   nextUp: NextUpBadge[];
   bannerCount: number | null;
-  stats: { qualifiedWeeksLifetime: number; qualifiedWeeksConsecutive: number };
+  stats: EvaluateAchievementsResult["stats"];
   quest: MonthQuest | null;
 }
 

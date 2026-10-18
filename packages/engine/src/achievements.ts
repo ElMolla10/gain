@@ -194,7 +194,14 @@ export interface EvaluateAchievementsResult {
   earned: AchievementEvent[];
   inProgress: AchievementProgress[];
   pulse: WeekPulse;
-  stats: { qualifiedWeeksLifetime: number; qualifiedWeeksConsecutive: number };
+  stats: {
+    qualifiedWeeksLifetime: number;
+    qualifiedWeeksConsecutive: number;
+    /** Distinct qualifying training days (the hundred_club count). Passed through for display only; no rule reads it. */
+    qualifyingDays: number;
+    /** Calendar years with at least one qualified week (the multi_year count). Passed through for display only. */
+    activeYears: number;
+  };
 }
 
 export interface LiftPin {
@@ -946,7 +953,7 @@ export function evaluateAchievements(
     earned,
     inProgress,
     pulse: { weekStart: thisWeek, qualifiedDays, dayTarget: QUALIFIED_WEEK_DAYS, qualified: qualifiedDays >= QUALIFIED_WEEK_DAYS },
-    stats: { qualifiedWeeksLifetime: lifetime, qualifiedWeeksConsecutive: consecutive },
+    stats: { qualifiedWeeksLifetime: lifetime, qualifiedWeeksConsecutive: consecutive, qualifyingDays: dayCount, activeYears: yearCount },
   };
 }
 

@@ -6,7 +6,11 @@ import { formatDay } from "../logic/dateText";
 import { localizeReason } from "../logic/units";
 import { todayHero } from "../logic/todayHero";
 import { todayRows, type TodayRow } from "../logic/todayRows";
-import { deltaChip, doneAround } from "../logic/todayCopy";
+import { deltaChip, doneAround, welcomeBackGap } from "../logic/todayCopy";
+import { lighterUntil, showEaseIn, todayMode } from "../logic/todayState";
+import { countKey } from "../logic/achievementCopy";
+import { clock } from "../logic/todayStub";
+import { ResumeFooter } from "../components/today/ResumeFooter";
 import { rackA11yLabel, stubLines, timeLine, writtenAfter } from "../logic/todayStub";
 import { haptics } from "../haptics";
 import { TodayBar } from "../components/today/TodayBar";
@@ -53,6 +57,12 @@ interface TodayData {
   activeGym: string | null;
   /** Which load these previews belong to: a late preview from an earlier focus is dropped. */
   loadId: number;
+  /** The latest finished workout (done-for-today detection, 04:00 rollover). */
+  lastFinished: { id: string; dayName: string; finishedAt: number; workingSets: number } | null;
+  /** A lighter week in force: until when. */
+  lighterUntil: number | null;
+  /** The open workout's clock and saved working sets (in progress). */
+  openInfo: { startedAt: number | null; pausedMs: number; pausedAt: number | null; saved: number } | null;
 }
 
 /** The hero extras for the day on screen, fetched lazily (never in the focus load) and cached per load + day (spec §10). */
@@ -62,13 +72,15 @@ interface DoorExtras {
   /** Stored decision per target id: when it was written and the newest comparable session it used. */
   decisions: Record<string, { createdAt: number; last: SessionSummary | null }>;
   sessions: { dayName: string; finishedAt: number }[];
+  /** Days since the last trusted training day when ≥ 14 (welcome back), else null. */
+  welcomeBackDays: number | null;
 }
 
 export function TodayScreen() {
   const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history } = useServices();
   const { t, lang, fmt, unit } = useI18n();
   const p = usePalette();
-  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why", params?: { dayId: string } | { targetId: string }) => void }>();
+  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why" | "SessionDetail" | "Gyms", params?: { dayId: string } | { targetId: string } | { sessionId: string }) => void }>();
   const [state, setState] = useState<Load<TodayData>>(LOADING);
   const [attempt, setAttempt] = useState(0);
   const [paceLine, setPaceLine] = useState<string>("");
@@ -80,6 +92,7 @@ export function TodayScreen() {
   const [extras, setExtras] = useState<DoorExtras | null>(null);
   const [openRow, setOpenRow] = useState<string | null>(null);
   const [xrayRow, setXrayRow] = useState<string | null>(null);
+  const [easeIn, setEaseIn] = useState(false);
   const { fontScale } = useWindowDimensions();
   const loadSeq = useRef(0);
   const inflight = useRef(new Set<string>());
@@ -101,6 +114,16 @@ export function TodayScreen() {
         const lists = await Promise.all(dayList.map((d) => repos.listDayExercises(d.id)));
         const marked = markSuggested(dayList.map((d, i) => ({ id: d.id, name: d.name, exercises: lists[i]!.length, sets: lists[i]!.reduce((n, e) => n + e.sets, 0) })), next.day.id);
         const open = await workout.getOpenSession();
+        // Cheap single-row reads for the states, run together (no extra sequential awaits).
+        const [lastList, deloadState, openRow, openSets] = await Promise.all([
+          history.listSessions(1).catch(() => []),
+          deload.getState(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => null),
+          open ? workout.getSession(open.id).catch(() => null) : Promise.resolve(null),
+          open ? workout.listSessionSets(open.id).catch(() => []) : Promise.resolve([]),
+        ]);
+        const last = lastList[0];
+        const lastFinished = last ? { id: last.id, dayName: last.dayName, finishedAt: last.finishedAt, workingSets: last.workingSets } : null;
+        const openInfo = openRow ? { startedAt: openRow.started_at, pausedMs: openRow.paused_ms, pausedAt: openRow.paused_at, saved: openSets.filter((x) => !x.warmup).length } : null;
         const targets: Record<string, TargetRow[]> = {};
         // Independent reads: run together. Existing edited/accepted targets win over previews.
         const planned = await Promise.all(dayList.map(async (d) => {
@@ -117,12 +140,12 @@ export function TodayScreen() {
         const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
         if (alive) setPaceLine(pace.kind === "none" ? "" : describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
         if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
-        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, loadId };
+        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, loadId, lastFinished, lighterUntil: lighterUntil(deloadState as { status: string; endsAt?: number } | null, Date.now()), openInfo };
       }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
       return () => {
         alive = false;
       };
-    }, [repos, goals, programmes, shortWeek, deload, weeklyPlan, workout, finish, t, fmt, lang, attempt]),
+    }, [repos, goals, programmes, shortWeek, deload, weeklyPlan, workout, finish, history, t, fmt, lang, attempt]),
   );
 
   // The day on screen gets its preview on demand; a late result is cached under its own day id (never shown for another day) and
@@ -158,21 +181,22 @@ export function TodayScreen() {
     const ids = viewTargets.map((x) => x.id);
     const gymId = ready.activeGym;
     void (async () => {
-      const [gym, decs, sessions] = await Promise.all([
+      const [gym, decs, sessions, days] = await Promise.all([
         gymId ? repos.loadGymFingerprint(gymId).catch(() => null) : Promise.resolve(null),
         Promise.all(ids.map((id) => finish.getDecision(id).catch(() => null))),
         ids.length > 0 ? history.listSessions(10).catch(() => []) : Promise.resolve([]),
+        history.getAchievementDays().catch(() => [] as number[]),
       ]);
       const decisions: DoorExtras["decisions"] = {};
       ids.forEach((id, i) => {
         const d = decs[i];
         if (d) decisions[id] = { createdAt: d.createdAt, last: d.payload.inputs?.sessions?.[0] ?? null };
       });
-      return { key: extrasKey, gym, decisions, sessions: sessions.map((x) => ({ dayName: x.dayName, finishedAt: x.finishedAt })) };
+      return { key: extrasKey, gym, decisions, sessions: sessions.map((x) => ({ dayName: x.dayName, finishedAt: x.finishedAt })), welcomeBackDays: welcomeBackGap(days, Date.now()) };
     })()
       .catch((e) => {
         diagnostics.record("warn", "today extras", e);
-        return { key: extrasKey, gym: null, decisions: {}, sessions: [] } as DoorExtras;
+        return { key: extrasKey, gym: null, decisions: {}, sessions: [], welcomeBackDays: null } as DoorExtras;
       })
       .then((x) => {
         inflight.current.delete(extrasKey);
@@ -224,6 +248,8 @@ export function TodayScreen() {
   const buttonText = action.kind === "start" ? `${t("today.startDay", { day: chosen.name })} · ${t("today.footerMin", { min: minutes })}` : action.elsewhere && openDay ? t("today.resumeDay", { day: openDay.name }) : t("today.resume");
   const ex = extras && extras.key.startsWith(`${data.loadId}:${chosen.id}:`) ? extras : null;
   const now = Date.now();
+  const mode = todayMode({ openDayId: data.openDayId, chosenId: chosen.id, lastFinishedAt: data.lastFinished?.finishedAt ?? null, now });
+  const welcomeBack = mode === "normal" ? ex?.welcomeBackDays ?? null : null;
   const lastOf = (r: TodayRow): SessionSummary | null => r.last ?? (r.targetId ? ex?.decisions[r.targetId]?.last ?? null : null);
   const reasonOf = (r: TodayRow): string | null => (r.reason ? renderReason(localizeReason(r.reason, unit, lang), lang) : null);
   const chipOf = (r: TodayRow) => deltaChip({ load: r.effectiveLoad, reps: r.reps, status: r.status }, lastOf(r), { lang, unit, t, lighterWeek: r.normalLoad !== null });
@@ -269,6 +295,11 @@ export function TodayScreen() {
           if (gymId) await finish.planDay(dayId, gymId);
         },
         navigate: (dayId) => navigation.navigate("Workout", { dayId }),
+        // Ease in (welcome back): the new session is marked "returning" after navigating, never blocking the start.
+        afterStart: easeIn && welcomeBack !== null ? async () => {
+          const o = await workout.getOpenSession();
+          if (o) await workout.setSessionReadiness(o.id, "returning");
+        } : undefined,
         record: (e) => diagnostics.record("error", "today start", e),
       });
     } finally {
@@ -277,18 +308,68 @@ export function TodayScreen() {
   }
 
   const stack = fontScale > 1.3;
-  const footer = <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />;
+  const footer =
+    mode === "done" && data.lastFinished ? (
+      <BigButton variant="quiet" label={t("today.done.see")} onPress={() => navigation.navigate("SessionDetail", { sessionId: data.lastFinished!.id })} />
+    ) : mode === "open" && data.openInfo ? (
+      <ResumeFooter {...data.openInfo} total={chosen.sets} disabled={starting} onPress={() => void start()} />
+    ) : (
+      <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />
+    );
   return (
     <Screen tab footer={footer} footerInline={stack}>
       {/* The day name is the one title; the date, the label and Change sit around it (spec §0 row 0). */}
-      <TodayHeader date={formatDay(now, lang, now)} dayName={chosen.name} label={labelText} dayIndex={data.days.findIndex((d) => d.id === chosen.id)} dayCount={data.days.length} onChange={() => setChangeOpen(true)} />
-      {action.kind === "resume" ? <InlineStatus kind={action.elsewhere ? "warn" : "info"} text={action.elsewhere ? t("today.finishOpenFirst") : t("today.openWorkout")} /> : null}
+      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={data.days.findIndex((d) => d.id === chosen.id)} dayCount={data.days.length} onChange={() => setChangeOpen(true)} />
+      {mode === "openElsewhere" ? <InlineStatus kind="warn" text={t("today.finishOpenFirst")} /> : null}
+      {mode === "open" && data.openInfo?.startedAt != null ? (
+        <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.open.started", { time: clock(data.openInfo.startedAt), n: data.openInfo.saved, total: chosen.sets })}</AppText>
+      ) : null}
+      {mode === "done" && data.lastFinished ? (
+        <View style={{ gap: 2 }}>
+          <AppText style={{ fontSize: ty.label }}>{t(countKey(data.lastFinished.workingSets, lang, "today.done.summary.one", "today.done.summary.few"), { day: data.lastFinished.dayName, n: data.lastFinished.workingSets })}</AppText>
+          <View style={{ alignItems: "flex-start" }}>
+            <QuietAction label={t("today.done.anyway", { day: chosen.name })} onPress={() => void start()} />
+          </View>
+        </View>
+      ) : null}
+      {welcomeBack !== null ? (
+        <View style={{ gap: space.xs }}>
+          <AppText style={{ fontSize: ty.label }}>{t("today.welcome", { n: welcomeBack })}</AppText>
+          {showEaseIn(welcomeBack, true) ? (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: easeIn }}
+              accessibilityHint={t("today.easeIn.note")}
+              onPress={() => setEaseIn((v) => !v)}
+              style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, alignSelf: "flex-start", paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: easeIn ? p.text : p.edge, backgroundColor: easeIn ? p.raised : "transparent" }}
+            >
+              <Icon name={easeIn ? "check" : "plus"} color={p.text} size={18} />
+              <AppText style={{ fontSize: ty.label, fontWeight: "600" }}>{t("today.easeIn")}</AppText>
+            </Pressable>
+          ) : null}
+          {easeIn ? <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t("today.easeIn.note")}</AppText> : null}
+        </View>
+      ) : null}
+      {data.lighterUntil !== null && mode === "normal" ? (
+        <View style={{ gap: 2 }}>
+          <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.lighter", { date: formatDay(data.lighterUntil, lang, now) })}</AppText>
+          <View style={{ alignItems: "flex-start" }}>
+            <QuietAction label={t("today.lighter.undo")} onPress={() => void deload.undo().catch((e) => diagnostics.record("warn", "today undo lighter", e)).then(() => setAttempt((n) => n + 1))} />
+          </View>
+        </View>
+      ) : null}
 
       {/* Today's Bar: the lead lift as the real loaded object, on bg with no card. */}
       {hero ? (
         <View style={{ gap: space.sm }}>
-          <TodayBar hero={hero} name={leadName} />
-          {lead ? (
+          {mode === "openElsewhere" && openDay ? (
+            <View style={{ alignSelf: "flex-end", paddingHorizontal: space.sm, borderRadius: radius.pill, backgroundColor: p.raised, borderWidth: 1, borderColor: p.edge }}>
+              <AppText style={{ fontSize: ty.caption, fontWeight: "600" }}>{t("today.open.chip", { day: openDay.name })}</AppText>
+            </View>
+          ) : null}
+          <TodayBar hero={hero} name={leadName} racked={mode === "done"} dim={mode === "openElsewhere"} lifted={mode === "open" ? 8 : undefined} />
+          {hero.kind === "firstRun" ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.first.note")}</AppText> : null}
+          {lead && mode !== "open" && mode !== "openElsewhere" ? (
             <DoorStub
               provenance={stub?.provenance ?? null}
               lastTime={stub?.lastTime ?? null}
@@ -300,7 +381,15 @@ export function TodayScreen() {
         </View>
       ) : null}
 
+      {!data.activeGym && mode === "normal" ? (
+        <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Gyms")} style={({ pressed }) => ({ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.raised : "transparent" })}>
+          <AppText style={{ flex: 1, fontSize: ty.label, color: p.muted }}>{t("today.noGym")}</AppText>
+          <Icon name="chevron" color={p.muted} size={18} mirror />
+        </Pressable>
+      ) : null}
+
       {/* The rack: every other exercise, 64 dp rows. Planned vs preview is said once, in the header. */}
+      {mode !== "openElsewhere" ? (
       <View style={{ gap: space.sm }}>
         <SectionTitle action={<QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen} onPress={() => setNoteOpen((o) => !o)} />}>{isPreview ? t("today.rack.preview") : t("today.rack.planned")}</SectionTitle>
         {noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}
@@ -341,6 +430,7 @@ export function TodayScreen() {
           })}
         </Card>
       </View>
+      ) : null}
 
       {/* The program name on its own line (14 muted), then the time line: no separator left dangling when a line wraps, and no bidi
           joint between a Latin program name and an Arabic sentence (T-3). */}
@@ -364,6 +454,7 @@ export function TodayScreen() {
 
       {/* Everything else about the week in ONE collapsed card instead of five stacked ones (T-5). Each section still loads itself and
           keeps its own actions; a section with nothing to say renders nothing, and with no sections the card is not drawn. */}
+      {mode !== "openElsewhere" ? (
       <CollapsibleCard title={t("today.thisWeek")} note={t("today.thisWeekNote")}>
         <PersonalProgressCard />
         <WeeklyReviewCard />
@@ -371,6 +462,7 @@ export function TodayScreen() {
         <DeloadCard />
         <PeriodizationCard />
       </CollapsibleCard>
+      ) : null}
 
       <View style={{ gap: space.xs }}>
         {short ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("short.active", { days: short.days })}</AppText> : null}

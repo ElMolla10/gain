@@ -12,7 +12,6 @@ import { BeltArt, DumbbellPairArt, HoldArt, HornArt, RackedArt, StackArt } from 
 import { PlateEngraving } from "./PlateEngraving";
 
 export const LARGE_TEXT = 1.3;
-export { RackedArt };
 
 /** The art slot: 132 dp, or 96 dp above fontScale 1.3 so the art shrinks before any text does (spec §8). */
 export function heroArtHeight(fontScale: number): number {
@@ -27,6 +26,12 @@ export interface TodayBarProps {
   onOpenPath?: () => void;
   /** In progress: the bar lifted (dp). */
   lifted?: number;
+  /** Done for today: the (next day's) bar sits on J-hooks, its plates on the floor. */
+  racked?: boolean;
+  /** Another day is open: this day's bar at 50%. */
+  dim?: boolean;
+  /** Replaces the eyebrow (in progress: "Set 3 of 3 · Bench Press"). */
+  eyebrow?: string;
 }
 
 /** First run: an empty bar with dashed ghost plates (the state copy lives with the screen states). */
@@ -36,7 +41,7 @@ const FIRST_RUN_GHOST = [20];
  * "Today's Bar": eyebrow, the target as the biggest number (48 load, 20 muted unit, 36 "× reps"), the art for the lift's equipment and the
  * plate line. Everything above Warm-ups is ONE accessibility element; the art is hidden from screen readers and never mirrors.
  */
-export function TodayBar({ hero, name, onOpenPath, lifted }: TodayBarProps) {
+export function TodayBar({ hero, name, onOpenPath, lifted, racked, dim, eyebrow: eyebrowOverride }: TodayBarProps) {
   const { t, lang, unit } = useI18n();
   const p = usePalette();
   const { fontScale } = useWindowDimensions();
@@ -45,19 +50,20 @@ export function TodayBar({ hero, name, onOpenPath, lifted }: TodayBarProps) {
   const label = heroA11yLabel(hero, t, lang, unit, letters, name);
   if (hero.kind === "firstRun") {
     return (
-      <View accessible accessibilityLabel={label}>
+      <View accessible accessibilityLabel={label} style={{ gap: space.sm }}>
+        <AppText style={{ fontSize: ty.section, fontWeight: "600", color: p.text }}>{t("today.first.number")}</AppText>
         <BarArt perSide={[]} ghost={FIRST_RUN_GHOST} unit={unit} height={h} />
       </View>
     );
   }
   const parts = heroNumberParts(hero, lang, unit, letters);
-  const eyebrow = hero.isGoal ? `${name} · ${t("today.goalTag")}` : name;
+  const eyebrow = eyebrowOverride ?? (hero.isGoal ? `${name} · ${t("today.goalTag")}` : name);
   const fmt = (kg: number) => formatLoad(kg, lang, unit);
   const captions: React.ReactNode[] = [];
   let art: React.ReactNode = null;
   switch (hero.kind) {
     case "barbell": {
-      art = <BarArt perSide={hero.calc.perSide} ghost={hero.ghost} unit={unit} height={h} lifted={lifted} />;
+      art = racked ? <RackedArt perSide={hero.calc.perSide} unit={unit} height={h} /> : <BarArt perSide={hero.calc.perSide} ghost={hero.ghost} unit={unit} height={h} lifted={lifted} />;
       if (hero.calc.perSide.length === 0) captions.push(t("today.emptyBar"));
       else captions.push(<PlateEngraving key="eng" perSide={hero.calc.perSide} normalLoad={hero.normalLoad} />);
       if (!hero.calc.exact) captions.push(t("today.nearest", { load: fmt(hero.calc.load), target: fmt(hero.load) }));
@@ -90,9 +96,9 @@ export function TodayBar({ hero, name, onOpenPath, lifted }: TodayBarProps) {
     case "noGym":
       break;
   }
-  const warmups = hero.kind === "barbell" && hero.warmups.length > 0 && onOpenPath ? onOpenPath : null;
+  const warmups = hero.kind === "barbell" && hero.warmups.length > 0 && onOpenPath && !racked && !dim ? onOpenPath : null;
   return (
-    <View style={{ gap: space.sm }}>
+    <View style={{ gap: space.sm, opacity: dim ? 0.5 : 1 }}>
       <View accessible accessibilityLabel={label} style={{ gap: space.sm }}>
         <AppText
           numberOfLines={2}

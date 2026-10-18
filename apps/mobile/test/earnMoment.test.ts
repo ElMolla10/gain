@@ -201,6 +201,15 @@ describe("audits", () => {
   });
 });
 
+describe("achievements screen order", () => {
+  it("the Trophy Cabinet shelves come first, above the plate, stats, PR spotlight, Almost there, month seal and ledger", () => {
+    const screen = readFileSync(join(__dirname, "..", "src", "screens", "AchievementsScreen.tsx"), "utf8");
+    const at = screen.indexOf("<CabinetUnveil");
+    expect(at).toBeGreaterThan(screen.indexOf("<Screen scrollRef={scroll}>"));
+    for (const later of ["<LifetimePlate", "<WeekSleeve", "<StatTileRow", "<PrSpotlight", "<AlmostThere", "<MonthSeal", "<LedgerTeaser"]) expect(at, later).toBeLessThan(screen.indexOf(later));
+  });
+});
+
 describe("cabinet unveil", () => {
   it("earned medals unveil in reading order across shelves, 40 ms apart, 300 ms each", async () => {
     const { unveilOrder, unveilDuration, unveilWindow } = await import("../src/logic/earnMoment");

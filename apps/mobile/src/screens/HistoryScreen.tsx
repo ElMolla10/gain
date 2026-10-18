@@ -1,4 +1,5 @@
 import { EvidenceAchievementsCard } from "../components/EvidenceAchievementsCard";
+import { CabinetEntry } from "../components/achievements/CabinetEntry";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -36,6 +37,9 @@ export function HistoryScreen() {
   const { sessions, total, lifts } = state.data;
   return (
     <Screen tab title={t("history.title")}>
+      {/* The Trophy Cabinet first, straight under the title: it is what Progress is for, not a footer under the lists. */}
+      <CabinetEntry />
+
       {/* Real tabs (H-7): a segmented tablist, and the list starts right under it. */}
       <SegmentedTabs value={mode} options={[{ value: "sessions", label: t("history.sessions") }, { value: "lifts", label: t("history.lifts") }]} onChange={setMode} />
 
@@ -113,7 +117,7 @@ export function HistoryScreen() {
         </Card>
       )}
 
-      {/* Achievements below the list (H-8), so the list starts right under the tabs. */}
+      {/* This week, recent badges and next-up below the list (H-8), so the list starts right under the tabs. The cabinet entry is at the top. */}
       <EvidenceAchievementsCard />
 
       {developerMode ? <Card style={{ paddingVertical: space.xs }}>

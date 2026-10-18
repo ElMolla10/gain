@@ -20,11 +20,11 @@ import { PrPlaques, PrSpotlight } from "../components/achievements/PrSpotlight";
 import { StatTileRow } from "../components/achievements/StatTiles";
 import { WeekSleeve } from "../components/achievements/WeekSleeve";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, ErrorState, LoadingState, Screen, SectionTitle } from "../ui";
+import { AppText, BigButton, ErrorState, LoadingState, Screen } from "../ui";
 
 /**
- * The Achievements tab, round 2 (spec §1): Lifetime Plate · this week's sleeve · stat row · Almost there · month seal · Trophy Cabinet
- * (four shelves) · Lifter's Ledger teaser. Presentation only: everything is read from listCabinet() and getHome().
+ * The Achievements screen, round 2: Trophy Cabinet (four shelves) first, then Lifetime Plate · this week's sleeve · stat row · PR spotlight ·
+ * Almost there · month seal · Lifter's Ledger teaser. Presentation only: everything is read from listCabinet() and getHome().
  */
 export function AchievementsScreen() {
   const { achievements, history } = useServices();
@@ -101,6 +101,21 @@ export function AchievementsScreen() {
 
   return (
     <Screen scrollRef={scroll}>
+      {/* The Trophy Cabinet first: this screen is the cabinet, so its shelves are not buried under the plate, stats and spotlight. */}
+      <View
+        style={{ gap: space.md }}
+        onLayout={(e) => {
+          cabinetY.current = e.nativeEvent.layout.y;
+        }}
+      >
+        {/* The header already says "Trophy Cabinet", so the shelves start with the count rather than a second title. */}
+        <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("achv.r2.cabinet.count", { earned: medals.earned, total: medals.total })}</AppText>
+        <CabinetUnveil active={unveil} count={home.bannerCount ?? 0} order={unveilOrder(groups)} onDone={endUnveil}>
+          {groups.map((g) => (
+            <CabinetShelf key={g.shelf} shelf={g.shelf} items={g.items} partial={partial} onOpen={openSlot} />
+          ))}
+        </CabinetUnveil>
+      </View>
       <View style={{ gap: space.md }}>
         <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted, textAlign: "center" }}>{t("achv.r2.plate.eyebrow")}</AppText>
         <LifetimePlate days={days.days} daysIsFloor={days.floor} />
@@ -132,21 +147,6 @@ export function AchievementsScreen() {
       </View>
       <AlmostThere rows={almostThere(items)} first={firstMedal} onOpen={setDetail} />
       <MonthSeal quest={home.quest} onChanged={refreshHome} />
-      <View
-        style={{ gap: space.md }}
-        onLayout={(e) => {
-          cabinetY.current = e.nativeEvent.layout.y;
-        }}
-      >
-        <SectionTitle action={<AppText style={{ fontSize: ty.label, color: p.muted }}>{t("achv.r2.cabinet.count", { earned: medals.earned, total: medals.total })}</AppText>}>
-          {t("achv.r2.cabinet.title")}
-        </SectionTitle>
-        <CabinetUnveil active={unveil} count={home.bannerCount ?? 0} order={unveilOrder(groups)} onDone={endUnveil}>
-          {groups.map((g) => (
-            <CabinetShelf key={g.shelf} shelf={g.shelf} items={g.items} partial={partial} onOpen={openSlot} />
-          ))}
-        </CabinetUnveil>
-      </View>
       <LedgerTeaser earned={home.earned} onOpenLedger={() => nav.navigate("Ledger", {})} onOpen={setDetail} />
       <MedalDetailSheet
         row={detail}

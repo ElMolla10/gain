@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorkoutLiveActivityController, type WorkoutActivityInstance } from "../src/logic/workoutLiveActivityController";
 import type { WorkoutActivityProps } from "../src/logic/workoutActivityModel";
 
-const base: WorkoutActivityProps = { v: 2, title: "Workout", timerStart: 1000, pausedAt: null, pausedLabel: null, exercise: "Bench press", setLine: "Set 1 of 3", detail: "80 kg × 8", rest: null, rtl: false, plates: [], change: null };
+const base: WorkoutActivityProps = { v: 2, title: "Workout", timerStart: 1000, pausedAt: null, pausedLabel: null, exercise: "Bench press", setLine: "Set 1 of 3", detail: "80 kg × 8", rest: null, rtl: false, plates: [], change: null, plateCaps: [] };
 const resting = { ...base, setLine: "Set 2 of 3", rest: { startedAt: 1000, endsAt: 61000, label: "Rest timer" } };
 
 function harness(existing: WorkoutActivityInstance[] = [], legacy: { end(p: "immediate"): Promise<void> }[] = []) {

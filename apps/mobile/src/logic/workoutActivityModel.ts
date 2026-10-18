@@ -1,5 +1,7 @@
 import { barbellPlates, type EquipmentType, type GymLoadSpec, type Measure, type SetupType } from "@gain/engine";
 import { NBSP } from "../i18n/format";
+import { PLATE_NUMERAL_INK, TODAY_PLATES } from "../palettes";
+import { plateLook } from "./barArt";
 import { changeText, loadChange } from "./loadChange";
 import type { StringKey } from "../i18n/strings";
 import { focusedRowKey } from "./workoutFocus";
@@ -27,6 +29,8 @@ export type WorkoutActivityProps = {
   plates: number[];
   /** v2: "Load the change" for the focused set, already localised ("+10 each side"), or null. */
   change: string | null;
+  /** v2: one capsule per plate (same order as `plates`): printed number in the lifter's unit, face and ink colours (lb = iron). */
+  plateCaps: { t: string; bg: string; fg: string }[];
 };
 
 export type ActivityExercise = { exerciseId: string; nameEn: string; nameAr: string; measure?: Measure; setup?: string; equipment?: EquipmentType; loadSpec?: GymLoadSpec | null };
@@ -96,5 +100,9 @@ export function workoutActivityProps(i: WorkoutActivityInput): WorkoutActivityPr
     rtl: i.lang === "ar",
     plates,
     change,
+    plateCaps: plates.map((kg) => {
+      const token = plateLook(kg, i.unit).token;
+      return { t: weightText(kg, i.unit), bg: TODAY_PLATES[token].face, fg: PLATE_NUMERAL_INK[token] };
+    }),
   };
 }

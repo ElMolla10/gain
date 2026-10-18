@@ -118,7 +118,9 @@ export interface SessionSummary {
 }
 
 /** A lightweight, unsaved upcoming-workout preview using the same real progression engine as target planning. */
-export interface DayLoadPreview { exerciseId: string; proposal: Proposal }
+/** A proposal; `normalLoad` is set when a lighter week scaled the load (the load it would have been). */
+export type DeloadedProposal = Proposal & { normalLoad?: number };
+export interface DayLoadPreview { exerciseId: string; proposal: DeloadedProposal }
 
 type DayExercise = Awaited<ReturnType<Repos["listDayExercises"]>>[number];
 function toProposalSpec(ex: DayExercise): Parameters<WorkoutRepo["liveProposal"]>[0] {
@@ -133,7 +135,7 @@ function toProposalSpec(ex: DayExercise): Parameters<WorkoutRepo["liveProposal"]
 export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: WorkoutRepo) {
   const { newId, now } = deps;
 
-  async function applyLoadDeload(proposal: Proposal, equipment: DayExercise["equipment"], setup: SetupType, gym: GymFingerprint): Promise<Proposal> {
+  async function applyLoadDeload(proposal: Proposal, equipment: DayExercise["equipment"], setup: SetupType, gym: GymFingerprint): Promise<DeloadedProposal> {
     if (proposal.load == null) return proposal;
     const raw = await repos.getSetting("deload");
     if (!raw) return proposal;
@@ -143,7 +145,8 @@ export function createFinishRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     } catch {
       return proposal;
     }
-    return { ...proposal, load: scaleDeloadLoad(proposal.load, findSpec(gym, equipment), setup) };
+    const load = scaleDeloadLoad(proposal.load, findSpec(gym, equipment), setup);
+    return load === proposal.load ? { ...proposal, load } : { ...proposal, load, normalLoad: proposal.load };
   }
 
   /** What counted, and what was a record, against each line's earlier FINISHED sessions. */

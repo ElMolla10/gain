@@ -49,12 +49,21 @@ export async function startDay(action: SessionAction, deps: {
   plan: (dayId: string) => Promise<unknown>;
   navigate: (dayId: string) => void;
   record: (e: unknown) => void;
+  /**
+   * Optional, new starts only: runs after planning with the day id (Today looks up the planned session for its "Ease in" readiness). Fire-and-forget:
+   * never awaited before navigating, and a failure is only recorded.
+   */
+  afterStart?: (dayId: string) => Promise<unknown>;
 }): Promise<void> {
   if (action.kind === "start") {
     try { await deps.plan(action.dayId); }
     catch (e) { deps.record(e); }
   }
   deps.navigate(action.dayId);
+  if (action.kind === "start" && deps.afterStart) {
+    try { void deps.afterStart(action.dayId).catch((e) => deps.record(e)); }
+    catch (e) { deps.record(e); }
+  }
 }
 
 /**

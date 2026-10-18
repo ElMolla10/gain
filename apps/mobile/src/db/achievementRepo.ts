@@ -25,6 +25,9 @@ import {
   type SetupType,
   type StoredAchievement,
   type WeekPulse,
+  isQualifyingSession,
+  QUALIFIED_WEEK_DAYS,
+  weekStartOfLocalDate,
 } from "@gain/engine";
 import { buildCabinet, ledgerItems, pickNextUp, type NextUpBadge, type SurfaceBadge } from "../logic/achievementSurface";
 import type { Db, Deps } from "./driver";
@@ -199,6 +202,9 @@ async function stampMissingDates(db: Db, now: number): Promise<void> {
   }
 }
 
+/** getPulse reads only this far back: one week plus the 04:00 rollover margin. */
+const PULSE_WINDOW_MS = 9 * 86_400_000;
+
 async function loadSessions(db: Db, preview?: { sessionId: string; setId: string; now: number }): Promise<AchievementSession[]> {
   const sessions = await db.all<{ id: string; finished_at: number; local_calendar_date: string | null }>(
     `SELECT id, ${preview ? "COALESCE(finished_at, ?)" : "finished_at"} AS finished_at, local_calendar_date FROM session
@@ -206,14 +212,38 @@ async function loadSessions(db: Db, preview?: { sessionId: string; setId: string
        ${preview ? "OR (id = ? AND status = 'in_progress')" : ""}) ORDER BY finished_at, id`,
     preview ? [preview.now, preview.sessionId] : [],
   );
+  return attachSets(db, sessions, preview);
+}
+
+/**
+ * Finished sessions since `sinceMs` only, with their sets: the cheap read behind getPulse (Today never replays all history).
+ * Same rows and dates as loadSessions, restricted by time.
+ */
+async function loadRecentSessions(db: Db, sinceMs: number): Promise<AchievementSession[]> {
+  const sessions = await db.all<{ id: string; finished_at: number; local_calendar_date: string | null }>(
+    `SELECT id, finished_at, local_calendar_date FROM session
+     WHERE deleted_at IS NULL AND status = 'finished' AND finished_at IS NOT NULL AND finished_at >= ? ORDER BY finished_at, id`,
+    [sinceMs],
+  );
+  if (sessions.length === 0) return [];
+  return attachSets(db, sessions, undefined, sessions.map((r) => r.id));
+}
+
+async function attachSets(
+  db: Db,
+  sessions: { id: string; finished_at: number; local_calendar_date: string | null }[],
+  preview?: { sessionId: string; setId: string; now: number },
+  onlyIds?: string[],
+): Promise<AchievementSession[]> {
+  const only = onlyIds ? `AND ws.session_id IN (${onlyIds.map(() => "?").join(",")})` : "";
   const sets = await db.all<SetRow>(
     `SELECT ws.id, ws.session_id, ws.exercise_id, e.equipment, e.setup, ws.load, ws.reps, ws.is_warmup, ws.tags_json, ws.outlier_status,
             ws.duration_s, ws.distance_m, e.pattern, e.measure
        FROM workout_set ws JOIN exercise e ON e.id = ws.exercise_id
-      WHERE ws.deleted_at IS NULL AND e.deleted_at IS NULL
+      WHERE ws.deleted_at IS NULL AND e.deleted_at IS NULL ${only}
       ${preview ? `AND ws.exercise_id = (SELECT exercise_id FROM workout_set WHERE id = ? AND session_id = ? AND deleted_at IS NULL)
         AND (ws.session_id != ? OR ws.id = ?)` : ""}`,
-    preview ? [preview.setId, preview.sessionId, preview.sessionId, preview.setId] : [],
+    [...(onlyIds ?? []), ...(preview ? [preview.setId, preview.sessionId, preview.sessionId, preview.setId] : [])],
   );
   const bySession = new Map<string, AchievementSet[]>();
   for (const s of sets) {
@@ -664,6 +694,24 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
     };
   }
 
+  /**
+   * This week's qualified training days for Today's sleeve, WITHOUT replaying history: only sessions finished in the last 9 days are
+   * read (a week plus the 04:00 rollover margin). Same rule as evaluateAchievements' pulse: distinct logical dates of sessions with at
+   * least 3 trusted working sets, in the week that contains today's logical date.
+   */
+  async function getPulse(): Promise<WeekPulse> {
+    const week = await weekStartsOn(repos);
+    const localDate = await nowLocalDate();
+    const thisWeek = weekStartOfLocalDate(localDate, week);
+    const sessions = await loadRecentSessions(db, deps.now() - PULSE_WINDOW_MS);
+    const days = new Set<string>();
+    for (const s of sessions) {
+      if (weekStartOfLocalDate(s.localCalendarDate, week) !== thisWeek) continue;
+      if (isQualifyingSession(s)) days.add(s.localCalendarDate);
+    }
+    return { weekStart: thisWeek, qualifiedDays: days.size, dayTarget: QUALIFIED_WEEK_DAYS, qualified: days.size >= QUALIFIED_WEEK_DAYS };
+  }
+
   async function pickQuest(kind: QuestCard["kind"]): Promise<void> {
     const localDate = await nowLocalDate();
     const month = monthKey(localDate);
@@ -729,7 +777,7 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
     return evaluateAchievements(sessions).earned.some(e => e.badgeId === "strength_pr" && e.primarySessionId === sessionId && e.primarySetId === setId);
   }
 
-  return { sync, ensureBackfill, dismissBanner, listEarned, listCabinet, listLedger, listForSession, markCelebrated, getHome, getById, pickQuest, getPin, listPins, setPin, clearPin, previewStrengthPr };
+  return { sync, ensureBackfill, dismissBanner, getPulse, listEarned, listCabinet, listLedger, listForSession, markCelebrated, getHome, getById, pickQuest, getPin, listPins, setPin, clearPin, previewStrengthPr };
 }
 
 export type AchievementRepo = ReturnType<typeof createAchievementRepo>;

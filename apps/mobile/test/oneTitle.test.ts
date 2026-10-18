@@ -22,6 +22,15 @@ describe("one title per screen", () => {
     expect(src("src/screens/SessionDetailScreen.tsx")).toContain("navigation.setOptions({ title: headerTitle })");
     for (const n of ["ExerciseLoadsScreen", "LiftTrendView"]) expect(src(`src/screens/${n}.tsx`)).toMatch(/<AppText accessibilityRole="header" style=\{\{ fontSize: ty\.section, fontWeight: "600" \}\}>/);
   });
+  it("Today 10x: the day name is Today's one header (28/34); the hero eyebrow, date and label are not headers", () => {
+    const header = src("src/components/today/TodayHeader.tsx");
+    expect(header.match(/accessibilityRole="header"/g)).toHaveLength(1);
+    expect(header).toContain('<AppText accessibilityRole="header" style={{ fontSize: ty.title, lineHeight: 34, fontWeight: "600", flexShrink: 1 }}>{dayName}</AppText>');
+    const today = src("src/screens/TodayScreen.tsx");
+    expect(today).not.toMatch(/accessibilityRole="header"/);
+    expect(today).not.toMatch(/<Screen[^>]*title=/);
+    for (const f of ["TodayBar", "DoorStub", "RackRow"]) expect(src(`src/components/today/${f}.tsx`), f).not.toMatch(/accessibilityRole="header"/);
+  });
   it("header title is 17 on iOS and 20 on Android", () => {
     expect(src("App.tsx")).toContain("fontSize: Platform.select({ ios: 17, default: 20 })");
   });

@@ -70,17 +70,20 @@ describe("logger and Today: layout rules (source)", () => {
   it("Today: Suggested today label, a Change workout action and a picker; no chip group, no star, no separate lead-target card", () => {
     expect(today).toContain('t("today.suggestedToday")');
     expect(today).toContain("<ChoiceSheet");
-    expect(today).toContain('t("today.change")');
+    // Today 10x: Change lives in the header (hidden with one day).
+    expect(today).toContain("<TodayHeader");
+    expect(readFileSync(join(__dirname, "..", "src", "components", "today", "TodayHeader.tsx"), "utf8")).toContain('t("today.change")');
     expect(today).not.toContain("<Chip");
     expect(today).not.toContain("★");
     expect(today).not.toContain("TargetStrip");
     expect(today).toContain("sessionAction(");
   });
-  it("Today: the lead exercise is highlighted inside the list with a quiet Why; Start/Resume comes before the sample note", () => {
-    expect(today).toContain("isLead");
+  it("Today 10x: the lead exercise is the hero (Today's Bar) with a quiet Why on its stub; Start/Resume is the pinned footer", () => {
+    expect(today).toContain("<TodayBar hero={hero}");
+    expect(today).toContain("<DoorStub");
     expect(today).toContain('navigate("Why"');
     expect(today.indexOf("<BigButton hero")).toBeGreaterThan(0);
-    expect(today.indexOf('t("today.starterNote")')).toBeGreaterThan(today.indexOf("<BigButton hero"));
+    expect(today).toContain("<Screen tab footer={footer} footerInline={stack}>");
   });
   it("Why/Change actions are the shared QuietAction with a 48 dp minimum touch area", () => {
     const q = ui.slice(ui.indexOf("export function QuietAction"), ui.indexOf("/** Labelled text field"));

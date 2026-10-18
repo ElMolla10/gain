@@ -37,6 +37,16 @@ describe("haptics (iOS audit 7)", () => {
     expect(state.impact).not.toHaveBeenCalled();
     expect(state.vibrate).not.toHaveBeenCalled();
   });
+  it("Today: pickup is iOS Light; Android stays silent", () => {
+    state.os = "ios";
+    haptics.pickup();
+    expect(state.impact.mock.calls).toEqual([["light"]]);
+    state.os = "android";
+    vi.clearAllMocks();
+    haptics.pickup();
+    expect(state.impact).not.toHaveBeenCalled();
+    expect(state.vibrate).not.toHaveBeenCalled();
+  });
   it("a failing native module never throws", () => {
     state.os = "ios";
     state.impact.mockRejectedValueOnce(new Error("x"));

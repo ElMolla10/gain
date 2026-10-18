@@ -20,19 +20,27 @@ describe("Today layout (design audit T-3..T-8)", () => {
     expect(today).toContain(`<AppText style={{ color: p.muted, fontSize: ty.label }}>{data.programmeName}</AppText>`);
     expect(today).not.toContain("{data.programmeName} ·");
   });
-  it("T-4: the lead target row has a 4 dp accent bar on the start edge (mirrors in RTL)", () => {
-    expect(today).toMatch(/borderStartWidth: isLead \? 4 : 0, borderStartColor: p\.accent/);
-    expect(today).not.toMatch(/borderLeftWidth/);
+  it("T-4 (Today 10x): the lead is the hero, not a tinted row; the rack omits it and its targets are text, never lime", () => {
+    expect(today).toContain("<TodayBar hero={hero}");
+    expect(today).toContain("exercises.filter((e) => !(lead && hero && e.exerciseId === lead.exerciseId))");
+    expect(today).not.toMatch(/borderLeftWidth|isLead/);
+    const rack = src("components/today/RackRow.tsx");
+    expect(rack).toContain('fontSize: ty.section, lineHeight: 26, fontWeight: "600", color: p.text, fontVariant: ["tabular-nums"]');
+    expect(rack).not.toContain("p.accent");
+    expect(rack).toContain("minHeight: RACK_ROW_HEIGHT");
   });
-  it("T-5: order is session card (goal pace under Start) > weights list > one collapsed 'This week' card holding the five cards", () => {
-    const start = today.indexOf("<BigButton hero");
+  it("T-5 (Today 10x): header > hero > stub > rack > programme line > pace > one collapsed 'This week' card; Start is the pinned footer", () => {
+    const header = today.indexOf("<TodayHeader");
+    const hero = today.indexOf("<TodayBar");
+    const stub = today.indexOf("<DoorStub");
+    const list = today.indexOf('t("today.rack.planned")');
+    const programme = today.indexOf("{data.programmeName}</AppText>");
     const pace = today.indexOf("{paceLine ? (");
-    const list = today.indexOf('t("today.targets")');
     const week = today.indexOf("<CollapsibleCard");
-    expect(start).toBeGreaterThan(0);
-    expect(pace).toBeGreaterThan(start);
-    expect(list).toBeGreaterThan(pace);
-    expect(week).toBeGreaterThan(list);
+    expect(header).toBeGreaterThan(0);
+    for (const [a, b] of [[header, hero], [hero, stub], [stub, list], [list, programme], [programme, pace], [pace, week]] as const) expect(b).toBeGreaterThan(a);
+    expect(today).toContain("<Screen tab footer={footer} footerInline={stack}>");
+    expect(today).toContain("const footer = <BigButton hero");
     const inside = today.slice(week, today.indexOf("</CollapsibleCard>"));
     for (const c of ["PersonalProgressCard", "WeeklyReviewCard", "MuscleVolumeCard", "DeloadCard", "PeriodizationCard"]) expect(inside).toContain(`<${c} />`);
     expect(today).not.toContain("<ListCard");

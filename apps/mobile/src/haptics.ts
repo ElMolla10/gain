@@ -16,7 +16,9 @@ export const haptics = {
   land() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)); },
   /** Earn moment, Legacy medals only: the ring pulse (iOS Heavy). Android stays silent. */
   legacy() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)); },
-  /** Today: the x-ray mini bar is picked up (iOS Light). Android stays silent. */
+  /** Today: the bar is unracked on Start / Resume (iOS Medium). Android stays silent. */
+  unrack() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)); },
+  /** Today: the x-ray mini bar or the load path is picked up (iOS Light). Android stays silent. */
   pickup() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); },
   celebrate() { if (ios()) run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); else Vibration.vibrate(40); },
 };

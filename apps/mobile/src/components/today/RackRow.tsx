@@ -43,22 +43,29 @@ export function DeltaChip({ text }: { text: string }) {
   );
 }
 
-/** The x-ray: a 160 × 46 mini bar in grid LOD (flat fills, thickness × 0.36, min 2.4), in a raised panel. */
-export function PlateXray({ perSide, unit }: { perSide: readonly number[]; unit: Unit }) {
+/** A 160 × 46 mini bar in grid LOD (flat fills, thickness × 0.36, min 2.4 dp): the x-ray and the load path steps. */
+export function MiniBar({ perSide, unit }: { perSide: readonly number[]; unit: Unit }) {
   const dark = useIsDark();
-  const p = usePalette();
   const steel = dark ? BAR_STEEL.dark : BAR_STEEL.light;
   const l = barLayout(perSide, { unit });
   return (
+    <Svg width={160} height={46} viewBox={`0 0 ${HERO_W} 132`} {...ART_HIDDEN}>
+      <Rect x={0} y={l.cy - 6} width={HERO_W} height={12} fill={steel.base} />
+      {l.plates.map((r, i) => {
+        const w = Math.max(XRAY_MIN * (HERO_W / 160), r.w * XRAY_THICKNESS);
+        const inner = i < l.plates.length / 2 ? r.x + r.w - w : r.x;
+        return <Rect key={i} x={inner} y={r.y} width={w} height={r.h} fill={TODAY_PLATES[r.token].face} />;
+      })}
+    </Svg>
+  );
+}
+
+/** The x-ray: the mini bar in a raised panel under the row. */
+export function PlateXray({ perSide, unit }: { perSide: readonly number[]; unit: Unit }) {
+  const p = usePalette();
+  return (
     <View style={{ alignSelf: "flex-end", padding: space.sm, borderRadius: radius.button, backgroundColor: p.raised, shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-      <Svg width={160} height={46} viewBox={`0 0 ${HERO_W} 132`} {...ART_HIDDEN}>
-        <Rect x={0} y={l.cy - 6} width={HERO_W} height={12} fill={steel.base} />
-        {l.plates.map((r, i) => {
-          const w = Math.max(XRAY_MIN * (HERO_W / 160), r.w * XRAY_THICKNESS);
-          const inner = i < l.plates.length / 2 ? r.x + r.w - w : r.x;
-          return <Rect key={i} x={inner} y={r.y} width={w} height={r.h} fill={TODAY_PLATES[r.token].face} />;
-        })}
-      </Svg>
+      <MiniBar perSide={perSide} unit={unit} />
     </View>
   );
 }

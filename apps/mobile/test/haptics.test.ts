@@ -37,13 +37,13 @@ describe("haptics (iOS audit 7)", () => {
     expect(state.impact).not.toHaveBeenCalled();
     expect(state.vibrate).not.toHaveBeenCalled();
   });
-  it("Today: pickup is iOS Light; Android stays silent", () => {
+  it("Today: unrack is iOS Medium, pickup is iOS Light; Android stays silent", () => {
     state.os = "ios";
-    haptics.pickup();
-    expect(state.impact.mock.calls).toEqual([["light"]]);
+    haptics.unrack(); haptics.pickup();
+    expect(state.impact.mock.calls).toEqual([["medium"], ["light"]]);
     state.os = "android";
     vi.clearAllMocks();
-    haptics.pickup();
+    haptics.unrack(); haptics.pickup();
     expect(state.impact).not.toHaveBeenCalled();
     expect(state.vibrate).not.toHaveBeenCalled();
   });

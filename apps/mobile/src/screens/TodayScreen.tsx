@@ -1,5 +1,7 @@
 import { renderReason, type GymFingerprint, type PaceStatus, type SessionSummary } from "@gain/engine";
 import { WeekBlock } from "../components/today/WeekBlock";
+import { LoadPath } from "../components/today/LoadPath";
+import { pagerClaims, pagerCommit, runUnrack, stepDay, TODAY_MOTION } from "../logic/todayMotion";
 import { paceGlyph } from "../logic/todayWeek";
 import { leadTarget } from "../logic/nextTarget";
 import { plannedScheme, targetRowText } from "../logic/bidiText";
@@ -21,7 +23,7 @@ import { glyphFor, RackRow } from "../components/today/RackRow";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, useWindowDimensions, View } from "react-native";
+import { Animated, PanResponder, Pressable, useWindowDimensions, View } from "react-native";
 import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
 import { useServices } from "../AppContext";
@@ -32,7 +34,7 @@ import { useI18n } from "../i18n";
 import { MIN_TOUCH, radius, space, type as ty, usePalette } from "../theme";
 import { Icon } from "../components/Icon";
 import { dayLabel, initialSelection, markSuggested, dayNeedingPreview, sessionAction, startDay, type DayChoice } from "../logic/dayChoice";
-import { AppText, BigButton, Card, ChoiceSheet, EmptyState, ErrorState, InlineStatus, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
+import { AppText, BigButton, Card, ChoiceSheet, useReducedMotion, EmptyState, ErrorState, InlineStatus, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { LOADING, runLoad, type Load } from "../logic/loadState";
@@ -75,7 +77,7 @@ interface DoorExtras {
 
 export function TodayScreen() {
   const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history } = useServices();
-  const { t, lang, fmt, unit } = useI18n();
+  const { t, lang, fmt, unit, direction } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why" | "SessionDetail" | "Gyms", params?: { dayId: string } | { targetId: string } | { sessionId: string }) => void }>();
   const [state, setState] = useState<Load<TodayData>>(LOADING);
@@ -91,7 +93,43 @@ export function TodayScreen() {
   const [openRow, setOpenRow] = useState<string | null>(null);
   const [xrayRow, setXrayRow] = useState<string | null>(null);
   const [easeIn, setEaseIn] = useState(false);
-  const { fontScale } = useWindowDimensions();
+  const { fontScale, width } = useWindowDimensions();
+  const reduced = useReducedMotion();
+  const [pathOpen, setPathOpen] = useState(false);
+  const lift = useRef(new Animated.Value(0)).current;
+  const dragX = useRef(new Animated.Value(0)).current;
+  // The pager reads the latest day list through a ref (PanResponder is created once).
+  const pagerRef = useRef<{ ids: string[]; index: number; rtl: boolean; width: number; reduced: boolean }>({ ids: [], index: 0, rtl: false, width: 0, reduced: false });
+  const [scrollLocked, setScrollLocked] = useState(false);
+  const stepTo = useCallback((step: -1 | 0 | 1) => {
+    const pg = pagerRef.current;
+    const next = stepDay(pg.index, step, pg.ids.length);
+    if (next !== pg.index) {
+      haptics.untick();
+      setPathOpen(false);
+      setPicked(pg.ids[next]!);
+    }
+  }, []);
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (e, g) => pagerRef.current.ids.length > 1 && pagerClaims({ dx: g.dx, dy: g.dy, x0: g.x0, width: pagerRef.current.width }),
+      onPanResponderGrant: () => setScrollLocked(true),
+      onPanResponderMove: (_e, g) => {
+        if (!pagerRef.current.reduced) dragX.setValue(g.dx);
+      },
+      onPanResponderRelease: (_e, g) => {
+        setScrollLocked(false);
+        const pg = pagerRef.current;
+        const step = pagerCommit({ dx: g.dx, vx: g.vx, width: pg.width, rtl: pg.rtl });
+        Animated.timing(dragX, { toValue: 0, duration: step === 0 ? TODAY_MOTION.pagerSpringBack : TODAY_MOTION.pagerSettle, useNativeDriver: true }).start();
+        stepTo(step);
+      },
+      onPanResponderTerminate: () => {
+        setScrollLocked(false);
+        Animated.timing(dragX, { toValue: 0, duration: TODAY_MOTION.pagerSpringBack, useNativeDriver: true }).start();
+      },
+    }),
+  ).current;
   const loadSeq = useRef(0);
   const inflight = useRef(new Set<string>());
 
@@ -249,6 +287,8 @@ export function TodayScreen() {
   const now = Date.now();
   const mode = todayMode({ openDayId: data.openDayId, chosenId: chosen.id, lastFinishedAt: data.lastFinished?.finishedAt ?? null, now });
   const welcomeBack = mode === "normal" ? ex?.welcomeBackDays ?? null : null;
+  const dayIndex = Math.max(0, data.days.findIndex((d) => d.id === chosen.id));
+  pagerRef.current = { ids: data.days.map((d) => d.id), index: dayIndex, rtl: direction === "rtl", width, reduced };
   const lastOf = (r: TodayRow): SessionSummary | null => r.last ?? (r.targetId ? ex?.decisions[r.targetId]?.last ?? null : null);
   const reasonOf = (r: TodayRow): string | null => (r.reason ? renderReason(localizeReason(r.reason, unit, lang), lang) : null);
   const chipOf = (r: TodayRow) => deltaChip({ load: r.effectiveLoad, reps: r.reps, status: r.status }, lastOf(r), { lang, unit, t, lighterWeek: r.normalLoad !== null });
@@ -284,6 +324,16 @@ export function TodayScreen() {
   async function start() {
     if (starting) return;
     setStarting(true);
+    // Unrack: the bar lifts 8 dp over 120 ms, then the Medium haptic and the start (navigation never waits on the animation).
+    await new Promise<void>((resolve) =>
+      runUnrack({
+        reduced,
+        lift: (ms) => Animated.timing(lift, { toValue: -TODAY_MOTION.unrackLiftDp, duration: ms, useNativeDriver: true }).start(),
+        haptic: () => haptics.unrack(),
+        navigate: resolve,
+        later: (fn, ms) => setTimeout(fn, ms),
+      }),
+    );
     try {
       // Only a NEW workout gets its planned session and targets (planned sessions of other days are voided: missed days never stack).
       // An open workout is resumed as it is, whichever day is shown.
@@ -295,14 +345,16 @@ export function TodayScreen() {
         },
         navigate: (dayId) => navigation.navigate("Workout", { dayId }),
         // Ease in (welcome back): the new session is marked "returning" after navigating, never blocking the start.
-        afterStart: easeIn && welcomeBack !== null ? async () => {
-          const o = await workout.getOpenSession();
-          if (o) await workout.setSessionReadiness(o.id, "returning");
+        afterStart: easeIn && welcomeBack !== null ? async (dayId) => {
+          // The planned session becomes the workout: mark it "returning" (the logger aims 1-2 fewer reps).
+          const ps = (await workout.getOpenSession()) ?? (await finish.getPlannedSession(dayId));
+          if (ps) await workout.setSessionReadiness(ps.id, "returning");
         } : undefined,
         record: (e) => diagnostics.record("error", "today start", e),
       });
     } finally {
       setStarting(false);
+      lift.setValue(0);
     }
   }
 
@@ -316,9 +368,9 @@ export function TodayScreen() {
       <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />
     );
   return (
-    <Screen tab footer={footer} footerInline={stack}>
+    <Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>
       {/* The day name is the one title; the date, the label and Change sit around it (spec §0 row 0). */}
-      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={data.days.findIndex((d) => d.id === chosen.id)} dayCount={data.days.length} onChange={() => setChangeOpen(true)} />
+      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={dayIndex} dayCount={data.days.length} onChange={() => setChangeOpen(true)} onStep={stepTo} pagerName={chosen.name} />
       {mode === "openElsewhere" ? <InlineStatus kind="warn" text={t("today.finishOpenFirst")} /> : null}
       {mode === "open" && data.openInfo?.startedAt != null ? (
         <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.open.started", { time: clock(data.openInfo.startedAt), n: data.openInfo.saved, total: chosen.sets })}</AppText>
@@ -366,7 +418,13 @@ export function TodayScreen() {
               <AppText style={{ fontSize: ty.caption, fontWeight: "600" }}>{t("today.open.chip", { day: openDay.name })}</AppText>
             </View>
           ) : null}
-          <TodayBar hero={hero} name={leadName} racked={mode === "done"} dim={mode === "openElsewhere"} lifted={mode === "open" ? 8 : undefined} />
+          {/* The hero is the day pager (horizontal drag only, angle-locked, away from the screen edges) and unracks on Start. */}
+          <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dragX }, { translateY: lift }, { scale: pathOpen && !reduced ? TODAY_MOTION.pathHeroScale : 1 }] }}>
+            <TodayBar hero={hero} name={leadName} racked={mode === "done"} dim={mode === "openElsewhere"} lifted={mode === "open" ? 8 : undefined} onOpenPath={mode === "normal" ? () => { haptics.pickup(); setPathOpen((o) => !o); } : undefined} />
+          </Animated.View>
+          {pathOpen && hero.kind === "barbell" && hero.warmups.length > 0 ? (
+            <LoadPath steps={hero.warmups} work={{ load: hero.calc.load, reps: hero.reps ?? 0, perSide: hero.calc.perSide }} skippedHint={hero.skippedHint} onClose={() => setPathOpen(false)} />
+          ) : null}
           {hero.kind === "firstRun" ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.first.note")}</AppText> : null}
           {lead && mode !== "open" && mode !== "openElsewhere" ? (
             <DoorStub

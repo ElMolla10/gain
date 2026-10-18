@@ -127,6 +127,10 @@ describe("RackDock render", () => {
     const shell = nodes(tree).find((x) => x.props.style?.borderTopWidth !== undefined)!;
     // padding 12 + Log set 60 + 12 = 84 above the bottom inset.
     expect(shell.props.style.paddingTop + 60 + (shell.props.style.paddingBottom - 20)).toBe(84);
+    // No mini on a short screen: the number gets the whole width beside Log set and may not grow past it.
+    expect(byType(tree, "Svg")).toHaveLength(0);
+    const num = nodes(tree).find((x) => x.props.nativeID === "rack-dock-number")!;
+    expect(JSON.stringify(num.props.style)).toContain('"maxWidth":"100%"');
   });
   it("invalid input: disabled with the reason as the line", () => {
     const bad = dockModel([bench], { bench: [row({ invalidReps: true })] }, null, off);

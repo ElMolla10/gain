@@ -253,7 +253,7 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
   };
   const caption = `${name} · ${set}`;
   const number = (
-    <Animated.View nativeID="rack-dock-number" style={[{ opacity: fade, alignSelf: "flex-start" }, numberLand]}>
+    <Animated.View nativeID="rack-dock-number" style={[{ opacity: fade, alignSelf: "flex-start", maxWidth: "100%" }, numberLand]}>
       <AppText numberOfLines={k15 ? 2 : 1} style={{ fontSize: short ? 20 : 28, fontWeight: "600", fontVariant: ["tabular-nums"] }}>
         {dockNumberText(model, ctx)}
       </AppText>
@@ -274,7 +274,7 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
       onAccessibilityAction={canExpand ? expand : undefined}
       onPress={canExpand ? expand : undefined}
       hitSlop={{ top: 8, bottom: 8 }}
-      style={[{ flex: 1, minHeight: 48, justifyContent: "center", gap: 2 }, textDir]}
+      style={[{ flex: 1, minWidth: 0, minHeight: 48, justifyContent: "center", gap: 2 }, textDir]}
     >
       {!short && !k15 ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, minHeight: MINI_H }}>
@@ -287,14 +287,11 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
         <AppText numberOfLines={2} style={{ fontSize: 13, color: lp.muted }}>{caption}</AppText>
       ) : null}
       {short ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-          <Animated.View style={[{ opacity: resting ? 0.6 : 1, direction: "ltr" }, miniLand]}>
-            <DockMini model={model} unit={unit} />
-          </Animated.View>
-          <View style={{ flex: 1 }}>
-            {number}
-            {lineText}
-          </View>
+        // A 375 pt phone has ~180 pt beside Log set: the number and its change line take all of it, so the mini is left out here
+        // (the expanded sheet still draws the bar). A mini beside them clipped "120 kg × 8".
+        <View style={{ minWidth: 0 }}>
+          {number}
+          {lineText}
         </View>
       ) : (
         <>

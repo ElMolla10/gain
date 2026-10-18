@@ -66,6 +66,9 @@ export const enToday = {
   "today.first.number": "Your first numbers come from your first session.",
   "today.first.note": "Log what you lift; GAIN writes the next one when you finish.",
   "today.noGym": "Add your gym's plates to see what to load.",
+  "today.week.in": "This week is in. Train or rest, both count.",
+  "today.week.planned": "{done} of {goal} planned sessions",
+  "today.week.muscles": "This week's sets by muscle",
 } as const;
 
 export const arToday: Record<keyof typeof enToday, string> = {
@@ -196,4 +199,10 @@ export const arToday: Record<keyof typeof enToday, string> = {
   "today.first.note": "سجّل اللي بترفعه؛ GAIN بيكتب اللي بعده لما تخلص.",
   // DRAFT ar
   "today.noGym": "ضيف أطباق الجيم بتاعك عشان تشوف تحمّل إيه.",
+  // DRAFT ar
+  "today.week.in": "الأسبوع ده اتحسب. اتمرّن أو ارتاح، الاتنين محسوبين.",
+  // DRAFT ar
+  "today.week.planned": "{done} من {goal} تمارين متخططة",
+  // DRAFT ar
+  "today.week.muscles": "مجموعات الأسبوع ده حسب العضلة",
 };

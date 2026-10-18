@@ -1,5 +1,6 @@
-import { renderReason, type GymFingerprint, type SessionSummary } from "@gain/engine";
-import { PersonalProgressCard } from "../components/PersonalProgressCard";
+import { renderReason, type GymFingerprint, type PaceStatus, type SessionSummary } from "@gain/engine";
+import { WeekBlock } from "../components/today/WeekBlock";
+import { paceGlyph } from "../logic/todayWeek";
 import { leadTarget } from "../logic/nextTarget";
 import { plannedScheme, targetRowText } from "../logic/bidiText";
 import { formatDay } from "../logic/dateText";
@@ -23,10 +24,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { describePace } from "../logic/paceText";
 import type { StringKey } from "../i18n/strings";
-import { WeeklyReviewCard } from "../components/WeeklyReviewCard";
-import { MuscleVolumeCard } from "../components/MuscleVolumeCard";
-import { DeloadCard } from "../components/DeloadCard";
-import { PeriodizationCard } from "../components/PeriodizationCard";
 import { useServices } from "../AppContext";
 import { exerciseLabels } from "../i18n/format";
 import { estimateDayMinutes } from "../logic/duration";
@@ -35,7 +32,7 @@ import { useI18n } from "../i18n";
 import { MIN_TOUCH, radius, space, type as ty, usePalette } from "../theme";
 import { Icon } from "../components/Icon";
 import { dayLabel, initialSelection, markSuggested, dayNeedingPreview, sessionAction, startDay, type DayChoice } from "../logic/dayChoice";
-import { AppText, BigButton, Card, ChoiceSheet, CollapsibleCard, EmptyState, ErrorState, InlineStatus, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
+import { AppText, BigButton, Card, ChoiceSheet, EmptyState, ErrorState, InlineStatus, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { LOADING, runLoad, type Load } from "../logic/loadState";
@@ -84,6 +81,7 @@ export function TodayScreen() {
   const [state, setState] = useState<Load<TodayData>>(LOADING);
   const [attempt, setAttempt] = useState(0);
   const [paceLine, setPaceLine] = useState<string>("");
+  const [paceStatus, setPaceStatus] = useState<PaceStatus | null>(null);
   const [short, setShort] = useState<{ days: number } | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -139,6 +137,7 @@ export function TodayScreen() {
         const lib = pace.kind === "lift" ? await programmes.listExercises() : [];
         const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
         if (alive) setPaceLine(pace.kind === "none" ? "" : describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
+        if (alive) setPaceStatus(pace.kind === "none" ? null : (pace as { pace?: { status: PaceStatus } }).pace?.status ?? null);
         if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
         return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, loadId, lastFinished, lighterUntil: lighterUntil(deloadState as { status: string; endsAt?: number } | null, Date.now()), openInfo };
       }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
@@ -438,31 +437,11 @@ export function TodayScreen() {
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{data.programmeName}</AppText>
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{timeLine(chosen.exercises, chosen.sets, minutes, doneAround(now, minutes), lang, t)}</AppText>
       </View>
-      {/* Goal pace in one line: a 48 dp link to Goals. */}
-      {paceLine ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${t("goals.entry")}: ${paceLine}`}
-          onPress={() => navigation.navigate("Goals")}
-          style={({ pressed }) => ({ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.raised : "transparent" })}
-        >
-          <AppText style={{ flex: 1, fontSize: ty.label, color: p.muted }}>{paceLine}</AppText>
-          <Icon name="chevron" color={p.muted} size={18} mirror />
-        </Pressable>
-      ) : null}
       {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.starterNote")}</AppText> : null}
 
-      {/* Everything else about the week in ONE collapsed card instead of five stacked ones (T-5). Each section still loads itself and
-          keeps its own actions; a section with nothing to say renders nothing, and with no sections the card is not drawn. */}
-      {mode !== "openElsewhere" ? (
-      <CollapsibleCard title={t("today.thisWeek")} note={t("today.thisWeekNote")}>
-        <PersonalProgressCard />
-        <WeeklyReviewCard />
-        <MuscleVolumeCard />
-        <DeloadCard />
-        <PeriodizationCard />
-      </CollapsibleCard>
-      ) : null}
+      {/* This week: the week sleeve from the cheap pulse query (never the full achievements load), planned sessions, pace, ONE decision card, and the
+          sets-by-muscle sheet. Hidden while another day's workout is open. */}
+      {mode !== "openElsewhere" ? <WeekBlock pace={paceLine ? `${paceStatus ? `${paceGlyph(paceStatus, lang)} ` : ""}${paceLine}` : ""} onPace={() => navigation.navigate("Goals")} /> : null}
 
       <View style={{ gap: space.xs }}>
         {short ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("short.active", { days: short.days })}</AppText> : null}

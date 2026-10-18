@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, PanResponder, Share, View } from "react-native";
+import { Animated, Easing, PanResponder, View } from "react-native";
 import { telemetry } from "../../achievementTelemetry";
 import { diagnostics } from "../../diagnostics";
 import { useI18n } from "../../i18n";
@@ -9,10 +9,12 @@ import { evidenceLine } from "../../logic/achievementEvidence";
 import { familyTrack } from "../../logic/achievementShowcase";
 import { DEFAULT_SHARE_PRIVACY, evidenceSheetContent, formatShareCard, prestigeForBadge, shareCardCopy, type SurfaceBadge } from "../../logic/achievementSurface";
 import { formatDay } from "../../logic/dateText";
+import { posterCopy } from "../../logic/sharePoster";
 import { radius, space, type as ty, usePalette } from "../../theme";
 import { AppText, BigButton, Sheet, useReducedMotion } from "../../ui";
 import { Medal } from "./Medal";
 import { MedalBackFace } from "./MedalBack";
+import { useSharePoster } from "./SharePoster";
 
 /** Medal size on the sheet's stage (dp). */
 export const DETAIL_MEDAL = 200;
@@ -37,6 +39,8 @@ export function MedalDetailSheet(props: {
   cabinet: readonly SurfaceBadge[];
   qualifiedWeeksLifetime: number;
   weeks12Earned: boolean;
+  /** Training days for the plate poster (the Lifetime Plate's count). */
+  trainingDays?: { days: number | null; floor: boolean } | null;
   onClose: () => void;
   onViewWorkout: (sessionId: string) => void;
 }) {
@@ -51,6 +55,7 @@ export function MedalDetailSheet(props: {
   const tilt = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const flip = useRef(new Animated.Value(0)).current;
   const [sharing, setSharing] = useState(false);
+  const poster = useSharePoster();
 
   useEffect(() => {
     if (row) telemetry.record("badge_detail");
@@ -93,7 +98,11 @@ export function MedalDetailSheet(props: {
     setSharing(true);
     try {
       telemetry.record("share_card");
-      await Share.share({ message: formatShareCard(shareCardCopy(row, { privacy: DEFAULT_SHARE_PRIVACY, lang, unit, t })) });
+      const text = formatShareCard(shareCardCopy(row, { privacy: DEFAULT_SHARE_PRIVACY, lang, unit, t }));
+      await poster.share(
+        posterCopy(row, { privacy: DEFAULT_SHARE_PRIVACY, lang, unit, t, cabinet: props.cabinet, days: props.trainingDays, qualifiedWeeks: props.qualifiedWeeksLifetime }),
+        text,
+      );
     } catch (e) {
       diagnostics.record("warn", "share badge", e);
     } finally {
@@ -233,6 +242,7 @@ export function MedalDetailSheet(props: {
           <AppText style={{ color: p.muted }}>{t(sheet.ruleKey, sheet.ruleParams)}</AppText>
         </>
       ) : null}
+      {poster.host}
     </Sheet>
   );
 }

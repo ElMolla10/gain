@@ -1,4 +1,6 @@
+import { Alert } from "react-native";
 import { MenuSheet } from "../components/LogParts";
+import { formatClock } from "../logic/restTimer";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { ExerciseReorderModal } from "../components/ExerciseReorderModal";
 import { WorkoutHelp } from "../components/WorkoutHelp";
@@ -20,8 +22,16 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
     ssFor, subFor, subCands, setSubFor, replaceWith,
     setPickFor, addOpen, library, loaded, setAddOpen,
     addExerciseToday, programmes, libRef, setLibrary, pickFor,
-    alternatives, setLoadsOpen,
+    alternatives, setLoadsOpen, exerciseProps,
   } = session;
+  // The ⋮ menu's extra items (logger spec §4): pain / dizziness reporting (moved out of the live card, C10) and the rest switch when
+  // rest is off in general. Both call the same handlers as before.
+  const menuProps = menuEx ? exerciseProps(menuEx, shown.indexOf(menuEx)) : null;
+  const reportPain = menuProps?.card ? () => setTimeout(() => Alert.alert(t("live.report"), undefined, [
+    { text: t("live.severePain"), onPress: () => menuProps.onLiveReport("severe_pain") },
+    { text: t("live.dizziness"), onPress: () => menuProps.onLiveReport("dizziness") },
+    { text: t("common.cancel"), style: "cancel" },
+  ]), 150) : null;
   return <>
       <ExerciseReorderModal
         visible={reorderOpen}
@@ -39,6 +49,8 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
         items={
           menuEx
             ? [
+                ...(reportPain ? [{ label: t("rack.menu.pain"), onPress: reportPain }] : []),
+                ...(menuProps && !menuProps.restGlobal ? [{ label: t("rack.menu.rest", { time: menuProps.st.restOff ? t("workout.restOffShort") : formatClock(menuProps.restDurationMs) }), onPress: () => menuProps.onToggleRest() }] : []),
                 { label: t("workout.menu.notes"), onPress: () => setTimeout(() => noteInputs.current[menuEx.slot]?.focus(), 150) },
                 ...(menuEx.equipment === "machine" ? [{ label: t("workout.menu.machineSteps"), onPress: () => setMachineFor(menuEx.slot) }] : []),
                 // Available weights moved here from the exercise header, so a long name keeps the header to one line (L-12).

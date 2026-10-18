@@ -4,7 +4,9 @@ import { translate } from "../src/i18n/format";
 import type { Disp } from "../src/logic/workoutTypes";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
 import { LiveSuggestion, LoadSettings } from "../src/components/LiveSuggestion";
-import { WorkoutExerciseSection } from "../src/components/WorkoutExerciseSection";
+import { FoldedExercise, shouldFold, WorkoutExerciseSection } from "../src/components/WorkoutExerciseSection";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { MemoWorkoutSetRow, WorkoutSetRow, type WorkoutSetRowProps } from "../src/components/WorkoutSetRow";
 import { PreviousSourceToggle, parsePreviousSource, PREVIOUS_SOURCE_KEY } from "../src/components/PreviousSourceToggle";
 
@@ -208,7 +210,8 @@ describe("extracted exercise section wiring", () => {
     tree.find(n => (n.type as unknown) === "IconButton")!.props.onPress();
     const target = tree.find(n => (n.type as unknown) === "TargetLine")!;
     target.props.onWhy(); target.props.onWhyLong();
-    tree.find(n => (n.type as unknown) === "BigButton" && n.props.accessibilityHint)!.props.onPress();
+    // "+ Set" is a quiet text action now (logger 10x §4), labelled with the exercise.
+    tree.find(n => (n.type as unknown) === "QuietAction" && String(n.props.accessibilityLabel ?? "").startsWith("Add Set:"))!.props.onPress();
     for (const handler of [p.onToggleRest, p.onMenu, p.onWhy, p.onWhyLong, p.onAddSet]) expect(handler).toHaveBeenCalledOnce();
     expect(tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ")).toContain("A");
   });
@@ -300,7 +303,7 @@ describe("extracted exercise section wiring", () => {
 });
 
 describe("live suggestion explanations", () => {
-  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8.25, reason: "within_range" as const }, state: "hold" as const, equipment: "barbell" as const, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onOwn: vi.fn(), onKeep: vi.fn(), onReport: vi.fn() });
+  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8.25, reason: "within_range" as const }, state: "hold" as const, equipment: "barbell" as const, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onOwn: vi.fn(), onKeep: vi.fn() });
   it("explains the observed set in the user's unit without changing the decision", () => {
     settings.unit = "lb";
     const p = presentation();
@@ -422,7 +425,7 @@ describe("accessible row deletion and invalid-input protection", () => {
 describe("S-1: AppText ltr never carries Arabic (Arabic UI)", () => {
   const ARABIC = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
   const textOf = (c: unknown): string => typeof c === "string" || typeof c === "number" ? String(c) : Array.isArray(c) ? c.map(textOf).join("") : "";
-  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8.25, reason: "within_range" as const }, state: "hold" as const, equipment: "barbell" as const, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onOwn: vi.fn(), onKeep: vi.fn(), onReport: vi.fn() });
+  const presentation = () => ({ decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8.25, reason: "within_range" as const }, state: "hold" as const, equipment: "barbell" as const, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, detailsOpen: true, onToggleDetails: vi.fn(), onApply: vi.fn(), onOwn: vi.fn(), onKeep: vi.fn() });
   const offenders = (tree: Node[]) => tree.filter(n => n.type as unknown === "AppText" && n.props.ltr && ARABIC.test(textOf(n.props.children))).map(n => textOf(n.props.children));
   it("the set row and the next-set card in Arabic: no ltr run holds an Arabic letter; Previous is unitless, the load reads in Arabic order", () => {
     settings.lang = "ar";
@@ -435,5 +438,61 @@ describe("S-1: AppText ltr never carries Arabic (Arabic UI)", () => {
     const value = card.find(n => n.type as unknown === "AppText" && textOf(n.props.children).includes("\u00A0×\u00A0"))!;
     expect(textOf(value.props.children)).toBe("\u206660\u2069\u00A0كجم\u00A0×\u00A0\u20668\u2069");
     expect(card.some(n => n.type as unknown === "AppText" && n.props.children === "الجاية")).toBe(true);
+  });
+});
+
+describe("logger 10x table trims (PR C)", () => {
+  const src = (f: string) => readFileSync(join(__dirname, "..", "src", f), "utf8");
+  it("C10: the pain report is a ⋮ item, not an icon on the live card", () => {
+    const p = { decision: { action: "maintain" as const, suggestedWeightKg: 60, suggestedReps: 8, predictedReps: 8, reason: "within_range" as const }, state: "hold" as const, equipment: "barbell" as const, basis: { load: 60, reps: 10 }, repMin: 6, repMax: 10, manualLoad: false, busy: false, onApply: vi.fn(), onOwn: vi.fn(), onKeep: vi.fn() };
+    const tree = nodes(LiveSuggestion(p));
+    expect(tree.some(n => (n.type as unknown) === "IconButton" && n.props.icon === "alert")).toBe(false);
+    expect(src("components/LiveSuggestion.tsx")).not.toContain("live.report");
+    const sheets = src("components/WorkoutSessionSheets.tsx");
+    expect(sheets).toContain('t("rack.menu.pain")');
+    expect(sheets).toMatch(/menuProps\.onLiveReport\("severe_pain"\)/);
+    expect(sheets).toMatch(/menuProps\.onLiveReport\("dizziness"\)/);
+    expect(translate("ar", "rack.menu.pain")).toBe("بلّغ عن ألم أو دوخة");
+  });
+  it("the section shows no 'Suggested weight' or 'Each side' text", async () => {
+    const p = await sectionProps();
+    const text = nodes(WorkoutExerciseSection(p)).filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(text).not.toContain("Suggested weight");
+    expect(text).not.toContain("Each side");
+    const target = nodes(WorkoutExerciseSection(p)).find(n => (n.type as unknown) === "TargetLine")!;
+    expect(target.props.suggestedLabel).toBeUndefined();
+  });
+  it("the rest chip shows only when rest is on in general; the ⋮ menu carries it otherwise", async () => {
+    const p = await sectionProps();
+    expect(nodes(WorkoutExerciseSection({ ...p, restGlobal: true })).some(n => (n.type as unknown) === "RestToggle")).toBe(true);
+    expect(nodes(WorkoutExerciseSection({ ...p, restGlobal: false })).some(n => (n.type as unknown) === "RestToggle")).toBe(false);
+    expect(src("components/WorkoutSessionSheets.tsx")).toMatch(/!menuProps\.restGlobal \? \[\{ label: t\("rack\.menu\.rest"/);
+  });
+  it("↑ beat last time on the Previous cell of a logged row (text 600, spoken)", () => {
+    const p = props({ lastSets: [{ load: 55, reps: 9 }, { load: 60, reps: 7 }] as never });
+    p.row = markSaved([{ ...p.row, load: 60, reps: 8 }], p.row.key)[0]!;
+    const cell = nodes(WorkoutSetRow(p)).find(n => (n.type as unknown) === "AppText" && String(n.props.children).startsWith("↑"))!;
+    expect(cell.props.style.fontWeight).toBe("600");
+    expect(cell.props.accessibilityLabel).toContain("beat last time");
+    const same = props({ lastSets: [{ load: 55, reps: 9 }, { load: 60, reps: 8 }] as never });
+    same.row = markSaved([{ ...same.row, load: 60, reps: 8 }], same.row.key)[0]!;
+    expect(nodes(WorkoutSetRow(same)).some(n => String(n.props.children).startsWith("↑"))).toBe(false);
+  });
+  it("fold: only finished, unedited, confirmed and unfocused; unfold on tap", () => {
+    const rows = initialRows([], 2, { load: 57.5, reps: 8 }, (() => { let i = 0; return () => `f${i++}`; })());
+    const saved = rows.map((r, i) => ({ ...r, load: 57.5, reps: 8 + i, saved: true }));
+    expect(shouldFold(saved, 0, false)).toBe(true);
+    expect(shouldFold(saved, 0, true)).toBe(false);
+    expect(shouldFold(saved, 1, false)).toBe(false);
+    expect(shouldFold([{ ...saved[0]!, dirty: true }, saved[1]!], 0, false)).toBe(false);
+    expect(shouldFold(rows, 0, false)).toBe(false);
+    const onUnfold = vi.fn();
+    const p = { fill: "fill", accent: "accent", muted: "muted" } as never;
+    const tree = nodes(FoldedExercise({ name: "Bench Press", list: saved, superset: false, onUnfold, t: (k, params) => translate("en", k, params), lang: "en", unit: "kg", p }));
+    const btn = tree[0]!;
+    expect(btn.props.accessibilityRole).toBe("button");
+    expect(String(btn.props.accessibilityLabel).replace(/[\u2066-\u2069]/g, "").replace(/\u00a0/g, " ")).toBe("Bench Press, 2 sets done: 57.5 kg × 8, 9");
+    btn.props.onPress();
+    expect(onUnfold).toHaveBeenCalledOnce();
   });
 });

@@ -29,6 +29,11 @@ export const enRack = {
   "rack.a11y.loggedLast": "{set} logged",
   "rack.expand": "Show plates and warm-ups",
   "rack.perSide": "per side {plates}",
+  "rack.beatLast": "beat last time",
+  "rack.fold.a11y": "{exercise}, {n} sets done: {summary}",
+  "rack.fold.hint": "Shows the sets",
+  "rack.menu.rest": "Rest after this exercise: {time}",
+  "rack.menu.pain": "Report pain or dizziness",
 } as const;
 
 export const arRack: Record<keyof typeof enRack, string> = {
@@ -84,4 +89,14 @@ export const arRack: Record<keyof typeof enRack, string> = {
   "rack.expand": "اعرض الأطباق والتسخين",
   // DRAFT ar
   "rack.perSide": "في كل ناحية {plates}",
+  // DRAFT ar
+  "rack.beatLast": "زِدت عن المرة اللي فاتت",
+  // DRAFT ar
+  "rack.fold.a11y": "{exercise}، المجموعات اللي خلصت: {n}. {summary}",
+  // DRAFT ar
+  "rack.fold.hint": "يعرض المجموعات",
+  // DRAFT ar
+  "rack.menu.rest": "الراحة بعد التمرين ده: {time}",
+  // DRAFT ar
+  "rack.menu.pain": "بلّغ عن ألم أو دوخة",
 };

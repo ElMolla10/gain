@@ -344,7 +344,8 @@ describe("typing into set 2 after set 1 is ticked (Android scroll twitch)", () =
     const before = layout(s, i);
     expect(before.props.card?.key).toBe(before.props.list[1]!.key);
     expect(before.props.suggestionOpen).toBe(false);
-    expect(before.suggested[0]).toBe("Suggested weight:");
+    // Logger 10x §4: no "Suggested weight" line any more (the dock carries the number); the details toggle stays.
+    expect(before.suggested[0]).toBeUndefined();
     expect(before.suggested[2]).toBe("Next set details");
     return { ex, before };
   }

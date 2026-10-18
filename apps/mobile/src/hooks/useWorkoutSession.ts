@@ -829,6 +829,7 @@ export function useWorkoutSession() {
       afterExercise: afterExercise,
       readiness: whyReadiness,
       restDurationMs: timer.durationMs,
+      restGlobal: rest.auto,
       busy: busy !== null,
       warmOpen: warmOpen === ex.exerciseId,
       warmDone: !!warmDone[ex.exerciseId],

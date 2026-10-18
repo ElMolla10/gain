@@ -3,9 +3,11 @@
  * Pure (no React Native), so EN and AR output can be checked to the code point. Numbers are isolated by `t` (translate), the
  * Arabic count nouns follow arPluralKey (3–10 plural, otherwise singular), and Arabic never uses a slash fraction.
  */
-import type { Lang } from "../i18n/format";
+import { isolateLtr, type Lang } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
-import { arPluralKey, daysToNext, nextPlate, plateTier, type PlateTier } from "./achievementShowcase";
+import { arPluralKey, daysToNext, nextPlate, plateTier, type MedalState, type PlateTier } from "./achievementShowcase";
+import { prestigeForBadge, type SurfaceBadge } from "./achievementSurface";
+import { formatDay } from "./dateText";
 
 type T = (key: StringKey, params?: Record<string, string | number>) => string;
 
@@ -60,3 +62,41 @@ export function sleeveCopy(done: number, goal: number, t: T): SleeveCopy {
 
 /** "11 / 17" in English, "11 من 17" in Arabic (no slash fractions in Arabic). */
 export const medalsValue = (earned: number, total: number, t: T): string => t("achv.r2.stat.medalsValue", { earned, total });
+
+/** What a medal slot says about itself: enough to rebuild its state line and spoken label. */
+export interface MedalSlotInfo {
+  badgeId: string;
+  state: MedalState;
+  row: Pick<SurfaceBadge, "earnedLocalDate" | "earnedAtUtc" | "progressCurrent" | "progressTarget"> | null;
+  count: number;
+  repeatable: boolean;
+}
+
+const earnedDay = (row: MedalSlotInfo["row"], lang: Lang, now?: number): string => {
+  const when = row?.earnedLocalDate ?? row?.earnedAtUtc;
+  return when === null || when === undefined ? "" : formatDay(when, lang, now, true);
+};
+
+/**
+ * The line under a medal: earn date (short, the year only outside this year), "×37" as one isolated run for a repeatable stack,
+ * "38 of 50" in progress (no slash fractions in Arabic), "Locked" / "لسه".
+ */
+export function medalStateLine(item: MedalSlotInfo, lang: Lang, t: T, now?: number): string {
+  if (item.state === "earned") return item.repeatable ? isolateLtr(`\u00d7${item.count}`) : earnedDay(item.row, lang, now);
+  if (item.state === "in_progress") return t("achv.r2.medal.of", { x: item.row?.progressCurrent ?? 0, y: item.row?.progressTarget ?? 0 });
+  return t("achv.r2.medal.locked");
+}
+
+/** Spoken label per spec §9: "{name}, {prestige}, earned {date}" · "{name}, in progress, {x} of {y}" · "{name}, locked". */
+export function medalA11y(item: MedalSlotInfo, name: string, lang: Lang, t: T, now?: number): string {
+  if (item.state === "earned") {
+    const prestige = t(`achv.prestige.${prestigeForBadge(item.badgeId)}` as StringKey);
+    const date = earnedDay(item.row, lang, now);
+    if (item.repeatable && item.count > 1) {
+      return t(countKey(item.count, lang, "achv.r2.medal.a11y.times.one", "achv.r2.medal.a11y.times.few"), { name, prestige, n: item.count, date });
+    }
+    return t("achv.r2.medal.a11y.earned", { name, prestige, date });
+  }
+  if (item.state === "in_progress") return t("achv.r2.medal.a11y.progress", { name, x: item.row?.progressCurrent ?? 0, y: item.row?.progressTarget ?? 0 });
+  return t("achv.r2.medal.a11y.locked", { name });
+}

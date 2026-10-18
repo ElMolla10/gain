@@ -158,8 +158,11 @@ describe("medals and shelves", () => {
     expect(comeback.count).toBe(2);
     expect(groups[2]!.earned).toBe(3);
     expect(groups[2]!.items.map((i) => i.state)).toEqual(["earned", "earned", "in_progress", "in_progress", "earned", "in_progress", "in_progress"]);
-    // Every catalog badge appears exactly once.
-    expect(groups.flatMap((g) => g.items).length).toBe(27);
+    // Every non-quest catalog badge appears exactly once, and the four quest kinds share one "Monthly quests" slot: 24 slots.
+    const slots = groups.flatMap((g) => g.items);
+    expect(slots.length).toBe(24);
+    expect(groups.map((g) => g.items.length)).toEqual([6, 5, 7, 6]);
+    expect(slots.filter((i) => i.badgeId.startsWith("quest_")).map((i) => i.slot)).toEqual(["quest"]);
   });
   it("a partial shelf keeps everything earned plus the next 2, closest first", () => {
     const lifetime = shelves(sampleCabinet())[2]!.items;

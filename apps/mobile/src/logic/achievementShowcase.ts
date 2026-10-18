@@ -194,6 +194,9 @@ export function shelfOf(badgeId: string): Shelf {
 }
 
 export interface ShelfItem {
+  /** Stable slot id: the catalog badge id, or "quest" for the one Monthly quests slot. */
+  slot: string;
+  /** Badge whose art the slot shows (for the quest slot: the newest earned quest, else quest_rhythm). */
   badgeId: string;
   i18nKey: string;
   state: MedalState;
@@ -210,28 +213,109 @@ export interface ShelfGroup {
   earned: number;
 }
 
+/** Strength reads PR · Workhorse · Block Builder · Target reached · Iron Hold · Iron Carry (mockup order); other shelves keep catalog order. */
+const STRENGTH_ORDER = ["strength_pr", "workhorse", "block_builder", "pin_target", "iron_hold", "iron_carry"];
+const slotRank = (slot: string): number => {
+  const i = STRENGTH_ORDER.indexOf(slot);
+  return i === -1 ? 0 : i;
+};
+
+/** The one slot that stands for all four quest kinds on the Consistency shelf. */
+export const QUEST_SLOT = "quest";
+
 const stateOf = (r: SurfaceBadge | null): MedalState => (r?.status === "earned" ? "earned" : r?.status === "in_progress" ? "in_progress" : "locked");
 
 /**
  * The cabinet grouped onto four shelves, each in catalog order. Repeatables collapse to one slot with a ×N count; a repeatable that
- * was never earned is drawn from ACHIEVEMENT_CATALOG as locked (the way buildCabinet already makes locked rows for uniques).
+ * was never earned is drawn from ACHIEVEMENT_CATALOG as locked (the way buildCabinet already makes locked rows for uniques). The four
+ * quest kinds share one "Monthly quests" slot at the end of Consistency (24 slots in all), as in the mockups.
  */
 export function shelves(cabinet: readonly SurfaceBadge[]): ShelfGroup[] {
   const items: ShelfItem[] = [];
   for (const def of ACHIEVEMENT_CATALOG) {
+    if (def.id.startsWith("quest_")) continue;
     if (UNIQUE_BADGE_IDS.has(def.id)) {
       const row = cabinet.find((r) => r.badgeId === def.id) ?? null;
-      items.push({ badgeId: def.id, i18nKey: def.i18nKey, state: stateOf(row), row, count: row?.status === "earned" ? 1 : 0, repeatable: false });
+      items.push({ slot: def.id, badgeId: def.id, i18nKey: def.i18nKey, state: stateOf(row), row, count: row?.status === "earned" ? 1 : 0, repeatable: false });
       continue;
     }
     const earned = cabinet.filter((r) => r.badgeId === def.id && r.status === "earned").sort(newestFirst);
-    items.push({ badgeId: def.id, i18nKey: def.i18nKey, state: earned.length ? "earned" : "locked", row: earned[0] ?? null, count: earned.length, repeatable: true });
+    items.push({ slot: def.id, badgeId: def.id, i18nKey: def.i18nKey, state: earned.length ? "earned" : "locked", row: earned[0] ?? null, count: earned.length, repeatable: true });
   }
+  const quests = cabinet.filter((r) => r.badgeId.startsWith("quest_") && r.status === "earned").sort(newestFirst);
+  const at = items.findIndex((i) => i.slot === "comeback") + 1;
+  items.splice(at, 0, {
+    slot: QUEST_SLOT,
+    badgeId: quests[0]?.badgeId ?? "quest_rhythm",
+    i18nKey: "achv.r2.quests",
+    state: quests.length ? "earned" : "locked",
+    row: quests[0] ?? null,
+    count: quests.length,
+    repeatable: true,
+  });
   return SHELF_ORDER.map((shelf) => {
-    const on = items.filter((i) => shelfOf(i.badgeId) === shelf);
+    const on = items.filter((i) => shelfOf(i.badgeId) === shelf).sort((a, b) => slotRank(a.slot) - slotRank(b.slot));
     return { shelf, items: on, earned: on.filter((i) => i.state === "earned").length };
   });
 }
+
+/** The row a slot opens: its own row, or (a never-earned repeatable) a locked stand-in drawn from the catalog. Presentation only. */
+export function slotRow(item: ShelfItem): SurfaceBadge {
+  if (item.row) return item.row;
+  const def = ACHIEVEMENT_CATALOG.find((b) => b.id === item.badgeId);
+  return {
+    id: `locked:${item.slot}`,
+    badgeId: item.badgeId,
+    i18nKey: def?.i18nKey ?? item.i18nKey,
+    family: def?.family ?? "quest",
+    status: "locked",
+    earnedAtUtc: null,
+    earnedLocalDate: null,
+    primarySessionId: null,
+    evidence: null,
+    progressCurrent: null,
+    progressTarget: null,
+    isBackfilled: false,
+    exerciseNameEn: null,
+    exerciseNameAr: null,
+  };
+}
+
+/** The month (1–12) a row was earned in, for the seal's boss numeral. */
+export function monthOf(row: Pick<SurfaceBadge, "earnedLocalDate"> | null): number | undefined {
+  const m = row?.earnedLocalDate ? /^\d{4}-(\d{2})/.exec(row.earnedLocalDate) : null;
+  return m ? Number(m[1]) : undefined;
+}
+
+export type ShelfTrack = "days" | "years" | "dedicated" | "spectrum";
+/** Lifetime and Mastery split into labelled tracks (Training days · Years, Dedicated · Full Spectrum); the others are one run. */
+export function shelfSections(items: readonly ShelfItem[]): { track: ShelfTrack | null; items: ShelfItem[] }[] {
+  const trackOf = (id: string): ShelfTrack | null =>
+    id.startsWith("hundred_club_") ? "days" : id.startsWith("multi_year_") ? "years" : id.startsWith("dedicated_") ? "dedicated" : id.startsWith("full_spectrum_") ? "spectrum" : null;
+  const out: { track: ShelfTrack | null; items: ShelfItem[] }[] = [];
+  for (const item of items) {
+    const track = trackOf(item.badgeId);
+    const last = out[out.length - 1];
+    if (last && last.track === track) last.items.push(item);
+    else out.push({ track, items: [item] });
+  }
+  return out;
+}
+
+/** Short slot names inside a labelled track ("100 days" under Training days); everything else keeps its catalog name. */
+export function slotNameKey(item: Pick<ShelfItem, "badgeId" | "i18nKey">): string {
+  const m = /^(hundred_club|multi_year|dedicated|full_spectrum)_(\d+)$/.exec(item.badgeId);
+  if (!m) return item.i18nKey;
+  const prefix = { hundred_club: "days", multi_year: "years", dedicated: "sessions", full_spectrum: "weeks" }[m[1] as "hundred_club"];
+  return `achv.r2.slot.${prefix}${m[2]}`;
+}
+
+/** Below this many earned slots the lifter is "partial": each shelf shows what's earned plus the next 2, with "See all N". */
+export const PARTIAL_BELOW = 6;
+export const isPartialCabinet = (groups: readonly ShelfGroup[]): boolean => {
+  const earned = groups.reduce((n, g) => n + g.earned, 0);
+  return earned > 0 && earned < PARTIAL_BELOW;
+};
 
 const ratio = (r: SurfaceBadge | null): number => (r && (r.progressTarget ?? 0) > 0 ? (r.progressCurrent ?? 0) / (r.progressTarget ?? 1) : 0);
 

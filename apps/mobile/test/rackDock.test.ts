@@ -8,9 +8,21 @@ import { dockA11y, dockButtonText, dockLoggedText, dockNumberText } from "../src
 import type { SetRowDraft } from "../src/logic/workoutRows";
 import { byType, expand, nodes, texts } from "./achievementRender";
 
-const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar", fontScale: 1, height: 800, dark: true }));
+const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar", fontScale: 1, height: 800, dark: true, reduced: false }));
+const anim = vi.hoisted(() => ({ loops: 0, timings: [] as { duration: number; native: boolean }[] }));
+const hap = vi.hoisted(() => ({ calls: [] as string[] }));
+vi.mock("../src/haptics", () => ({ haptics: { tick: () => hap.calls.push("tick"), selection: () => hap.calls.push("selection"), pickup: () => hap.calls.push("pickup") } }));
 vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig(), { useContext: () => null }));
-vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", ActivityIndicator: "ActivityIndicator", AccessibilityInfo: { announceForAccessibility: () => {} }, useWindowDimensions: () => ({ fontScale: settings.fontScale, width: 412, height: settings.height }) }));
+vi.mock("react-native", () => {
+  class Value { v: number; constructor(v: number) { this.v = v; } setValue(v: number) { this.v = v; } interpolate() { return this; } }
+  const handle = { start: () => {}, stop: () => {} };
+  return {
+    View: "View", Pressable: "Pressable", ActivityIndicator: "ActivityIndicator", AccessibilityInfo: { announceForAccessibility: () => {} },
+    useWindowDimensions: () => ({ fontScale: settings.fontScale, width: 412, height: settings.height }),
+    Animated: { View: "Animated.View", Value, timing: (_v: unknown, c: { duration: number; useNativeDriver: boolean }) => { anim.timings.push({ duration: c.duration, native: c.useNativeDriver }); return handle; }, sequence: () => handle, parallel: () => handle, loop: () => { anim.loops++; return handle; } },
+    Easing: { linear: (x: number) => x, ease: (x: number) => x, cubic: (x: number) => x, in: (f: unknown) => f, out: (f: unknown) => f, inOut: (f: unknown) => f },
+  };
+});
 vi.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 20, left: 0, right: 0 }) }));
 vi.mock("react-native-svg", () => ({ default: "Svg", Circle: "Circle", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", Rect: "Rect", Stop: "Stop" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: settings.lang, unit: "kg", direction: settings.lang === "ar" ? "rtl" : "ltr", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(settings.lang, k, p) }) }));
@@ -22,12 +34,15 @@ vi.mock("../src/theme", () => ({
   useLogPalette: () => ({ card: "card", line: "line", accent: "accent", activeBg: "activeBg", fill: "fill", onFill: "onFill", fillPressed: "fillPressed", muted: "muted", warn: "warn", text: "text", edge: "edge", field: "field" }),
   useIsDark: () => settings.dark,
 }));
-vi.mock("../src/ui", () => ({ AppText: "AppText" }));
+vi.mock("../src/ui", () => ({ AppText: "AppText", useReducedMotion: () => settings.reduced }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
 vi.mock("../src/components/WorkoutStats", () => ({ RestClock: "RestClock" }));
 vi.mock("../src/components/RackDockExpanded", () => ({ RackDockExpanded: "RackDockExpanded" }));
 
-import { RackDockView, sameDockProps, type RackDockProps } from "../src/components/RackDock";
+import { RackDockView, RestDrain, sameDockProps, type RackDockProps } from "../src/components/RackDock";
+import { dockStep, drainFraction, RACK_MOTION, stepHaptics } from "../src/logic/rackMotion";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 let n = 0;
 const row = (o: Partial<SetRowDraft> = {}): SetRowDraft => ({ key: `d${n++}`, load: null, reps: null, rir: null, warmup: false, tags: [], saved: false, dirty: false, ghostLoad: 80, ghostReps: 8, ...o });
@@ -46,6 +61,10 @@ beforeEach(() => {
   settings.fontScale = 1;
   settings.height = 800;
   settings.dark = true;
+  settings.reduced = false;
+  anim.loops = 0;
+  anim.timings = [];
+  hap.calls = [];
 });
 
 describe("RackDock render", () => {
@@ -156,5 +175,56 @@ describe("dock memo", () => {
     expect(sameDockProps(a, { ...a, model: { ...a.model, perSide: [...a.model.perSide] } })).toBe(true);
     expect(sameDockProps(a, { ...a, saving: true })).toBe(false);
     expect(sameDockProps(a, { ...a, model: { ...a.model, reps: 9 } })).toBe(false);
+  });
+});
+
+describe("logger motion (PR E)", () => {
+  const twoEx = (rows: Record<string, SetRowDraft[]>) => dockModel([bench, { exerciseId: "db", equipment: "dumbbell", loadSpec: { equipment: "dumbbell", loads: [20, 22, 24] } }], rows, null, off);
+  it("a log steps the dock: plates added = one Light; strip silent; new exercise = Selection", () => {
+    const a = row({ saved: true, load: 70, reps: 8 });
+    const b = row();
+    const before = dockModel([bench], { bench: [a, b, row()] }, null, off);
+    const added = dockModel([bench], { bench: [a, { ...b, saved: true, load: 80, reps: 8 }, row({ ghostLoad: 90 })] }, null, off);
+    expect(dockStep(before, added)).toEqual({ rack: true, platesAdded: true, nextObject: false });
+    expect(stepHaptics(dockStep(before, added))).toEqual(["light"]);
+    const stripped = dockModel([bench], { bench: [a, { ...b, saved: true, load: 80, reps: 8 }, row({ ghostLoad: 70 })] }, null, off);
+    expect(stepHaptics(dockStep(before, stripped))).toEqual([]);
+    const ex1 = twoEx({ bench: [row()], db: [row({ ghostLoad: 22 })] });
+    const ex2 = twoEx({ bench: [row({ saved: true, load: 80, reps: 8 })], db: [row({ ghostLoad: 22 })] });
+    expect(stepHaptics(dockStep(ex1, ex2))).toEqual(["selection"]);
+  });
+  it("typing never animates: a hidden model steps nothing", () => {
+    const r = row();
+    const hidden = dockModel([bench], { bench: [r] }, null, off, { editing: r.key });
+    expect(dockStep(hidden, compact())).toEqual({ rack: false, platesAdded: false, nextObject: false });
+    expect(dockStep(compact(), hidden)).toEqual({ rack: false, platesAdded: false, nextObject: false });
+  });
+  it("rest drain: one native scaleX timing; Reduce Motion is a static hairline with a fill ratio", () => {
+    expect(drainFraction(61_000, 90_000, 16_000)).toBeCloseTo(0.5);
+    const now = Date.now();
+    const drawn = expand(React.createElement(RestDrain, { endsAt: now + 45_000, durationMs: 90_000, reduced: false, rtl: true, color: "accent" })) as { type: string; props: { style: { transformOrigin: string } } };
+    expect(drawn.type).toBe("Animated.View");
+    expect(drawn.props.style.transformOrigin).toBe("right");
+    const still = expand(React.createElement(RestDrain, { endsAt: now + 45_000, durationMs: 90_000, reduced: true, rtl: false, color: "accent" })) as { type: string; props: { style: { width: string } } };
+    expect(still.type).toBe("View");
+    expect(still.props.style.width).toBe("50%");
+  });
+  it("Reduce Motion renders without Animated loops; the dock never uses Animated.loop", () => {
+    settings.reduced = true;
+    render(props(compact()));
+    expect(anim.loops).toBe(0);
+    const src = readFileSync(join(__dirname, "..", "src", "components", "RackDock.tsx"), "utf8");
+    expect(src).not.toContain("Animated.loop");
+    expect(src).not.toMatch(/reanimated/i);
+  });
+  it("the number is the unrack target; haptics only on Log (tick) and expand (pickup) besides the step table", () => {
+    const tree = render(props(compact()));
+    expect(nodes(tree).some((x) => x.props.nativeID === "rack-dock-number")).toBe(true);
+    nodes(tree).find((x) => x.props.nativeID === "rack-dock-log")!.props.onPress();
+    expect(hap.calls).toEqual(["tick"]);
+    const src = readFileSync(join(__dirname, "..", "src", "components", "RackDock.tsx"), "utf8");
+    expect(src.match(/haptics\.\w+/g)!.sort()).toEqual(["haptics.pickup", "haptics.selection", "haptics.tick", "haptics.tick"].sort());
+    expect(RACK_MOTION.unrack).toBe(320);
+    expect(RACK_MOTION.unrackMiniFrom).toBe(4);
   });
 });

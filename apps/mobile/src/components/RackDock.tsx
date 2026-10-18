@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Pressable, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Pressable, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { useI18n } from "../i18n";
@@ -10,7 +10,9 @@ import type { RestTimer } from "../logic/restTimer";
 import type { Unit } from "../logic/units";
 import { BAR_STEEL, TODAY_PLATES } from "../palettes";
 import { radius, space, type as ty, useIsDark, useLogPalette, usePalette } from "../theme";
-import { AppText } from "../ui";
+import { AppText, useReducedMotion } from "../ui";
+import { haptics } from "../haptics";
+import { dockStep, drainFraction, RACK_MOTION, stepHaptics } from "../logic/rackMotion";
 import { Icon } from "./Icon";
 import { RackDockExpanded, type ExpandInfo } from "./RackDockExpanded";
 import { ART_HIDDEN, BarArt } from "./today/BarArt";
@@ -104,6 +106,29 @@ export function DockMini({ model, unit }: { model: DockModel; unit: Unit }) {
   return null;
 }
 
+/**
+ * The rest drain (spec §7): one Animated.timing(scaleX) for the whole rest, anchored at the start edge (mirrors in Arabic). Reduce
+ * Motion: a static hairline whose fill updates once a second.
+ */
+export function RestDrain({ endsAt, durationMs, reduced, rtl, color }: { endsAt: number; durationMs: number; reduced: boolean; rtl: boolean; color: string }) {
+  const scale = useRef(new Animated.Value(drainFraction(endsAt, durationMs, Date.now()))).current;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (reduced) {
+      const id = setInterval(() => setNow(Date.now()), 1000);
+      return () => clearInterval(id);
+    }
+    const start = Date.now();
+    scale.setValue(drainFraction(endsAt, durationMs, start));
+    const anim = Animated.timing(scale, { toValue: 0, duration: Math.max(0, endsAt - start), easing: Easing.linear, useNativeDriver: true });
+    anim.start();
+    return () => anim.stop();
+  }, [endsAt, durationMs, reduced, scale]);
+  const origin = rtl ? "right" : "left";
+  if (reduced) return <View style={{ height: 2, borderRadius: 1, backgroundColor: color, width: `${Math.round(drainFraction(endsAt, durationMs, now) * 100)}%`, alignSelf: "flex-start" }} />;
+  return <Animated.View style={{ height: 2, borderRadius: 1, backgroundColor: color, transformOrigin: origin, transform: [{ scaleX: scale }] }} />;
+}
+
 function LogButton({ label, a11y, disabled, saving, onPress, full }: { label: string; a11y: string; disabled: boolean; saving: boolean; onPress: () => void; full: boolean }) {
   const lp = useLogPalette();
   const p = usePalette();
@@ -158,6 +183,33 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
   const [open, setOpen] = useState<ExpandInfo | null>(null);
   const pending = useRef<DockModel | null>(null);
   const ctx = { lang, unit, t };
+  const reduced = useReducedMotion();
+  // Motion (spec §7): the rack dip + counter crossfade when a set is logged, the unrack landing on first mount (Today's bar arrives in
+  // the mini slot, its number in "rack-dock-number"), haptics only where the table says. Reduce Motion: crossfades only, haptics kept.
+  const dip = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(1)).current;
+  const land = useRef(new Animated.Value(0)).current;
+  const prevModel = useRef<DockModel | null>(null);
+  useEffect(() => {
+    Animated.timing(land, { toValue: 1, duration: reduced ? RACK_MOTION.crossfade : RACK_MOTION.unrack, easing: Easing.inOut(Easing.ease), useNativeDriver: true }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    const step = dockStep(prevModel.current, model);
+    prevModel.current = model;
+    for (const h of stepHaptics(step)) (h === "light" ? haptics.tick : haptics.selection)();
+    if (!step.rack && !step.nextObject) return;
+    fade.setValue(0.2);
+    Animated.timing(fade, { toValue: 1, duration: reduced ? RACK_MOTION.crossfade : RACK_MOTION.counter, useNativeDriver: true }).start();
+    if (reduced || !step.rack) return;
+    Animated.sequence([
+      Animated.timing(dip, { toValue: RACK_MOTION.dipDp, duration: RACK_MOTION.dip / 2, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(dip, { toValue: 0, duration: RACK_MOTION.dip / 2, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model.rowKey, model.exId, model.mode]);
+  const miniLand = reduced ? { opacity: land } : { opacity: land, transform: [{ scale: land.interpolate({ inputRange: [0, 1], outputRange: [RACK_MOTION.unrackMiniFrom, 1] }) }] };
+  const numberLand = reduced ? { opacity: land } : { transform: [{ scale: land.interpolate({ inputRange: [0, 1], outputRange: [RACK_MOTION.unrackNumberFrom, 1] }) }] };
   useEffect(() => {
     const prev = pending.current;
     if (prev && (prev.rowKey !== model.rowKey || prev.exId !== model.exId)) {
@@ -175,7 +227,7 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
     <View
       style={{ backgroundColor: over ? lp.activeBg : lp.card, borderTopWidth: over ? 4 : 1, borderColor: over ? lp.accent : lp.line, paddingHorizontal: space.lg, paddingTop: short ? space.md : space.sm, paddingBottom: insets.bottom + space.md, gap: space.sm }}
     >
-      {children}
+      <Animated.View style={{ gap: space.sm, transform: [{ translateY: dip }] }}>{children}</Animated.View>
     </View>
   );
 
@@ -195,13 +247,17 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
   const canExpand = (model.objKind === "barbell" || model.objKind === "horn") && model.perSide.length > 0;
   const expand = () => {
     const info = actions.current.expandInfo();
-    if (info) setOpen(info);
+    if (!info) return;
+    haptics.pickup();
+    setOpen(info);
   };
   const caption = `${name} · ${set}`;
   const number = (
-    <AppText numberOfLines={k15 ? 2 : 1} style={{ fontSize: short ? 20 : 28, fontWeight: "600", fontVariant: ["tabular-nums"] }}>
-      {dockNumberText(model, ctx)}
-    </AppText>
+    <Animated.View nativeID="rack-dock-number" style={[{ opacity: fade, alignSelf: "flex-start" }, numberLand]}>
+      <AppText numberOfLines={k15 ? 2 : 1} style={{ fontSize: short ? 20 : 28, fontWeight: "600", fontVariant: ["tabular-nums"] }}>
+        {dockNumberText(model, ctx)}
+      </AppText>
+    </Animated.View>
   );
   const lineText = line ? (
     <AppText numberOfLines={short ? 1 : 2} style={{ fontSize: short ? 13 : 14, color: line.warn ? lp.warn : lp.muted }}>
@@ -222,9 +278,9 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
     >
       {!short && !k15 ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, minHeight: MINI_H }}>
-          <View style={{ opacity: resting ? 0.6 : 1, direction: "ltr" }}>
+          <Animated.View style={[{ opacity: resting ? 0.6 : 1, direction: "ltr" }, miniLand]}>
             <DockMini model={model} unit={unit} />
-          </View>
+          </Animated.View>
           <AppText numberOfLines={1} style={{ flex: 1, fontSize: 13, color: lp.muted, textTransform: lang === "ar" ? "none" : "uppercase" }}>{caption}</AppText>
         </View>
       ) : k15 ? (
@@ -232,9 +288,9 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
       ) : null}
       {short ? (
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-          <View style={{ opacity: resting ? 0.6 : 1, direction: "ltr" }}>
+          <Animated.View style={[{ opacity: resting ? 0.6 : 1, direction: "ltr" }, miniLand]}>
             <DockMini model={model} unit={unit} />
-          </View>
+          </Animated.View>
           <View style={{ flex: 1 }}>
             {number}
             {lineText}
@@ -257,6 +313,7 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
       full={k15}
       onPress={() => {
         pending.current = model;
+        haptics.tick();
         actions.current.log();
       }}
     />
@@ -267,7 +324,7 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
         <>
           {resting || over ? (
             <View style={{ gap: space.xs }}>
-              {resting ? <View style={{ height: 2, backgroundColor: lp.accent, borderRadius: 1 }} /> : null}
+              {resting && timer.endsAt !== null ? <RestDrain endsAt={timer.endsAt} durationMs={timer.durationMs} reduced={reduced} rtl={lang === "ar"} color={lp.accent} /> : null}
               {restFor && !over ? <AppText numberOfLines={1} style={{ color: lp.muted, fontSize: 13 }}>{restFor}</AppText> : null}
               <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: space.sm, rowGap: space.sm }}>
                 {over ? (

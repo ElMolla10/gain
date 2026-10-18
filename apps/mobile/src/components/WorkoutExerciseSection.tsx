@@ -1,8 +1,8 @@
 import { canEditLoadsFor } from "../logic/setRowState";
 import { loadTargetText } from "../logic/bidiText";
 import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
-import React, { useEffect, useState } from "react";
-import { Pressable, View, useWindowDimensions } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Pressable, View, useWindowDimensions } from "react-native";
 import { findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
 import type { Disp, ExInfo } from "../logic/workoutTypes";
 import type { ExerciseState, SetRow } from "../db/workoutRepo";
@@ -20,7 +20,8 @@ import { nextSetState } from "../logic/nextSetCard";
 import { describeWhyWeight, sessionPosition } from "../logic/why";
 import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, IconButton, InlineStatus, Notice, QuietAction } from "../ui";
+import { AppText, BigButton, IconButton, InlineStatus, Notice, QuietAction, useReducedMotion } from "../ui";
+import { RACK_MOTION } from "../logic/rackMotion";
 import { RestToggle, TargetLine } from "./LogParts";
 import { Icon } from "./Icon";
 import { LiveSuggestion, LoadSettings } from "./LiveSuggestion";
@@ -291,17 +292,30 @@ export function ExerciseBlock(props: ExerciseSectionProps) {
   const { list, exSets, active = true, ex, supersetLabel } = props;
   const { t, lang, unit } = useI18n();
   const p = useLogPalette();
+  const reduced = useReducedMotion();
   const unconfirmed = exSets.filter((s) => s.outlierStatus === "unconfirmed").length;
   const foldable = shouldFold(list, unconfirmed, active);
-  const [foldReady, setFoldReady] = useState(false);
+  // open → (600 ms) folding: the measured section collapses to 56 dp over 200 ms (Animated height, no LayoutAnimation) → folded.
+  // Reduce Motion skips the collapse.
+  const [phase, setPhase] = useState<"open" | "folding" | "folded">("open");
   const [unfolded, setUnfolded] = useState(false);
+  const measured = useRef(0);
+  const height = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (!foldable) { setFoldReady(false); return; }
-    const id = setTimeout(() => setFoldReady(true), FOLD_DELAY_MS);
+    if (!foldable || unfolded) { setPhase("open"); return; }
+    const id = setTimeout(() => {
+      if (reduced || measured.current <= 0) return setPhase("folded");
+      height.setValue(measured.current);
+      setPhase("folding");
+      Animated.timing(height, { toValue: RACK_MOTION.foldTo, duration: RACK_MOTION.fold, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(() => setPhase("folded"));
+    }, FOLD_DELAY_MS);
     return () => clearTimeout(id);
-  }, [foldable]);
-  if (!(foldable && foldReady && !unfolded)) return <WorkoutExerciseSection {...props} />;
-  return <FoldedExercise name={exerciseLabels(ex, lang).primary} list={list} superset={!!supersetLabel} onUnfold={() => setUnfolded(true)} t={t} lang={lang} unit={unit} p={p} />;
+  }, [foldable, unfolded, reduced, height]);
+  if (phase === "folded" && foldable && !unfolded) {
+    return <FoldedExercise name={exerciseLabels(ex, lang).primary} list={list} superset={!!supersetLabel} onUnfold={() => setUnfolded(true)} t={t} lang={lang} unit={unit} p={p} />;
+  }
+  if (phase === "folding") return <Animated.View style={{ height, overflow: "hidden" }}><WorkoutExerciseSection {...props} /></Animated.View>;
+  return <View onLayout={(e) => { measured.current = e.nativeEvent.layout.height; }}><WorkoutExerciseSection {...props} /></View>;
 }
 
 /** One line for a finished exercise: name, "57.5 kg × 8, 9, 10", a done check and a chevron. A button that unfolds it. */

@@ -33,7 +33,7 @@ import { topTrustedSet } from "../logic/lastTop";
 import { isTimed, quantityFields, setQuantity } from "../logic/quantity";
 import { replacementDisplay } from "../logic/replacement";
 import { substitutionCandidates } from "../logic/substitutions";
-import { focusedExercise, livePromptVisible } from "../logic/workoutFocus";
+import { focusedExercise, supersetGroups, livePromptVisible } from "../logic/workoutFocus";
 import { liveSummary } from "../logic/liveSummary";
 import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, markSaved, loggableUnlogged, mergeRows, pendingCount, removeRow, rowCanLog, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
 import { takeLiveTarget, clearLiveTarget, liveCardCurrent, livePerformanceKey, reportedSymptomDecision, trustedWorkingSet } from "../logic/liveAdaptation";
@@ -634,7 +634,7 @@ export function useWorkoutSession() {
   const activityProps = useMemo(() => {
     if (!loaded || loaded === "nogym" || !restRestored) return null;
     const { shown: list } = shownExercises(loaded.slots, exState, makeDisp);
-    const focusId = focusedExercise(list.map((ex) => ex.exerciseId), rows, preferredExercise);
+    const focusId = focusedExercise(list.map((ex) => ex.exerciseId), rows, preferredExercise, supersetGroups(list, exState));
     return workoutActivityProps({ startedAt: loaded.startedAt, pausedMs: loaded.pausedMs, pausedAt: loaded.pausedAt, shown: list, rows, focus: focusId, timer, now: Date.now(), lang, unit, t });
   }, [loaded, restRestored, exState, makeDisp, rows, preferredExercise, timer, lang, unit, t]);
   useWorkoutLiveActivity(activityProps, () => workout.getOpenSession().then(Boolean));
@@ -763,7 +763,7 @@ export function useWorkoutSession() {
     ]);
   }
 
-  const focus = focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise);
+  const focus = focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise, supersetGroups(shown, exState));
 
   const replacing = shown.find(ex => ex.slot === pickFor);
   const source = replacing ? library.find(ex => ex.id === replacing.exerciseId) : undefined;

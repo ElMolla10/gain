@@ -11,7 +11,7 @@ import { AppText, Card, Field, LoadingState, Screen } from "../ui";
 
 export function PlateCalcScreen() {
   const { repos } = useServices();
-  const { t, unit, unitText } = useI18n();
+  const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
   const [spec, setSpec] = useState<ReturnType<typeof findSpec> | undefined>(undefined);
   const [text, setText] = useState("");
@@ -29,7 +29,7 @@ export function PlateCalcScreen() {
   if (spec === undefined) return <LoadingState />;
   const n = parseNumber(text);
   const load = n === null ? null : unitToKg(n, unit);
-  const line = spec && load !== null ? plateLine(spec, load, unit, t) : null;
+  const line = spec && load !== null ? plateLine(spec, load, unit, lang, t) : null;
 
   return (
     <Screen>

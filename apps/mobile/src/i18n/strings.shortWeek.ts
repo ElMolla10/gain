@@ -71,5 +71,5 @@ export const arShortWeek: Record<keyof typeof enShortWeek, string> = {
   "short.undoneKept": "انت عدّلت البرنامج في الأسبوع القصير، فتعديلك اتحفظ.",
   "short.openWorkout": "خلّص التمرين المفتوح الأول.",
   "short.alreadyActive": "فيه أسبوع قصير شغال بالفعل.",
-  "short.estimate": "الدقايق تقدير: المجموعات ووقت راحتك بينهم والإحماء والانتقال بين التمارين.",
+  "short.estimate": "الدقايق تقدير: المجموعات ووقت راحتك بينهم والتسخين والانتقال بين التمارين.",
 };

@@ -11,7 +11,7 @@ describe("workout Live Activity platform boundary", () => {
     it(`does not load widgets for ${name}`, async () => {
       state.os = os; state.version = version; state.enabled = enabled;
       const { workoutLiveActivity } = await import("../src/native/workoutLiveActivity");
-      const props = { v: 2 as const, title: "Workout", timerStart: Date.now(), pausedAt: null, pausedLabel: null, exercise: "Squat", setLine: "Set 1 of 3", detail: null, rest: null, rtl: false, plates: [], change: null };
+      const props = { v: 2 as const, title: "Workout", timerStart: Date.now(), pausedAt: null, pausedLabel: null, exercise: "Squat", setLine: "Set 1 of 3", detail: null, rest: null, rtl: false, plates: [], change: null, plateCaps: [] };
       await expect(workoutLiveActivity.sync(props)).resolves.toBeUndefined();
       await expect(workoutLiveActivity.reconcile(async () => false)).resolves.toBeUndefined();
       await expect(workoutLiveActivity.stop()).resolves.toBeUndefined();

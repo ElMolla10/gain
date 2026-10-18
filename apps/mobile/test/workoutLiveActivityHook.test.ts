@@ -19,7 +19,7 @@ const native = vi.hoisted(() => ({ sync: vi.fn(async () => {}), reconcile: vi.fn
 vi.mock("../src/native/workoutLiveActivity", () => ({ workoutLiveActivity: native }));
 import { useWorkoutLiveActivity, flushNow } from "../src/hooks/useWorkoutLiveActivity";
 
-const base: WorkoutActivityProps = { v: 2, title: "Workout", timerStart: 0, pausedAt: null, pausedLabel: null, exercise: "Bench", setLine: "Set 2 of 3", detail: "80 kg × 8", rest: null, rtl: false, plates: [], change: null };
+const base: WorkoutActivityProps = { v: 2, title: "Workout", timerStart: 0, pausedAt: null, pausedLabel: null, exercise: "Bench", setLine: "Set 2 of 3", detail: "80 kg × 8", rest: null, rtl: false, plates: [], change: null, plateCaps: [] };
 const render = (p: WorkoutActivityProps | null) => { host.index = 0; useWorkoutLiveActivity(p, async () => true); };
 const unmount = () => host.values.forEach((v) => v?.cleanup?.());
 

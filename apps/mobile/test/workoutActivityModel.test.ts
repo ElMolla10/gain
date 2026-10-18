@@ -95,3 +95,35 @@ describe("workout Live Activity v2", () => {
     expect(new TextEncoder().encode(JSON.stringify(p)).length).toBeLessThanOrEqual(4096);
   });
 });
+
+describe("workout Live Activity v2 layout (PR F)", () => {
+  const spec = { equipment: "barbell" as const, min: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25] };
+  it("plate capsules carry the printed number and the competition colours (lb is iron)", async () => {
+    const { PLATE_NUMERAL_INK, TODAY_PLATES } = await import("../src/palettes");
+    const rows = { bench: [row({ saved: true, load: 100, reps: 8 }), row({ ghostLoad: 120 })], row: [row()] };
+    const p = workoutActivityProps(input({ shown: [{ ...bench, equipment: "barbell", loadSpec: spec }, row2], rows }));
+    expect(p.plateCaps).toEqual([{ t: "25", bg: TODAY_PLATES.red.face, fg: PLATE_NUMERAL_INK.red }, { t: "25", bg: TODAY_PLATES.red.face, fg: PLATE_NUMERAL_INK.red }]);
+    // A pound gym (45 lb bar, 45 / 25 / 10 lb plates), 135 lb on the bar: one 45 each side, printed "45", iron without colours.
+    const LB = 0.45359237;
+    const lbSpec = { equipment: "barbell" as const, min: 45 * LB, plates: [45 * LB, 25 * LB, 10 * LB] };
+    const lbRows = { bench: [row({ saved: true, load: 95 * LB, reps: 8 }), row({ ghostLoad: 135 * LB })], row: [row()] };
+    const lb = workoutActivityProps(input({ unit: "lb", shown: [{ ...bench, equipment: "barbell", loadSpec: lbSpec }, row2], rows: lbRows }));
+    expect(lb.plateCaps.map((c) => c.t)).toEqual(["45"]);
+    expect(lb.plateCaps.every((c) => c.bg === TODAY_PLATES.iron.face)).toBe(true);
+  });
+  it("Arabic change line says كجم, never kg", () => {
+    const rows = { bench: [row({ saved: true, load: 45, reps: 8 }), row({ ghostLoad: 40 })], row: [row()] };
+    const cable = { ...bench, equipment: "cable" as const, loadSpec: { equipment: "cable" as const, min: 5, increment: 5, max: 100 } };
+    const p = workoutActivityProps(input({ lang: "ar", shown: [cable, row2], rows }));
+    expect(p.change).toContain("كجم");
+    expect(p.change).not.toContain("kg");
+  });
+  it("the layout draws capsules and the change on the Lock Screen and the expanded island; the compact island shows the number", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(__dirname, "..", "src", "native", "workoutLiveActivityLayout.tsx"), "utf8");
+    expect(src.match(/\{caps\}\s*\{changeLine\}/g)?.length).toBe(2);
+    expect(src).toMatch(/p\.detail\s*\? <Text modifiers=\{\[monospacedDigit\(\), lineLimit\(1\)\]\}>\{p\.detail\}<\/Text>/);
+    expect(src).not.toMatch(/#[0-9A-Fa-f]{6}.*plate/i);
+  });
+});

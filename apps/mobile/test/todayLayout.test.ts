@@ -29,22 +29,21 @@ describe("Today layout (design audit T-3..T-8)", () => {
     expect(rack).not.toContain("p.accent");
     expect(rack).toContain("minHeight: RACK_ROW_HEIGHT");
   });
-  it("T-5 (Today 10x): header > hero > stub > rack > programme line > pace > one collapsed 'This week' card; Start is the pinned footer", () => {
+  it("T-5 (Today 10x): header > hero > stub > rack > programme line > This week block; Start is the pinned footer", () => {
     const header = today.indexOf("<TodayHeader");
     const hero = today.indexOf("<TodayBar");
     const stub = today.indexOf("<DoorStub");
     const list = today.indexOf('t("today.rack.planned")');
     const programme = today.indexOf("{data.programmeName}</AppText>");
-    const pace = today.indexOf("{paceLine ? (");
-    const week = today.indexOf("<CollapsibleCard");
+    const week = today.indexOf("<WeekBlock");
     expect(header).toBeGreaterThan(0);
-    for (const [a, b] of [[header, hero], [hero, stub], [stub, list], [list, programme], [programme, pace], [pace, week]] as const) expect(b).toBeGreaterThan(a);
+    for (const [a, b] of [[header, hero], [hero, stub], [stub, list], [list, programme], [programme, week]] as const) expect(b).toBeGreaterThan(a);
     expect(today).toContain("<Screen tab footer={footer} footerInline={stack}>");
     expect(today).toContain("const footer =");
-    expect(today).toContain("<BigButton hero icon={action.kind === \"start\" ? \"play\" : undefined}");
-    const inside = today.slice(week, today.indexOf("</CollapsibleCard>"));
-    for (const c of ["PersonalProgressCard", "WeeklyReviewCard", "MuscleVolumeCard", "DeloadCard", "PeriodizationCard"]) expect(inside).toContain(`<${c} />`);
-    expect(today).not.toContain("<ListCard");
+    expect(today).toContain('<BigButton hero icon={action.kind === "start" ? "play" : undefined}');
+    // The five stacked cards are gone from Today: one decision card at most, no badge level (PersonalProgressCard).
+    expect(today).not.toContain("<CollapsibleCard");
+    expect(today).not.toContain("PersonalProgressCard");
     expect(en["today.thisWeek"]).toBe("This week");
     expect(ar["today.thisWeek"]).toBeTruthy();
   });

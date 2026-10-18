@@ -12,5 +12,9 @@ export const haptics = {
   tick() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); },
   untick() { if (ios()) run(() => Haptics.selectionAsync()); },
   restOver() { if (ios()) run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); else Vibration.vibrate(400); },
+  /** Earn moment: the medal lands (iOS Medium). Android stays silent. */
+  land() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)); },
+  /** Earn moment, Legacy medals only: the ring pulse (iOS Heavy). Android stays silent. */
+  legacy() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)); },
   celebrate() { if (ios()) run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); else Vibration.vibrate(40); },
 };

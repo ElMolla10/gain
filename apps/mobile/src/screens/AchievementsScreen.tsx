@@ -10,6 +10,8 @@ import { almostThere, isPartialCabinet, latestPr, medalCount, shelves, slotRow, 
 import type { AchievementHome } from "../db/achievementRepo";
 import { AlmostThere } from "../components/achievements/AlmostThere";
 import { CabinetShelf } from "../components/achievements/CabinetShelf";
+import { CabinetUnveil } from "../components/achievements/CabinetUnveil";
+import { unveilOrder } from "../logic/earnMoment";
 import { LedgerTeaser } from "../components/achievements/LedgerTeaser";
 import { LifetimePlate } from "../components/achievements/LifetimePlate";
 import { MedalDetailSheet } from "../components/achievements/MedalDetailSheet";
@@ -37,6 +39,7 @@ export function AchievementsScreen() {
   const scroll = useRef<ScrollView>(null);
   const cabinetY = useRef(0);
   const prY = useRef(0);
+  const unveiled = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,6 +89,14 @@ export function AchievementsScreen() {
         else setDetail(row);
       })
       .catch((e) => diagnostics.record("warn", "cabinet", e));
+  const unveil = (home.bannerCount ?? 0) > 0 && !unveiled.current;
+  const endUnveil = () => {
+    unveiled.current = true;
+    void achievements
+      .dismissBanner()
+      .then(() => setHome((h) => (h ? { ...h, bannerCount: null } : h)))
+      .catch((e) => diagnostics.record("warn", "cabinet", e));
+  };
   const refreshHome = () => void achievements.getHome().then(setHome).catch((e) => diagnostics.record("warn", "cabinet", e));
 
   return (
@@ -130,9 +141,11 @@ export function AchievementsScreen() {
         <SectionTitle action={<AppText style={{ fontSize: ty.label, color: p.muted }}>{t("achv.r2.cabinet.count", { earned: medals.earned, total: medals.total })}</AppText>}>
           {t("achv.r2.cabinet.title")}
         </SectionTitle>
-        {groups.map((g) => (
-          <CabinetShelf key={g.shelf} shelf={g.shelf} items={g.items} partial={partial} onOpen={openSlot} />
-        ))}
+        <CabinetUnveil active={unveil} count={home.bannerCount ?? 0} order={unveilOrder(groups)} onDone={endUnveil}>
+          {groups.map((g) => (
+            <CabinetShelf key={g.shelf} shelf={g.shelf} items={g.items} partial={partial} onOpen={openSlot} />
+          ))}
+        </CabinetUnveil>
       </View>
       <LedgerTeaser earned={home.earned} onOpenLedger={() => nav.navigate("Ledger", {})} onOpen={setDetail} />
       <MedalDetailSheet

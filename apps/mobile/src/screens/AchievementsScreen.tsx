@@ -8,8 +8,14 @@ import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
 import { evidenceLine } from "../logic/achievementEvidence";
 import { filterCabinet, type CabinetFamilyFilter, type CabinetStatusFilter, type SurfaceBadge } from "../logic/achievementSurface";
-import { space } from "../theme";
-import { Card, Chip, EmptyState, ErrorState, ListRow, LoadingState, Screen } from "../ui";
+import { medalsValue } from "../logic/achievementCopy";
+import { medalCount, trainingDays, verifiedPrs } from "../logic/achievementShowcase";
+import type { AchievementHome } from "../db/achievementRepo";
+import { LifetimePlate } from "../components/achievements/LifetimePlate";
+import { StatTileRow } from "../components/achievements/StatTiles";
+import { WeekSleeve } from "../components/achievements/WeekSleeve";
+import { space, type as ty, usePalette } from "../theme";
+import { AppText, BigButton, Card, Chip, EmptyState, ErrorState, ListRow, LoadingState, Screen } from "../ui";
 
 const FAMILIES: CabinetFamilyFilter[] = [
   "all",
@@ -35,7 +41,8 @@ export function AchievementsScreen() {
   const { t, lang, unit } = useI18n();
   const nav = useNavigation<{ navigate: (name: string, params: object) => void }>();
   const [items, setItems] = useState<SurfaceBadge[] | null>(null);
-  const [lifetime, setLifetime] = useState(0);
+  const [home, setHome] = useState<AchievementHome | null>(null);
+  const p = usePalette();
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<CabinetStatusFilter>("all");
@@ -50,7 +57,7 @@ export function AchievementsScreen() {
         .then(([cabinet, home]) => {
           if (!alive) return;
           setItems(cabinet);
-          setLifetime(home.stats.qualifiedWeeksLifetime);
+          setHome(home);
         })
         .catch((error) => {
           diagnostics.record("warn", "cabinet", error);
@@ -70,7 +77,10 @@ export function AchievementsScreen() {
       <ErrorState title={t("achievements.error")} body={t("progress.loadingFailed")} retryLabel={t("history.error.retry")} onRetry={() => setAttempt((n) => n + 1)} />
     );
   }
-  if (!items) return <LoadingState />;
+  if (!items || !home) return <LoadingState />;
+  const lifetime = home.stats.qualifiedWeeksLifetime;
+  const days = trainingDays(items, home.stats);
+  const medals = medalCount(items);
 
   const noteFor = (row: SurfaceBadge): string => {
     if (row.status === "earned") return evidenceLine(row.evidence, t, lang, unit, { nameEn: row.exerciseNameEn, nameAr: row.exerciseNameAr });
@@ -80,6 +90,19 @@ export function AchievementsScreen() {
 
   return (
     <Screen>
+      <View style={{ gap: space.md }}>
+        <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted, textAlign: "center" }}>{t("achv.r2.plate.eyebrow")}</AppText>
+        <LifetimePlate days={days.days} daysIsFloor={days.floor} />
+        {(days.days ?? 0) <= 0 ? <BigButton variant="primary" icon="play" label={t("achv.r2.plate.start")} onPress={() => nav.navigate("Tabs", { screen: "Today" })} /> : null}
+      </View>
+      <WeekSleeve qualifiedDays={home.pulse.qualifiedDays} dayTarget={home.pulse.dayTarget} />
+      <StatTileRow
+        tiles={[
+          { value: String(lifetime), label: t("achv.r2.stat.weeks"), onPress: () => nav.navigate("Ledger", {}), hint: t("achv.ledger.open") },
+          { value: String(verifiedPrs(items).length), label: t("achv.r2.stat.prs") },
+          { value: medalsValue(medals.earned, medals.total, t), label: t("achv.r2.stat.medals") },
+        ]}
+      />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         <Chip label={t("achv.cabinet.filter.all")} selected={status === "all"} onPress={() => setStatus("all")} />
         <Chip label={t("achv.cabinet.filter.earned")} selected={status === "earned"} onPress={() => setStatus("earned")} />

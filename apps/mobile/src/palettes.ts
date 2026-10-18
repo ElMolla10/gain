@@ -169,3 +169,113 @@ export type Appearance = "dark" | "light" | "system";
 export const APPEARANCES: readonly Appearance[] = ["dark", "light", "system"];
 /** Dark (ink + lime) is the default; anything unknown falls back to it. */
 export const parseAppearance = (raw: string | null | undefined): Appearance => (raw === "light" || raw === "system" ? raw : "dark");
+
+// ── Achievements round 2: decorative art tokens (spec-achievements-r2 §3) ─────────────────────────────────────────────────────────
+// The art is decoration: every tier and state is also given in text (plate caption, medal state line), so none of these carry meaning
+// alone. Light-mode arcs and rings use `accent`-strength colours, never lime fill (S-10).
+
+export type PlateColourName = "steel" | "green" | "yellow" | "blue" | "red";
+export interface PlateColours {
+  face: string;
+  hi: string;
+  lo: string;
+  lip: string;
+  /** Rim arc drawn toward THIS plate (the arc always shows the next plate's colour), dark / light. */
+  arcDark: string;
+  arcLight: string;
+}
+
+/** Competition bumper colours at the hundred_club tiers. */
+export const PLATE_COLOURS: Record<PlateColourName, PlateColours> = {
+  steel: { face: "#5B6356", hi: "#8A9384", lo: "#2F342B", lip: "#252A21", arcDark: "#8A9580", arcLight: "#7A876E" },
+  green: { face: "#2F8F55", hi: "#5FC285", lo: "#17542F", lip: "#123F23", arcDark: "#3FAE6A", arcLight: "#1F7A43" },
+  yellow: { face: "#E3B52C", hi: "#F7DA7A", lo: "#94720F", lip: "#6E540A", arcDark: "#E3B52C", arcLight: "#8C6A00" },
+  blue: { face: "#2F6BD0", hi: "#6F9DEB", lo: "#173C7E", lip: "#112D5E", arcDark: "#5B93F0", arcLight: "#2F6BD0" },
+  red: { face: "#D23C35", hi: "#E8625A", lo: "#7C1C18", lip: "#5E1411", arcDark: "#E5534B", arcLight: "#B42E28" },
+};
+
+export interface AchievementArt {
+  /** Rim / ring track behind a progress arc. */
+  track: string;
+  /** The arc when complete or in the mono variant: lime on dark, olive accent on light (S-10). */
+  arcDone: string;
+  /** Plate collar hole and its numeral. */
+  collar: string;
+  collarText: string;
+  collarLabel: string;
+  /** Dashed outlines: an empty plate, a locked medal, an unloaded sleeve slot (state cue ≥3:1, S-4). */
+  ghost: string;
+  /** Steel hub / sleeve ramp. */
+  steelHi: string;
+  steelMid: string;
+  steelLo: string;
+  /** Loaded sleeve plate face and its outline. */
+  loaded: string;
+  loadedEdge: string;
+  shadowOpacity: number;
+  /** Plate hub (steel) gradient, its rim, bolts and the collar edge; the cast shadow and the specular highlight. */
+  hubHi: string;
+  hubMid: string;
+  hubLo: string;
+  hubEdge: string;
+  bolt: string;
+  collarEdge: string;
+  shadow: string;
+  specular: string;
+  /** Medal stage (detail sheet) and cabinet ledges. */
+  stage: string;
+  ledge: string;
+  ledgeHi: string;
+}
+
+export const achievementArtDark: AchievementArt = {
+  track: "#242A1F",
+  arcDone: c.lime,
+  collar: "#0B0D09",
+  collarText: "#F5F6EF",
+  collarLabel: "#B2B9A6",
+  ghost: "#8A9580",
+  steelHi: "#E4E9EC",
+  steelMid: "#A7B0B6",
+  steelLo: "#4E565C",
+  loaded: c.lime,
+  loadedEdge: "#10120E",
+  shadowOpacity: 0.5,
+  hubHi: "#EEF1F3",
+  hubMid: "#A9B1B7",
+  hubLo: "#5A6268",
+  hubEdge: "#3A4045",
+  bolt: "#4A5258",
+  collarEdge: "#2A2F33",
+  shadow: "#000000",
+  specular: "#FFFFFF",
+  stage: "#151912",
+  ledge: "#2C3326",
+  ledgeHi: "#3A4332",
+};
+
+export const achievementArtLight: AchievementArt = {
+  track: "#D3D8C5",
+  arcDone: "#3C5700",
+  collar: "#0B0D09",
+  collarText: "#F5F6EF",
+  collarLabel: "#B2B9A6",
+  ghost: "#7A876E",
+  steelHi: "#E4E9EC",
+  steelMid: "#8E979E",
+  steelLo: "#4E565C",
+  loaded: c.lime,
+  loadedEdge: "#3C5700",
+  shadowOpacity: 0.18,
+  hubHi: "#EEF1F3",
+  hubMid: "#A9B1B7",
+  hubLo: "#5A6268",
+  hubEdge: "#3A4045",
+  bolt: "#4A5258",
+  collarEdge: "#2A2F33",
+  shadow: "#000000",
+  specular: "#FFFFFF",
+  stage: "#ECEFE2",
+  ledge: "#DDE2D0",
+  ledgeHi: "#F2F4EA",
+};

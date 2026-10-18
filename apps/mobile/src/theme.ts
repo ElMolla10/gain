@@ -2,8 +2,8 @@ import { useSyncExternalStore } from "react";
 import { Appearance as NativeAppearance, useColorScheme } from "react-native";
 
 import { gainTokens } from "./design/tokens";
-import { APPEARANCES, parseAppearance, type Appearance, darkPalette, lightPalette, logDarkPalette, logLightPalette, type LogPalette, type Palette } from "./palettes";
-export type { LogPalette, Palette };
+import { APPEARANCES, parseAppearance, type Appearance, darkPalette, lightPalette, logDarkPalette, logLightPalette, type LogPalette, type Palette, achievementArtDark, achievementArtLight, type AchievementArt } from "./palettes";
+export type { AchievementArt, LogPalette, Palette };
 
 /**
  * One visual identity (GAIN identity v1): electric lime on ink in dark, ink on bone with lime fills in light. Dark is the default;
@@ -48,6 +48,11 @@ export function useIsDark(): boolean {
 
 export function usePalette(): Palette {
   return useIsDark() ? darkPalette : lightPalette;
+}
+
+/** Decorative tokens for the round-2 achievement art (plate, sleeve, medals, ledges) in the active appearance. */
+export function useAchievementArt(): AchievementArt {
+  return useIsDark() ? achievementArtDark : achievementArtLight;
 }
 
 export function useLogPalette(): LogPalette {

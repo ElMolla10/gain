@@ -20,5 +20,7 @@ export const haptics = {
   unrack() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)); },
   /** Today: the x-ray mini bar or the load path is picked up (iOS Light). Android stays silent. */
   pickup() { if (ios()) run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); },
+  /** Logger: the dock's object changes to the next exercise (iOS Selection). Android stays silent. */
+  selection() { if (ios()) run(() => Haptics.selectionAsync()); },
   celebrate() { if (ios()) run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); else Vibration.vibrate(40); },
 };

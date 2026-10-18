@@ -5,7 +5,8 @@ import type { Disp } from "../logic/workoutTypes";
 import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { weightText } from "../logic/units";
-import { isTimed, parseQuantityInput } from "../logic/quantity";
+import { isTimed, parseQuantityInput, setQuantity } from "../logic/quantity";
+import { beatLast } from "../logic/beatLast";
 import { previousCellText } from "../logic/bidiText";
 import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
 import { kindOf, rowCanLog, type SetRowDraft, type editRow } from "../logic/workoutRows";
@@ -73,10 +74,15 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
   );
   // Previous performance wraps instead of shrinking or cutting off. Unitless "55 × 10" (the KG column header names the unit): pure
   // Latin digits, so ltr is safe here (L-3). At large text it is a 13 caption above the kg box instead of a column (L-8).
-  const previousValue = previousCellText(lastSets, workingIndex, ex.measure, unit, qUnits);
+  // "↑" + text 600 when this logged set beat the same set last time (logger spec §4; plain comparison, no colour, no "best").
+  const lastSet = lastSets && workingIndex !== null ? lastSets[workingIndex] ?? null : null;
+  const beat = !!lastSet && row.saved && !row.dirty && row.load !== null && row.reps !== null
+    && beatLast({ load: row.load, reps: row.reps, warmup: row.warmup, tags: row.tags }, { load: lastSet.load, reps: setQuantity(lastSet, ex.measure) }, ex.measure);
+  const previousValue = `${beat ? "↑ " : ""}${previousCellText(lastSets, workingIndex, ex.measure, unit, qUnits)}`;
+  const previousA11y = beat ? `${previousValue}, ${t("rack.beatLast")}` : undefined;
   const previous = (
     <View style={{ flex: 1.1 }}>
-      <AppText ltr style={{ color: p.muted, fontSize: ty.label, textAlign: "center" }}>{previousValue}</AppText>
+      <AppText ltr accessibilityLabel={previousA11y} style={{ color: beat ? p.text : p.muted, fontWeight: beat ? "600" : undefined, fontSize: ty.label, textAlign: "center" }}>{previousValue}</AppText>
     </View>
   );
   const loadCell = (
@@ -144,7 +150,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
           {bar}
           <View style={{ flexDirection: "row", gap: space.sm }}>
             <View style={{ width: 48 }} />
-            <View style={{ flex: 1 }}><AppText ltr style={{ color: p.muted, fontSize: ty.caption, textAlign: "center" }}>{previousValue}</AppText></View>
+            <View style={{ flex: 1 }}><AppText ltr accessibilityLabel={previousA11y} style={{ color: beat ? p.text : p.muted, fontWeight: beat ? "600" : undefined, fontSize: ty.caption, textAlign: "center" }}>{previousValue}</AppText></View>
             <View style={{ flex: 1 }} />
             {rirCell ? <View style={{ width: 64 }} /> : null}
             <View style={{ width: 48 }} />

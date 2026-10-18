@@ -1,14 +1,13 @@
 import React from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
 import type { Decision, EquipmentType, GymLoadSpec } from "@gain/engine";
 import { useI18n } from "../i18n";
 import { formatLoad, isolateLtr, NBSP } from "../i18n/format";
 import { matchingJumpKg, TREND_LOAD_JUMPS_KG } from "../logic/exerciseLoads";
-import type { ReportedSymptom } from "../logic/liveAdaptation";
 import type { NextSetState } from "../logic/nextSetCard";
 import { weightText } from "../logic/units";
 import { radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, Chip, Field, IconButton, QuietAction } from "../ui";
+import { AppText, BigButton, Chip, Field, QuietAction } from "../ui";
 
 interface Props {
   decision: Decision;
@@ -25,12 +24,11 @@ interface Props {
   onApply: () => void;
   onOwn: () => void;
   onKeep: () => void;
-  onReport: (symptom: ReportedSymptom) => void;
   whySentence?: string | null;
 }
 
 /** Presentation only: the logger owns persistence, staleness checks and acceptance. */
-export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleDetails, basis, repMin, repMax, equipment, loadSpec, manualLoad, busy, onApply, onOwn, onKeep, onReport, whySentence }: Props) {
+export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleDetails, basis, repMin, repMax, equipment, loadSpec, manualLoad, busy, onApply, onOwn, onKeep, whySentence }: Props) {
   const { t, lang, unit } = useI18n();
   const p = useLogPalette();
   const load = formatLoad(decision.suggestedWeightKg, lang, unit);
@@ -49,14 +47,8 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
 
   return (
     <View accessibilityLiveRegion={stop ? "assertive" : "polite"} style={{ marginHorizontal: space.md, marginVertical: space.sm, padding: space.md, gap: space.sm, borderRadius: radius.card, backgroundColor: p.card, borderWidth: 2, borderColor: stop ? p.danger : p.fill }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-        <AppText style={{ flex: 1, fontWeight: "600" }}>{t("live.title")}</AppText>
-        <IconButton icon="alert" label={t("live.report")} onPress={() => Alert.alert(t("live.report"), undefined, [
-          { text: t("live.severePain"), onPress: () => onReport("severe_pain") },
-          { text: t("live.dizziness"), onPress: () => onReport("dizziness") },
-          { text: t("common.cancel"), style: "cancel" },
-        ])} />
-      </View>
+      {/* Pain / dizziness reporting lives in the exercise's ⋮ menu (logger spec C10); the engine's stop card still opens itself. */}
+      <AppText style={{ fontWeight: "600" }}>{t("live.title")}</AppText>
       <AppText style={{ fontWeight: "700", color: p.accent }}>{t(stateKey as never)}</AppText>
       {/* Label on its own line, value in the language's order with only the numbers isolated (L-10): never ltr-forced. */}
       {stop ? null : (

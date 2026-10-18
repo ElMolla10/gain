@@ -5,7 +5,7 @@ import { Keyboard, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { adjustKeyboardInsets } from "../numberPad";
 import { Icon } from "../components/Icon";
-import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
+import { ExerciseBlock } from "../components/WorkoutExerciseSection";
 import { WorkoutDetailsPanel } from "../components/WorkoutDetailsPanel";
 import { RestClock, LiveDuration, Stat } from "../components/WorkoutStats";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
@@ -179,7 +179,7 @@ export function WorkoutScreen() {
           </View>
         ) : null}
 
-        {shown.map((ex, i) => { const props = exerciseProps(ex, i); return props ? <WorkoutExerciseSection key={ex.id} {...props} /> : null; })}
+        {shown.map((ex, i) => { const props = exerciseProps(ex, i); return props ? <ExerciseBlock key={ex.id} {...props} /> : null; })}
 
         <View style={{ paddingHorizontal: space.md, paddingTop: space.xl }}>
           <BigButton variant="secondary" icon="plus" label={t("workout.add.button")} onPress={() => setAddOpen(true)} />

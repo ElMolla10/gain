@@ -1,7 +1,7 @@
 import { canEditLoadsFor } from "../logic/setRowState";
 import { loadTargetText } from "../logic/bidiText";
 import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import { findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
 import type { Disp, ExInfo } from "../logic/workoutTypes";
@@ -10,7 +10,7 @@ import { useI18n } from "../i18n";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { localizeReason, weightText } from "../logic/units";
 import { isIsolationPattern, warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
-import { plateLine } from "../logic/plateText";
+import { foldedSummary } from "../logic/foldedSummary";
 import { isTimed, quantityText, setQuantity } from "../logic/quantity";
 import { workingIndexes } from "../logic/liveSummary";
 import { focusedRowKey } from "../logic/workoutFocus";
@@ -27,9 +27,17 @@ import { LiveSuggestion, LoadSettings } from "./LiveSuggestion";
 import { MemoWorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
 import type { PreviousSource } from "./PreviousSourceToggle";
 
+/** A finished exercise folds this long after focus moves on (logger spec §4). */
+export const FOLD_DELAY_MS = 600;
+/** Fold only when every row is saved and none is being edited, nothing is unconfirmed, and focus is elsewhere. */
+export const shouldFold = (list: readonly SetRowDraft[], unconfirmed: number, active: boolean): boolean =>
+  !active && unconfirmed === 0 && list.some((r) => r.saved && !r.warmup) && list.every((r) => r.saved && !r.dirty);
+
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string; starting?: boolean }
-interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
+export interface ExerciseSectionProps extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
   active?: boolean; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
+  /** Rest is on in general (rest.auto); without it the rest chip moves into the ⋮ menu. */
+  restGlobal?: boolean;
   /** The Next-set card is closed by default (a stop warning always shows); the row still carries the suggestion as ghost values. */
   suggestionOpen?: boolean; onToggleSuggestion?: () => void;
   /** Available-load settings, closed by default behind the header's Loads control. */
@@ -55,7 +63,7 @@ interface Props extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDe
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId }: Props) {
+export function WorkoutExerciseSection({ restGlobal = true, active = true, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId }: ExerciseSectionProps) {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
@@ -76,7 +84,6 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   const suggestedKg = suggestedNextLoad(candidate?.decision, exSets.some(s => !s.warmup && s.outlierStatus !== "unconfirmed" && s.outlierStatus !== "rejected"));
   const trusted = exSets.filter(trustedWorkingSet);
   const basis = trusted.at(-1);
-  const suggestedWeight = suggestedKg === null ? "" : formatLoad(suggestedKg, lang, unit);
   const why = card
     ? describeWhyWeight(
         {
@@ -103,8 +110,6 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
   const targetNone = info.stored ? info.stored.status === "rejected" || info.stored.effectiveLoad === null || storedQ === null : !(pr.status === "proposed" && pr.load !== null && proposedQ !== null);
   const tLoad = info.stored ? info.stored.effectiveLoad : pr.load;
   const tReps = info.stored ? storedQ : proposedQ;
-  const plates = !timed ? plateLine(spec, typeof tLoad === "number" ? tLoad : workingLoad, unit, lang, t) : null;
-  const suggestedPlates = !timed && suggestedKg !== null ? plateLine(spec, suggestedKg, unit, lang, t) : null;
   // A hold or carry target: "45 s" (or "24 kg × 45 s" when it is loaded); a reps target: "60 kg × 8".
   const targetText = targetNone ? t("workout.targetNone") : timed ? ((tLoad as number) > 0 ? `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(quantityText(tReps as number, ex.measure, qUnits))}` : isolateLtr(quantityText(tReps as number, ex.measure, qUnits))) : `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(String(tReps))}`;
   const reasonText = info.stored?.status === "rejected" ? t("finish.rejectedNote") : renderReason(localizeReason(info.stored ? info.stored.reason : pr.reason, unit, lang), lang);
@@ -122,7 +127,7 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
     basis={basis} repMin={ex.repMin} repMax={ex.repMax} equipment={ex.equipment} loadSpec={spec}
     detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
     manualLoad={nextAdaptiveRow(list)?.load !== null || nextAdaptiveRow(list)?.reps !== null} busy={busy}
-    onApply={onLiveApply} onOwn={onLiveOwn} onReport={onLiveReport} onKeep={onLiveKeep} whySentence={whySentence} /> : null;
+    onApply={onLiveApply} onOwn={onLiveOwn} onKeep={onLiveKeep} whySentence={whySentence} /> : null;
 
   return (
     <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
@@ -142,7 +147,8 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
           {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
         </Pressable>
         {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
-        <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} />
+        {/* The rest chip only when rest is on in general; otherwise the ⋮ menu offers "Rest after this exercise" (logger spec §4). */}
+        {restGlobal ? <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} /> : null}
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
       </View>
       {canEditLoads && loadsOpen ? (
@@ -161,8 +167,6 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
           label={t("workout.nextTarget")}
           value={targetText}
           whyLabel={t("workout.whyShort")}
-          suggestedLabel={suggestedWeight && !showCard ? t("workout.suggestedWeight") : undefined}
-          suggestedValue={suggestedWeight}
           whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
           expanded={info.stored ? undefined : expanded}
           reason={reasonText}
@@ -175,8 +179,6 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
         />
         {!why && afterExercise ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("why.weight.afterExercise", { exercise: afterExercise })}</AppText> : null}
         {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}
-        {plates ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{plates.text}</AppText> : null}
-        {suggestedPlates && suggestedPlates.text !== plates?.text ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{suggestedPlates.text}</AppText> : null}
         {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
         {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
         <PersonalMilestoneLine onOpen={onOpenProgress} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
@@ -272,15 +274,56 @@ export function WorkoutExerciseSection({ active = true, liveDetailsOpen = false,
       {warmDone ? <InlineStatus kind="success" text={t("warm.added")} /> : null}
       {!spec ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: space.lg }}>{t("workout.stepFallback")}</AppText> : null}
 
-      <View style={{ paddingHorizontal: space.md }}>
-        <BigButton
-          variant="secondary"
-          icon="plus"
-          label={t("workout.addSet")}
-          onPress={() => onAddSet()}
-          accessibilityHint={labels.primary}
-        />
+      {/* "+ Set" is a quiet 48 dp text action (logger spec §4); the dock carries the primary action. */}
+      <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
+        <QuietAction icon="plus" label={t("workout.addSet")} accessibilityLabel={`${t("workout.addSet")}: ${labels.primary}`} onPress={() => onAddSet()} />
       </View>
     </View>
+  );
+}
+
+/**
+ * The exercise block as the logger shows it: the full section, or, once finished and focus has moved on, folded to one 56 dp line
+ * (logger spec §4) after FOLD_DELAY_MS. Tap to unfold; the unfolded choice is session-only state. The fold state lives here so the
+ * section itself stays a plain function of its props.
+ */
+export function ExerciseBlock(props: ExerciseSectionProps) {
+  const { list, exSets, active = true, ex, supersetLabel } = props;
+  const { t, lang, unit } = useI18n();
+  const p = useLogPalette();
+  const unconfirmed = exSets.filter((s) => s.outlierStatus === "unconfirmed").length;
+  const foldable = shouldFold(list, unconfirmed, active);
+  const [foldReady, setFoldReady] = useState(false);
+  const [unfolded, setUnfolded] = useState(false);
+  useEffect(() => {
+    if (!foldable) { setFoldReady(false); return; }
+    const id = setTimeout(() => setFoldReady(true), FOLD_DELAY_MS);
+    return () => clearTimeout(id);
+  }, [foldable]);
+  if (!(foldable && foldReady && !unfolded)) return <WorkoutExerciseSection {...props} />;
+  return <FoldedExercise name={exerciseLabels(ex, lang).primary} list={list} superset={!!supersetLabel} onUnfold={() => setUnfolded(true)} t={t} lang={lang} unit={unit} p={p} />;
+}
+
+/** One line for a finished exercise: name, "57.5 kg × 8, 9, 10", a done check and a chevron. A button that unfolds it. */
+export function FoldedExercise({ name, list, superset, onUnfold, t, lang, unit, p }: { name: string; list: readonly SetRowDraft[]; superset: boolean; onUnfold: () => void; t: ReturnType<typeof useI18n>["t"]; lang: ReturnType<typeof useI18n>["lang"]; unit: ReturnType<typeof useI18n>["unit"]; p: ReturnType<typeof useLogPalette> }) {
+  const done = list.filter((r) => r.saved && !r.warmup && r.load !== null && r.reps !== null).map((r) => ({ load: r.load as number, reps: r.reps as number, tags: r.tags }));
+  const summary = foldedSummary(done, lang, unit);
+  const n = done.filter((d) => !d.tags.includes("drop")).length;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("rack.fold.a11y", { exercise: name, n, summary })}
+      accessibilityHint={t("rack.fold.hint")}
+      accessibilityState={{ expanded: false }}
+      onPress={onUnfold}
+      style={({ pressed }) => ({ minHeight: 56, marginTop: space.md, paddingHorizontal: space.lg, flexDirection: "row", alignItems: "center", gap: space.md, borderStartWidth: superset ? 4 : 0, borderStartColor: p.fill, opacity: pressed ? 0.7 : 1 })}
+    >
+      <View style={{ flex: 1, gap: 2 }}>
+        <AppText numberOfLines={1} style={{ fontSize: 16, fontWeight: "600" }}>{name}</AppText>
+        <AppText numberOfLines={1} style={{ fontSize: ty.label, color: p.muted, fontVariant: ["tabular-nums"] }}>{summary}</AppText>
+      </View>
+      <Icon name="check" color={p.accent} size={20} />
+      <Icon name="chevron" color={p.muted} size={20} />
+    </Pressable>
   );
 }

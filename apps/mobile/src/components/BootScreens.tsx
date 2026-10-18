@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { BrandLogo } from "../BrandLogo";
 import { familyFor } from "../fonts";
 import { darkPalette as p } from "../palettes";
@@ -20,6 +20,11 @@ const BOOT = {
   T3: 'Update paused to protect your data',
   T4: "GAIN could not save a safety copy of your workouts before updating its storage (is the phone's storage full?). Nothing has been changed. Free some space and try again.",
   T5: "تم إيقاف التحديث لحماية بياناتك. التطبيق ماقدرش يحفظ نسخة أمان من تمارينك قبل ما يحدّث التخزين، ومفيش حاجة اتغيرت. فضّي مساحة وجرّب تاني.",
+  N0: "This data was saved by a newer GAIN",
+  N1: "Your workouts are safe on this phone, but they were saved by a newer version of GAIN than this one. Install the latest GAIN to open them. Nothing has been changed or deleted.",
+  N2: "بياناتك محفوظة على الموبايل، بس اتحفظت بنسخة أحدث من GAIN. نزّل آخر نسخة من GAIN عشان تفتحها. ما اتغيرش ولا اتمسح حاجة.",
+  details: "Details · التفاصيل",
+  copy: "Copy details · انسخ التفاصيل",
 };
 const latin = (w: string = "400") => familyFor({ weight: w, arabic: false });
 const arabic = (w: string = "400") => familyFor({ weight: w, arabic: true });
@@ -53,14 +58,30 @@ export function BootLoading() {
   );
 }
 
-export function BootError({ onRetry }: { onRetry: () => void }) {
+/** Copyable error text: selectable (long-press to copy) and a button that opens the share sheet (Copy is in it). No new native library. */
+function Details({ text }: { text: string }) {
+  return (
+    <View style={{ gap: space.sm }}>
+      <Text style={{ color: p.muted, fontFamily: latin("600"), fontSize: 13, lineHeight: 18 }}>{BOOT.details}</Text>
+      <View style={{ borderRadius: radius.button, borderWidth: 1.5, borderColor: p.edge, backgroundColor: p.raised, padding: space.md }}>
+        <Text selectable testID="boot-error-details" style={{ color: p.text, fontFamily: latin(), fontSize: 13, lineHeight: 18, writingDirection: "ltr" }}>
+          {text}
+        </Text>
+      </View>
+      <Btn label={BOOT.copy} onPress={() => void Share.share({ message: text }).catch(() => undefined)} />
+    </View>
+  );
+}
+
+export function BootError({ onRetry, newer, details }: { onRetry: () => void; newer?: boolean; details?: string }) {
   return (
     <Shell>
       <BrandLogo size={48} />
-      <Text accessibilityRole="header" style={{ color: p.text, fontFamily: latin("600"), fontSize: 28, lineHeight: 34 }}>{BOOT.T0}</Text>
-      <Text style={{ color: p.text, fontFamily: latin(), fontSize: 16, lineHeight: 24 }}>{BOOT.T1}</Text>
-      <Text style={{ color: p.text, fontFamily: arabic(), fontSize: 17, lineHeight: 27, writingDirection: "rtl" }}>{BOOT.T2}</Text>
+      <Text accessibilityRole="header" style={{ color: p.text, fontFamily: latin("600"), fontSize: 28, lineHeight: 34 }}>{newer ? BOOT.N0 : BOOT.T0}</Text>
+      <Text style={{ color: p.text, fontFamily: latin(), fontSize: 16, lineHeight: 24 }}>{newer ? BOOT.N1 : BOOT.T1}</Text>
+      <Text style={{ color: p.text, fontFamily: arabic(), fontSize: 17, lineHeight: 27, writingDirection: "rtl" }}>{newer ? BOOT.N2 : BOOT.T2}</Text>
       <Btn primary label={BOOT.retry} onPress={onRetry} />
+      {details ? <Details text={details} /> : null}
     </Shell>
   );
 }

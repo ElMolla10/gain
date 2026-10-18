@@ -338,3 +338,64 @@ export const MATERIAL_FOR_PRESTIGE: Record<"foundation" | "forged" | "masterwork
   masterwork: "bronze",
   legacy: "lime",
 };
+
+// ---- Today 10x, "Today's Bar" (spec §2.1). They extend the r2 plate tokens (PLATE_COLOURS red/blue/yellow/green) and don't fork them. ----
+
+/** A side-on plate's vertical ramp: lo 0% → face 16% → hi 34% → face 58% → lo 100%, plus the 1 dp lip / bevel stroke. */
+export interface PlateRamp {
+  face: string;
+  hi: string;
+  lo: string;
+  lip: string;
+}
+export type TodayPlateName = "red" | "blue" | "yellow" | "green" | "white" | "chrome" | "iron";
+const ramp = (p: PlateColours): PlateRamp => ({ face: p.face, hi: p.hi, lo: p.lo, lip: p.lip });
+export const TODAY_PLATES: Record<TodayPlateName, PlateRamp> = {
+  red: ramp(PLATE_COLOURS.red),
+  blue: ramp(PLATE_COLOURS.blue),
+  yellow: ramp(PLATE_COLOURS.yellow),
+  green: ramp(PLATE_COLOURS.green),
+  /** 5 kg, 0.5 kg. */
+  white: { face: "#E6E9E2", hi: "#FFFFFF", lo: "#A3A99D", lip: "#6E7468" },
+  /** 1.25 kg (in KG_PLATES, not IWF). */
+  chrome: { face: "#B9C2C8", hi: "#F2F5F7", lo: "#5E676D", lip: "#454C51" },
+  /** Every lb plate; the lip is the bevel highlight that carries the edge on dark. */
+  iron: { face: "#3D4346", hi: "#6E777C", lo: "#1E2224", lip: "#7C858A" },
+};
+/** Ink for a numeral printed ON a plate face: dark on white/yellow/chrome/green, white on red/blue/iron (≥ 4.5:1). */
+export const PLATE_NUMERAL_INK: Record<TodayPlateName, string> = {
+  red: "#FFFFFF", blue: "#FFFFFF", iron: "#FFFFFF", white: "#10120E", yellow: "#10120E", chrome: "#10120E", green: "#10120E",
+};
+
+export interface BarSteel {
+  base: string;
+  hi: string;
+  lo: string;
+  edge: string;
+}
+/** Bar, sleeves and collars. Light is darker so the bar holds 3:1 on bone. */
+export const BAR_STEEL: { dark: BarSteel; light: BarSteel } = {
+  dark: { base: "#A7B0B6", hi: "#E4E9EC", lo: "#5E676D", edge: "#F2F5F7" },
+  light: { base: "#78818A", hi: "#C9D0D5", lo: "#4E565C", edge: "#B9C1C7" },
+};
+
+/** The other objects of the hero (spec §2.3): rubber dumbbell heads, machine frames, the weight stack, ghost outlines. */
+export interface TodayObjects {
+  rubber: string;
+  rubberEdge: string;
+  rubberInk: string;
+  frame: string;
+  stackPlate: string;
+  stackPlateEdge: string;
+  /** Stack plates above the pin (the ones that lift). */
+  stackLifted: string;
+  /** Dashed ghost plates, outlines, the dial ring. */
+  ghost: string;
+  /** The dial arc and other strong strokes. */
+  strong: string;
+  shadow: string;
+}
+export const TODAY_OBJECTS: { dark: TodayObjects; light: TodayObjects } = {
+  dark: { rubber: "#2A2F2B", rubberEdge: "#5A625C", rubberInk: "#C9D0C6", frame: "#2B302A", stackPlate: "#30362F", stackPlateEdge: "#4A524A", stackLifted: "#475048", ghost: "#8A9580", strong: "#F5F6EF", shadow: "#000000" },
+  light: { rubber: "#30362F", rubberEdge: "#1A1E19", rubberInk: "#E6EAE0", frame: "#2B302A", stackPlate: "#3B4239", stackPlateEdge: "#252A23", stackLifted: "#5A6358", ghost: "#7A876E", strong: "#171C12", shadow: "#000000" },
+};

@@ -1,6 +1,6 @@
 import React from "react";
 import Svg, { Defs, Ellipse, G, LinearGradient, Rect, Stop } from "react-native-svg";
-import { barLayout, HERO_H, HERO_W, type BarLayout } from "../../logic/barArt";
+import { barLayout, gridPlates, HERO_H, HERO_W, type BarLayout } from "../../logic/barArt";
 import type { Unit } from "../../logic/units";
 import { BAR_STEEL, TODAY_OBJECTS, TODAY_PLATES, type TodayPlateName } from "../../palettes";
 import { useIsDark } from "../../theme";
@@ -55,12 +55,30 @@ export function BarBody({ layout, dark, prefix = "tb" }: { layout: BarLayout; da
   );
 }
 
-/** The side-on barbell of the hero: plates per side heaviest first from the inner collar, optional dashed ghosts (lighter week / first run). */
-export function BarArt({ perSide, ghost, unit, height, lifted }: { perSide: readonly number[]; ghost?: readonly number[] | null; unit: Unit; height: number; lifted?: number }) {
+/**
+ * The side-on barbell. `lod="hero"` (default) is the Today hero: plates per side heaviest first from the inner collar, optional dashed
+ * ghosts. `lod="grid"` is the logger dock's 96×32 mini (logger spec §2.2): shaft, two collars and one flat rect per plate, outer plates
+ * merged above 4 per side, no gradients (≤12 shapes).
+ */
+export function BarArt({ perSide, ghost, unit, height, lifted, lod = "hero", width = "100%" }: { perSide: readonly number[]; ghost?: readonly number[] | null; unit: Unit; height: number; lifted?: number; lod?: "hero" | "grid"; width?: number | "100%" }) {
   const dark = useIsDark();
+  if (lod === "grid") {
+    const steel = dark ? BAR_STEEL.dark : BAR_STEEL.light;
+    const l = barLayout(gridPlates(perSide), { unit });
+    return (
+      <Svg width={width} height={height} viewBox={`0 0 ${HERO_W} ${HERO_H}`} {...ART_HIDDEN}>
+        <Rect x={0} y={l.cy - 8} width={HERO_W} height={16} fill={steel.base} />
+        <Rect x={l.xL - 14} y={l.cy - 22} width={14} height={44} fill={steel.hi} />
+        <Rect x={l.xR} y={l.cy - 22} width={14} height={44} fill={steel.hi} />
+        {l.plates.map((p, i) => (
+          <Rect key={i} x={p.x} y={p.y} width={p.w} height={p.h} fill={TODAY_PLATES[p.token].face} stroke={TODAY_PLATES[p.token].lip} strokeWidth={2} />
+        ))}
+      </Svg>
+    );
+  }
   const layout = barLayout(perSide, { unit, ghost, lifted });
   return (
-    <Svg width="100%" height={height} viewBox={`0 0 ${HERO_W} ${HERO_H}`} {...ART_HIDDEN}>
+    <Svg width={width} height={height} viewBox={`0 0 ${HERO_W} ${HERO_H}`} {...ART_HIDDEN}>
       <Defs>
         <PlateRamps tokens={layout.plates.map((p) => p.token)} prefix="tb" />
       </Defs>

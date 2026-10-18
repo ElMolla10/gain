@@ -33,6 +33,22 @@ export const enToday = {
   "today.a11y.assist": "Assistance {load} {unit}; less assistance is stronger.",
   "today.a11y.belt": "Bodyweight plus {load} {unit} on the belt, for {q}.",
   "today.a11y.horn": "{load} {unit} total on the machine, for {q}.",
+  "today.stub.written": "Written {when}, after {day}",
+  "today.stub.writtenNoDay": "Written {when}",
+  "today.stub.preview": "Preview from your history · saved when you start",
+  "today.stub.edited": "You set {load} yourself",
+  "today.stub.last": "Last time {last}",
+  "today.stub.sets.one": "{n} set",
+  "today.stub.sets.few": "{n} sets",
+  "today.rack.planned": "Also today · written at the door",
+  "today.rack.preview": "Also today · preview from your history",
+  "today.rack.a11yTarget": "target {target}",
+  "today.rack.expand": "Expand",
+  "today.rack.showPlates": "Show plates",
+  "today.time.one": "{n} exercise · {sets} sets · ~{min} min · done around {time}",
+  "today.time.few": "{n} exercises · {sets} sets · ~{min} min · done around {time}",
+  "today.startDay": "Start {day}",
+  "today.footerMin": "~{min} min",
 } as const;
 
 export const arToday: Record<keyof typeof enToday, string> = {
@@ -97,4 +113,36 @@ export const arToday: Record<keyof typeof enToday, string> = {
   "today.a11y.belt": "وزن جسمك زائد {load} {unit} على الحزام، لعدد {q}.",
   // DRAFT ar
   "today.a11y.horn": "{load} {unit} إجمالي على الجهاز، لعدد {q}.",
+  // DRAFT ar
+  "today.stub.written": "مكتوبة {when}، بعد {day}",
+  // DRAFT ar
+  "today.stub.writtenNoDay": "مكتوبة {when}",
+  // DRAFT ar
+  "today.stub.preview": "معاينة من سجلك · بتتحفظ لما تبدأ",
+  // DRAFT ar
+  "today.stub.edited": "إنت اللي حددت {load}",
+  // DRAFT ar
+  "today.stub.last": "آخر مرة {last}",
+  // DRAFT ar
+  "today.stub.sets.one": "{n} مجموعة",
+  // DRAFT ar
+  "today.stub.sets.few": "{n} مجموعات",
+  // DRAFT ar
+  "today.rack.planned": "كمان النهارده · مكتوبة من قبلها",
+  // DRAFT ar
+  "today.rack.preview": "كمان النهارده · معاينة من سجلك",
+  // DRAFT ar
+  "today.rack.a11yTarget": "الهدف {target}",
+  // DRAFT ar
+  "today.rack.expand": "افتح",
+  // DRAFT ar
+  "today.rack.showPlates": "اعرض الأطباق",
+  // DRAFT ar
+  "today.time.one": "{n} تمرين · {sets} مجموعات · حوالي {min} د · تخلص حوالي {time}",
+  // DRAFT ar
+  "today.time.few": "{n} تمارين · {sets} مجموعات · حوالي {min} د · تخلص حوالي {time}",
+  // DRAFT ar
+  "today.startDay": "ابدأ {day}",
+  // DRAFT ar
+  "today.footerMin": "حوالي {min} د",
 };

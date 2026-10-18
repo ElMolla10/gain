@@ -131,7 +131,7 @@ export function BeltArt({ plates, unit, height }: { plates: readonly number[]; u
       <Ellipse cx={HERO_W / 2} cy={42} rx={5} ry={8} fill="none" stroke={steel.base} strokeWidth={2.5} />
       <Ellipse cx={HERO_W / 2} cy={56} rx={5} ry={8} fill="none" stroke={steel.base} strokeWidth={2.5} />
       {shown.map((kg, i) => (
-        <FaceOnPlate key={i} cx={HERO_W / 2 + (i - (shown.length - 1) / 2) * 62} cy={94} kg={kg} unit={unit} r={30 - i * 3} />
+        <FaceOnPlate key={i} cx={HERO_W / 2 + (i - (shown.length - 1) / 2) * 62} cy={94} kg={kg} unit={unit} r={Math.max(16, plateLook(kg, unit).diameter * 0.27)} />
       ))}
     </Svg>
   );
@@ -169,7 +169,7 @@ export function RackedArt({ perSide, unit, height }: { perSide: readonly number[
       <Path d={`M 80 40 h 10 v 8 h -10 M ${HERO_W - 110} 40 h 10 v 8 h -10`} fill="none" stroke={steel.lo} strokeWidth={3} />
       <Rect x={30} y={36} width={HERO_W - 110} height={8} rx={3} fill={steel.base} />
       {shown.map((kg, i) => (
-        <FaceOnPlate key={i} cx={HERO_W - 70 + i * 6} cy={HERO_H - 34 + i * 2} kg={kg} unit={unit} r={30 - i * 4} />
+        <FaceOnPlate key={i} cx={HERO_W - 70 + i * 6} cy={HERO_H - 34 + i * 2} kg={kg} unit={unit} r={Math.max(14, plateLook(kg, unit).diameter * 0.25)} />
       ))}
     </Svg>
   );

@@ -1,6 +1,18 @@
+import { renderReason, type GymFingerprint, type SessionSummary } from "@gain/engine";
 import { PersonalProgressCard } from "../components/PersonalProgressCard";
 import { leadTarget } from "../logic/nextTarget";
 import { plannedScheme, targetRowText } from "../logic/bidiText";
+import { formatDay } from "../logic/dateText";
+import { localizeReason } from "../logic/units";
+import { todayHero } from "../logic/todayHero";
+import { todayRows, type TodayRow } from "../logic/todayRows";
+import { deltaChip, doneAround } from "../logic/todayCopy";
+import { rackA11yLabel, stubLines, timeLine, writtenAfter } from "../logic/todayStub";
+import { haptics } from "../haptics";
+import { TodayBar } from "../components/today/TodayBar";
+import { TodayHeader } from "../components/today/TodayHeader";
+import { DoorStub } from "../components/today/DoorStub";
+import { glyphFor, RackRow } from "../components/today/RackRow";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +30,6 @@ import { loadRestSettings } from "../logic/restAlert";
 import { useI18n } from "../i18n";
 import { MIN_TOUCH, radius, space, type as ty, usePalette } from "../theme";
 import { Icon } from "../components/Icon";
-import { BrandLogo } from "../BrandLogo";
 import { dayLabel, initialSelection, markSuggested, dayNeedingPreview, sessionAction, startDay, type DayChoice } from "../logic/dayChoice";
 import { AppText, BigButton, Card, ChoiceSheet, CollapsibleCard, EmptyState, ErrorState, InlineStatus, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
 import { HealthNote } from "../components/HealthNote";
@@ -44,8 +55,17 @@ interface TodayData {
   loadId: number;
 }
 
+/** The hero extras for the day on screen, fetched lazily (never in the focus load) and cached per load + day (spec §10). */
+interface DoorExtras {
+  key: string;
+  gym: GymFingerprint | null;
+  /** Stored decision per target id: when it was written and the newest comparable session it used. */
+  decisions: Record<string, { createdAt: number; last: SessionSummary | null }>;
+  sessions: { dayName: string; finishedAt: number }[];
+}
+
 export function TodayScreen() {
-  const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout } = useServices();
+  const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history } = useServices();
   const { t, lang, fmt, unit } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why", params?: { dayId: string } | { targetId: string }) => void }>();
@@ -57,6 +77,9 @@ export function TodayScreen() {
   const [starting, setStarting] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [extras, setExtras] = useState<DoorExtras | null>(null);
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const [xrayRow, setXrayRow] = useState<string | null>(null);
   const { fontScale } = useWindowDimensions();
   const loadSeq = useRef(0);
   const inflight = useRef(new Set<string>());
@@ -125,6 +148,39 @@ export function TodayScreen() {
       });
   }, [finish, previewDay, previewGym, previewLoad]);
 
+  // The door extras (gym plates, decision records, the session the targets were written after) for the day on screen only.
+  const viewTargets = ready && viewId ? ready.targets[viewId] ?? [] : [];
+  const extrasKey = ready && viewId ? `${ready.loadId}:${viewId}:${viewTargets.map((x) => x.id).join(",")}` : null;
+  useEffect(() => {
+    if (!extrasKey || !ready) return;
+    if (inflight.current.has(extrasKey)) return;
+    inflight.current.add(extrasKey);
+    const ids = viewTargets.map((x) => x.id);
+    const gymId = ready.activeGym;
+    void (async () => {
+      const [gym, decs, sessions] = await Promise.all([
+        gymId ? repos.loadGymFingerprint(gymId).catch(() => null) : Promise.resolve(null),
+        Promise.all(ids.map((id) => finish.getDecision(id).catch(() => null))),
+        ids.length > 0 ? history.listSessions(10).catch(() => []) : Promise.resolve([]),
+      ]);
+      const decisions: DoorExtras["decisions"] = {};
+      ids.forEach((id, i) => {
+        const d = decs[i];
+        if (d) decisions[id] = { createdAt: d.createdAt, last: d.payload.inputs?.sessions?.[0] ?? null };
+      });
+      return { key: extrasKey, gym, decisions, sessions: sessions.map((x) => ({ dayName: x.dayName, finishedAt: x.finishedAt })) };
+    })()
+      .catch((e) => {
+        diagnostics.record("warn", "today extras", e);
+        return { key: extrasKey, gym: null, decisions: {}, sessions: [] } as DoorExtras;
+      })
+      .then((x) => {
+        inflight.current.delete(extrasKey);
+        setExtras(x);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extrasKey, repos, finish, history]);
+
   if (state.kind === "loading") return <LoadingState />;
   if (state.kind === "error") {
     return (
@@ -153,18 +209,52 @@ export function TodayScreen() {
   const chosen = data.days.find((d) => d.id === picked) ?? data.days[0]!;
   const exercises = chosen.list;
   const goalIds = new Set(exercises.filter((e) => e.isGoalLift).map((e) => e.exerciseId));
-  const dayTargets = data.targets[chosen.id] ?? [];
-  const byExercise = new Map(dayTargets.map((tg) => [tg.exerciseId, tg]));
-  const byPreview = new Map((data.previews[chosen.id] ?? []).map((preview) => [preview.exerciseId, preview.proposal]));
-  const anyWeight = dayTargets.some((tg) => tg.status !== "rejected" && tg.currency !== "none" && tg.effectiveLoad !== null)
-    || (data.previews[chosen.id] ?? []).some((v) => v.proposal.currency !== "none" && v.proposal.load !== null);
-  const lead = leadTarget(dayTargets, goalIds);
+  const rows = todayRows(exercises, data.targets[chosen.id] ?? [], data.previews[chosen.id] ?? []);
+  const byRow = new Map(rows.map((r) => [r.exerciseId, r]));
+  const anyWeight = rows.some((r) => r.status !== "rejected" && r.currency !== "none" && r.effectiveLoad !== null);
+  const isPreview = rows.length > 0 && rows.every((r) => r.preview);
+  const lead = leadTarget(rows, goalIds);
+  const leadEx = lead ? exercises.find((e) => e.exerciseId === lead.exerciseId) ?? null : null;
   const letters = { s: t("qty.s"), m: t("qty.m") };
   const action = sessionAction(chosen.id, data.openDayId);
   const openDay = data.openDayId ? data.days.find((d) => d.id === data.openDayId) : undefined;
   const label = dayLabel(chosen, data.openDayId);
   const labelText = label === "inProgress" ? t("today.inProgress") : label === "suggested" ? t("today.suggestedToday") : t("today.yourChoice");
-  const buttonText = action.kind === "start" ? t("today.start") : action.elsewhere && openDay ? t("today.resumeDay", { day: openDay.name }) : t("today.resume");
+  const minutes = estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds);
+  const buttonText = action.kind === "start" ? `${t("today.startDay", { day: chosen.name })} · ${t("today.footerMin", { min: minutes })}` : action.elsewhere && openDay ? t("today.resumeDay", { day: openDay.name }) : t("today.resume");
+  const ex = extras && extras.key.startsWith(`${data.loadId}:${chosen.id}:`) ? extras : null;
+  const now = Date.now();
+  const lastOf = (r: TodayRow): SessionSummary | null => r.last ?? (r.targetId ? ex?.decisions[r.targetId]?.last ?? null : null);
+  const reasonOf = (r: TodayRow): string | null => (r.reason ? renderReason(localizeReason(r.reason, unit, lang), lang) : null);
+  const chipOf = (r: TodayRow) => deltaChip({ load: r.effectiveLoad, reps: r.reps, status: r.status }, lastOf(r), { lang, unit, t, lighterWeek: r.normalLoad !== null });
+  const targetOf = (r: TodayRow | undefined) => (r && r.status !== "rejected" && r.currency !== "none" && r.effectiveLoad !== null ? targetRowText(r, lang, unit, letters) : null);
+
+  // The hero: the lead lift drawn as the loaded object. Its plates need the gym (lazy): until then the number shows alone.
+  const hero = lead && leadEx
+    ? todayHero({
+      target: { exerciseId: lead.exerciseId, load: lead.effectiveLoad, reps: lead.reps, measure: lead.measure, durationS: lead.durationS, distanceM: lead.distanceM },
+      exercise: { exerciseId: leadEx.exerciseId, nameEn: leadEx.nameEn, nameAr: leadEx.nameAr, equipment: leadEx.equipment, setup: leadEx.setup, measure: leadEx.measure, pattern: leadEx.pattern, loadSpec: leadEx.loadSpec, isGoalLift: leadEx.isGoalLift },
+      gym: ex?.gym ?? null,
+      normalLoad: lead.normalLoad,
+      position: exercises.findIndex((e) => e.exerciseId === lead.exerciseId),
+    })
+    : data.isSample && !anyWeight ? todayHero({ target: null, exercise: null, gym: null, isSample: true }) : null;
+  const leadName = leadEx ? exerciseLabels(leadEx, lang).primary : "";
+  const stub = lead
+    ? stubLines(
+      {
+        preview: lead.preview,
+        createdAt: lead.targetId ? ex?.decisions[lead.targetId]?.createdAt ?? null : null,
+        afterDay: lead.targetId && ex?.decisions[lead.targetId] ? writtenAfter(ex.decisions[lead.targetId]!.createdAt, ex.sessions) : null,
+        edited: lead.editedLoad !== null ? { load: lead.editedLoad } : null,
+        last: lastOf(lead),
+        chip: lastOf(lead) ? chipOf(lead).text : null,
+        reason: reasonOf(lead),
+      },
+      { lang, unit, t, now },
+    )
+    : null;
+  const stubLoading = !!lead && !lead.preview && !ex;
 
   async function start() {
     if (starting) return;
@@ -187,93 +277,90 @@ export function TodayScreen() {
   }
 
   const stack = fontScale > 1.3;
+  const footer = <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />;
   return (
-    <Screen tab>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-        <BrandLogo size={32} />
-        <AppText ltr style={{ fontSize: ty.section, fontWeight: "600", letterSpacing: 0.4 }}>
-          {t("app.name")}
-        </AppText>
-      </View>
+    <Screen tab footer={footer} footerInline={stack}>
+      {/* The day name is the one title; the date, the label and Change sit around it (spec §0 row 0). */}
+      <TodayHeader date={formatDay(now, lang, now)} dayName={chosen.name} label={labelText} dayIndex={data.days.findIndex((d) => d.id === chosen.id)} dayCount={data.days.length} onChange={() => setChangeOpen(true)} />
+      {action.kind === "resume" ? <InlineStatus kind={action.elsewhere ? "warn" : "info"} text={action.elsewhere ? t("today.finishOpenFirst") : t("today.openWorkout")} /> : null}
 
-      {/* The session: what is suggested, how long, and the one action. Choosing another day is a compact action, not a row of chips. */}
-      <Card>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", columnGap: space.sm }}>
-          <AppText accessibilityLiveRegion="polite" style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent, letterSpacing: 0.4, flexShrink: 1 }}>{labelText}</AppText>
-          {data.days.length > 1 ? <QuietAction label={t("today.change")} accessibilityLabel={t("today.changeLabel", { day: chosen.name })} onPress={() => setChangeOpen(true)} /> : null}
+      {/* Today's Bar: the lead lift as the real loaded object, on bg with no card. */}
+      {hero ? (
+        <View style={{ gap: space.sm }}>
+          <TodayBar hero={hero} name={leadName} />
+          {lead ? (
+            <DoorStub
+              provenance={stub?.provenance ?? null}
+              lastTime={stub?.lastTime ?? null}
+              loading={stubLoading}
+              whyLabel={`${t("workout.whyShort")}: ${leadName}`}
+              onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
+            />
+          ) : null}
         </View>
-        <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{chosen.name}</AppText>
-        {/* The program name on its own line (14 muted), then sets and minutes: no separator left dangling when a line wraps, and no
-            bidi joint between a Latin program name and an Arabic sentence (T-3). */}
-        <View style={{ gap: 2 }}>
-          <AppText style={{ color: p.muted, fontSize: ty.label }}>{data.programmeName}</AppText>
-          <AppText style={{ color: p.muted }}>{t("today.meta", { sets: chosen.sets, min: estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds) })}</AppText>
-        </View>
-        {action.kind === "resume" ? <InlineStatus kind={action.elsewhere ? "warn" : "info"} text={action.elsewhere ? t("today.finishOpenFirst") : t("today.openWorkout")} /> : null}
-        <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />
-        {/* Goal pace in one line, right under Start (T-5): a 48 dp link to Goals. */}
-        {paceLine ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${t("goals.entry")}: ${paceLine}`}
-            onPress={() => navigation.navigate("Goals")}
-            style={({ pressed }) => ({ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.raised : "transparent" })}
-          >
-            <AppText style={{ flex: 1, fontSize: ty.label, color: p.muted }}>{paceLine}</AppText>
-            <Icon name="chevron" color={p.muted} size={18} mirror />
-          </Pressable>
-        ) : null}
-        {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.starterNote")}</AppText> : null}
-      </Card>
+      ) : null}
 
+      {/* The rack: every other exercise, 64 dp rows. Planned vs preview is said once, in the header. */}
       <View style={{ gap: space.sm }}>
-        {/* The explanation of where these weights come from sits behind a "?" instead of 2-3 lines above the list (T-6). */}
-        <SectionTitle action={<QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen} onPress={() => setNoteOpen((o) => !o)} />}>{t("today.targets")}</SectionTitle>
+        <SectionTitle action={<QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen} onPress={() => setNoteOpen((o) => !o)} />}>{isPreview ? t("today.rack.preview") : t("today.rack.planned")}</SectionTitle>
         {noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}
         {previewDay ? <AppText style={{ color: p.muted }}>{t("common.loading")}</AppText> : !anyWeight ? <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText> : null}
         <Card style={{ paddingVertical: space.xs }}>
-          {exercises.map((e, i) => {
+          {exercises.filter((e) => !(lead && hero && e.exerciseId === lead.exerciseId)).map((e) => {
             const l = exerciseLabels(e, lang);
-            const tg = byExercise.get(e.exerciseId);
+            const r = byRow.get(e.exerciseId);
             // Only the scheme is isolated; the tag and the other-language name follow the app's direction (T-2).
             const planned = plannedScheme(e.sets, e.repMin, e.repMax, e.measure, letters);
-            const preview = byPreview.get(e.exerciseId);
-            const target = tg
-              ? (tg.status !== "rejected" && tg.currency !== "none" && tg.effectiveLoad !== null ? targetRowText(tg, lang, unit, letters) : null)
-              : (preview && preview.currency !== "none" && preview.load !== null
-                ? targetRowText({ measure: e.measure, reps: preview.reps, durationS: preview.durationS, distanceM: preview.distanceM, effectiveLoad: preview.load }, lang, unit, letters)
-                : null);
-            const isLead = !!lead && lead.exerciseId === e.exerciseId && target !== null;
+            const scheme = `${planned}${e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}${l.secondary ? ` · ${l.secondary}` : ""}`;
+            const target = targetOf(r);
+            const chip = r && target ? chipOf(r).text : null;
+            const last = r ? lastOf(r) : null;
+            const reason = r ? reasonOf(r) : null;
+            const plates = e.equipment === "barbell" && r && target && ex?.gym
+              ? (() => { const h = todayHero({ target: { exerciseId: e.exerciseId, load: r.effectiveLoad, reps: r.reps, measure: r.measure }, exercise: { ...e, isGoalLift: e.isGoalLift }, gym: ex.gym }); return h && h.kind === "barbell" && h.calc.perSide.length > 0 ? h.calc.perSide : null; })()
+              : null;
             return (
-              <View
+              <RackRow
                 key={e.id}
-                style={{ flexDirection: stack ? "column" : "row", justifyContent: "space-between", alignItems: stack ? "flex-start" : isLead ? "flex-start" : "center", gap: stack ? space.xs : space.md, minHeight: 56, paddingVertical: space.sm, paddingHorizontal: isLead ? space.md : 0, marginVertical: isLead ? space.xs : 0, borderRadius: isLead ? radius.button : 0, backgroundColor: isLead ? p.tint : "transparent", borderStartWidth: isLead ? 4 : 0, borderStartColor: p.accent, borderBottomWidth: i === exercises.length - 1 || isLead ? 0 : 1, borderColor: p.border }}
+                name={l.primary}
+                scheme={scheme}
+                target={target}
+                noTarget={t("today.noWeightYet")}
+                chip={chip}
+                glyph={glyphFor(e.equipment, e.setup)}
+                a11yLabel={rackA11yLabel({ name: l.primary, scheme: planned, target, chip }, t, lang)}
+                expanded={openRow === e.id}
+                onToggle={() => setOpenRow((o) => (o === e.id ? null : e.id))}
+                xray={plates ? { perSide: plates, open: xrayRow === e.id, onOpen: () => { haptics.pickup(); setXrayRow((o) => (o === e.id ? null : e.id)); } } : null}
               >
-                <View style={{ flex: stack ? 0 : 1, gap: 2 }}>
-                  {isLead ? <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent, letterSpacing: 0.4 }}>{t("target.label")}</AppText> : null}
-                  <AppText style={{ fontWeight: "600" }}>{l.primary}</AppText>
-                  <AppText style={{ fontSize: ty.label, color: p.muted }}>
-                    {planned}
-                    {e.isGoalLift ? ` · ${t("today.goalTag")}` : ""}
-                    {l.secondary ? ` · ${l.secondary}` : ""}
-                  </AppText>
-                </View>
-                {target ? (
-                  <View style={{ alignItems: stack ? "flex-start" : "flex-end", flexShrink: 0 }}>
-                    {/* Language direction, numbers isolated: "55 كجم × 9" reads from the right in Arabic (T-1). */}
-                    <AppText style={{ fontSize: ty.section, fontWeight: "600", color: p.accent, fontVariant: ["tabular-nums"] }}>
-                      {target}
-                    </AppText>
-                    {isLead && tg ? <QuietAction label={t("workout.whyShort")} icon="why" accessibilityLabel={`${t("workout.whyShort")}: ${l.primary}`} onPress={() => navigation.navigate("Why", { targetId: tg.id })} /> : null}
-                  </View>
-                ) : (
-                  <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.noWeightYet")}</AppText>
-                )}
-              </View>
+                {last ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{stubLines({ preview: true, createdAt: null, afterDay: null, edited: null, last, chip: null, reason: null }, { lang, unit, t, now }).lastTime}</AppText> : null}
+                {reason ? <AppText style={{ fontSize: ty.label }}>{reason}</AppText> : null}
+                {r?.targetId ? <QuietAction label={t("workout.whyShort")} icon="why" accessibilityLabel={`${t("workout.whyShort")}: ${l.primary}`} onPress={() => navigation.navigate("Why", { targetId: r.targetId! })} /> : null}
+              </RackRow>
             );
           })}
         </Card>
       </View>
+
+      {/* The program name on its own line (14 muted), then the time line: no separator left dangling when a line wraps, and no bidi
+          joint between a Latin program name and an Arabic sentence (T-3). */}
+      <View style={{ gap: 2 }}>
+        <AppText style={{ color: p.muted, fontSize: ty.label }}>{data.programmeName}</AppText>
+        <AppText style={{ color: p.muted, fontSize: ty.label }}>{timeLine(chosen.exercises, chosen.sets, minutes, doneAround(now, minutes), lang, t)}</AppText>
+      </View>
+      {/* Goal pace in one line: a 48 dp link to Goals. */}
+      {paceLine ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t("goals.entry")}: ${paceLine}`}
+          onPress={() => navigation.navigate("Goals")}
+          style={({ pressed }) => ({ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.raised : "transparent" })}
+        >
+          <AppText style={{ flex: 1, fontSize: ty.label, color: p.muted }}>{paceLine}</AppText>
+          <Icon name="chevron" color={p.muted} size={18} mirror />
+        </Pressable>
+      ) : null}
+      {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.starterNote")}</AppText> : null}
 
       {/* Everything else about the week in ONE collapsed card instead of five stacked ones (T-5). Each section still loads itself and
           keeps its own actions; a section with nothing to say renders nothing, and with no sections the card is not drawn. */}

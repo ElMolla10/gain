@@ -40,7 +40,8 @@ describe("Today layout (design audit T-3..T-8)", () => {
     expect(header).toBeGreaterThan(0);
     for (const [a, b] of [[header, hero], [hero, stub], [stub, list], [list, programme], [programme, pace], [pace, week]] as const) expect(b).toBeGreaterThan(a);
     expect(today).toContain("<Screen tab footer={footer} footerInline={stack}>");
-    expect(today).toContain("const footer = <BigButton hero");
+    expect(today).toContain("const footer =");
+    expect(today).toContain("<BigButton hero icon={action.kind === \"start\" ? \"play\" : undefined}");
     const inside = today.slice(week, today.indexOf("</CollapsibleCard>"));
     for (const c of ["PersonalProgressCard", "WeeklyReviewCard", "MuscleVolumeCard", "DeloadCard", "PeriodizationCard"]) expect(inside).toContain(`<${c} />`);
     expect(today).not.toContain("<ListCard");

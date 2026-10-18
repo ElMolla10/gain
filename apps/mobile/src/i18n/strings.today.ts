@@ -49,6 +49,23 @@ export const enToday = {
   "today.time.few": "{n} exercises · {sets} sets · ~{min} min · done around {time}",
   "today.startDay": "Start {day}",
   "today.footerMin": "~{min} min",
+  "today.done.title": "Done for today",
+  "today.done.next": "Next up: {day}",
+  "today.done.summary.one": "Done today: {day}, {n} set.",
+  "today.done.summary.few": "Done today: {day}, {n} sets.",
+  "today.done.see": "See today's workout",
+  "today.done.anyway": "Start {day} anyway",
+  "today.open.chip": "{day} is open",
+  "today.open.started": "Started {time} · {n} of {total} sets saved on this phone",
+  "today.resumeClock": "Resume · {clock} · {n} of {total} sets",
+  "today.welcome": "Welcome back. Your numbers are where you left them, {n} days ago.",
+  "today.easeIn": "Ease in: back after a break",
+  "today.easeIn.note": "Aims 1–2 fewer reps today. You can change it in the workout.",
+  "today.lighter": "Lighter week until {date} · normal loads come back after.",
+  "today.lighter.undo": "Undo lighter week",
+  "today.first.number": "Your first numbers come from your first session.",
+  "today.first.note": "Log what you lift; GAIN writes the next one when you finish.",
+  "today.noGym": "Add your gym's plates to see what to load.",
 } as const;
 
 export const arToday: Record<keyof typeof enToday, string> = {
@@ -145,4 +162,38 @@ export const arToday: Record<keyof typeof enToday, string> = {
   "today.startDay": "ابدأ {day}",
   // DRAFT ar
   "today.footerMin": "حوالي {min} د",
+  // DRAFT ar
+  "today.done.title": "خلصت النهارده",
+  // DRAFT ar
+  "today.done.next": "اللي بعده: {day}",
+  // DRAFT ar
+  "today.done.summary.one": "خلصت النهارده: {day}، {n} مجموعة.",
+  // DRAFT ar
+  "today.done.summary.few": "خلصت النهارده: {day}، {n} مجموعات.",
+  // DRAFT ar
+  "today.done.see": "شوف تمرين النهارده",
+  // DRAFT ar
+  "today.done.anyway": "ابدأ {day} برضه",
+  // DRAFT ar
+  "today.open.chip": "{day} مفتوح",
+  // DRAFT ar
+  "today.open.started": "بدأت {time} · {n} من {total} متسجلة على الموبايل ده",
+  // DRAFT ar
+  "today.resumeClock": "كمّل · {clock} · {n} من {total}",
+  // DRAFT ar
+  "today.welcome": "أهلاً بيك تاني. أرقامك زي ما سبتها، من {n} يوم.",
+  // DRAFT ar
+  "today.easeIn": "خفّف البداية: راجع بعد فترة",
+  // DRAFT ar
+  "today.easeIn.note": "هيهدف لعدّة أو اتنين أقل النهارده. تقدر تغيّره في التمرين.",
+  // DRAFT ar
+  "today.lighter": "أسبوع أخف لحد {date} · الأوزان العادية بترجع بعده.",
+  // DRAFT ar
+  "today.lighter.undo": "ألغِ الأسبوع الأخف",
+  // DRAFT ar
+  "today.first.number": "أول أرقامك هتيجي من أول تمرين.",
+  // DRAFT ar
+  "today.first.note": "سجّل اللي بترفعه؛ GAIN بيكتب اللي بعده لما تخلص.",
+  // DRAFT ar
+  "today.noGym": "ضيف أطباق الجيم بتاعك عشان تشوف تحمّل إيه.",
 };

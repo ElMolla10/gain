@@ -153,6 +153,7 @@ export function AchievementsScreen() {
         cabinet={items}
         qualifiedWeeksLifetime={lifetime}
         weeks12Earned={weeks12Earned}
+        trainingDays={days}
         onClose={() => setDetail(null)}
         onViewWorkout={(sessionId) => nav.navigate("SessionDetail", { sessionId })}
       />

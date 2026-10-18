@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Share, View } from "react-native";
+import { View } from "react-native";
 import { EarnMoment } from "./achievements/EarnMoment";
+import { useSharePoster } from "./achievements/SharePoster";
+import { posterCopy } from "../logic/sharePoster";
 import { SwitchRow } from "./SettingsRows";
 import { telemetry } from "../achievementTelemetry";
 import { diagnostics } from "../diagnostics";
@@ -23,6 +25,7 @@ export function HeroAchievement(props: { hero: SurfaceBadge; rest: SurfaceBadge[
   const [open, setOpen] = useState(false);
   const [privacy, setPrivacy] = useState<SharePrivacy>(DEFAULT_SHARE_PRIVACY);
   const [sharing, setSharing] = useState(false);
+  const poster = useSharePoster();
   const copy = shareCardCopy(props.hero, { privacy, lang, unit, t });
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export function HeroAchievement(props: { hero: SurfaceBadge; rest: SurfaceBadge[
     setSharing(true);
     try {
       telemetry.record("share_card");
-      await Share.share({ message: formatShareCard(copy) });
+      await poster.share(posterCopy(props.hero, { privacy, lang, unit, t }), formatShareCard(copy));
     } catch (e) {
       diagnostics.record("warn", "share badge", e);
     } finally {
@@ -78,6 +81,7 @@ export function HeroAchievement(props: { hero: SurfaceBadge; rest: SurfaceBadge[
           </View>
         ) : null}
       </Card>
+      {poster.host}
     </View>
   );
 }

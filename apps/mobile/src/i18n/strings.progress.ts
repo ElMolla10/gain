@@ -334,6 +334,14 @@ export const enProgress = {
   "achv.r2.unit.weeks.few": "weeks",
   "achv.r2.earn.announce": "{name} earned",
   "achv.r2.unveil.announce": "{n} medals added to your cabinet",
+  "achv.r2.poster.medal": "{prestige} medal",
+  "achv.r2.poster.pr": "Verified PR",
+  "achv.r2.poster.before": "Before {set}",
+  "achv.r2.poster.hidden": "Weights hidden",
+  "achv.r2.poster.since": "Training since {date}",
+  "achv.r2.poster.weeks.one": "{n} qualified week",
+  "achv.r2.poster.weeks.few": "{n} qualified weeks",
+  "achv.r2.poster.from": "From my training log",
 } as const;
 export const arProgress: Record<keyof typeof enProgress, string> = {
   "progress.title": "تقدمك الشخصي",
@@ -671,4 +679,12 @@ export const arProgress: Record<keyof typeof enProgress, string> = {
   "achv.r2.unit.weeks.few": "أسابيع",
   "achv.r2.earn.announce": "اتكسبت: {name}",
   "achv.r2.unveil.announce": "{n} ميداليات اتضافت لخزانتك",
+  "achv.r2.poster.medal": "ميدالية {prestige}",
+  "achv.r2.poster.pr": "رقم موثّق",
+  "achv.r2.poster.before": "قبل {set}",
+  "achv.r2.poster.hidden": "الأوزان مخفية",
+  "achv.r2.poster.since": "بتمرّن من {date}",
+  "achv.r2.poster.weeks.one": "{n} أسبوع مؤهل",
+  "achv.r2.poster.weeks.few": "{n} أسابيع مؤهلة",
+  "achv.r2.poster.from": "من سجل تمريني",
 };

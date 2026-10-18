@@ -394,6 +394,20 @@ describe("hundred club and multi-year iron", () => {
     expect(ids(r.earned)).toContain("hundred_club_100");
     expect(r.inProgress.some((p) => p.badgeId === "hundred_club_250" && p.current === 100)).toBe(true);
   });
+  it("passes the training-day and active-year counts through stats (display only, past every tier)", () => {
+    const sessions: AchievementSession[] = [];
+    // Alternate exercises so no PR chain grows; 1043 qualifying days clears hundred_club_1000.
+    for (let i = 0; i < 1043; i++) sessions.push(workout(`d${i}`, day(i), three(`d${i}`, i % 2 ? "row" : "bench", 60, 8)));
+    const r = evaluateAchievements(sessions, { nowLocalDate: day(1042) });
+    expect(ids(r.earned)).toContain("hundred_club_1000");
+    expect(r.inProgress.some((p) => p.badgeId.startsWith("hundred_club_"))).toBe(false);
+    expect(r.stats.qualifyingDays).toBe(1043);
+    expect(r.stats.activeYears).toBe(3);
+    const small = evaluateAchievements(sessions.slice(0, 40), { nowLocalDate: day(39) });
+    expect(small.stats.qualifyingDays).toBe(40);
+    expect(small.inProgress.find((p) => p.badgeId === "hundred_club_100")?.current).toBe(small.stats.qualifyingDays);
+    expect(small.inProgress.find((p) => p.badgeId === "multi_year_2")?.current).toBe(small.stats.activeYears);
+  });
   it("counts calendar years that contain a qualified week", () => {
     const y1 = qualifiedWeeks(1, 0, "a");
     const y2 = qualifiedWeeks(1, 364, "b");

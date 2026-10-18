@@ -225,6 +225,10 @@ export const enProgress = {
   "ex.repMax": "Rep max",
   "ex.savePrescription": "Save sets and range",
   "ex.prescriptionSaved": "Saved. The next suggestion uses this.",
+  "achv.r2.delta.stronger": "Stronger at {band} reps",
+  "achv.r2.delta.assist": "{delta} assistance",
+  "achv.r2.delta.reps.one": "{n} rep",
+  "achv.r2.delta.reps.few": "{n} reps",
 } as const;
 export const arProgress: Record<keyof typeof enProgress, string> = {
   "progress.title": "تقدمك الشخصي",
@@ -453,4 +457,8 @@ export const arProgress: Record<keyof typeof enProgress, string> = {
   "ex.repMax": "أعلى تكرار",
   "ex.savePrescription": "احفظ المجموعات والنطاق",
   "ex.prescriptionSaved": "اتحفظت. الاقتراح الجاي هيستخدم ده.",
+  "achv.r2.delta.stronger": "أقوى في نطاق {band} تكرار",
+  "achv.r2.delta.assist": "{delta} مساعدة",
+  "achv.r2.delta.reps.one": "{n} تكرار",
+  "achv.r2.delta.reps.few": "{n} تكرارات",
 };

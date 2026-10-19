@@ -15,6 +15,10 @@ import { ceilingForName } from "../logic/ceilings";
 import { effectiveRange, rangeText, sourceOfBasis } from "../logic/repRange";
 import { resolveRepTop } from "@gain/engine";
 import type { RepCeilings } from "@gain/engine";
+import { PlanDayStrip } from "../components/PlanDayStrip";
+import { PlanMuscleRadar } from "../components/PlanMuscleRadar";
+import type { ExposureRow } from "../logic/exposure";
+import { glyphFor, RackGlyph } from "../components/today/RackRow";
 
 type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions" | "ProgrammeShare" | "ProgramGenerate" | "MusclePriority", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void };
 
@@ -37,6 +41,7 @@ export function ProgrammeScreen() {
   const [data, setData] = useState<Data | null | undefined>(undefined);
   const [open, setOpen] = useState<number | null>(0);
   const [ruleOpen, setRuleOpen] = useState(false);
+  const [exposure, setExposure] = useState<ExposureRow[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -45,9 +50,13 @@ export function ProgrammeScreen() {
         const a = await programmes.getActive();
         if (!a) return alive && setData(null);
         const [draft, lib] = await Promise.all([programmes.loadDraft(a.versionId), programmes.listExercises()]);
+        const exp = await programmes.exposureOf(draft).catch(() => []);
         const ceilings = await repos.getRepCeilingDefaults();
         const useGain = await repos.getUseGainCeilings();
-        if (alive) setData({ ceilings, useGain, programmeId: a.programmeId, name: a.programmeName, version: a.version, isSample: a.isSample, draft, library: new Map(lib.map((e) => [e.id, e])) });
+        if (alive) {
+          setExposure(exp);
+          setData({ ceilings, useGain, programmeId: a.programmeId, name: a.programmeName, version: a.version, isSample: a.isSample, draft, library: new Map(lib.map((e) => [e.id, e])) });
+        }
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
@@ -93,6 +102,15 @@ export function ProgrammeScreen() {
       </View>
       {/* Secondary, not lime: Start on Today is the only primary action (P-6). Reorder lives in the editor. */}
       <BigButton variant="secondary" icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
+      <PlanDayStrip
+        days={data.draft.days.map((d) => ({
+          name: d.name,
+          exerciseCount: d.exercises.length,
+          setsCount: d.exercises.reduce((n, e) => n + e.sets, 0),
+        }))}
+        selectedIndex={open}
+        onSelect={(i) => setOpen((curr) => (curr === i ? null : i))}
+      />
       <View style={{ gap: space.md }}>
         {data.draft.days.map((day, i) => {
           const expanded = open === i;
@@ -127,6 +145,7 @@ export function ProgrammeScreen() {
                     // Counted in reps: show the range that is really used, and say so when the rep ceiling replaces the top of the program's range.
                     const range = rangeOf(e);
                     const l = ex ? exerciseLabels(ex, lang) : null;
+                    const glyph = ex ? glyphFor(ex.equipment, ex.setup) : null;
                     return (
                       // Two lines (P-2): the name, then the scheme as one isolated run "3 × 6–10" with the pips and badges.
                       <View key={e.exerciseId} style={{ minHeight: MIN_TOUCH, justifyContent: "center", gap: 2, borderTopWidth: k === 0 ? 1 : 0, borderColor: p.border, paddingTop: k === 0 ? space.sm : 0 }}>
@@ -156,6 +175,9 @@ export function ProgrammeScreen() {
           );
         })}
       </View>
+
+      {/* Plan 10x: weekly volume radar */}
+      <PlanMuscleRadar rows={exposure} onOpenExposure={() => nav.navigate("ProgrammeExposure")} />
 
       {/* Secondary: exposure, version history and program management sit below the days. */}
       <View style={{ gap: space.sm }}>

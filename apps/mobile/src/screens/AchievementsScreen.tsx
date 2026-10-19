@@ -100,7 +100,7 @@ export function AchievementsScreen() {
   const refreshHome = () => void achievements.getHome().then(setHome).catch((e) => diagnostics.record("warn", "cabinet", e));
 
   return (
-    <Screen scrollRef={scroll}>
+    <Screen tab scrollRef={scroll}>
       {/* The Trophy Cabinet first: this screen is the cabinet, so its shelves are not buried under the plate, stats and spotlight. */}
       <View
         style={{ gap: space.md }}
@@ -108,7 +108,7 @@ export function AchievementsScreen() {
           cabinetY.current = e.nativeEvent.layout.y;
         }}
       >
-        {/* The header already says "Trophy Cabinet", so the shelves start with the count rather than a second title. */}
+        <AppText accessibilityRole="header" style={{ fontSize: ty.title, lineHeight: 34, fontWeight: "600" }}>{t("achv.cabinet.title")}</AppText>
         <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("achv.r2.cabinet.count", { earned: medals.earned, total: medals.total })}</AppText>
         <CabinetUnveil active={unveil} count={home.bannerCount ?? 0} order={unveilOrder(groups)} onDone={endUnveil}>
           {groups.map((g) => (

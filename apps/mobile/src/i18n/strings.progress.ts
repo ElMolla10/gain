@@ -1,4 +1,5 @@
 export const enProgress = {
+  "tab.cabinet": "Cabinet",
   "progress.title": "Your progress",
   "progress.note": "Compared with your own history, on the same exercise and gym setup.",
   "progress.milestone": "This month’s strength goal: {target}",
@@ -344,6 +345,7 @@ export const enProgress = {
   "achv.r2.poster.from": "From my training log",
 } as const;
 export const arProgress: Record<keyof typeof enProgress, string> = {
+  "tab.cabinet": "الخزانة",
   "progress.title": "تقدمك الشخصي",
   "progress.note": "مقارنة بسجلك على نفس التمرين ونفس تجهيزات الجيم.",
   "progress.milestone": "هدف القوة للشهر ده: {target}",

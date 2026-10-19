@@ -278,7 +278,7 @@ export function SettingsScreen() {
   useSilentRackSync();
   const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
   return (
-    <Screen tab title={t("tab.settings")}>
+    <Screen>
       {/* ST-1: Display first (language is the first row), then Workout, Program & gyms, Advanced, Data, About. Blocks are moved, not rewritten. */}
       <Group title={t("settings.group.display")}>
         <SelectRow

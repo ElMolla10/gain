@@ -79,7 +79,7 @@ export function TodayScreen() {
   const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history } = useServices();
   const { t, lang, fmt, unit, direction } = useI18n();
   const p = usePalette();
-  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why" | "SessionDetail" | "Gyms", params?: { dayId: string } | { targetId: string } | { sessionId: string }) => void }>();
+  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why" | "SessionDetail" | "Gyms" | "Settings", params?: { dayId: string } | { targetId: string } | { sessionId: string }) => void }>();
   const [state, setState] = useState<Load<TodayData>>(LOADING);
   const [attempt, setAttempt] = useState(0);
   const [paceLine, setPaceLine] = useState<string>("");
@@ -370,7 +370,7 @@ export function TodayScreen() {
   return (
     <Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>
       {/* The day name is the one title; the date, the label and Change sit around it (spec §0 row 0). */}
-      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={dayIndex} dayCount={data.days.length} onChange={() => setChangeOpen(true)} onStep={stepTo} pagerName={chosen.name} />
+      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={dayIndex} dayCount={data.days.length} onChange={() => setChangeOpen(true)} onStep={stepTo} pagerName={chosen.name} onSettings={() => navigation.navigate("Settings")} />
       {mode === "openElsewhere" ? <InlineStatus kind="warn" text={t("today.finishOpenFirst")} /> : null}
       {mode === "open" && data.openInfo?.startedAt != null ? (
         <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.open.started", { time: clock(data.openInfo.startedAt), n: data.openInfo.saved, total: chosen.sets })}</AppText>

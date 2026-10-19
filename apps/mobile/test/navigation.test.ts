@@ -10,7 +10,7 @@ describe("P09 navigation", () => {
   it("every tab declares an explicit icon (no default/broken glyph)", () => {
     const tabs = app.match(/<Tab\.Screen [^\n]*/g) ?? [];
     expect(tabs.length).toBe(4);
-    for (const t of tabs) expect(t).toMatch(/tabBarIcon: icon\("(today|plan|progress|settings)"\)/);
+    for (const t of tabs) expect(t).toMatch(/tabBarIcon: icon\("(today|plan|progress|trophy)"\)/);
   });
   it("the Program tab is labelled Plan in English and has a short Arabic draft label", () => {
     expect(en["tab.programme"]).toBe("Plan");
@@ -24,6 +24,10 @@ describe("P09 navigation", () => {
     expect(logDarkPalette.fill).toBe(darkPalette.fill);
     expect(logLightPalette.accent).toBe(lightPalette.accent);
     expect(logDarkPalette.accent).toBe(darkPalette.accent);
+  });
+  it("Achievements is the 4th tab and Settings is a stack screen", () => {
+    expect(app).toContain('<Tab.Screen name="Achievements"');
+    expect(app).toContain('<Stack.Screen name="Settings"');
   });
   it("the navigation container receives the palette theme, not the stock blue one", () => {
     expect(app).toContain("theme={navTheme}");

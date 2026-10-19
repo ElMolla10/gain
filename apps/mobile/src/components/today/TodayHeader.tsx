@@ -1,19 +1,40 @@
 import React from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useI18n } from "../../i18n";
-import { space, type as ty, usePalette } from "../../theme";
+import { radius, space, type as ty, usePalette } from "../../theme";
+import { Icon } from "../Icon";
 import { AppText, QuietAction } from "../../ui";
 
 /**
  * The header: the date (13/18 600 muted), the day name as the screen's ONE title (28/34 600, header role), decorative page dots beside it,
  * then the label ("Suggested today") and Change (hidden with one day).
  */
-export function TodayHeader({ date, dayName, label, dayIndex, dayCount, onChange, onStep, pagerName }: { date: string; dayName: string; label: string; dayIndex: number; dayCount: number; onChange: () => void; /** The day pager for screen readers: increment = next day. */ onStep?: (step: 1 | -1) => void; /** The day name the pager speaks (the title can say "Done for today"). */ pagerName?: string }) {
+export function TodayHeader({ date, dayName, label, dayIndex, dayCount, onChange, onStep, pagerName, onSettings }: { date: string; dayName: string; label: string; dayIndex: number; dayCount: number; onChange: () => void; /** The day pager for screen readers: increment = next day. */ onStep?: (step: 1 | -1) => void; /** The day name the pager speaks (the title can say "Done for today"). */ pagerName?: string; onSettings?: () => void }) {
   const { t } = useI18n();
   const p = usePalette();
   return (
     <View style={{ gap: 2 }}>
-      <AppText style={{ fontSize: ty.caption, lineHeight: 18, fontWeight: "600", color: p.muted }}>{date}</AppText>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <AppText style={{ fontSize: ty.caption, lineHeight: 18, fontWeight: "600", color: p.muted }}>{date}</AppText>
+        {onSettings ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("tab.settings")}
+            onPress={onSettings}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={({ pressed }) => ({
+              minWidth: 44,
+              minHeight: 44,
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: radius.button,
+              backgroundColor: pressed ? p.raised : "transparent",
+            })}
+          >
+            <Icon name="settings" color={p.muted} size={20} />
+          </Pressable>
+        ) : null}
+      </View>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}>
         <AppText accessibilityRole="header" style={{ fontSize: ty.title, lineHeight: 34, fontWeight: "600", flexShrink: 1 }}>{dayName}</AppText>
         {dayCount > 1 ? (

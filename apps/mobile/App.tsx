@@ -138,7 +138,7 @@ function Tabs() {
       <Tab.Screen name="Today" component={TodayScreen} options={{ title: t("today.title"), tabBarLabel: label(t("tab.today")), tabBarAccessibilityLabel: t("tab.today"), tabBarIcon: icon("today") }} />
       <Tab.Screen name="Programme" component={ProgrammeScreen} options={{ title: t("prog.title"), tabBarLabel: label(t("tab.programme")), tabBarAccessibilityLabel: t("tab.programme"), tabBarIcon: icon("plan") }} />
       <Tab.Screen name="History" component={HistoryScreen} options={{ title: t("history.title"), tabBarLabel: label(t("tab.history")), tabBarAccessibilityLabel: t("tab.history"), tabBarIcon: icon("progress") }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), tabBarLabel: label(t("tab.settings")), tabBarAccessibilityLabel: t("tab.settings"), tabBarIcon: icon("settings") }} />
+      <Tab.Screen name="Achievements" component={AchievementsScreen} options={{ title: t("achv.cabinet.title"), tabBarLabel: label(t("tab.cabinet")), tabBarAccessibilityLabel: t("tab.cabinet"), tabBarIcon: icon("trophy") }} />
     </Tab.Navigator>
   );
 }
@@ -198,6 +198,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
+          <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title") }} />
           <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
           <Stack.Screen name="Sync" component={SyncScreen} options={{ title: t("sync.title") }} />
           <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: t("privacy.title") }} />

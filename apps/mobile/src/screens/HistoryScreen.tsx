@@ -1,5 +1,7 @@
 import { EvidenceAchievementsCard } from "../components/EvidenceAchievementsCard";
 import { CabinetEntry } from "../components/achievements/CabinetEntry";
+import { ProgressRhythmSleeve } from "../components/ProgressRhythmSleeve";
+import { StatTileRow } from "../components/achievements/StatTiles";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
@@ -35,10 +37,15 @@ export function HistoryScreen() {
   }, [loader]));
   if (!state.data) return state.failed ? <ErrorState title={t("history.error.title")} body={t("history.error.body")} retryLabel={t("history.error.retry")} onRetry={() => void loader.load()} /> : <LoadingState />;
   const { sessions, total, lifts } = state.data;
+  const totalSets = useMemo(() => sessions.reduce((acc, s) => acc + s.workingSets, 0), [sessions]);
+  const totalPrs = useMemo(() => sessions.filter((s) => s.pr).length, [sessions]);
   return (
     <Screen tab title={t("history.title")}>
       {/* The Trophy Cabinet first, straight under the title: it is what Progress is for, not a footer under the lists. */}
       <CabinetEntry />
+
+      {/* 28-day training rhythm visualizer */}
+      <ProgressRhythmSleeve sessions={sessions} />
 
       {/* Real tabs (H-7): a segmented tablist, and the list starts right under it. */}
       <SegmentedTabs value={mode} options={[{ value: "sessions", label: t("history.sessions") }, { value: "lifts", label: t("history.lifts") }]} onChange={setMode} />
@@ -116,6 +123,15 @@ export function HistoryScreen() {
           })}
         </Card>
       )}
+
+      {/* Lifetime engine metrics: workouts logged, sets banked, records */}
+      <StatTileRow
+        tiles={[
+          { value: isolateLtr(String(total)), label: t("history.lifetime.sessions") },
+          { value: isolateLtr(String(totalSets)), label: t("history.lifetime.sets") },
+          { value: isolateLtr(String(totalPrs)), label: t("history.lifetime.prs") },
+        ]}
+      />
 
       {/* This week, recent badges and next-up below the list (H-8), so the list starts right under the tabs. The cabinet entry is at the top. */}
       <EvidenceAchievementsCard />

@@ -12,6 +12,7 @@ import { useI18n } from "../i18n";
 import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
 import { AppText, Chip, InlineStatus, RadioGroup, RadioRow, Screen, Stepper } from "../ui";
 import { Block, Group, LinkRow, SelectRow, SwitchRow } from "../components/SettingsRows";
+import { SettingsGroupHero } from "../components/settings/SettingsGroupHero";
 import { unitLabel } from "../logic/units";
 import type { StringKey } from "../i18n/strings";
 import Constants from "expo-constants";
@@ -279,6 +280,9 @@ export function SettingsScreen() {
   const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
   return (
     <Screen>
+      <SettingsGroupHero
+        version={Constants.expoConfig?.version ?? "0.22.0"}
+      />
       {/* ST-1: Display first (language is the first row), then Workout, Program & gyms, Advanced, Data, About. Blocks are moved, not rewritten. */}
       <Group title={t("settings.group.display")}>
         <SelectRow

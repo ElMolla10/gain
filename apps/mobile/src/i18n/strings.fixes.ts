@@ -67,6 +67,11 @@ export const enFixes = {
   "vault.label.sets": "Sets",
   "vault.label.programmes": "Programmes",
   "vault.label.gyms": "Gyms",
+  "ob.step.progress": "STEP {current} OF {total}",
+  "settings.shell.hero": "SYSTEM & TRAINING ENGINE",
+  "privacy.pledge.hero": "ZERO-SURVEILLANCE PLEDGE",
+  "privacy.pledge.body": "GAIN has no tracking scripts, no third-party ad networks, and no hidden data harvesting. Your lifts stay in your phone's encrypted vault.",
+  "settings.engine.title": "GAIN Engine",
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
@@ -137,4 +142,9 @@ export const arFixes: Record<keyof typeof enFixes, string> = {
   "vault.label.sets": "مجموعات",
   "vault.label.programmes": "برامج",
   "vault.label.gyms": "صالات",
+  "ob.step.progress": "خطوة {current} من {total}",
+  "settings.shell.hero": "النظام ومحرك التمرين",
+  "privacy.pledge.hero": "ميثاق الخصوصية التامة",
+  "privacy.pledge.body": "GAIN لا يحتوي على أي برمجيات تتبع، ولا شبكات إعلانية، ولا جمع للبيانات. تمارينك محفوظة بالكامل في خزينة هاتفك.",
+  "settings.engine.title": "محرك GAIN",
 };

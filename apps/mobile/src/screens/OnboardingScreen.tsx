@@ -30,6 +30,7 @@ import { firstInvalidGroup, footerMode, problemsFor, type ProblemGroup } from ".
 import { HealthNote } from "../components/HealthNote";
 import { activeTemplates } from "../buildConfig";
 import { TemplateBrowser } from "../components/TemplateBrowser";
+import { OnboardingStepIndicator } from "../components/onboarding/OnboardingStepIndicator";
 
 type ProgrammeMode = "template" | "own" | "generate" | null;
 
@@ -427,6 +428,11 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
 
   return (
     <Screen footer={footer} footerInline={footerMode(fontScale) === "inline"} scrollRef={scrollRef} contentStyle={{ paddingTop: space.xl }}>
+      <OnboardingStepIndicator
+        currentStep={idx + 1}
+        totalSteps={STEPS.length}
+        stepName={t(`ob.${step}` as StringKey) || step}
+      />
       <View accessible accessibilityRole="progressbar" accessibilityLabel={t("ob.progress", { i: idx + 1, n: STEPS.length })} accessibilityValue={{ min: 1, max: STEPS.length, now: idx + 1 }} style={{ gap: space.xs }}>
         <View style={{ flexDirection: "row", gap: 4 }}>
           {STEPS.map((_, i) => (

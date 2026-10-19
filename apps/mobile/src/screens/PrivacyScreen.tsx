@@ -11,6 +11,7 @@ import { hasSelfUpdater } from "../logic/buildFlags";
 import { osTextKey } from "../logic/platform";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, InlineStatus, Notice, Screen } from "../ui";
+import { PrivacyPledgeCard } from "../components/privacy/PrivacyPledgeCard";
 
 /** Privacy and safety page (DRAFT, not legally reviewed). The text is in strings.privacy.ts and docs/PRIVACY-POLICY-DRAFT.md. */
 export function PrivacyScreen() {
@@ -35,6 +36,14 @@ export function PrivacyScreen() {
   );
   return (
     <Screen>
+      <PrivacyPledgeCard
+        crashLog={crashLog}
+        notesOn={notesOn}
+        onToggleCrashLog={(v) => { diagnostics.setEnabled(v); setCrashLog(v); }}
+        onToggleNotesOn={(v) => { telemetry.setOptIn(v); setNotesOn(v); }}
+        onOpenData={() => nav.navigate("Data")}
+        onOpenDiagnostics={() => nav.navigate("Diagnostics")}
+      />
       <Notice kind="warn">{t("privacy.draft")}</Notice>
       {block("privacy.local.title", ["privacy.local.body", "privacy.ai.body"])}
       {block("privacy.leaves.title", [...(hasSelfUpdater(buildFlags, Platform.OS) ? (["privacy.leaves.update"] as const) : []), "privacy.leaves.sync", "privacy.leaves.link", osTextKey("privacy.leaves.share", Platform.OS), osTextKey("privacy.leaves.backup", Platform.OS)])}

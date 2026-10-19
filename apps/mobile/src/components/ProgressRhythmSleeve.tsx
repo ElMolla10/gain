@@ -114,7 +114,7 @@ export function ProgressRhythmSleeve({ sessions, now }: ProgressRhythmSleeveProp
               );
             })}
             {wIdx < 3 ? (
-              <View style={{ width: 1, height: 12, backgroundColor: p.border, marginLeft: space.xs, marginRight: 2 }} />
+              <View style={{ width: 1, height: 12, backgroundColor: p.border, marginStart: space.xs, marginEnd: 2 }} />
             ) : null}
           </View>
         ))}

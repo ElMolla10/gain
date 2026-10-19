@@ -173,6 +173,7 @@ export function GymsScreen() {
               accessibilityRole="button"
               disabled={creatingPreset}
               onPress={() => void createFromPreset(preset)}
+              hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
               style={({ pressed }) => ({
                 flex: 1,
                 minWidth: 100,

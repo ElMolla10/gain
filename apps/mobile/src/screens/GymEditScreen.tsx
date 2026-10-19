@@ -151,6 +151,7 @@ export function GymEditScreen() {
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
                     onPress={() => togglePlateDenomination(denom)}
+                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
                     style={({ pressed }) => ({
                       minWidth: 44,
                       minHeight: 38,
@@ -194,6 +195,7 @@ export function GymEditScreen() {
                   key={k}
                   accessibilityRole="button"
                   onPress={() => applyDumbbellPreset(k)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   style={({ pressed }) => ({
                     paddingHorizontal: space.sm,
                     minHeight: 36,

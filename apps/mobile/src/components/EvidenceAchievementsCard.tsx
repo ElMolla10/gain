@@ -41,7 +41,7 @@ export function EvidenceAchievementsCard() {
   const pulseNote = home.pulse.qualified ? t("achv.pulse.qualified") : t("achv.pulse.progress", { done: home.pulse.qualifiedDays, goal: home.pulse.dayTarget });
   const weeks12Earned = (home.earned ?? []).some((r) => r.badgeId === "qualified_weeks_12");
   return (
-    <View>
+    <View style={{ gap: space.md }}>
       {home.bannerCount !== null ? (
         <Card>
           <AppText>{t("achv.banner", { n: home.bannerCount })}</AppText>

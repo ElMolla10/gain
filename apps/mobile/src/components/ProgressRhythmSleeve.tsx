@@ -91,9 +91,10 @@ export function ProgressRhythmSleeve({ sessions, now }: ProgressRhythmSleeveProp
         </View>
       </View>
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: space.xs }}>
+      <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: space.xs }}>
         {weeks.map((week, wIdx) => (
-          <View key={wIdx} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <React.Fragment key={wIdx}>
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             {week.map((day) => {
               const bg = day.hasPr ? p.fill : day.hasWorkout ? p.text : "transparent";
               const border = day.hasPr ? p.fillEdge : day.hasWorkout ? "transparent" : p.edge;
@@ -102,9 +103,9 @@ export function ProgressRhythmSleeve({ sessions, now }: ProgressRhythmSleeveProp
                 <View
                   key={day.dayIndex}
                   style={{
-                    width: 9,
-                    height: 9,
-                    borderRadius: 4.5,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
                     backgroundColor: bg,
                     borderColor: border,
                     borderWidth,
@@ -113,10 +114,11 @@ export function ProgressRhythmSleeve({ sessions, now }: ProgressRhythmSleeveProp
                 />
               );
             })}
-            {wIdx < 3 ? (
-              <View style={{ width: 1, height: 12, backgroundColor: p.border, marginStart: space.xs, marginEnd: 2 }} />
-            ) : null}
           </View>
+          {wIdx < 3 ? (
+            <View style={{ width: 1, height: 12, backgroundColor: p.border, marginHorizontal: space.xs }} />
+          ) : null}
+          </React.Fragment>
         ))}
       </View>
 

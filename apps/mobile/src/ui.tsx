@@ -77,6 +77,12 @@ export function Screen({ children, footer, scroll = true, scrollEnabled = true, 
   const heading = title ? <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{title}</AppText> : null;
   return (
     <View style={{ flex: 1, backgroundColor: p.bg }}>
+      {tab && insets.top > 0 ? (
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", top: 0, left: 0, right: 0, height: insets.top, backgroundColor: p.bg, zIndex: 10 }}
+        />
+      ) : null}
       {scroll ? (
         <ScrollView ref={scrollRef} scrollEnabled={scrollEnabled} contentContainerStyle={body} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
           {heading}

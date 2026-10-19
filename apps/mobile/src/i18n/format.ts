@@ -31,7 +31,7 @@ export function directionFor(lang: Lang, override: RtlOverride): Direction {
 }
 
 export function translate(lang: Lang, key: StringKey, params: Record<string, string | number> = {}): string {
-  const tpl = (lang === "ar" ? ar : en)[key] ?? en[key];
+  const tpl = (lang === "ar" ? ar : en)[key] ?? en[key] ?? String(key ?? "");
   return tpl.replace(/\{(\w+)\}/g, (m, name: string) => {
     const v = params[name];
     return v === undefined ? m : isolateParam(String(v)); // numbers stay readable in RTL; Arabic values keep their own order

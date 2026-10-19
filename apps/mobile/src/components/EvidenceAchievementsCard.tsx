@@ -5,7 +5,7 @@ import { useServices } from "../AppContext";
 import { telemetry } from "../achievementTelemetry";
 import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
-import type { StringKey } from "../i18n/strings";
+import { en, type StringKey } from "../i18n/strings";
 import { evidenceLine } from "../logic/achievementEvidence";
 import type { AchievementHome } from "../db/achievementRepo";
 import type { SurfaceBadge } from "../logic/achievementSurface";
@@ -39,7 +39,7 @@ export function EvidenceAchievementsCard() {
 
   if (!home) return null;
   const pulseNote = home.pulse.qualified ? t("achv.pulse.qualified") : t("achv.pulse.progress", { done: home.pulse.qualifiedDays, goal: home.pulse.dayTarget });
-  const weeks12Earned = home.earned.some((r) => r.badgeId === "qualified_weeks_12");
+  const weeks12Earned = (home.earned ?? []).some((r) => r.badgeId === "qualified_weeks_12");
   return (
     <View>
       {home.bannerCount !== null ? (
@@ -98,7 +98,7 @@ export function EvidenceAchievementsCard() {
           home.recent.map((row, i) => (
             <ListRow
               key={row.id}
-              title={t(row.i18nKey as StringKey)}
+              title={(en as Record<string, string>)[row.i18nKey] ? t(row.i18nKey as StringKey) : row.badgeId}
               note={evidenceLine(row.evidence, t, lang, unit, { nameEn: row.exerciseNameEn, nameAr: row.exerciseNameAr })}
               last={i === home.recent.length - 1}
               onPress={() => setDetail(row)}
@@ -130,7 +130,7 @@ export function EvidenceAchievementsCard() {
       </Card>
       <AchievementEvidenceSheet
         row={detail}
-        qualifiedWeeksLifetime={home.stats.qualifiedWeeksLifetime}
+        qualifiedWeeksLifetime={home.stats?.qualifiedWeeksLifetime ?? 0}
         weeks12Earned={weeks12Earned}
         onClose={() => setDetail(null)}
         onViewWorkout={(sessionId) => nav.navigate("SessionDetail", { sessionId })}

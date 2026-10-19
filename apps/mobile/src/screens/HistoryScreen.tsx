@@ -11,6 +11,7 @@ import { telemetry } from "../achievementTelemetry";
 import { createHistoryLoader, EMPTY_HISTORY_LOAD } from "../logic/historyLoad";
 import { diagnostics } from "../diagnostics";
 import { useI18n } from "../i18n";
+import { en, type StringKey } from "../i18n/strings";
 import { exerciseLabels, formatLoad, isolateLtr, NBSP } from "../i18n/format";
 import { formatDay } from "../logic/dateText";
 import { sessionMinutes } from "../logic/historyRows";
@@ -99,10 +100,14 @@ export function HistoryScreen() {
           {lifts.map((l, i) => {
             // H-3: the number first. Sessions count, with the setup only when this exercise has more than one; the latest top set and its trend at the end.
             const title = exerciseLabels(l, lang).primary;
-            const note = `${(l.setups ?? 1) > 1 ? `${t(`setup.${l.setup}` as never)} · ` : ""}${t("history.liftLine", { n: l.sessions })}${l.hasImported ? ` · ${t("history.imported")}` : ""}`;
+            const setupKey = `setup.${l.setup}` as StringKey;
+            const setupLabel = (en as Record<string, string>)[setupKey] ? t(setupKey) : (l.setup ?? "");
+            const setupPrefix = (l.setups ?? 1) > 1 && setupLabel ? `${setupLabel} · ` : "";
+            const note = `${setupPrefix}${t("history.liftLine", { n: l.sessions })}${l.hasImported ? ` · ${t("history.imported")}` : ""}`;
             const top = l.latest ? `${formatLoad(l.latest.load, lang, unit)}${NBSP}×${NBSP}${isolateLtr(String(l.latest.reps))}` : null;
             const glyph = l.direction === "better" ? { c: "↑", color: p.success } : l.direction === "worse" ? { c: "↓", color: p.warn } : l.direction === "flat" ? { c: "→", color: p.muted } : null;
-            const trendWord = l.direction && l.direction !== "thin" ? t(`history.trend.${l.direction}` as never) : null;
+            const trendKey = `history.trend.${l.direction}` as StringKey;
+            const trendWord = l.direction && l.direction !== "thin" && (en as Record<string, string>)[trendKey] ? t(trendKey) : null;
             return (
               <ListRow
                 key={l.lineId}

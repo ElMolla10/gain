@@ -30,11 +30,9 @@ export function evidenceLine(
   if (evidence.kind === "iron_hold") return t("achv.evidence.hold", { exercise, before: evidence.previous.durationS, after: evidence.next.durationS });
   if (evidence.kind === "iron_carry") return t("achv.evidence.carry", { exercise, before: evidence.previous.distanceM, after: evidence.next.distanceM });
   if (evidence.kind === "workhorse") {
-    return t("achv.evidence.workhorse", {
-      exercise,
-      before: formatSetEvidence(evidence.previousBest.load, evidence.previousBest.reps, lang, unit),
-      after: formatSetEvidence(evidence.newBest.load, evidence.newBest.reps, lang, unit),
-    });
+    const before = evidence.previousBest ? formatSetEvidence(evidence.previousBest.load, evidence.previousBest.reps, lang, unit) : "";
+    const after = evidence.newBest ? formatSetEvidence(evidence.newBest.load, evidence.newBest.reps, lang, unit) : "";
+    return t("achv.evidence.workhorse", { exercise, before, after });
   }
   if (evidence.kind === "hundred_club") return t("achv.evidence.hundred", { n: evidence.days });
   if (evidence.kind === "multi_year") {
@@ -45,9 +43,11 @@ export function evidenceLine(
     return t("achv.evidence.pin", { exercise, target: formatSetEvidence(evidence.target.load, evidence.target.reps, lang, unit) });
   }
   if (evidence.kind === "quest") return t("achv.evidence.quest", { month: evidence.month, done: evidence.current, goal: evidence.target });
+  const prevBest = "previousBest" in evidence && evidence.previousBest ? evidence.previousBest : null;
+  const newBest = "newBest" in evidence && evidence.newBest ? evidence.newBest : null;
   return t("achv.evidence.pr", {
     exercise,
-    before: formatSetEvidence(evidence.previousBest.load, evidence.previousBest.reps, lang, unit),
-    after: formatSetEvidence(evidence.newBest.load, evidence.newBest.reps, lang, unit),
+    before: prevBest ? formatSetEvidence(prevBest.load, prevBest.reps, lang, unit) : "",
+    after: newBest ? formatSetEvidence(newBest.load, newBest.reps, lang, unit) : "",
   });
 }

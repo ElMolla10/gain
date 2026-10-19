@@ -55,6 +55,7 @@ interface TodayData {
   /** Computed without creating a planned session, lazily: only for a day once it is on screen (17), cached until the next load. */
   previews: Record<string, DayLoadPreview[]>;
   activeGym: string | null;
+  activeGymName: string | null;
   /** Which load these previews belong to: a late preview from an earlier focus is dropped. */
   loadId: number;
   /** The latest finished workout (done-for-today detection, 04:00 rollover). */
@@ -77,7 +78,7 @@ interface DoorExtras {
 }
 
 export function TodayScreen() {
-  const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history } = useServices();
+  const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history, gyms } = useServices();
   const { t, lang, fmt, unit, direction } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why" | "SessionDetail" | "Gyms" | "Settings", params?: { dayId: string } | { targetId: string } | { sessionId: string }) => void }>();
@@ -171,6 +172,8 @@ export function TodayScreen() {
         // Previews (one engine run per exercise) are computed only for the day on screen, below.
         const previews: Record<string, DayLoadPreview[]> = {};
         const activeGym = await repos.getActiveGymId();
+        const activeGymDetail = activeGym ? await gyms.getGym(activeGym).catch(() => null) : null;
+        const activeGymName = activeGymDetail?.name ?? null;
         const active = await repos.getLatestProgrammeVersion();
         const pace = await goals.getPace(Date.now());
         const lib = pace.kind === "lift" ? await programmes.listExercises() : [];
@@ -178,12 +181,12 @@ export function TodayScreen() {
         if (alive) setPaceLine(pace.kind === "none" ? "" : describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
         if (alive) setPaceStatus(pace.kind === "none" ? null : (pace as { pace?: { status: PaceStatus } }).pace?.status ?? null);
         if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
-        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, loadId, lastFinished, lighterUntil: lighterUntil(deloadState as { status: string; endsAt?: number } | null, Date.now()), openInfo };
+        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, activeGymName, loadId, lastFinished, lighterUntil: lighterUntil(deloadState as { status: string; endsAt?: number } | null, Date.now()), openInfo };
       }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
       return () => {
         alive = false;
       };
-    }, [repos, goals, programmes, shortWeek, deload, weeklyPlan, workout, finish, history, t, fmt, lang, attempt]),
+    }, [repos, goals, programmes, shortWeek, deload, weeklyPlan, workout, finish, history, gyms, t, fmt, lang, attempt]),
   );
 
   // The day on screen gets its preview on demand; a late result is cached under its own day id (never shown for another day) and
@@ -371,7 +374,7 @@ export function TodayScreen() {
   return (
     <Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>
       {/* The day name is the one title; the date, the label and Change sit around it (spec §0 row 0). */}
-      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={dayIndex} dayCount={data.days.length} onChange={() => setChangeOpen(true)} onStep={stepTo} pagerName={chosen.name} onSettings={() => navigation.navigate("Settings")} onGyms={() => navigation.navigate("Gyms")} activeGymName={data.activeGym} />
+      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={dayIndex} dayCount={data.days.length} onChange={() => setChangeOpen(true)} onStep={stepTo} pagerName={chosen.name} onSettings={() => navigation.navigate("Settings")} onGyms={() => navigation.navigate("Gyms")} activeGymName={data.activeGymName} />
       {mode === "openElsewhere" ? <InlineStatus kind="warn" text={t("today.finishOpenFirst")} /> : null}
       {mode === "open" && data.openInfo?.startedAt != null ? (
         <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.open.started", { time: clock(data.openInfo.startedAt), n: data.openInfo.saved, total: chosen.sets })}</AppText>
@@ -442,9 +445,7 @@ export function TodayScreen() {
                 targetReps={lead.reps ?? 8}
                 unit={unit}
                 reasonText={reasonOf(lead)}
-                lastTimeText={stub?.lastTime ?? null}
                 isGoal={leadEx?.isGoalLift}
-                onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
               />
             </>
           ) : null}

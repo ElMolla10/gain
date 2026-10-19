@@ -31,8 +31,8 @@ export function PlanMuscleRadar({
   return (
     <Card>
       <View style={{ gap: space.sm }}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <AppText accessibilityRole="header" style={{ fontWeight: "600", fontSize: ty.section }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm, flexWrap: "wrap" }}>
+          <AppText accessibilityRole="header" style={{ fontWeight: "600", fontSize: ty.section, flexShrink: 1 }}>
             {t("prog.volumeRadar.title")}
           </AppText>
           {onOpenExposure ? (

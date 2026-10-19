@@ -3,18 +3,15 @@ import { findSpec } from "@gain/engine";
 import React, { useCallback, useState } from "react";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
-import { parseNumber } from "../logic/gymInput";
-import { plateLine } from "../logic/plateText";
-import { unitToKg } from "../logic/units";
 import { usePalette } from "../theme";
-import { AppText, Card, Field, LoadingState, Screen } from "../ui";
+import { AppText, LoadingState, Screen } from "../ui";
+import { BarbellPlateStudio } from "../components/BarbellPlateStudio";
 
 export function PlateCalcScreen() {
   const { repos } = useServices();
-  const { t, lang, unit, unitText } = useI18n();
+  const { t } = useI18n();
   const p = usePalette();
   const [spec, setSpec] = useState<ReturnType<typeof findSpec> | undefined>(undefined);
-  const [text, setText] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -27,17 +24,11 @@ export function PlateCalcScreen() {
   );
 
   if (spec === undefined) return <LoadingState />;
-  const n = parseNumber(text);
-  const load = n === null ? null : unitToKg(n, unit);
-  const line = spec && load !== null ? plateLine(spec, load, unit, lang, t) : null;
 
   return (
     <Screen>
       {spec ? (
-        <Card>
-          <Field label={t("plates.load")} value={text} onChangeText={setText} numeric hint={unitText} />
-          {line ? <AppText style={{ fontWeight: "600" }}>{line.text}</AppText> : null}
-        </Card>
+        <BarbellPlateStudio spec={spec} />
       ) : (
         <AppText style={{ color: p.muted }}>{t("plates.none")}</AppText>
       )}

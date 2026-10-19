@@ -8,7 +8,7 @@ const ui = [...walk("src/screens"), ...walk("src/components"), "App.tsx"];
 
 describe("gyms UI (batch 3): profiles are editable, history stays per gym", () => {
   it("has Gyms and GymEdit screens on the stack, opened from Settings", () => {
-    const names = ui.map((f) => f.split("/").pop());
+    const names = ui.map((f) => f.split(/[/\\]/).pop());
     expect(names).toEqual(expect.arrayContaining(["GymsScreen.tsx", "GymEditScreen.tsx"]));
     const app = readFileSync("App.tsx", "utf8");
     expect(app).toMatch(/name="Gyms"/);

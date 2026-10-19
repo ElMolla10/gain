@@ -19,6 +19,7 @@ import { haptics } from "../haptics";
 import { TodayBar } from "../components/today/TodayBar";
 import { TodayHeader } from "../components/today/TodayHeader";
 import { DoorStub } from "../components/today/DoorStub";
+import { EngineStrategyCard } from "../components/today/EngineStrategyCard";
 import { glyphFor, RackRow } from "../components/today/RackRow";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -370,7 +371,7 @@ export function TodayScreen() {
   return (
     <Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>
       {/* The day name is the one title; the date, the label and Change sit around it (spec §0 row 0). */}
-      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={dayIndex} dayCount={data.days.length} onChange={() => setChangeOpen(true)} onStep={stepTo} pagerName={chosen.name} onSettings={() => navigation.navigate("Settings")} />
+      <TodayHeader date={formatDay(now, lang, now)} dayName={mode === "done" ? t("today.done.title") : chosen.name} label={mode === "done" ? t("today.done.next", { day: chosen.name }) : labelText} dayIndex={dayIndex} dayCount={data.days.length} onChange={() => setChangeOpen(true)} onStep={stepTo} pagerName={chosen.name} onSettings={() => navigation.navigate("Settings")} onGyms={() => navigation.navigate("Gyms")} activeGymName={data.activeGym} />
       {mode === "openElsewhere" ? <InlineStatus kind="warn" text={t("today.finishOpenFirst")} /> : null}
       {mode === "open" && data.openInfo?.startedAt != null ? (
         <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.open.started", { time: clock(data.openInfo.startedAt), n: data.openInfo.saved, total: chosen.sets })}</AppText>
@@ -432,6 +433,16 @@ export function TodayScreen() {
               lastTime={stub?.lastTime ?? null}
               loading={stubLoading}
               whyLabel={`${t("workout.whyShort")}: ${leadName}`}
+              onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
+            />
+            <EngineStrategyCard
+              leadName={leadName}
+              targetLoad={lead.effectiveLoad ?? 0}
+              targetReps={lead.reps ?? 8}
+              unit={unit}
+              reasonText={reasonOf(lead)}
+              lastTimeText={stub?.lastTime ?? null}
+              isGoal={leadEx?.isGoalLift}
               onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
             />
           ) : null}

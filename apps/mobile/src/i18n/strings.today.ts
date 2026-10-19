@@ -76,6 +76,14 @@ export const enToday = {
   "today.pager.a11y": "Day {n} of {total}: {day}",
   "today.pager.next": "Next day",
   "today.pager.prev": "Previous day",
+  "today.runway.title": "WARMUP RUNWAY",
+  "today.runway.warmup": "Warmup",
+  "today.runway.top": "Top Work Set",
+  "today.runway.step": "Step {n}",
+  "today.strategy.title": "Engine Strategy",
+  "today.strategy.unlock": "Target: {target} to progress",
+  "today.arsenal.switch": "Arsenal: {gym}",
+  "today.easeIn.action": "Ease-in / Lighter Day",
 } as const;
 
 export const arToday: Record<keyof typeof enToday, string> = {
@@ -226,4 +234,12 @@ export const arToday: Record<keyof typeof enToday, string> = {
   "today.pager.next": "اليوم اللي بعده",
   // DRAFT ar
   "today.pager.prev": "اليوم اللي قبله",
+  "today.runway.title": "مدرج الإحماء",
+  "today.runway.warmup": "إحماء",
+  "today.runway.top": "المجموعة الأساسية",
+  "today.runway.step": "خطوة {n}",
+  "today.strategy.title": "خطة المحرك",
+  "today.strategy.unlock": "الهدف: {target} للتطور",
+  "today.arsenal.switch": "الجيم: {gym}",
+  "today.easeIn.action": "تخفيف الحمل اليوم",
 };

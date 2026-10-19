@@ -9,31 +9,57 @@ import { AppText, QuietAction } from "../../ui";
  * The header: the date (13/18 600 muted), the day name as the screen's ONE title (28/34 600, header role), decorative page dots beside it,
  * then the label ("Suggested today") and Change (hidden with one day).
  */
-export function TodayHeader({ date, dayName, label, dayIndex, dayCount, onChange, onStep, pagerName, onSettings }: { date: string; dayName: string; label: string; dayIndex: number; dayCount: number; onChange: () => void; /** The day pager for screen readers: increment = next day. */ onStep?: (step: 1 | -1) => void; /** The day name the pager speaks (the title can say "Done for today"). */ pagerName?: string; onSettings?: () => void }) {
+export function TodayHeader({ date, dayName, label, dayIndex, dayCount, onChange, onStep, pagerName, onSettings, onGyms, activeGymName }: { date: string; dayName: string; label: string; dayIndex: number; dayCount: number; onChange: () => void; /** The day pager for screen readers: increment = next day. */ onStep?: (step: 1 | -1) => void; /** The day name the pager speaks (the title can say "Done for today"). */ pagerName?: string; onSettings?: () => void; onGyms?: () => void; activeGymName?: string | null }) {
   const { t } = useI18n();
   const p = usePalette();
   return (
     <View style={{ gap: 2 }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <AppText style={{ fontSize: ty.caption, lineHeight: 18, fontWeight: "600", color: p.muted }}>{date}</AppText>
-        {onSettings ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("tab.settings")}
-            onPress={onSettings}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={({ pressed }) => ({
-              minWidth: 44,
-              minHeight: 44,
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: radius.button,
-              backgroundColor: pressed ? p.raised : "transparent",
-            })}
-          >
-            <Icon name="settings" color={p.muted} size={20} />
-          </Pressable>
-        ) : null}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs }}>
+          {onGyms ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("gyms.title")}
+              onPress={onGyms}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={({ pressed }) => ({
+                minHeight: 36,
+                paddingHorizontal: space.sm,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                borderRadius: radius.pill,
+                borderWidth: 1,
+                borderColor: p.border,
+                backgroundColor: pressed ? p.raised : "transparent",
+              })}
+            >
+              <AppText style={{ fontSize: 12 }}>🏋️</AppText>
+              <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted }}>
+                {activeGymName ? activeGymName : t("gyms.title")}
+              </AppText>
+            </Pressable>
+          ) : null}
+          {onSettings ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("tab.settings")}
+              onPress={onSettings}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={({ pressed }) => ({
+                minWidth: 44,
+                minHeight: 44,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: radius.button,
+                backgroundColor: pressed ? p.raised : "transparent",
+              })}
+            >
+              <Icon name="settings" color={p.muted} size={20} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm }}>
         <AppText accessibilityRole="header" style={{ fontSize: ty.title, lineHeight: 34, fontWeight: "600", flexShrink: 1 }}>{dayName}</AppText>

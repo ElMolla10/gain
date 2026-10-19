@@ -15,6 +15,7 @@ import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText } from "../ui";
 import { Icon } from "./Icon";
 import { CellInput, SwipeRow } from "./LogParts";
+import { SetMicroSteppers } from "./workout/SetMicroSteppers";
 import { haptics } from "../haptics";
 
 export interface WorkoutSetRowProps {
@@ -175,6 +176,28 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
           {tick}
         </View>
       )}
+      {current && !done ? (
+        <SetMicroSteppers
+          load={row.load ?? row.ghostLoad}
+          reps={row.reps ?? row.ghostReps}
+          unit={unit}
+          rir={row.rir}
+          trackEffort={ex.trackEffort}
+          onAdjustLoad={(delta) => {
+            const base = row.load ?? row.ghostLoad ?? 0;
+            const next = Math.max(0, Math.round((base + delta) * 10) / 10);
+            onPatch(row.key, { load: next, invalidLoad: false });
+          }}
+          onAdjustReps={(delta) => {
+            const base = row.reps ?? row.ghostReps ?? 0;
+            const next = Math.max(0, base + delta);
+            onPatch(row.key, { reps: next, invalidReps: false });
+          }}
+          onSetRir={(r) => {
+            onPatch(row.key, { rir: r, invalidRir: false });
+          }}
+        />
+      ) : null}
       {done && strengthPr ? <AppText accessibilityLiveRegion="polite" style={{ color: p.accent, fontSize: 13, paddingHorizontal: space.md, paddingBottom: space.xs }}>{t("achv.strengthPr")}</AppText> : null}
     </SwipeRow>
   );

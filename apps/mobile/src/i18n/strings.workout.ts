@@ -171,6 +171,12 @@ export const enWorkout = {
   "workout.details": "Workout details",
   "workout.pause": "Pause workout",
   "workout.resume": "Resume workout",
+  "workout.stepper.loadDown": "−{n} {unit}",
+  "workout.stepper.loadUp": "+{n} {unit}",
+  "workout.stepper.repsDown": "−1 rep",
+  "workout.stepper.repsUp": "+1 rep",
+  "workout.rir.label": "RIR",
+  "workout.plates.btn": "Plates",
 } as const;
 
 export const arWorkout: Record<keyof typeof enWorkout, string> = {
@@ -345,4 +351,10 @@ export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "workout.details": "تفاصيل التمرينة",
   "workout.pause": "وقّف التمرينة مؤقتًا",
   "workout.resume": "كمّل التمرينة",
+  "workout.stepper.loadDown": "−{n} {unit}",
+  "workout.stepper.loadUp": "+{n} {unit}",
+  "workout.stepper.repsDown": "−1 عدة",
+  "workout.stepper.repsUp": "+1 عدة",
+  "workout.rir.label": "العدات المتبقية",
+  "workout.plates.btn": "الأوزان",
 };

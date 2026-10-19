@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useI18n } from "../../i18n";
 import { formatLoad } from "../../i18n/format";
@@ -8,6 +8,7 @@ import type { TodayHero } from "../../logic/todayHero";
 import { space, type as ty, usePalette } from "../../theme";
 import { AppText, QuietAction } from "../../ui";
 import { BarArt } from "./BarArt";
+import { BarbellRunway } from "./BarbellRunway";
 import { BeltArt, DumbbellPairArt, HoldArt, HornArt, RackedArt, StackArt } from "./ObjectArt";
 import { PlateEngraving } from "./PlateEngraving";
 
@@ -45,6 +46,7 @@ export function TodayBar({ hero, name, onOpenPath, lifted, racked, dim, eyebrow:
   const { t, lang, unit } = useI18n();
   const p = usePalette();
   const { fontScale } = useWindowDimensions();
+  const [runwayStep, setRunwayStep] = useState<number>(-1);
   const h = heroArtHeight(fontScale);
   const letters = { s: t("qty.s"), m: t("qty.m") };
   const label = heroA11yLabel(hero, t, lang, unit, letters, name);
@@ -63,7 +65,8 @@ export function TodayBar({ hero, name, onOpenPath, lifted, racked, dim, eyebrow:
   let art: React.ReactNode = null;
   switch (hero.kind) {
     case "barbell": {
-      art = racked ? <RackedArt perSide={hero.calc.perSide} unit={unit} height={h} /> : <BarArt perSide={hero.calc.perSide} ghost={hero.ghost} unit={unit} height={h} lifted={lifted} />;
+      const activePerSide = runwayStep >= 0 && runwayStep < hero.warmups.length ? hero.warmups[runwayStep]!.perSide : hero.calc.perSide;
+      art = racked ? <RackedArt perSide={activePerSide} unit={unit} height={h} /> : <BarArt perSide={activePerSide} ghost={runwayStep >= 0 ? null : hero.ghost} unit={unit} height={h} lifted={lifted} />;
       if (hero.calc.perSide.length === 0) captions.push(t("today.emptyBar"));
       else captions.push(<PlateEngraving key="eng" perSide={hero.calc.perSide} normalLoad={hero.normalLoad} />);
       if (!hero.calc.exact) captions.push(t("today.nearest", { load: fmt(hero.calc.load), target: fmt(hero.load) }));
@@ -130,6 +133,16 @@ export function TodayBar({ hero, name, onOpenPath, lifted, racked, dim, eyebrow:
         <View style={{ alignItems: "flex-start" }}>
           <QuietAction label={t("today.warmups")} onPress={warmups} />
         </View>
+      ) : null}
+      {hero.kind === "barbell" && hero.warmups.length > 0 && !racked && !dim ? (
+        <BarbellRunway
+          warmups={hero.warmups}
+          topLoad={hero.load}
+          topReps={hero.reps ?? 8}
+          unit={unit}
+          selectedStepIndex={runwayStep}
+          onSelectStep={setRunwayStep}
+        />
       ) : null}
     </View>
   );

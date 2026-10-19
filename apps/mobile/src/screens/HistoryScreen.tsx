@@ -36,10 +36,12 @@ export function HistoryScreen() {
     void loader.load();
     return loader.cancel;
   }, [loader]));
+  // Hooks must run on every render, so these sit above the early return (loading -> loaded changes the render path).
+  const loadedSessions = state.data?.sessions;
+  const totalSets = useMemo(() => (loadedSessions ?? []).reduce((acc, s) => acc + s.workingSets, 0), [loadedSessions]);
+  const totalPrs = useMemo(() => (loadedSessions ?? []).filter((s) => s.pr).length, [loadedSessions]);
   if (!state.data) return state.failed ? <ErrorState title={t("history.error.title")} body={t("history.error.body")} retryLabel={t("history.error.retry")} onRetry={() => void loader.load()} /> : <LoadingState />;
   const { sessions, total, lifts } = state.data;
-  const totalSets = useMemo(() => sessions.reduce((acc, s) => acc + s.workingSets, 0), [sessions]);
-  const totalPrs = useMemo(() => sessions.filter((s) => s.pr).length, [sessions]);
   return (
     <Screen tab title={t("history.title")}>
       {/* The Trophy Cabinet first, straight under the title: it is what Progress is for, not a footer under the lists. */}

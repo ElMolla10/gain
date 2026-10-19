@@ -10,6 +10,8 @@ import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, EmptyState, Field, InlineStatus, LoadingState, QuietAction, Screen } from "../ui";
 import { SelectRow } from "../components/SettingsRows";
 import { previewTokens } from "../logic/loadsPreview";
+import { RackEquipmentPresets } from "../components/loads/RackEquipmentPresets";
+import { IronRackVisualizer } from "../components/loads/IronRackVisualizer";
 import { weightText } from "../logic/units";
 
 interface Loaded {
@@ -36,6 +38,7 @@ export function ExerciseLoadsScreen() {
   const [problems, setProblems] = useState<LoadsProblem[]>([]);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [selectedRung, setSelectedRung] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const cur = await repos.getExerciseLoads(exerciseId);
@@ -88,7 +91,19 @@ export function ExerciseLoadsScreen() {
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.intro")}</AppText>
         <AppText style={{ color: p.muted, fontSize: ty.label }}>{t(gymId ? "loads.scope.line" : "loads.scope")}</AppText>
       </Card>
-      <Card>
+      <Card style={{ gap: space.md }}>
+        <RackEquipmentPresets
+          equipment={data.equipment}
+          unit={unit}
+          onApplyPreset={(preset) => {
+            set(preset);
+            if (preset.mode === "step" && preset.minText) {
+              const n = parseFloat(preset.minText);
+              if (!isNaN(n)) setSelectedRung(n);
+            }
+          }}
+        />
+
         {/* One choice of three: a segmented control, not chips (P-5 / S-9). */}
         <SelectRow label={t("loads.mode")} value={form.mode} options={modes.map((m) => ({ value: m, label: t(`loads.mode.${m}` as never) }))} onChange={(m) => set({ mode: m })} />
         {form.mode === "step" ? (
@@ -101,17 +116,19 @@ export function ExerciseLoadsScreen() {
         {form.mode === "list" ? (
           <Field label={t("loads.list", { unit: unitText })} hint={t("loads.list.hint")} value={form.listText} onChangeText={(s) => set({ listText: s })} keyboardType="numbers-and-punctuation" error={problemText("list_empty") ?? problemText("list_invalid") ?? problemText("list_zero") ?? problemText("too_many_rungs")} />
         ) : null}
-        {preview.values.length > 0 || preview.invalid.length > 0 ? (
-          // The rack before saving: ascending pills, read left to right in both languages like a real rack.
-          <View accessible accessibilityLabel={`${t("loads.preview")}: ${preview.values.map((v) => weightText(v, "kg")).join(", ")}${preview.more ? ` +${preview.more}` : ""}`} style={{ gap: space.xs }}>
-            <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("loads.preview")}</AppText>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, direction: "ltr" }}>
-              {preview.values.map((v) => <LoadPill key={`v${v}`} text={weightText(v, "kg")} />)}
-              {preview.invalid.map((bad, i) => <LoadPill key={`x${i}`} text={bad} invalid />)}
-              {preview.more > 0 ? <LoadPill text={`+${preview.more}`} /> : null}
-            </View>
-          </View>
-        ) : null}
+
+        {/* 10x The Iron Rack Visualizer */}
+        <View style={{ direction: "ltr" }}>
+          <IronRackVisualizer
+            values={preview.values}
+            invalid={preview.invalid}
+            unit={unit}
+            equipment={data.equipment}
+            selectedLoad={selectedRung}
+            onSelectLoad={setSelectedRung}
+          />
+        </View>
+
         {saved ? <InlineStatus kind="success" text={t("loads.saved")} /> : null}
         <BigButton label={t("loads.save")} onPress={() => void save(false)} loading={busy} />
         {data.spec ? <View style={{ alignItems: "center" }}><QuietAction label={t("loads.reset")} onPress={() => { if (!busy) void save(true); }} /></View> : null}

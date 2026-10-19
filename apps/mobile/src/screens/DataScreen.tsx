@@ -15,6 +15,7 @@ import { osTextKey } from "../logic/platform";
 import { localDateText } from "../logic/trendChart";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, InlineStatus, Notice, Screen } from "../ui";
+import { VaultStatsHero } from "../components/vault/VaultStatsHero";
 
 /** Your data: export (JSON backup, CSV of sets), restore a backup, delete everything. Local only: nothing is uploaded. */
 export function DataScreen() {

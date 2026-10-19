@@ -11,6 +11,7 @@ import { formatDay } from "../logic/dateText";
 import type { SyncInfo } from "../sync/engine";
 import { radius, space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Field, InlineStatus, Notice, Screen } from "../ui";
+import { CloudSyncCard } from "../components/vault/CloudSyncCard";
 
 type Step = "idle" | "code" | "choice";
 
@@ -168,6 +169,13 @@ export function SyncScreen() {
   const idle = status === "off" && step === "idle";
   return (
     <Screen>
+      <CloudSyncCard
+        info={info}
+        code={code}
+        onTurnOn={() => void turnOn()}
+        onSyncNow={() => void syncNow()}
+        onShowDetails={() => setDetailsOpen(true)}
+      />
       {idle ? (
         // ST-3, idle step only: a 3-line summary, then the decision, then the full text on request, then the draft notice.
         <>

@@ -13,6 +13,7 @@ import { GYM_EQUIPMENT } from "../logic/gymInput";
 import { applyEquipmentToUnresolved, dateRange, heaviestLoad, resolveAll, type Override } from "../logic/importFlow";
 import { space, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, InlineStatus, Notice, Screen, SectionTitle } from "../ui";
+import { ImportBatchHero } from "../components/vault/ImportBatchHero";
 
 const SETUPS: SetupType[] = ["free", "assisted", "bodyweight_plus_added"];
 
@@ -317,7 +318,16 @@ export function ImportScreen() {
         </>
       ) : null}
 
-      {batches.length > 0 ? (
+      <ImportBatchHero
+        parsed={parsed}
+        preview={preview}
+        heaviestKg={heaviestKg}
+        batches={batches}
+        onPickFile={() => void choose()}
+        onUndoBatch={(bId) => void undo(bId)}
+        busy={!!busy}
+      />
+      {false && batches.length > 0 ? (
         <Card>
           <AppText style={{ fontWeight: "600" }}>{t("import.history.title")}</AppText>
           {batches.map((b) => (

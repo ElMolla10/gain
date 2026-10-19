@@ -59,6 +59,14 @@ export const enFixes = {
   "coach.priority.summary": "{p} Priority · {m} Maintenance · {b} Balanced",
   "coach.blueprint.title": "GENERATED PROGRAMME BLUEPRINT",
   "coach.blueprint.launch": "Activate & Save Programme",
+  "vault.hero.title": "LOCAL DATA VAULT",
+  "vault.sync.active": "ENCRYPTED SYNC ACTIVE",
+  "vault.sync.offline": "LOCAL-ONLY VAULT",
+  "vault.import.staged": "STAGED IMPORT FILE",
+  "vault.label.workouts": "Workouts",
+  "vault.label.sets": "Sets",
+  "vault.label.programmes": "Programmes",
+  "vault.label.gyms": "Gyms",
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
@@ -121,4 +129,12 @@ export const arFixes: Record<keyof typeof enFixes, string> = {
   "coach.priority.summary": "{p} أولوية · {m} تثبيت · {b} متوازن",
   "coach.blueprint.title": "هيكلية البرنامج المقترح",
   "coach.blueprint.launch": "تفعيل وحفظ البرنامج",
+  "vault.hero.title": "خزينة البيانات المحلية",
+  "vault.sync.active": "المزامنة المشفّرة مفعّلة",
+  "vault.sync.offline": "خزينة محلية فقط",
+  "vault.import.staged": "ملف الاستيراد الجاهز",
+  "vault.label.workouts": "تمارين",
+  "vault.label.sets": "مجموعات",
+  "vault.label.programmes": "برامج",
+  "vault.label.gyms": "صالات",
 };

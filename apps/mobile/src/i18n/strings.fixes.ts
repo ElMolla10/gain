@@ -53,6 +53,12 @@ export const enFixes = {
   "why.action.planned": "PLANNED TARGET",
   "why.evidence.title": "EVIDENCE & LOGGED HISTORY",
   "why.hardware.title": "EQUIPMENT & JUMP RULE",
+  "short.active.title": "ACTIVE SHORT-WEEK SCHEDULE",
+  "short.restore.btn": "Restore Standard Schedule",
+  "short.kept.title": "PREVIEW: KEPT ROTATION",
+  "coach.priority.summary": "{p} Priority · {m} Maintenance · {b} Balanced",
+  "coach.blueprint.title": "GENERATED PROGRAMME BLUEPRINT",
+  "coach.blueprint.launch": "Activate & Save Programme",
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
@@ -109,4 +115,10 @@ export const arFixes: Record<keyof typeof enFixes, string> = {
   "why.action.planned": "هدف مخطط",
   "why.evidence.title": "أدلة الأداء وسجل التمرين",
   "why.hardware.title": "المعدات وقاعدة القفزة",
+  "short.active.title": "جدول الأسبوع القصير مفعّل",
+  "short.restore.btn": "استعادة الجدول المعتاد",
+  "short.kept.title": "معاينة: الأيام المحفوظة",
+  "coach.priority.summary": "{p} أولوية · {m} تثبيت · {b} متوازن",
+  "coach.blueprint.title": "هيكلية البرنامج المقترح",
+  "coach.blueprint.launch": "تفعيل وحفظ البرنامج",
 };

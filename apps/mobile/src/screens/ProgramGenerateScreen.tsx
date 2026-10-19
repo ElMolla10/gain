@@ -5,15 +5,27 @@ import { View } from "react-native";
 import { useServices } from "../AppContext";
 import { DraftInvalid, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
-import { exerciseLabels, isolateLtr } from "../i18n/format";
+import { isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { ceilingForName } from "../logic/ceilings";
 import { DAYS_OPTIONS, MINUTES_OPTIONS } from "../logic/onboarding";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
-import { RANKABLE_MUSCLES, parseMusclePriorities, serializeMusclePriorities, type MusclePriorities, type MuscleRank } from "../logic/musclePriority";
-import { generateProgramme, type GeneratedProgramme, type GeneratorExperience, type GeneratorGoal } from "../logic/programGenerator";
+import {
+  RANKABLE_MUSCLES,
+  parseMusclePriorities,
+  serializeMusclePriorities,
+  type MusclePriorities,
+  type MuscleRank,
+} from "../logic/musclePriority";
+import {
+  generateProgramme,
+  type GeneratedProgramme,
+  type GeneratorExperience,
+  type GeneratorGoal,
+} from "../logic/programGenerator";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, Field, Notice, Screen, SectionTitle } from "../ui";
+import { AppText, BigButton, Chip, Field, Notice, Screen, SectionTitle } from "../ui";
+import { GeneratedProgrammeHero } from "../components/coach/GeneratedProgrammeHero";
 
 const GOALS: GeneratorGoal[] = ["hypertrophy", "strength", "general"];
 const LEVELS: GeneratorExperience[] = ["beginner", "intermediate"];
@@ -143,7 +155,7 @@ export function ProgramGenerateScreen() {
       <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("coach.priority.note")}</AppText>
       {RANKABLE_MUSCLES.map((g) => (
         <View key={g} style={{ gap: space.xs }}>
-          <AppText style={{ fontWeight: "600" }}>{t(`muscle.${g}` as StringKey)}</AppText>
+          <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t(`muscle.${g}` as StringKey)}</AppText>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
             {RANKS.map((r) => (
               <Chip
@@ -164,25 +176,13 @@ export function ProgramGenerateScreen() {
       <BigButton label={t("coach.generate")} onPress={() => void build()} />
 
       {preview ? (
-        <Card>
-          <AppText style={{ fontWeight: "600", fontSize: ty.section }}>{t("coach.preview")}</AppText>
-          <AppText>{preview.draft.name}</AppText>
-          {preview.draft.days.map((day, i) => (
-            <AppText key={i}>{day.name}: {isolateLtr(String(day.exercises.length))} · {isolateLtr(String(day.exercises.reduce((n, e) => n + e.sets, 0)))}</AppText>
-          ))}
-          {preview.dropped.length > 0 ? (
-            <>
-              <AppText style={{ fontWeight: "600", marginTop: space.sm }}>{t("ob.programme.dropped")}</AppText>
-              {preview.dropped.map((d, i) => {
-                const ex = library.find((e) => e.seedKey === d.key);
-                const lift = ex ? exerciseLabels(ex, lang).primary : d.key;
-                const line = d.reason === "avoid" ? t("coach.dropped.avoid", { day: d.day, lift }) : d.reason === "equipment" ? t("ob.programme.droppedEquipment", { day: d.day, lift }) : t("ob.programme.droppedTime", { day: d.day, lift, n: minutes });
-                return <AppText key={i} style={{ color: p.muted, fontSize: ty.label }}>{line}</AppText>;
-              })}
-            </>
-          ) : null}
-          <BigButton label={busy ? t("coach.creating") : t("coach.create")} disabled={busy} onPress={() => void save()} />
-        </Card>
+        <GeneratedProgrammeHero
+          preview={preview}
+          library={library}
+          minutes={minutes}
+          busy={busy}
+          onSave={() => void save()}
+        />
       ) : null}
     </Screen>
   );

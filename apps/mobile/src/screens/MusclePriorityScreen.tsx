@@ -1,14 +1,17 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
-import type { StringKey } from "../i18n/strings";
-import { RANKABLE_MUSCLES, parseMusclePriorities, serializeMusclePriorities, type MusclePriorities, type MuscleRank } from "../logic/musclePriority";
-import { space, usePalette } from "../theme";
-import { AppText, Chip, Screen } from "../ui";
-
-const RANKS: MuscleRank[] = ["priority", "normal", "maintenance", "reduced"];
+import {
+  parseMusclePriorities,
+  serializeMusclePriorities,
+  type MusclePriorities,
+  type MuscleRank,
+  type RANKABLE_MUSCLES,
+} from "../logic/musclePriority";
+import { usePalette } from "../theme";
+import { AppText, Screen } from "../ui";
+import { MusclePriorityGrid } from "../components/coach/MusclePriorityGrid";
 
 export function MusclePriorityScreen() {
   const { repos } = useServices();
@@ -35,16 +38,7 @@ export function MusclePriorityScreen() {
   return (
     <Screen>
       <AppText style={{ color: p.muted }}>{t("coach.priority.note")}</AppText>
-      {RANKABLE_MUSCLES.map((g) => (
-        <View key={g} style={{ gap: space.xs }}>
-          <AppText style={{ fontWeight: "600" }}>{t(`muscle.${g}` as StringKey)}</AppText>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-            {RANKS.map((r) => (
-              <Chip key={r} label={t(`coach.rank.${r}` as StringKey)} selected={(priorities[g] ?? "normal") === r} onPress={() => setRank(g, r)} />
-            ))}
-          </View>
-        </View>
-      ))}
+      <MusclePriorityGrid priorities={priorities} onSetRank={setRank} />
     </Screen>
   );
 }

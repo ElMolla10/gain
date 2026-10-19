@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.5,
   },
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   codeLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     textTransform: "uppercase",
   },
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
   },
   codeHint: {
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: 16,
   },
   actionsContainer: {

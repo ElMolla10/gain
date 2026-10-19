@@ -91,7 +91,7 @@ export function RepMaxPowerCurve({ repMaxes, unit }: RepMaxPowerCurveProps) {
                 <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: isPeak ? p.accent : p.text }}>
                   {item.reps}RM: {isolateLtr(`${item.set.load} ${unitText}`)}
                 </AppText>
-                <AppText style={{ fontSize: 11, color: p.muted }}>
+                <AppText style={{ fontSize: 13, color: p.muted }}>
                   {t("trend.calcE1rm", { load: isolateLtr(`${e1rm} ${unitText}`) })}
                 </AppText>
               </View>

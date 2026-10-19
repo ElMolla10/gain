@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   jumpKindText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
   },
   infoRow: {

@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   activeKicker: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dayName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
   },
   badgesRow: {
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   miniBadgeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
   protectedNote: {

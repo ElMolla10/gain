@@ -86,11 +86,11 @@ export function StrengthTierRadar({
 
       {/* Tier Labels Row */}
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <AppText style={{ fontSize: 11, color: p.muted }}>{t("goals.tier.novice")}</AppText>
-        <AppText style={{ fontSize: 11, color: p.muted }}>{t("goals.tier.intermediate")}</AppText>
-        <AppText style={{ fontSize: 11, color: p.muted }}>{t("goals.tier.proficient")}</AppText>
-        <AppText style={{ fontSize: 11, color: p.muted }}>{t("goals.tier.advanced")}</AppText>
-        <AppText style={{ fontSize: 11, color: p.muted }}>{t("goals.tier.elite")}</AppText>
+        <AppText style={{ fontSize: 13, color: p.muted }}>{t("goals.tier.novice")}</AppText>
+        <AppText style={{ fontSize: 13, color: p.muted }}>{t("goals.tier.intermediate")}</AppText>
+        <AppText style={{ fontSize: 13, color: p.muted }}>{t("goals.tier.proficient")}</AppText>
+        <AppText style={{ fontSize: 13, color: p.muted }}>{t("goals.tier.advanced")}</AppText>
+        <AppText style={{ fontSize: 13, color: p.muted }}>{t("goals.tier.elite")}</AppText>
       </View>
     </View>
   );

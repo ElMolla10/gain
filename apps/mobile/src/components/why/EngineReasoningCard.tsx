@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   verdictKicker: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   actionBadgeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
   sentenceText: {

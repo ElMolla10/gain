@@ -178,7 +178,7 @@ export function IronRackVisualizer({
             </AppText>
             {delta !== null ? (
               <View style={{ paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: p.tint }}>
-                <AppText style={{ fontSize: 11, fontWeight: "700", color: p.accent }}>
+                <AppText style={{ fontSize: 13, fontWeight: "700", color: p.accent }}>
                   {t("loads.rack.stepDelta", { step: isolateLtr(String(delta)), unit: unitText })}
                 </AppText>
               </View>
@@ -189,7 +189,7 @@ export function IronRackVisualizer({
           {equipment === "barbell" && selectedPlates.length > 0 ? (
             <View style={{ marginTop: 2, gap: 4 }}>
               <BarArt perSide={selectedPlates} unit={unit} height={50} />
-              <AppText style={{ fontSize: 11, color: p.muted, textAlign: "center" }}>
+              <AppText style={{ fontSize: 13, color: p.muted, textAlign: "center" }}>
                 {t("plates.each", { plates: isolateLtr(selectedPlates.join(" · ")) })}
               </AppText>
             </View>

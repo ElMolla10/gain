@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   kicker: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -127,11 +127,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metricNumber: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
   },
   metricLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,

@@ -35,7 +35,7 @@ export function TodayHeader({ date, dayName, label, dayIndex, dayCount, onChange
                 backgroundColor: pressed ? p.raised : "transparent",
               })}
             >
-              <AppText style={{ fontSize: 12 }}>🏋️</AppText>
+              <AppText style={{ fontSize: 13 }}>🏋️</AppText>
               <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted }}>
                 {activeGymName ? activeGymName : t("gyms.title")}
               </AppText>

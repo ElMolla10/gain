@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   kicker: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   gymBadgeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   rankBadgeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
   chipsRow: {

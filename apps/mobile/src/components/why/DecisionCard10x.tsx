@@ -15,9 +15,10 @@ interface DecisionCard10xProps {
   decision: DecisionListItem;
   sentence: string;
   onWhy: () => void;
+  dateFormatted?: string;
 }
 
-export function DecisionCard10x({ decision: d, sentence, onWhy }: DecisionCard10xProps) {
+export function DecisionCard10x({ decision: d, sentence, onWhy, dateFormatted }: DecisionCard10xProps) {
   const { t, lang, unit, fmt } = useI18n();
   const p = usePalette();
   const a = actionOf(d);
@@ -44,7 +45,7 @@ export function DecisionCard10x({ decision: d, sentence, onWhy }: DecisionCard10
     <Card style={styles.card}>
       {/* Date & Training Day Header */}
       <View style={styles.headerRow}>
-        <AppText style={[styles.dateText, { color: p.muted }]}>{formatDay(d.decidedAt, lang)}</AppText>
+        <AppText style={[styles.dateText, { color: p.muted }]}>{dateFormatted ?? formatDay(d.decidedAt, lang)}</AppText>
         <View style={[styles.dayBadge, { backgroundColor: p.card, borderColor: p.border }]}>
           <AppText style={[styles.dayText, { color: p.text }]}>{t("dec.for", { day: d.dayName })}</AppText>
         </View>
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   dayText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
   nameRow: {
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   exerciseName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
     flex: 1,
   },
@@ -135,10 +136,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionIcon: {
-    fontSize: 12,
+    fontSize: 13,
   },
   actionText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
   targetBox: {
@@ -164,6 +165,6 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 13,
   },
 });

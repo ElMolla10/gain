@@ -109,7 +109,7 @@ export function BarbellRunway({
             gap: 4,
           })}
         >
-          <AppText style={{ fontSize: 12 }}>⭐</AppText>
+          <AppText style={{ fontSize: 13 }}>⭐</AppText>
           <AppText
             style={{
               fontSize: ty.caption,

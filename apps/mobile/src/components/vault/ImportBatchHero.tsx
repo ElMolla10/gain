@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   kicker: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -161,11 +161,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sourceText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
   fileName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
   },
   metricsRow: {
@@ -181,11 +181,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statNumber: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "600",
     textTransform: "uppercase",
   },
@@ -216,6 +216,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   batchDate: {
-    fontSize: 12,
+    fontSize: 13,
   },
 });

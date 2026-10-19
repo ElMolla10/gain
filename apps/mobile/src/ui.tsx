@@ -80,7 +80,7 @@ export function Screen({ children, footer, scroll = true, scrollEnabled = true, 
       {tab && insets.top > 0 ? (
         <View
           pointerEvents="none"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, height: insets.top, backgroundColor: p.bg, zIndex: 10 }}
+          style={{ position: "absolute", top: 0, start: 0, end: 0, height: insets.top, backgroundColor: p.bg, zIndex: 10 }}
         />
       ) : null}
       {scroll ? (

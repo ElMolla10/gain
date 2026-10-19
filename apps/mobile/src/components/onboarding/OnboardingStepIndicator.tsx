@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   kicker: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   stepName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
   track: {

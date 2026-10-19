@@ -128,7 +128,7 @@ export function ExerciseChronicleCard({
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: 2 }}>
             {records.includes("load") ? (
               <View style={{ paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.button, backgroundColor: p.tint }}>
-                <AppText style={{ fontSize: 11, fontWeight: "700", color: p.accent }}>
+                <AppText style={{ fontSize: 13, fontWeight: "700", color: p.accent }}>
                   {t("history.record.heaviest")}
                 </AppText>
               </View>
@@ -136,7 +136,7 @@ export function ExerciseChronicleCard({
 
             {records.includes("rep") && summary?.repPr ? (
               <View style={{ paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.button, backgroundColor: p.tint }}>
-                <AppText style={{ fontSize: 11, fontWeight: "700", color: p.accent }}>
+                <AppText style={{ fontSize: 13, fontWeight: "700", color: p.accent }}>
                   {t("history.record.repPr", { reps: isolateLtr(String(summary.repPr.reps)) })}
                 </AppText>
               </View>
@@ -144,7 +144,7 @@ export function ExerciseChronicleCard({
 
             {records.includes("e1rm") && summary?.estimated1rm ? (
               <View style={{ paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.button, backgroundColor: p.tint }}>
-                <AppText style={{ fontSize: 11, fontWeight: "700", color: p.accent }}>
+                <AppText style={{ fontSize: 13, fontWeight: "700", color: p.accent }}>
                   {t("history.record.e1rmPr", { load: isolateLtr(`${summary.estimated1rm} ${unitText}`) })}
                 </AppText>
               </View>
@@ -152,7 +152,7 @@ export function ExerciseChronicleCard({
 
             {records.includes("reps_at_load") && summary?.top ? (
               <View style={{ paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.button, backgroundColor: p.tint }}>
-                <AppText style={{ fontSize: 11, fontWeight: "700", color: p.accent }}>
+                <AppText style={{ fontSize: 13, fontWeight: "700", color: p.accent }}>
                   {t("history.record.repsAtLoad", { load: isolateLtr(`${summary.top.load} ${unitText}`) })}
                 </AppText>
               </View>
@@ -216,7 +216,7 @@ export function ExerciseChronicleCard({
               <View style={{ width: 80, alignItems: "flex-end", flexDirection: "row", justifyContent: "flex-end", gap: 4 }}>
                 {s.rir !== null ? (
                   <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: p.raised }}>
-                    <AppText style={{ fontSize: 11, fontWeight: "600", color: p.muted }}>
+                    <AppText style={{ fontSize: 13, fontWeight: "600", color: p.muted }}>
                       {t("history.rirPill", { n: isolateLtr(String(s.rir)) })}
                     </AppText>
                   </View>
@@ -224,7 +224,7 @@ export function ExerciseChronicleCard({
 
                 {isTop && !s.warmup ? (
                   <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: p.tint }}>
-                    <AppText style={{ fontSize: 11, fontWeight: "700", color: p.accent }}>
+                    <AppText style={{ fontSize: 13, fontWeight: "700", color: p.accent }}>
                       ⭐
                     </AppText>
                   </View>

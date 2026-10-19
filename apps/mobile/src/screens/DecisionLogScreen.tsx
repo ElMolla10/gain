@@ -6,6 +6,7 @@ import { useServices } from "../AppContext";
 import type { DecisionLift, DecisionListItem } from "../db/decisionRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
+import { formatDay } from "../logic/dateText";
 import { localizeReason } from "../logic/units";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Chip, EmptyState, FilterPanel, LoadingState, Screen } from "../ui";
@@ -63,6 +64,7 @@ export function DecisionLogScreen() {
           <DecisionCard10x
             key={d.targetId}
             decision={d}
+            dateFormatted={formatDay(d.decidedAt, lang)}
             sentence={sentence}
             onWhy={() => nav.navigate("Why", { targetId: d.targetId })}
           />

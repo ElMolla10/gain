@@ -301,7 +301,7 @@ export const arHistory: Record<keyof typeof enHistory, string> = {
   "history.postmortem.prs": "أرقام قياسية جديدة",
   "history.postmortem.duration": "{min} دقيقة",
   "history.postmortem.apexLift": "أثقل رفعة في التمرينة",
-  "history.postmortem.apexLoad": "{exercise}: {load} × {reps}",
+  "history.postmortem.apexLoad": "أعلى حمل {exercise}: {load} × {reps}",
   "history.postmortem.tonnageDist": "توزيع الأحمال",
   "history.postmortem.exVolume": "حجم {volume} {unit}",
   "history.postmortem.topSet": "أعلى مجموعة",

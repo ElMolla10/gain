@@ -136,13 +136,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   kicker: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     lineHeight: 28,
   },
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
   daysList: {
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   dayName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
   },
   dayMeta: {

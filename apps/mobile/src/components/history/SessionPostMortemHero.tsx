@@ -178,37 +178,37 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
       >
         {/* Tonnage moved */}
         <View style={{ flex: 1.2, gap: 2 }}>
-          <AppText style={{ fontSize: 11, fontWeight: "600", color: p.muted, textTransform: "uppercase" }}>
+          <AppText style={{ fontSize: 13, fontWeight: "600", color: p.muted, textTransform: "uppercase" }}>
             {t("history.postmortem.tonnage")}
           </AppText>
           <AppText style={{ fontSize: ty.section, fontWeight: "800", color: p.text }}>
             {isolateLtr(`${metrics.totalTonnage.toLocaleString()}`)}
           </AppText>
-          <AppText style={{ fontSize: 11, color: p.muted }}>{unitText.toUpperCase()}</AppText>
+          <AppText style={{ fontSize: 13, color: p.muted }}>{unitText.toUpperCase()}</AppText>
         </View>
 
         {/* Work Sets */}
         <View style={{ flex: 1, gap: 2, borderStartWidth: 1, borderColor: p.border, paddingStart: space.sm }}>
-          <AppText style={{ fontSize: 11, fontWeight: "600", color: p.muted, textTransform: "uppercase" }}>
+          <AppText style={{ fontSize: 13, fontWeight: "600", color: p.muted, textTransform: "uppercase" }}>
             {t("history.postmortem.workSets")}
           </AppText>
           <AppText style={{ fontSize: ty.section, fontWeight: "800", color: p.accent }}>
             {isolateLtr(String(metrics.workSets))}
           </AppText>
-          <AppText style={{ fontSize: 11, color: p.muted }}>
+          <AppText style={{ fontSize: 13, color: p.muted }}>
             {t("history.postmortem.warmups", { n: isolateLtr(String(metrics.warmups)) })}
           </AppText>
         </View>
 
         {/* PRs */}
         <View style={{ flex: 1, gap: 2, borderStartWidth: 1, borderColor: p.border, paddingStart: space.sm }}>
-          <AppText style={{ fontSize: 11, fontWeight: "600", color: p.muted, textTransform: "uppercase" }}>
+          <AppText style={{ fontSize: 13, fontWeight: "600", color: p.muted, textTransform: "uppercase" }}>
             {t("history.postmortem.prs")}
           </AppText>
           <AppText style={{ fontSize: ty.section, fontWeight: "800", color: metrics.prsCount > 0 ? p.accent : p.text }}>
             ⭐ {isolateLtr(String(metrics.prsCount))}
           </AppText>
-          <AppText style={{ fontSize: 11, color: p.muted }}>
+          <AppText style={{ fontSize: 13, color: p.muted }}>
             {metrics.prsCount > 0 ? t("tab.history") : "—"}
           </AppText>
         </View>
@@ -225,7 +225,7 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <AppText style={{ fontSize: 11, fontWeight: "700", color: p.accent, letterSpacing: 0.5, textTransform: "uppercase" }}>
+            <AppText style={{ fontSize: 13, fontWeight: "700", color: p.accent, letterSpacing: 0.5, textTransform: "uppercase" }}>
               {t("history.postmortem.apexLift")}
             </AppText>
             <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.text }}>
@@ -249,7 +249,7 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
       {metrics.distribution.length > 1 ? (
         <View style={{ gap: space.xs }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <AppText style={{ fontSize: 11, fontWeight: "600", color: p.muted, letterSpacing: 0.4, textTransform: "uppercase" }}>
+            <AppText style={{ fontSize: 13, fontWeight: "600", color: p.muted, letterSpacing: 0.4, textTransform: "uppercase" }}>
               {t("history.postmortem.tonnageDist")}
             </AppText>
           </View>
@@ -274,7 +274,7 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
           {/* Distribution Legend */}
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
             {metrics.distribution.slice(0, 3).map((d, idx) => (
-              <AppText key={d.name} style={{ fontSize: 11, color: p.muted }}>
+              <AppText key={d.name} style={{ fontSize: 13, color: p.muted }}>
                 {idx === 0 ? "■" : idx === 1 ? "▨" : "▢"} {d.name} ({isolateLtr(`${d.percent}%`)})
               </AppText>
             ))}

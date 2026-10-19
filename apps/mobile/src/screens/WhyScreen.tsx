@@ -4,14 +4,13 @@ import { useServices } from "../AppContext";
 import type { StringKey } from "../i18n/strings";
 import { useI18n } from "../i18n";
 import { describeDecisionSafe, type WhySection } from "../logic/why";
-import { space, usePalette } from "../theme";
-import { AppText, Card, EmptyState, LoadingState, Screen } from "../ui";
+import { EmptyState, LoadingState, Screen } from "../ui";
 import { diagnostics } from "../diagnostics";
+import { EngineReasoningCard } from "../components/why/EngineReasoningCard";
 
 export function WhyScreen() {
   const { finish } = useServices();
   const { t, lang, unit } = useI18n();
-  const p = usePalette();
   const targetId = (useRoute().params as { targetId: string }).targetId;
   const [sections, setSections] = useState<WhySection[] | null | "missing">(null);
 
@@ -32,14 +31,7 @@ export function WhyScreen() {
   if (sections === "missing") return <EmptyState icon="why" title={t("empty.nothingToExplain")} body={t("why.missing")} />;
   return (
     <Screen>
-      {sections.map((s) => (
-        <Card key={s.title}>
-          <AppText style={{ fontWeight: "600", fontSize: 20 }} accessibilityRole="header">{s.title}</AppText>
-          {s.lines.map((l, i) => (
-            <AppText key={i} style={i === 0 && s.title === t("why.sentence") ? {} : { color: p.text }}>{l}</AppText>
-          ))}
-        </Card>
-      ))}
+      <EngineReasoningCard sections={sections} />
     </Screen>
   );
 }

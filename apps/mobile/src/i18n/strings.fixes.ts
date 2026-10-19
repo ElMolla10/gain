@@ -46,6 +46,13 @@ export const enFixes = {
   "why.weakestNote": "\"Reps\" for a session means the weakest set at its top load: the fewest reps in any working set at the heaviest load of that session. Load goes up when that weakest set reaches the ceiling and at least {n} set(s) were done at that load.",
   "why.oneSetNote": "One trusted working set at the heaviest load reaching the rep target is enough to earn the next weight. Other sets can have fewer reps.",
   "why.topSets": "Top set + back-offs: only your {n} heaviest set(s) decide whether weight goes up. The lighter back-off sets after them are ignored for progression.",
+  "why.verdict": "PROGRESSIVE OVERLOAD VERDICT",
+  "why.action.advance": "OVERLOAD ADVANCE",
+  "why.action.consolidate": "CONSOLIDATE & REPEAT",
+  "why.action.deload": "FATIGUE / RECOVERY",
+  "why.action.planned": "PLANNED TARGET",
+  "why.evidence.title": "EVIDENCE & LOGGED HISTORY",
+  "why.hardware.title": "EQUIPMENT & JUMP RULE",
 } as const;
 
 export const arFixes: Record<keyof typeof enFixes, string> = {
@@ -95,4 +102,11 @@ export const arFixes: Record<keyof typeof enFixes, string> = {
   "why.weakestNote": "\"العدّات\" في الجلسة معناها أضعف مجموعة على أتقل وزن: أقل عدد عدّات في أي مجموعة شغل على أتقل وزن في الجلسة. الوزن بيزيد لما أضعف مجموعة توصل للسقف وتتعمل {n} مجموعة على الأقل على الوزن ده.",
   "why.oneSetNote": "مجموعة أساسية واحدة موثوقة على أتقل وزن توصل لهدف العدّات كفاية لزيادة الوزن. المجموعات التانية ممكن تعمل عدّات أقل.",
   "why.topSets": "مجموعة تقيلة + مجموعات أخف: بس أتقل {n} مجموعة هي اللي بتحدد لو الوزن هيزيد. المجموعات الأخف اللي بعدها مش بتتحسب في التقدّم.",
+  "why.verdict": "قرار التدرج في الأحمال",
+  "why.action.advance": "زيادة في الوزن",
+  "why.action.consolidate": "تثبيت وتكرار",
+  "why.action.deload": "استشفاء وتخفيف",
+  "why.action.planned": "هدف مخطط",
+  "why.evidence.title": "أدلة الأداء وسجل التمرين",
+  "why.hardware.title": "المعدات وقاعدة القفزة",
 };

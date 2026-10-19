@@ -1,5 +1,3 @@
-import { loadTargetText } from "../logic/bidiText";
-import { isTimed, targetQuantity } from "../logic/quantity";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { renderReason } from "@gain/engine";
 import React, { useCallback, useState } from "react";
@@ -7,20 +5,18 @@ import { View } from "react-native";
 import { useServices } from "../AppContext";
 import type { DecisionLift, DecisionListItem } from "../db/decisionRepo";
 import { useI18n } from "../i18n";
-import { exerciseLabels, isolateLtr } from "../i18n/format";
-import type { StringKey } from "../i18n/strings";
-import { actionOf, hasNumber } from "../logic/decisionText";
-import { formatDay } from "../logic/dateText";
+import { exerciseLabels } from "../i18n/format";
 import { localizeReason } from "../logic/units";
 import { space, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, EmptyState, FilterPanel, LoadingState, Screen } from "../ui";
+import { AppText, BigButton, Chip, EmptyState, FilterPanel, LoadingState, Screen } from "../ui";
+import { DecisionCard10x } from "../components/why/DecisionCard10x";
 
 const PAGE = 40;
 
 /** Every stored decision: what was suggested, which rule made it, what the lifter did. Opens "Why this weight?" for the inputs. */
 export function DecisionLogScreen() {
   const { decisions } = useServices();
-  const { t, lang, unit, fmt } = useI18n();
+  const { t, lang, unit } = useI18n();
   const p = usePalette();
   const nav = useNavigation<{ navigate: (n: string, params: object) => void }>();
   const [filter, setFilter] = useState<string | null>(null);
@@ -57,7 +53,6 @@ export function DecisionLogScreen() {
       </FilterPanel>
       {items.length === 0 ? <EmptyState icon="why" title={t("empty.noDecisions")} body={t("empty.decisionsBody")} /> : null}
       {items.map((d) => {
-        const a = actionOf(d);
         let sentence: string;
         try {
           sentence = renderReason(localizeReason(d.reason, unit, lang), lang);
@@ -65,24 +60,12 @@ export function DecisionLogScreen() {
           sentence = d.reason.key;
         }
         return (
-          <Card key={d.targetId}>
-            <AppText style={{ fontWeight: "600" }}>{formatDay(d.decidedAt, lang)}</AppText>
-            <AppText style={{ fontSize: 20, fontWeight: "600" }}>{exerciseLabels(d, lang).primary}</AppText>
-            <AppText style={{ color: p.muted }}>{t("dec.for", { day: d.dayName })}</AppText>
-            <AppText style={{ fontSize: 16, fontWeight: "600" }}>
-              {hasNumber(d)
-                ? isTimed(d.measure)
-                  ? t("dec.targetTimed", { q: loadTargetText(d.load!, targetQuantity(d, d.measure)!, d.measure, lang, unit, { s: t("qty.s"), m: t("qty.m") }) })
-                  : t("dec.target", { load: fmt(d.load!), reps: isolateLtr(String(d.reps)) })
-                : t("dec.noTarget")}
-            </AppText>
-            <AppText style={{ fontWeight: "600" }}>{t(a.key, a.editedLoad !== null ? { load: fmt(a.editedLoad) } : undefined)}</AppText>
-            <AppText style={{ color: p.muted }}>{sentence}</AppText>
-            <AppText style={{ color: p.muted, fontSize: 13 }}>
-              {t("dec.rule", { version: d.ruleVersion, path: t(`dec.path.${d.path === "model" ? "model" : "rule"}` as StringKey) })} · {t("dec.confidence", { c: t(`why.confidence.${d.confidence}` as StringKey) })}
-            </AppText>
-            <BigButton label={t("dec.why")} variant="secondary" onPress={() => nav.navigate("Why", { targetId: d.targetId })} />
-          </Card>
+          <DecisionCard10x
+            key={d.targetId}
+            decision={d}
+            sentence={sentence}
+            onWhy={() => nav.navigate("Why", { targetId: d.targetId })}
+          />
         );
       })}
       {items.length < total ? <BigButton label={t("dec.more")} variant="secondary" onPress={() => load(filter, items.length + PAGE)} /> : null}

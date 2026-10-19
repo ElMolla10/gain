@@ -27,6 +27,14 @@ import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { runFinishFlow } from "../logic/finishFlow";
+import { FinishHeroPlaque } from "../components/FinishHeroPlaque";
+import { FinishMuscleStrip, type MuscleSetCount } from "../components/FinishMuscleStrip";
+import { FinishRpeCheck, type RpeOption } from "../components/FinishRpeCheck";
+import { muscleGroupOf } from "../logic/muscleVolume";
+import { isTrustedWorkingSet } from "@gain/engine";
+import type { LibraryExercise } from "../db/programmeRepo";
+import { haptics } from "../haptics";
+import { radius } from "../theme";
 
 export function FinishScreen() {
   const { workout, finish, history, goals, programmes, coachLinks, autoSync, achievements } = useServices();
@@ -56,6 +64,45 @@ export function FinishScreen() {
   const achievementShare = useRef<(() => Promise<void>) | null>(null);
   const [goalLiftId, setGoalLiftId] = useState<string | null>(null);
   const [whyTargets, setWhyTargets] = useState<Record<string, string>>({});
+  const [library, setLibrary] = useState<Map<string, LibraryExercise>>(new Map());
+  const [rpe, setRpe] = useState<RpeOption | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    programmes.listExercises().then((list) => {
+      if (alive) setLibrary(new Map(list.map((e) => [e.id, e])));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [programmes]);
+
+  const hapticPlayed = useRef(false);
+  useEffect(() => {
+    if (summary && !hapticPlayed.current) {
+      hapticPlayed.current = true;
+      if (summary.totals.records > 0 || hero) {
+        haptics.celebrate();
+      } else if (summary.totals.counted > 0) {
+        haptics.land();
+      }
+    }
+  }, [summary, hero]);
+
+  const muscleCounts = React.useMemo<MuscleSetCount[]>(() => {
+    if (!detail) return [];
+    const map = new Map<import("../logic/exposure").MuscleGroup, number>();
+    for (const ex of detail.exercises) {
+      const lib = library.get(ex.exerciseId);
+      const group = lib ? muscleGroupOf(lib) : "other";
+      const trusted = ex.sets.filter(isTrustedWorkingSet).length;
+      if (trusted > 0) {
+        map.set(group, (map.get(group) ?? 0) + trusted);
+      }
+    }
+    return Array.from(map.entries())
+      .filter(([g]) => g !== "other")
+      .map(([group, sets]) => ({ group, sets }))
+      .sort((a, b) => b.sets - a.sets);
+  }, [detail, library]);
   // Saved decision records for the forecast exercises: those open the real Why screen (read-only lookup).
   useEffect(() => {
     if (next === null || next === "none") return;
@@ -296,19 +343,59 @@ export function FinishScreen() {
 
       {/* 4. Personal bests and achievements. */}
       {hero ? <HeroAchievement hero={hero} rest={heroRest} /> : null}
-      <Card>
-        <View style={{ gap: space.xs }}>
+      {pbLines.length > 0 ? (
+        <View style={{ backgroundColor: p.tint, borderRadius: radius.card, padding: space.lg, gap: space.sm, borderStartWidth: 4, borderStartColor: p.accent }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-            {/* A drawn trophy, not the emoji (renders differently per platform) (F-6). */}
-            {pbLines.length > 0 ? <Icon name="trophy" color={p.accent} size={20} /> : null}
-            <AppText accessibilityRole="header" style={{ flexShrink: 1, fontSize: ty.section, fontWeight: "600", color: pbLines.length ? p.accent : p.text }}>
+            <Icon name="trophy" color={p.accent} size={20} />
+            <AppText accessibilityRole="header" style={{ flexShrink: 1, fontSize: ty.section, fontWeight: "600", color: p.accent }}>
               {t("recap.personalBests")}{pbLines.length ? ` (${pbLines.length})` : ""}
             </AppText>
           </View>
-          {pbLines.length ? pbLines.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText style={{ color: p.muted }}>{t("recap.noPbs")}</AppText>}
-          {milestones.map((line, i) => <AppText key={`m${i}`}>{line}</AppText>)}
+          <View style={{ gap: space.xs }}>
+            {pbLines.map((line, i) => (
+              <AppText key={i} style={{ fontSize: ty.body, fontWeight: i === 0 ? "600" : "400" }}>{line}</AppText>
+            ))}
+            {milestones.map((line, i) => (
+              <AppText key={`m${i}`} style={{ color: p.muted, fontSize: ty.label }}>{line}</AppText>
+            ))}
+          </View>
         </View>
-      </Card>
+      ) : summary.totals.counted > 0 ? (
+        <Card tone="default">
+          <View style={{ gap: space.xs }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+              <Icon name="check" color={p.accent} size={20} />
+              <AppText accessibilityRole="header" style={{ flexShrink: 1, fontSize: ty.section, fontWeight: "600", color: p.text }}>
+                {t("finish.heroPlaque.bankedTitle")}
+              </AppText>
+            </View>
+            <AppText style={{ color: p.muted, fontSize: ty.label }}>
+              {t("finish.heroPlaque.bankedSubtitle", { n: summary.totals.counted })}
+            </AppText>
+            {milestones.map((line, i) => (
+              <AppText key={`m${i}`} style={{ color: p.muted, fontSize: ty.label }}>{line}</AppText>
+            ))}
+          </View>
+        </Card>
+      ) : (
+        <Card>
+          <View style={{ gap: space.xs }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+              <Icon name="trophy" color={p.accent} size={20} />
+              <AppText accessibilityRole="header" style={{ flexShrink: 1, fontSize: ty.section, fontWeight: "600", color: p.text }}>
+                {t("recap.personalBests")}
+              </AppText>
+            </View>
+            <AppText style={{ color: p.muted }}>{t("recap.noPbs")}</AppText>
+          </View>
+        </Card>
+      )}
+
+      {/* 5. Muscle volume exposure for today's session. */}
+      <FinishMuscleStrip counts={muscleCounts} />
+
+      {/* 6. Perceived effort / fatigue quick-check. */}
+      <FinishRpeCheck value={rpe} onChange={setRpe} />
 
       <Card>
         <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("progress.improved")}</AppText>

@@ -41,7 +41,7 @@ vi.mock("../src/components/SettingsRows", () => ({
       React.createElement("AppText", null, props.label),
       React.createElement("Pressable", {
         accessibilityRole: "button",
-        onPress: () => props.onValueChange(!props.value),
+        onPress: () => (props.onChange ?? props.onValueChange)(!props.value),
       }, React.createElement("AppText", null, props.value ? "ON" : "OFF"))
     ),
 }));
@@ -128,19 +128,19 @@ describe("Page 12: Lifter's Initiation & System Shell", () => {
     expect(buttons.length).toBeGreaterThanOrEqual(4);
 
     // Toggle crash log
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onToggleCrashLog).toHaveBeenCalledWith(false);
 
     // Toggle notes
-    buttons[1].props.onPress();
+    buttons[1]!.props.onPress();
     expect(onToggleNotesOn).toHaveBeenCalledWith(true);
 
     // Manage data
-    buttons[2].props.onPress();
+    buttons[2]!.props.onPress();
     expect(onOpenData).toHaveBeenCalled();
 
     // Diagnostics
-    buttons[3].props.onPress();
+    buttons[3]!.props.onPress();
     expect(onOpenDiagnostics).toHaveBeenCalled();
   });
 });

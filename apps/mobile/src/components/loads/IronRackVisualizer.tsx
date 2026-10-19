@@ -44,8 +44,8 @@ export function IronRackVisualizer({
   };
 
   const selectedIndex = selectedLoad !== null ? values.indexOf(selectedLoad) : -1;
-  const prevLoad = selectedIndex > 0 ? values[selectedIndex - 1] : null;
-  const delta = prevLoad !== null && selectedLoad !== null ? Math.round((selectedLoad - prevLoad) * 10) / 10 : null;
+  const prevLoad = selectedIndex > 0 ? values[selectedIndex - 1] : undefined;
+  const delta = prevLoad != null && selectedLoad !== null ? Math.round((selectedLoad - prevLoad) * 10) / 10 : null;
 
   const selectedPlates =
     equipment === "barbell" && selectedLoad !== null && selectedLoad >= (standardSpec.min ?? 20)

@@ -24,20 +24,30 @@ export interface SessionPostMortemHeroProps {
  * personal records achieved, the session's apex lift loaded on an Olympic barbell,
  * and a volume distribution rail across exercises.
  */
+interface SessionPostMortemMetrics {
+  totalTonnage: number;
+  workSets: number;
+  warmups: number;
+  apexSet: { load: number; reps: number; exerciseName: string } | null;
+  durationMin: number | null;
+  prsCount: number;
+  distribution: { name: string; kg: number; percent: number }[];
+}
+
 export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMortemHeroProps) {
   const { t, lang, unitText } = useI18n();
   const p = usePalette();
 
-  const metrics = useMemo(() => {
+  const metrics = useMemo<SessionPostMortemMetrics>(() => {
     let totalKg = 0;
     let workSets = 0;
     let warmups = 0;
     let apexSet: { load: number; reps: number; exerciseName: string } | null = null;
     const distribution: { name: string; kg: number; percent: number }[] = [];
 
-    detail.exercises.forEach((ex) => {
+    for (const ex of detail.exercises) {
       let exKg = 0;
-      ex.sets.forEach((s) => {
+      for (const s of ex.sets) {
         if (s.warmup) {
           warmups++;
         } else {
@@ -55,18 +65,18 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
             };
           }
         }
-      });
+      }
       distribution.push({
         name: lang === "ar" ? ex.nameAr || ex.nameEn : ex.nameEn,
         kg: exKg,
         percent: 0,
       });
-    });
+    }
 
     if (totalKg > 0) {
-      distribution.forEach((d) => {
+      for (const d of distribution) {
         d.percent = Math.round((d.kg / totalKg) * 100);
-      });
+      }
     }
 
     distribution.sort((a, b) => b.kg - a.kg);

@@ -113,11 +113,11 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
 
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThanOrEqual(3);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onExportJson).toHaveBeenCalled();
-    buttons[1].props.onPress();
+    buttons[1]!.props.onPress();
     expect(onExportCsv).toHaveBeenCalled();
-    buttons[2].props.onPress();
+    buttons[2]!.props.onPress();
     expect(onRestore).toHaveBeenCalled();
   });
 
@@ -142,7 +142,7 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
     // Active state with recovery code
     const onTree = expand(
       React.createElement(CloudSyncCard, {
-        info: { status: "idle", accountId: "acc_1", email: null, lastSyncAt: 1729330000000, lastError: null, pendingOut: 2, parked: { waiting_parent: 0, conflict: 0, newer_app: 0 }, rejectedTotal: 0 },
+        info: { status: "on", accountId: "acc_1", email: null, lastSyncAt: 1729330000000, lastError: null, pendingOut: 2, parked: { waiting_parent: 0, conflict: 0, newer_app: 0 }, rejectedTotal: 0 },
         code: "abcd1234efgh5678",
         onTurnOn,
         onSyncNow,
@@ -157,7 +157,7 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
 
     const buttons = nodes(onTree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThanOrEqual(2);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onSyncNow).toHaveBeenCalled();
   });
 
@@ -170,7 +170,9 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
       parse: {
         source: "hevy" as const,
         unit: "kg" as const,
-        rows: [],
+        workouts: [],
+        warnings: [],
+        rowCount: 0,
       },
     };
 
@@ -193,6 +195,7 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
         source: "hevy",
         fileName: "hevy-export-oct2026.csv",
         gymId: "gym_1",
+        gymName: "Downtown Barbell Club",
         workouts: 25,
         sets: 180,
         createdAt: 1729330000000,
@@ -225,7 +228,7 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
 
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThan(0);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onUndoBatch).toHaveBeenCalledWith("b1");
   });
 });

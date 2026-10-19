@@ -45,12 +45,12 @@ export function PrivacyPledgeCard({
           <SwitchRow
             label={t("privacy.crashLog")}
             value={crashLog}
-            onValueChange={onToggleCrashLog}
+            onChange={onToggleCrashLog}
           />
           <SwitchRow
             label={t("privacy.notes")}
             value={notesOn}
-            onValueChange={onToggleNotesOn}
+            onChange={onToggleNotesOn}
           />
         </View>
 

@@ -135,22 +135,24 @@ describe("Page 9: The Decision Ledger & Engine Intelligence", () => {
     const onWhy = vi.fn();
     const item: DecisionListItem = {
       targetId: "t1",
-      decidedAt: "2026-10-18T10:00:00.000Z",
+      decidedAt: 1729330000000,
       exerciseId: "bench",
       nameEn: "Barbell Bench Press",
       nameAr: "بنش بار حر",
-      transliteration: "Bench Press",
+      gymName: "Barbell Club",
+      setup: "free",
       dayName: "Day A",
+      sessionStatus: "completed",
+      measure: "reps",
+      durationS: null,
+      distanceM: null,
+      editedLoad: null,
       load: 85,
       reps: 6,
       ruleVersion: "rule-v0.4",
       path: "rule",
       confidence: "high",
-      reason: { key: "reason.progression", params: {} },
-      firstSetEditedLoad: null,
-      firstSetSkipped: false,
-      firstSetAccepted: true,
-      hasSets: true,
+      reason: { key: "confirm_top_of_range", params: {} },
       status: "accepted",
       currency: "load",
     };
@@ -172,7 +174,7 @@ describe("Page 9: The Decision Ledger & Engine Intelligence", () => {
 
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThan(0);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onWhy).toHaveBeenCalled();
   });
 
@@ -180,11 +182,13 @@ describe("Page 9: The Decision Ledger & Engine Intelligence", () => {
     const onBringBack = vi.fn();
     const item: StoppedSuggestion = {
       id: "s1",
+      lineId: "l1",
       jumpKind: "microload",
       exerciseId: "ohp",
       nameEn: "Overhead Press",
       nameAr: "ضغط كتف بالبار",
-      transliteration: "OHP",
+      gymName: "Barbell Club",
+      setup: "free",
       blocked: true,
       count: 3,
       lastRejectedAt: 1729330000000,
@@ -204,7 +208,7 @@ describe("Page 9: The Decision Ledger & Engine Intelligence", () => {
 
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThan(0);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onBringBack).toHaveBeenCalled();
   });
 });

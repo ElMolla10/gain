@@ -80,6 +80,12 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
     const onUndo = vi.fn();
 
     const preview: ShortWeekPreview = {
+      programmeId: "p1",
+      originalVersionId: "v1",
+      original: {
+        name: "Standard 3-Day",
+        days: [],
+      },
       rebuild: {
         draft: {
           name: "Condensed 2-Day",
@@ -87,20 +93,20 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
             {
               name: "Day 1: Upper Power",
               exercises: [
-                { exerciseId: "bench", sets: 4, repRange: { min: 6, max: 8 }, load: 80 },
-                { exerciseId: "row", sets: 3, repRange: { min: 8, max: 10 }, load: 70 },
+                { exerciseId: "bench", sets: 4, repMin: 6, repMax: 8, repCeiling: null, isGoalLift: false, trackEffort: false },
+                { exerciseId: "row", sets: 3, repMin: 8, repMax: 10, repCeiling: null, isGoalLift: false, trackEffort: false },
               ],
             },
             {
               name: "Day 2: Lower Power",
               exercises: [
-                { exerciseId: "squat", sets: 4, repRange: { min: 5, max: 5 }, load: 120 },
+                { exerciseId: "squat", sets: 4, repMin: 5, repMax: 5, repCeiling: null, isGoalLift: false, trackEffort: false },
               ],
             },
           ],
         },
         cuts: [
-          { kind: "day_dropped", day: "Day 3", reason: "time" },
+          { kind: "day_dropped", day: "Day 3", reason: "days" },
           { kind: "sets_reduced", day: "Day 1", exerciseId: "row", fromSets: 4, toSets: 3, reason: "time" },
         ],
         minutes: [45, 40],
@@ -110,8 +116,11 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
       exposure: [
         {
           group: "chest",
-          before: { setsPerWeek: 12, sessionsPerWeek: 2 },
-          after: { setsPerWeek: 8, sessionsPerWeek: 1 },
+          before: { group: "chest", setsPerRotation: 12, daysPerRotation: 2, setsPerWeek: 12, sessionsPerWeek: 2 },
+          after: { group: "chest", setsPerRotation: 8, daysPerRotation: 1, setsPerWeek: 8, sessionsPerWeek: 1 },
+          deltaSets: -4,
+          deltaSessions: -1,
+          kind: "down",
         },
       ],
     };
@@ -140,18 +149,21 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
 
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThan(0);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onApply).toHaveBeenCalled();
   });
 
   it("renders ShortWeekImpactCard active banner and undo trigger", () => {
     const onUndo = vi.fn();
     const active: ActiveShortWeek = {
+      id: "asw1",
+      programmeId: "p1",
+      originalVersionId: "v1",
+      shortVersionId: "v2",
+      weekStart: "2026-10-19",
       days: 2,
       minutes: 45,
-      appliedAt: 1729330000000,
-      originalVersionId: "v1",
-      activeVersionId: "v2",
+      cuts: [],
     };
 
     const tree = expand(
@@ -172,7 +184,7 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
 
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThan(0);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onUndo).toHaveBeenCalled();
   });
 
@@ -199,7 +211,7 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
     // Check pressing a rank chip
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThan(0);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onSetRank).toHaveBeenCalled();
   });
 
@@ -212,26 +224,29 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
           {
             name: "Upper A",
             exercises: [
-              { exerciseId: "bench", sets: 3, repRange: { min: 8, max: 12 }, load: 80 },
-              { exerciseId: "row", sets: 3, repRange: { min: 8, max: 12 }, load: 70 },
+              { exerciseId: "bench", sets: 3, repMin: 8, repMax: 12, repCeiling: null, isGoalLift: false, trackEffort: false },
+              { exerciseId: "row", sets: 3, repMin: 8, repMax: 12, repCeiling: null, isGoalLift: false, trackEffort: false },
             ],
           },
           {
             name: "Lower A",
             exercises: [
-              { exerciseId: "squat", sets: 3, repRange: { min: 6, max: 10 }, load: 110 },
+              { exerciseId: "squat", sets: 3, repMin: 6, repMax: 10, repCeiling: null, isGoalLift: false, trackEffort: false },
             ],
           },
         ],
       },
       template: {
         id: "ul4",
-        name: "Upper / Lower",
+        days: 4,
+        en: "Upper / Lower",
+        ar: "علوي / سفلي",
+        arDraft: true,
+        reviewed: false,
         gear: "gym",
         level: "intermediate",
         goal: "hypertrophy",
-        daysPerWeek: 4,
-        days: [],
+        schedule: [],
       },
       dropped: [
         { day: "Upper A", key: "overhead_press", reason: "avoid" },
@@ -239,7 +254,7 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
     };
 
     const library: LibraryExercise[] = [
-      { id: "e1", seedKey: "overhead_press", nameEn: "Overhead Press", nameAr: "ضغط كتف", group: "shoulders", equipment: "barbell", setup: "barbell", measure: "reps", custom: false },
+      { id: "e1", seedKey: "overhead_press", nameEn: "Overhead Press", nameAr: "ضغط كتف", pattern: "shoulders", aliasesAr: [], equipment: "barbell", setup: "free", measure: "reps", isCustom: false },
     ];
 
     const tree = expand(
@@ -266,7 +281,7 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
 
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThan(0);
-    buttons[0].props.onPress();
+    buttons[0]!.props.onPress();
     expect(onSave).toHaveBeenCalled();
   });
 });

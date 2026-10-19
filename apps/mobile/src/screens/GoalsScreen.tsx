@@ -6,6 +6,8 @@ import type { LibraryExercise } from "../db/programmeRepo";
 import type { PaceResult, WeighIn } from "../db/goalRepo";
 import type { StoredReview } from "../db/weeklyRepo";
 import { changeText } from "../components/WeeklyReviewCard";
+import { GoalHeroIronCard } from "../components/goals/GoalHeroIronCard";
+import { StrengthTierRadar } from "../components/goals/StrengthTierRadar";
 import { DateSelect } from "../components/DateSelect";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { useI18n } from "../i18n";
@@ -127,6 +129,26 @@ export function GoalsScreen() {
 
   return (
     <Screen>
+      {pace?.kind === "lift" ? (
+        <>
+          <GoalHeroIronCard
+            exerciseName={nameOf(pace.goal.exerciseId) || t("goals.chooseExercise")}
+            currentE1rm={pace.pace.currentE1rm ?? pace.goal.targetLoad}
+            targetE1rm={pace.pace.targetE1rm ?? pace.goal.targetLoad}
+            unit={unit}
+            projectedDate={pace.pace.projectedDate}
+            paceStatus={pace.pace.status}
+            ratePerExposure={pace.pace.ratePerExposure}
+            exposuresLeft={pace.pace.exposuresLeft}
+          />
+          <StrengthTierRadar
+            currentE1rm={pace.pace.currentE1rm ?? pace.goal.targetLoad}
+            bodyweightKg={weighIns[0]?.kg ?? null}
+            unit={unit}
+          />
+        </>
+      ) : null}
+
       <Card>
         <AppText style={{ fontWeight: "600" }}>{t("goals.current")}</AppText>
         {text ? (

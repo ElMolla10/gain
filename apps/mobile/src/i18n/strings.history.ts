@@ -134,6 +134,11 @@ export const enHistory = {
   "trend.badge.volume": "Volume",
   "trend.badge.rep": "Rep PR",
   "trend.history.empty": "No finished sessions for this lift.",
+  "trend.powerCurve.title": "Rep Max Profile",
+  "trend.powerCurve.subtitle": "Strength Power Curve",
+  "trend.peakE1rm": "Peak e1RM",
+  "trend.calcE1rm": "e1RM: {load}",
+  "trend.powerCurve.insight": "Peak potential: {reps}RM performance predicts an estimated {load} 1RM.",
 } as const;
 
 export const arHistory: Record<keyof typeof enHistory, string> = {
@@ -268,4 +273,9 @@ export const arHistory: Record<keyof typeof enHistory, string> = {
   "trend.badge.volume": "الحجم",
   "trend.badge.rep": "رقم تكرارات",
   "trend.history.empty": "مفيش تمرينات خلصت للحركة دي.",
+  "trend.powerCurve.title": "ملف تكرارات القوة",
+  "trend.powerCurve.subtitle": "منحنى القوة",
+  "trend.peakE1rm": "أعلى تقدير لعدة واحدة",
+  "trend.calcE1rm": "أقصى عدة تقديرية: {load}",
+  "trend.powerCurve.insight": "أعلى إمكانية: أداؤك في {reps} عدات يتوقع أقصى عدة تصل إلى {load}.",
 };

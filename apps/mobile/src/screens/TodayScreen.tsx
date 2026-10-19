@@ -428,23 +428,25 @@ export function TodayScreen() {
           ) : null}
           {hero.kind === "firstRun" ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.first.note")}</AppText> : null}
           {lead && mode !== "open" && mode !== "openElsewhere" ? (
-            <DoorStub
-              provenance={stub?.provenance ?? null}
-              lastTime={stub?.lastTime ?? null}
-              loading={stubLoading}
-              whyLabel={`${t("workout.whyShort")}: ${leadName}`}
-              onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
-            />
-            <EngineStrategyCard
-              leadName={leadName}
-              targetLoad={lead.effectiveLoad ?? 0}
-              targetReps={lead.reps ?? 8}
-              unit={unit}
-              reasonText={reasonOf(lead)}
-              lastTimeText={stub?.lastTime ?? null}
-              isGoal={leadEx?.isGoalLift}
-              onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
-            />
+            <>
+              <DoorStub
+                provenance={stub?.provenance ?? null}
+                lastTime={stub?.lastTime ?? null}
+                loading={stubLoading}
+                whyLabel={`${t("workout.whyShort")}: ${leadName}`}
+                onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
+              />
+              <EngineStrategyCard
+                leadName={leadName}
+                targetLoad={lead.effectiveLoad ?? 0}
+                targetReps={lead.reps ?? 8}
+                unit={unit}
+                reasonText={reasonOf(lead)}
+                lastTimeText={stub?.lastTime ?? null}
+                isGoal={leadEx?.isGoalLift}
+                onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
+              />
+            </>
           ) : null}
         </View>
       ) : null}

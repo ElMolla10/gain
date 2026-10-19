@@ -19,6 +19,7 @@ import {
 } from "@gain/engine";
 import type { LiftItem } from "../db/historyRepo";
 import { TrendChart } from "../components/TrendChart";
+import { RepMaxPowerCurve } from "../components/trend/RepMaxPowerCurve";
 import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr, isolateParam } from "../i18n/format";
 import { formatDay } from "../logic/dateText";
@@ -29,7 +30,7 @@ import { kgToUnit, weightText } from "../logic/units";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, QuietAction, Screen } from "../ui";
 
-type Tab = "summary" | "history";
+type Tab = "summary" | "powerCurve" | "history";
 
 export interface LiftLoadsProps {
   equipment: EquipmentType;
@@ -291,15 +292,16 @@ export function LiftTrendView({
   );
 
   return (
-    <Screen scroll={tab === "summary"} footer={loadsButton} contentStyle={tab === "history" ? { flex: 1, paddingBottom: 0 } : undefined}>
+    <Screen scroll={tab === "summary" || tab === "powerCurve"} footer={loadsButton} contentStyle={tab === "history" ? { flex: 1, paddingBottom: 0 } : undefined}>
       {/* Short native title ("Exercise progression"); the exercise is a 20/26 heading here (N-2). */}
       <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{exerciseLabels(lift, lang).primary}</AppText>
       <AppText style={{ color: p.muted }}>{t("trend.setupLine", { setup: t(`setup.${lift.setup}` as never) })}</AppText>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         <Chip label={t("trend.tab.summary")} selected={tab === "summary"} onPress={() => setTab("summary")} />
+        <Chip label={t("trend.powerCurve.title")} selected={tab === "powerCurve"} onPress={() => setTab("powerCurve")} />
         <Chip label={t("trend.tab.history")} selected={tab === "history"} onPress={() => setTab("history")} />
       </View>
-      {tab === "summary" ? summary : historyList}
+      {tab === "summary" ? summary : tab === "powerCurve" ? <RepMaxPowerCurve repMaxes={records.reps} unit={unit} /> : historyList}
     </Screen>
   );
 }

@@ -228,7 +228,7 @@ export function BarbellPlateStudio({ spec }: BarbellPlateStudioProps) {
                     borderColor: "rgba(0,0,0,0.2)",
                   })}
                 >
-                  <AppText style={{ fontSize: ty.body, fontWeight: "600", color: plate.textDark ? p.ink : p.contrast }}>
+                  <AppText style={{ fontSize: ty.body, fontWeight: "600", color: plate.textDark ? plate.textDark ? p.onFill : p.card }}>
                     +${displayWeight}
                   </AppText>
                 </Pressable>

@@ -1,11 +1,12 @@
-import { useFocusEffect, useLayoutEffect, useNavigation, useRoute } from "@react-navigation/native";
-import { cleanSpec, derivePlates, parseNumberList, platesOf, validateGym, type GymLoadSpec, type SetupType } from "@gain/engine";
-import React, { useCallback, useState } from "react";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
+import { derivePlates, platesOf, type GymLoadSpec, type SetupType } from "@gain/engine";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { exerciseLabels } from "../i18n/format";
 import { defaultGymLoads, defaultGymName } from "../logic/defaultGym";
+import { cleanSpec, parseNumberList, validateGym } from "../logic/gymInput";
 import { formatList, parseNumber } from "../logic/gymInput";
 import { kgToUnit, unitToKg, weightText } from "../logic/units";
 import { radius, space, type as ty, usePalette } from "../theme";
@@ -93,7 +94,7 @@ export function GymEditScreen() {
       const parsed = parseNumberList(platesText);
       const plates = parsed.values.map((v) => unitToKg(v, unit));
       const derived = l.increment !== undefined ? derivePlates(l.increment) : [];
-      const same = plates.length === derived.length && plates.every((x, i) => Math.abs(x - (derived[i] ?? 0)) < 1e-6);
+      const same = plates.length === derived.length && plates.every((x: number, i: number) => Math.abs(x - (derived[i] ?? 0)) < 1e-6);
       return cleanSpec({ ...l, plates: same || plates.length === 0 ? undefined : plates });
     });
     const problems = validateGym(name, next);

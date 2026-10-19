@@ -71,12 +71,12 @@ export function ProgressRhythmSleeve({ sessions, now }: ProgressRhythmSleeveProp
   }
 
   return (
-    <Card
-      accessible
-      accessibilityRole="summary"
-      accessibilityLabel={t("history.rhythm.a11y", { workouts: workoutsInWindow, avg: cadenceFormatted })}
-      style={{ padding: space.md, gap: space.sm }}
-    >
+    <Card style={{ padding: space.md, gap: space.sm }}>
+      <View
+        accessible
+        accessibilityRole="summary"
+        accessibilityLabel={t("history.rhythm.a11y", { workouts: workoutsInWindow, avg: cadenceFormatted })}
+      >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs }}>
           <Icon name="progress" color={p.muted} size={16} />
@@ -123,6 +123,7 @@ export function ProgressRhythmSleeve({ sessions, now }: ProgressRhythmSleeveProp
       <AppText style={{ fontSize: ty.caption, color: p.muted }}>
         {workoutsInWindow === 0 ? t("history.rhythm.empty") : t("history.rhythm.subtext", { count: isolateLtr(String(workoutsInWindow)) })}
       </AppText>
+      </View>
     </Card>
   );
 }

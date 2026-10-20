@@ -44,6 +44,13 @@ export function unitToKgKnown(value: number, unit: Unit, known: readonly number[
   return hit !== undefined ? hit : unitToKg(value, "lb");
 }
 
+/**
+ * A load stepped by `delta` in the unit on screen (±2.5 kg or ±5 lb), as kilograms for storage. Stepping in pounds from 100 lb
+ * gives 105 lb, never "plus 5 kg". Never below zero.
+ */
+export const stepLoadKg = (currentKg: number, delta: number, unit: Unit): number =>
+  unitToKg(Math.max(0, Math.round((kgToUnit(currentKg, unit) + delta) * 10) / 10), unit);
+
 /** The number as text: no trailing zeros, "." as the decimal mark. */
 export const numberText = (n: number): string => String(n);
 

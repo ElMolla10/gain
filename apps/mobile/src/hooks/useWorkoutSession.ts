@@ -21,7 +21,7 @@ import { PREVIOUS_SOURCE_KEY, parsePreviousSource, type PreviousSource } from ".
 import type { LibraryExercise } from "../db/programmeRepo";
 import { DEFAULT_EXERCISE_REST_OFF, type ExerciseState, type SetRow } from "../db/workoutRepo";
 import { exerciseLabels } from "../i18n/format";
-import { weightText } from "../logic/units";
+import { weightText, parseUnit, type Unit } from "../logic/units";
 import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { useI18n } from "../i18n";
 import { reorderBlocks, restAfterSet, supersetLabels } from "../logic/superset";
@@ -50,6 +50,9 @@ import { pauseClock, resumeClock } from "../logic/workoutClock";
 import { attachLoads, resolveLoads } from "../db/exerciseGrid";
 import type { DayEx, Disp, ExInfo } from "../logic/workoutTypes";
 
+/** Settings key holding one exercise's own kg / lb choice. */
+const exerciseUnitKey = (exerciseId: string) => `exercise_unit:${exerciseId}`;
+
 const clock = (ms: number) => {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -68,6 +71,8 @@ export function useWorkoutSession() {
   const dayId = (route.params as { dayId: string }).dayId;
 
   const [loaded, setLoaded] = useState<Loaded | null | "nogym">(null);
+  /** Per-exercise kg / lb choice (loads stay stored in kg). Absent = the app-wide unit. Remembered per exercise between workouts. */
+  const [exerciseUnits, setExerciseUnits] = useState<Record<string, Unit>>({});
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [finishFailed, setFinishFailed] = useState(false);
@@ -237,6 +242,30 @@ export function useWorkoutSession() {
       setLoadError(true);
     });
   }, [repos, gyms, workout, programmes, mlEvaluation, db, dayId, unit, makeDisp, buildInfo, attempt]);
+
+  // Read each exercise's remembered unit once the workout is open.
+  const openSessionId = loaded && loaded !== "nogym" ? loaded.sessionId : null;
+  useEffect(() => {
+    if (!openSessionId || !loaded || loaded === "nogym") return;
+    let alive = true;
+    const ids = [...new Set(loaded.slots.map((s) => s.exerciseId))];
+    void Promise.all(ids.map(async (id) => [id, await repos.getSetting(exerciseUnitKey(id)).catch(() => null)] as const)).then((pairs) => {
+      if (!alive) return;
+      const saved: Record<string, Unit> = {};
+      for (const [id, v] of pairs) if (v === "kg" || v === "lb") saved[id] = parseUnit(v);
+      setExerciseUnits((prev) => ({ ...saved, ...prev }));
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSessionId, repos]);
+
+  /** The unit one exercise is shown and typed in. */
+  const unitFor = (exerciseId: string): Unit => exerciseUnits[exerciseId] ?? unit;
+  const toggleExerciseUnit = (exerciseId: string) => {
+    const next: Unit = unitFor(exerciseId) === "kg" ? "lb" : "kg";
+    setExerciseUnits((prev) => ({ ...prev, [exerciseId]: next }));
+    void repos.setSetting(exerciseUnitKey(exerciseId), next).catch((e) => diagnostics.record("warn", "save exercise unit", e));
+  };
 
   useEffect(() => {
     if (!resumeNote) return;
@@ -782,7 +811,7 @@ export function useWorkoutSession() {
     setPreferredExercise(ex.exerciseId);
     void logRow(ex, row);
   };
-  const dockExpand = () => (dockEx ? dockExpandInfo(dock, dockEx, rows[dockEx.exerciseId] ?? [], shown.indexOf(dockEx), dockName, unit) : null);
+  const dockExpand = () => (dockEx ? dockExpandInfo(dock, dockEx, rows[dockEx.exerciseId] ?? [], shown.indexOf(dockEx), dockName, unitFor(dockEx.exerciseId)) : null);
 
   const replacing = shown.find(ex => ex.slot === pickFor);
   const source = replacing ? library.find(ex => ex.id === replacing.exerciseId) : undefined;
@@ -808,6 +837,8 @@ export function useWorkoutSession() {
     const detailKey = card ? `${ex.exerciseId}:${card.performance}:${card.key}` : null;
     return {
       active: ex.exerciseId === focus,
+      unitOverride: exerciseUnits[ex.exerciseId] ?? null,
+      onToggleUnit: () => toggleExerciseUnit(ex.exerciseId),
       previousSource: previousSource,
       strengthPrSetId: strengthPr?.setId,
       liveDetailsOpen: detailKey !== null && liveDetails === detailKey,
@@ -865,11 +896,11 @@ export function useWorkoutSession() {
           setFocusRow({ exId: ex.exerciseId, key: card.key, nonce: Date.now() });
         },
       onPickJump: kg => void persistCardLoads(ex, specWithJump(ex.equipment, kg, ex.loadSpec, findSpec(loaded.gym, ex.equipment))),
-      listText: cardListText[ex.exerciseId] ?? (ex.loadSpec?.loads?.length ? ex.loadSpec.loads.map(x => weightText(x, unit)).join(", ") : ""),
+      listText: cardListText[ex.exerciseId] ?? (ex.loadSpec?.loads?.length ? ex.loadSpec.loads.map(x => weightText(x, unitFor(ex.exerciseId))).join(", ") : ""),
       onListChange: text => setCardListText(cur => ({ ...cur, [ex.exerciseId]: text })),
       onSaveList: () => {
           const listText = cardListText[ex.exerciseId] ?? "";
-          const built = buildLoads({ ...emptyLoadsForm(), mode: "list", listText }, ex.equipment, unit, specValues(ex.loadSpec));
+          const built = buildLoads({ ...emptyLoadsForm(), mode: "list", listText }, ex.equipment, unitFor(ex.exerciseId), specValues(ex.loadSpec));
           if (built.problems.length > 0) {
             const pr = built.problems[0]!;
             Alert.alert(t(`loads.problem.${pr.code}` as never, { bad: (pr.detail ?? []).join(" ") }));
@@ -971,7 +1002,7 @@ export function useWorkoutSession() {
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
     restore, unlogged, restFor, setTimer, reorderOpen,
     t, busy, reorderSaving, reorderGroups, namesBySlot,
-    commitReorder, helpOpen, lang, unit,
+    commitReorder, helpOpen, lang, unit, dockUnit: dockEx ? unitFor(dockEx.exerciseId) : unit,
     logRow, patch, menuEx,
     setMenuFor, noteInputs, focus, setMachineFor, exState,
     startReplace, setSsFor, ssLabel, applySuperset, askRemove,

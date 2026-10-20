@@ -8,7 +8,7 @@ import type { Disp, ExInfo } from "../logic/workoutTypes";
 import type { ExerciseState, SetRow } from "../db/workoutRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
-import { localizeReason, weightText } from "../logic/units";
+import { localizeReason, unitLabel, type Unit } from "../logic/units";
 import { isIsolationPattern, warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
 import { foldedSummary } from "../logic/foldedSummary";
 import { isTimed, quantityText, setQuantity } from "../logic/quantity";
@@ -22,7 +22,7 @@ import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, IconButton, InlineStatus, Notice, QuietAction, useReducedMotion } from "../ui";
 import { RACK_MOTION } from "../logic/rackMotion";
-import { RestToggle, TargetLine } from "./LogParts";
+import { RestToggle, TargetLine, UnitToggle } from "./LogParts";
 import { Icon } from "./Icon";
 import { LiveSuggestion, LoadSettings } from "./LiveSuggestion";
 import { MemoWorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
@@ -61,11 +61,16 @@ export interface ExerciseSectionProps extends Pick<WorkoutSetRowProps, "onPatch"
   onOpenTrend?: () => void;
   previousSource?: PreviousSource;
   strengthPrSetId?: string | null;
+  /** This exercise's own kg / lb choice (null or absent: follow the app-wide unit) and the handler that flips it. Loads stay stored in kg. */
+  unitOverride?: Unit | null; onToggleUnit?: () => void;
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ restGlobal = true, active = true, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId }: ExerciseSectionProps) {
-  const { t, lang, unit, unitText, fmt } = useI18n();
+export function WorkoutExerciseSection({ restGlobal = true, active = true, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId, unitOverride, onToggleUnit }: ExerciseSectionProps) {
+  const { t, lang, unit: appUnit } = useI18n();
+  const unit = unitOverride ?? appUnit;
+  const unitText = unitLabel(unit, lang);
+  const fmt = (kg: number) => formatLoad(kg, lang, unit);
   const p = useLogPalette();
   const { fontScale } = useWindowDimensions();
 
@@ -124,7 +129,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
   // Only a stop warning opens on its own; any other suggestion is one tap away ("Next set details").
   const showCard = !!card && (card.decision.action === "stop" || suggestionOpen);
   const canEditLoads = !!onPickJump && canEditLoadsFor(ex);
-  const live = card && showCard ? <LiveSuggestion decision={card.decision} state={nextSetState({ decision: card.decision, starting: card.starting, spec })}
+  const live = card && showCard ? <LiveSuggestion unit={unit} decision={card.decision} state={nextSetState({ decision: card.decision, starting: card.starting, spec })}
     basis={basis} repMin={ex.repMin} repMax={ex.repMax} equipment={ex.equipment} loadSpec={spec}
     detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
     manualLoad={nextAdaptiveRow(list)?.load !== null || nextAdaptiveRow(list)?.reps !== null} busy={busy}
@@ -149,12 +154,13 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
         </Pressable>
         {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
         {/* The rest chip only when rest is on in general; otherwise the ⋮ menu offers "Rest after this exercise" (logger spec §4). */}
+        {onToggleUnit ? <UnitToggle unit={unit} kgText={unitLabel("kg", lang)} lbText={unitLabel("lb", lang)} a11y={t("workout.unitToggle.a11y", { exercise: labels.primary, unit: unitLabel(unit, lang), other: unitLabel(unit === "kg" ? "lb" : "kg", lang) })} onPress={onToggleUnit} /> : null}
         {restGlobal ? <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} /> : null}
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
       </View>
       {canEditLoads && loadsOpen ? (
         <View style={{ gap: space.xs }}>
-          <LoadSettings loadSpec={spec} busy={busy} onPickJump={onPickJump!} listText={listText} onListChange={onListChange} onSaveList={onSaveList} />
+          <LoadSettings unit={unit} loadSpec={spec} busy={busy} onPickJump={onPickJump!} listText={listText} onListChange={onListChange} onSaveList={onSaveList} />
           <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
             <QuietAction label={t("common.close")} accessibilityLabel={`${t("common.close")}: ${t("workout.loads")}, ${labels.primary}`} expanded onPress={() => onToggleLoads?.()} />
           </View>
@@ -182,7 +188,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
         {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}
         {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
         {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
-        <PersonalMilestoneLine onOpen={onOpenProgress} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
+        <PersonalMilestoneLine unit={unit} onOpen={onOpenProgress} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
         {ex.topSets && !timed ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("workout.topset.note", { n: ex.topSets })}</AppText> : null}
       </View>
 
@@ -203,7 +209,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
         {list.map((row, i) => (
           <React.Fragment key={row.key}>
             {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
-            <MemoWorkoutSetRow key={row.key} ex={ex} row={row} label={numbering[i] ?? i + 1}
+            <MemoWorkoutSetRow key={row.key} ex={ex} unit={unit} row={row} label={numbering[i] ?? i + 1}
               workingIndex={widx[i] ?? null} lastSets={(info.previous ? info.previous[previousSource] : info.last)?.sets ?? null}
               strengthPr={strengthPrSetId === row.key}
               current={active && currentKey === row.key} stacked={stacked} busy={busy}
@@ -312,7 +318,7 @@ export function ExerciseBlock(props: ExerciseSectionProps) {
     return () => clearTimeout(id);
   }, [foldable, unfolded, reduced, height]);
   if (phase === "folded" && foldable && !unfolded) {
-    return <FoldedExercise name={exerciseLabels(ex, lang).primary} list={list} superset={!!supersetLabel} onUnfold={() => setUnfolded(true)} t={t} lang={lang} unit={unit} p={p} />;
+    return <FoldedExercise name={exerciseLabels(ex, lang).primary} list={list} superset={!!supersetLabel} onUnfold={() => setUnfolded(true)} t={t} lang={lang} unit={props.unitOverride ?? unit} p={p} />;
   }
   if (phase === "folding") return <Animated.View style={{ height, overflow: "hidden" }}><WorkoutExerciseSection {...props} /></Animated.View>;
   return <View onLayout={(e) => { measured.current = e.nativeEvent.layout.height; }}><WorkoutExerciseSection {...props} /></View>;

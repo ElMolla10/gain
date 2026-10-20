@@ -5,11 +5,13 @@ import { useI18n } from "../i18n";
 import { formatLoad, isolateLtr, NBSP } from "../i18n/format";
 import { matchingJumpKg, TREND_LOAD_JUMPS_KG } from "../logic/exerciseLoads";
 import type { NextSetState } from "../logic/nextSetCard";
-import { weightText } from "../logic/units";
+import { unitLabel, weightText, type Unit } from "../logic/units";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, Chip, Field, QuietAction } from "../ui";
 
 interface Props {
+  /** The exercise's own kg / lb choice; absent = the app-wide unit. */
+  unit?: Unit;
   decision: Decision;
   state: NextSetState;
   detailsOpen?: boolean;
@@ -28,8 +30,9 @@ interface Props {
 }
 
 /** Presentation only: the logger owns persistence, staleness checks and acceptance. */
-export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleDetails, basis, repMin, repMax, equipment, loadSpec, manualLoad, busy, onApply, onOwn, onKeep, whySentence }: Props) {
-  const { t, lang, unit } = useI18n();
+export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleDetails, basis, repMin, repMax, equipment, loadSpec, manualLoad, busy, onApply, onOwn, onKeep, whySentence, unit: unitOverride }: Props) {
+  const { t, lang, unit: appUnit } = useI18n();
+  const unit = unitOverride ?? appUnit;
   const p = useLogPalette();
   const load = formatLoad(decision.suggestedWeightKg, lang, unit);
   const nextValue = `${load}${NBSP}×${NBSP}${isolateLtr(String(decision.suggestedReps))}`;
@@ -91,11 +94,13 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
  * Available-load settings for one exercise (jump chips and a custom list), opened from the exercise header's Loads control.
  * Saving changes later suggestions and the plate line; weights already logged stay as they are.
  */
-export function LoadSettings({ loadSpec, busy, onPickJump, listText, onListChange, onSaveList }: {
-  loadSpec?: GymLoadSpec | null; busy: boolean; onPickJump: (kg: number) => void;
+export function LoadSettings({ loadSpec, busy, onPickJump, listText, onListChange, onSaveList, unit: unitOverride }: {
+  unit?: Unit; loadSpec?: GymLoadSpec | null; busy: boolean; onPickJump: (kg: number) => void;
   listText?: string; onListChange?: (text: string) => void; onSaveList?: () => void;
 }) {
-  const { t, unit, unitText } = useI18n();
+  const { t, lang, unit: appUnit } = useI18n();
+  const unit = unitOverride ?? appUnit;
+  const unitText = unitLabel(unit, lang);
   const p = useLogPalette();
   const selectedJump = matchingJumpKg(loadSpec ?? null);
   return (

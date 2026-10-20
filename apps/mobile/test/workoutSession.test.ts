@@ -61,7 +61,7 @@ vi.mock("../src/native/workoutLiveActivity", () => ({ workoutLiveActivity: { syn
 vi.mock("../src/theme", () => ({ radius: { button: 8 }, space: { xs: 4, sm: 8, md: 12 }, type: { section: 20, label: 13 }, useLogPalette: () => ({}) }));
 vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", QuietAction: "QuietAction" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
-vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", TargetLine: "TargetLine" }));
+vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", UnitToggle: "UnitToggle", TargetLine: "TargetLine" }));
 
 type Node = ReactElement<Record<string, any>>;
 function nodes(value: unknown): Node[] {

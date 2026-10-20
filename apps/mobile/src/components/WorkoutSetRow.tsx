@@ -4,7 +4,7 @@ import type { LoggedSet } from "@gain/engine";
 import type { Disp } from "../logic/workoutTypes";
 import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
-import { weightText } from "../logic/units";
+import { stepLoadKg, unitLabel, weightText, type Unit } from "../logic/units";
 import { isTimed, parseQuantityInput, setQuantity } from "../logic/quantity";
 import { beatLast } from "../logic/beatLast";
 import { previousCellText } from "../logic/bidiText";
@@ -36,11 +36,15 @@ export interface WorkoutSetRowProps {
   autoFocus?: boolean;
   focusNonce?: number;
   strengthPr?: boolean;
+  /** This exercise's own kg / lb choice; absent = the app-wide unit. The row always stores kilograms. */
+  unit?: Unit;
 }
 
 /** Inputs and actions for one set. Persistence and draft state belong to the logger. */
-export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce, strengthPr = false }: WorkoutSetRowProps) {
-  const { t, lang, unit, unitText } = useI18n();
+export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce, strengthPr = false, unit: unitOverride }: WorkoutSetRowProps) {
+  const { t, lang, unit: appUnit } = useI18n();
+  const unit = unitOverride ?? appUnit;
+  const unitText = unitLabel(unit, lang);
   const p = useLogPalette();
   const labels = exerciseLabels(ex, lang);
   const timed = isTimed(ex.measure);
@@ -184,8 +188,8 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
           rir={row.rir}
           trackEffort={ex.trackEffort}
           onAdjustLoad={(delta) => {
-            const base = row.load ?? row.ghostLoad ?? 0;
-            const next = Math.max(0, Math.round((base + delta) * 10) / 10);
+            // The step (±2.5 kg or ±5 lb) is in the unit on screen; the row keeps kilograms.
+            const next = stepLoadKg(row.load ?? row.ghostLoad ?? 0, delta, unit);
             onPatch(row.key, { load: next, invalidLoad: false });
           }}
           onAdjustReps={(delta) => {

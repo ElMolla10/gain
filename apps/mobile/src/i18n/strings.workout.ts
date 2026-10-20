@@ -177,6 +177,7 @@ export const enWorkout = {
   "workout.stepper.repsUp": "+1 rep",
   "workout.rir.label": "RIR",
   "workout.plates.btn": "Plates",
+  "workout.unitToggle.a11y": "Weight unit for {exercise}: {unit}. Switch to {other}",
 } as const;
 
 export const arWorkout: Record<keyof typeof enWorkout, string> = {
@@ -357,4 +358,5 @@ export const arWorkout: Record<keyof typeof enWorkout, string> = {
   "workout.stepper.repsUp": "+1 عدة",
   "workout.rir.label": "العدات المتبقية",
   "workout.plates.btn": "الأوزان",
+  "workout.unitToggle.a11y": "وحدة الوزن لتمرين {exercise}: {unit}. غيّرها إلى {other}",
 };

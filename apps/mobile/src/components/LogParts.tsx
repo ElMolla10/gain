@@ -216,6 +216,19 @@ export function TargetLine(props: { label: string; value: string; whyLabel: stri
   );
 }
 
+/** The per-exercise kg / lb switch: both units shown, the one in use highlighted. Loads stay stored in kg; 48 dp tall. */
+export function UnitToggle(props: { unit: "kg" | "lb"; kgText: string; lbText: string; a11y: string; onPress: () => void }) {
+  const p = useLogPalette();
+  const word = (on: boolean) => ({ color: on ? p.accent : p.muted, fontWeight: on ? ("700" as const) : ("500" as const), fontSize: ty.label });
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={props.a11y} onPress={props.onPress} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}>
+      <AppText style={word(props.unit === "kg")}>{props.kgText}</AppText>
+      <AppText style={{ color: p.muted, fontSize: ty.label }}>/</AppText>
+      <AppText style={word(props.unit === "lb")}>{props.lbText}</AppText>
+    </Pressable>
+  );
+}
+
 /** The per-exercise rest-timer switch: timer icon + the length (or "Off"). The spoken label says it all; 48 dp tall. */
 export function RestToggle(props: { text: string; off: boolean; a11y: string; onPress: () => void }) {
   const p = useLogPalette();

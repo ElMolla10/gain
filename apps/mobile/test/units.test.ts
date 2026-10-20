@@ -4,7 +4,7 @@ import { renderReason } from "@gain/engine";
 import { formatLoad, LRI, PDI } from "../src/i18n/format";
 import { stepLoad } from "../src/logic/draft";
 import { heaviestLoad } from "../src/logic/importFlow";
-import { editedKg, kgToUnit, localizeReason, parseUnit, unitLabel, unitToKg, unitToKgKnown, weightText } from "../src/logic/units";
+import { editedKg, kgToUnit, localizeReason, parseUnit, stepLoadKg, unitLabel, unitToKg, unitToKgKnown, weightText } from "../src/logic/units";
 import { freshDb } from "./helpers";
 
 const clean = (x: string) => x.replace(/[\u2066-\u2069]/g, "");
@@ -119,5 +119,18 @@ describe("history edit keeps an unchanged load (Step 6)", () => {
     expect(editedKg(135, 60, "lb")).toBe(unitToKg(135, "lb"));
     expect(editedKg(62.5, 60, "kg")).toBe(62.5);
     expect(editedKg(60, 60, "kg")).toBe(60);
+  });
+});
+
+describe("per-exercise unit: stepping and converting a stored kilogram load", () => {
+  it("steps in the unit on screen and stores kilograms", () => {
+    expect(stepLoadKg(60, 2.5, "kg")).toBe(62.5);
+    expect(kgToUnit(stepLoadKg(45.359, 5, "lb"), "lb")).toBe(105);
+    expect(stepLoadKg(0, -5, "lb")).toBe(0);
+  });
+  it("a load logged in pounds reads back in kilograms and the other way round", () => {
+    const stored = unitToKg(135, "lb");
+    expect(kgToUnit(stored, "kg")).toBe(61.235);
+    expect(kgToUnit(unitToKg(100, "kg"), "lb")).toBe(220.5);
   });
 });

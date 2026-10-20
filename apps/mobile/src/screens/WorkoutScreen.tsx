@@ -75,7 +75,7 @@ export function WorkoutScreen() {
     summaryOpen, setSummaryOpen, readiness, setReadiness, workout,
     source, previousSource, choosePreviousSource, finishFailed, doFinish,
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
-    restore, unlogged, restFor, setTimer, dock, dockName, dockLog, dockExpand, busy,
+    restore, unlogged, restFor, setTimer, dock, dockName, dockLog, dockExpand, dockUnit, busy,
     statusKind, statusShort, rows,
   } = session;
   const warns = sessionLineWarns(statusKind);
@@ -208,7 +208,7 @@ export function WorkoutScreen() {
 
       {restPermDenied ? <View style={{ paddingHorizontal: space.lg }}><InlineStatus kind="warn" text={t("rest.perm.denied")} /></View> : null}
       {/* The Rack Dock (logger spec §2) replaces the rest bar and absorbs it (rest mode). */}
-      <RackDock model={dock} name={dockName} logged={sets.length} timer={timer} restFor={restFor} saving={busy !== null && busy === dock.rowKey} unit={unit} actions={dockActions} />
+      <RackDock model={dock} name={dockName} logged={sets.length} timer={timer} restFor={restFor} saving={busy !== null && busy === dock.rowKey} unit={dockUnit} actions={dockActions} />
 
       <WorkoutSessionSheets session={session} />
     </View>

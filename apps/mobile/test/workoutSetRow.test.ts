@@ -18,7 +18,7 @@ vi.mock("../src/i18n", () => ({ useI18n: () => ({ ...settings, unitText: setting
 vi.mock("../src/theme", () => ({ radius: { button: 8, card: 12, pill: 24 }, space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 13, load: 36, caption: 13 }, useLogPalette: () => ({ doneBg: "done", activeBg: "active", bg: "page", card: "card", line: "line", fill: "fill", accent: "accent", muted: "muted", danger: "danger", text: "text" }), usePalette: () => ({ muted: "muted", border: "border", text: "text", fill: "fill", onFill: "onFill", edge: "edge", danger: "danger" }) }));
 vi.mock("../src/ui", () => ({ AppText: "AppText", QuietAction: "QuietAction", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", Chip: "Chip", Field: "Field" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
-vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", TargetLine: "TargetLine" }));
+vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", UnitToggle: "UnitToggle", TargetLine: "TargetLine" }));
 
 type Node = ReactElement<Record<string, any>>;
 function nodes(value: unknown): Node[] {

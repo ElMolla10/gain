@@ -5,10 +5,11 @@ import { personalMilestone, type MilestoneSession } from "../logic/personalProgr
 import { targetPhrase } from "../logic/quantity";
 import { useI18n } from "../i18n";
 import { formatLoad } from "../i18n/format";
+import type { Unit } from "../logic/units";
 import { AppText } from "../ui";
 import { space, useLogPalette } from "../theme";
-export function PersonalMilestoneLine({ onOpen, history, today, spec, measure, repMin, repMax, setup }: { onOpen: () => void; history: MilestoneSession[]; today: LoggedSet[]; spec: GymLoadSpec | null; measure: Measure; repMin: number; repMax: number; setup: SetupType }) {
-  const { t, lang, unit } = useI18n(); const p = useLogPalette();
+export function PersonalMilestoneLine({ onOpen, history, today, spec, measure, repMin, repMax, setup, unit: unitOverride }: { unit?: Unit; onOpen: () => void; history: MilestoneSession[]; today: LoggedSet[]; spec: GymLoadSpec | null; measure: Measure; repMin: number; repMax: number; setup: SetupType }) {
+  const { t, lang, unit: appUnit } = useI18n(); const unit = unitOverride ?? appUnit; const p = useLogPalette();
   const m = setup === "assisted" ? null : personalMilestone(history, today, spec, measure, repMin, repMax);
   if (!m) return null;
   const target = targetPhrase(m.load, m.quantity, measure, kg => formatLoad(kg, lang, unit), { s: t("qty.s"), m: t("qty.m") });

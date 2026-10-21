@@ -4,7 +4,7 @@ Status: **DRAFT.** Every answer is checked against the code and the docs named i
 
 ## English
 
-**Is GAIN really free?** Yes. No subscriptions, in-app purchases or paid features, and no ads ([PRODUCT.md](../PRODUCT.md)).
+**Is GAIN really free?** Yes, during this pilot. No subscriptions, in-app purchases or paid features, and no ads ([PRODUCT.md](../PRODUCT.md)).
 
 **Do I need an account or internet?** No account. Everything works offline. The only time it uses the internet during the pilot is when you tap Settings > Check for updates.
 

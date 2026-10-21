@@ -4,21 +4,21 @@ import { describe, expect, it } from "vitest";
 import { ar, en } from "../src/i18n/strings";
 
 /**
- * GAIN is completely free: no subscriptions, in-app purchases or paid feature tiers (decision 2026-10-03). These checks fail if a billing
- * library, a gate, a Plans page or pricing copy comes back, or if the "completely free" statement leaves the docs that must carry it.
+ * GAIN launches free, with no payment integration. These checks fail if a billing
+ * library, a gate, a Plans page or pricing copy comes back, or if launch pricing disappears from the docs.
  */
 const root = join(__dirname, "..");
 const repo = join(root, "..", "..");
 const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? files(join(dir, n)) : [join(dir, n)]));
 const text = (f: string) => readFileSync(f, "utf8");
 
-const STATEMENT = "GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.";
-const STATEMENT_AR = "GAIN مجاني بالكامل. مفيش اشتراكات ولا مشتريات جوه التطبيق ولا مستويات مدفوعة للمميزات.";
+const STATEMENT = "GAIN is free at launch. No subscriptions, in-app purchases, or paid feature tiers are included.";
+const STATEMENT_AR = "GAIN مجاني عند الإطلاق. مفيش اشتراكات ولا مشتريات جوه التطبيق ولا مستويات مدفوعة للمميزات.";
 
-describe("GAIN is completely free", () => {
+describe("GAIN launches without payment", () => {
   it("README, PRODUCT.md and the store-listing draft say so (the listing in English and Arabic)", () => {
-    expect(text(join(repo, "README.md"))).toContain(STATEMENT);
-    expect(text(join(repo, "docs/PRODUCT.md"))).toContain(STATEMENT);
+    expect(text(join(repo, "README.md"))).toContain("GAIN is free at launch. There are no subscriptions, in-app purchases, paid feature tiers, ads, or donation prompts in the app.");
+    expect(text(join(repo, "docs/PRODUCT.md"))).toContain("GAIN is free at launch. No payment system, subscriptions, in-app purchases, or paid feature tiers are included.");
     const listing = text(join(repo, "docs/PLAY-LISTING-DRAFT.md"));
     expect(listing).toContain(STATEMENT);
     expect(listing).toContain(STATEMENT_AR);

@@ -170,7 +170,7 @@ Building a signed APK requires JDK 17 + Android SDK. See [docs/RELEASE-PROCESS.m
 - 1,440+ tests pass across engine, sync, mobile, and server.
 - Core loop (onboarding → import → log → finish → next target) reported working on a real device by the author.
 - Device verification, update-over-install, and real-world model accuracy are **not yet independently verified** in the repo.
-- Free at launch. Future monetization undecided.
+- GAIN is free at launch. There are no subscriptions, in-app purchases, paid feature tiers, ads, or donation prompts in the app.
 
 Full honesty, gates, and "what to do now" live in [docs/MASTER-PLAN.md](docs/MASTER-PLAN.md).
 

@@ -379,6 +379,12 @@ export function SettingsScreen() {
       </Group>
       <DeveloperTools enabled={developer.enabled} saving={developer.saving}
         onChange={on => void changeDeveloperMode(on)} onNavigate={route => nav.navigate(route)} />
+      {/* Visible shortcut while the app is pre-release; the version-text gesture still works. */}
+      {developer.enabled ? null : (
+        <Group title={t("settings.developer.title")}>
+          <LinkRow label={t("settings.developer.enable")} note={t("settings.developer.note")} onPress={() => { if (developer.ready && !developer.saving) void changeDeveloperMode(true); }} />
+        </Group>
+      )}
     </Screen>
   );
 }

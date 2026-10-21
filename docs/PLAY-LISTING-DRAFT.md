@@ -2,7 +2,7 @@
 
 Status: **DRAFTS ONLY. Nothing here is published, nothing was submitted, no Play Console account is used.** The Arabic is a builder's draft, not reviewed by a native Egyptian lifter (the Arabic review is Mohamed's/Step 8). Final name, trademark check, support email, privacy URL and target countries are Mohamed's (open).
 
-**GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.** Arabic: **GAIN مجاني بالكامل. مفيش اشتراكات ولا مشتريات جوه التطبيق ولا مستويات مدفوعة للمميزات.** This sentence is in both full descriptions below and must stay true; the app is listed as free, with no in-app products and no ads.
+**GAIN is free at launch. No subscriptions, in-app purchases, or paid feature tiers are included.** Arabic: **GAIN مجاني عند الإطلاق. مفيش اشتراكات ولا مشتريات جوه التطبيق ولا مستويات مدفوعة للمميزات.** This sentence is in both full descriptions below and must stay true while this listing is live; update it if the product changes. The launch listing has no in-app products or ads.
 
 Rules used for every line: no medical, physique or results promise; each claim maps to a shipped feature (table at the end); say "suggestion", not "guarantee". Character counts are checked against Play's limits (title 30, short description 80, full description 4000).
 
@@ -28,7 +28,7 @@ Rules used for every line: no medical, physique or results promise; each claim m
 > • English and Arabic, with right-to-left layout. kg or lb. Light and dark.
 >
 > FREE
-> GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers. Every feature is available to everyone.
+> GAIN is free at launch. There are no subscriptions, in-app purchases, or paid feature tiers. Every current feature is available to everyone.
 >
 > YOUR DATA
 > Everything is stored on your phone. There is no account and no ads. Back up and sync to a GAIN server is optional and off until you turn it on. You can delete everything from Settings.
@@ -60,7 +60,7 @@ Rules used for every line: no medical, physique or results promise; each claim m
 > • عربي وإنجليزي بتخطيط يمين لشمال. كجم أو رطل. فاتح وغامق.
 >
 > مجاني
-> GAIN مجاني بالكامل. مفيش اشتراكات ولا مشتريات جوه التطبيق ولا مستويات مدفوعة للمميزات. كل المميزات متاحة للكل.
+> GAIN مجاني عند الإطلاق. مفيش اشتراكات ولا مشتريات جوه التطبيق ولا مستويات مدفوعة للمميزات. كل المميزات الحالية متاحة للكل.
 >
 > بياناتك
 > كل حاجة محفوظة على موبايلك. مفيش حساب ومفيش إعلانات. النسخ الاحتياطي والمزامنة مع سيرفر GAIN اختيارية ومقفولة لحد ما تفتحها. تقدر تمسح كل حاجة من الإعدادات.
@@ -93,7 +93,7 @@ The draft answers now live in [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (buil
 2. Account, identity checks and testing-track requirements for new developer accounts: **unknown/changing**, check at the time (Step 25).
 3. Package id `app.gain.mobile` is permanent once published.
 4. Arabic copy needs native review; privacy policy needs legal review and a public URL.
-5. Pricing: GAIN is completely free. In Play Console set the app as Free, answer "No" to in-app purchases and to ads, and keep the listing free of price, trial and subscription wording. Nothing to build or configure for billing.
+5. Pricing at launch: GAIN is free. In Play Console set the app as Free, answer "No" to in-app purchases and to ads, and keep the listing free of price, trial and subscription offers. Nothing to build or configure for billing now. Review listing and Console answers if the product changes.
 6. Screenshots need a device or emulator session: shot list, captions, feature graphic drafts and the metadata table are in [PLAY-ASSETS.md](PLAY-ASSETS.md).
 7. Privacy policy and terms exist as hosted DRAFT pages ([site/README.md](site/README.md)); the account-deletion page spec is [ACCOUNT-DELETION-SPEC.md](ACCOUNT-DELETION-SPEC.md).
 
@@ -111,5 +111,5 @@ The draft answers now live in [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (buil
 | Import Hevy/Strong; export JSON/CSV | Data screens | built, unit-tested |
 | Arabic RTL, kg/lb, dark | i18n/theme | built; NOT device-verified; Arabic is draft |
 | Everything on the phone, no account, no ads | privacy tests | true for 0.12/0.13 |
-| Completely free, no subscriptions, in-app purchases or paid tiers | no billing dependency or gate in the code (`free.test.ts`) | true |
+| Free at launch, no subscriptions, in-app purchases or paid tiers | no billing dependency or gate in the code (`free.test.ts`) | true |
 | Optional sync | Back up and sync (v0.11) | built; not device-verified |

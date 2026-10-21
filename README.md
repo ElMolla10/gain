@@ -5,7 +5,7 @@ Product spec: [docs/PRODUCT.md](docs/PRODUCT.md). Master plan (what to do now, g
 
 Status: Android-first app, sideloaded pre-release APKs only (see the status table in the master plan for what is and is not verified on a device). Public repo.
 
-**GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.** Every feature is available to everyone. Nothing is gated, and there are no ads or donation prompts either.
+**GAIN is free at launch. There are no subscriptions, in-app purchases, paid feature tiers, ads, or donation prompts in the app.** Every current feature is available to everyone. A future business model has not been decided.
 
 ## Layout
 

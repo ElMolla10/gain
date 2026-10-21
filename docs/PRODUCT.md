@@ -3,7 +3,7 @@
 Name: GAIN.
 Status: product to build. Launch numbers below are decisions to test, not forecasts.
 
-**GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.**
+**GAIN is free at launch. No payment system, subscriptions, in-app purchases, or paid feature tiers are included.** A future business model has not been decided.
 
 ## Product overview
 
@@ -202,15 +202,15 @@ Review status (2026-10-03): Mohamed reports a trainer said the workouts/template
 
 The app is a training aid. It is not a doctor, a physio, or a licensed coach. Pain gets a clear line to professional advice, not a generated treatment. No form scoring from video, no body-photo judgement, no meal plans, no public feed in the first releases.
 
-## Free for everyone
+## Free at launch
 
-GAIN is completely free. No subscriptions, in-app purchases, or paid feature tiers.
+GAIN is free at launch. There is currently no payment system, subscription, in-app purchase, or paid feature tier. A future business model has not been decided.
 
 Every feature is available to every lifter: logging, history, templates, charts, next-session targets with their reason, standard weight steps you can adjust, goal pace, short-week rebuild, the weekly review, own-data export, and optional backup and sync. There is no free-versus-paid split, no trial, no paywall and no upgrade prompt. GAIN does not carry ads or ask for donations either. Records are always yours and always visible.
 
 The optional sync server has technical storage and request limits that protect it from abuse (see [SYNC.md](SYNC.md)). They are operational safeguards, the same for everyone, not a plan or a tier.
 
-This is the one authoritative statement of GAIN's price; the plan, README, listing drafts and terms repeat or link to it. Earlier drafts described a free/paid split and a pricing test; that was dropped (history: [RELEASE-HISTORY.md](RELEASE-HISTORY.md)).
+This is the authoritative statement of GAIN's launch pricing; the plan, README, listing drafts and terms repeat or link to it. Earlier drafts described a free/paid split and a pricing test; that was dropped (history: [RELEASE-HISTORY.md](RELEASE-HISTORY.md)). Any later monetization decision needs its own product decision and accurate updated listings and terms.
 
 ## First release
 

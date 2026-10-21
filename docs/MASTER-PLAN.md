@@ -4,7 +4,7 @@
 
 Rewritten 2026-10-03 (Cairo time) from the code on `main` at `cd97b06` (v0.18.0); updated 2026-10-04 for v0.19.0 (`ppl_upper_4` template, "program" spelling, Mohamed's reported priorities) and again for v0.20.0 (G2/G4 preparation: pilot materials, hosted draft site, Play and pilot build switches; **no gate was passed by that work**, see "Gate status" in section 3) and for v0.21.0 (four changes Mohamed explicitly asked for, overriding the feature freeze: pilot-metric baseline fix, program rep range wins (rule-v0.4), top set + back-offs, per-exercise available weights; **no gate was passed by that work**). Product spec: [PRODUCT.md](PRODUCT.md). Rules: [PROGRESSION-RULES.md](PROGRESSION-RULES.md). Backtest: [BACKTEST-HEVY.md](BACKTEST-HEVY.md). Roadmap (one-page version of this plan): [ROADMAP.md](ROADMAP.md). Everything that already shipped, release by release, with the old milestone map and older test runs: [RELEASE-HISTORY.md](RELEASE-HISTORY.md). Pilot materials: [pilot/README.md](pilot/README.md). Play build and listing: [PLAY-BUILD.md](PLAY-BUILD.md), [PLAY-ASSETS.md](PLAY-ASSETS.md). Draft web pages: [site/README.md](site/README.md).
 
-**GAIN is completely free** (Android first; Arabic and English). The single authoritative statement of what that means is "Free for everyone" in [PRODUCT.md](PRODUCT.md); this plan does not restate it or add to it. Nothing in this plan is gated, priced or tiered, and no billing work is planned.
+**GAIN is free at launch** (Android first; Arabic and English). The authoritative launch-pricing statement is "Free at launch" in [PRODUCT.md](PRODUCT.md). Nothing in this plan is gated, priced or tiered, and no billing work is planned for launch. Future monetization is undecided.
 
 **Honesty rule: the repo contains no device-test evidence.** No release (v0.1.0 to v0.19.0) has a recorded run on an Android phone or emulator in this repo; only the first three onboarding screens of v0.4.0 were ever seen on a software-emulated device ([DEVICE-TEST-0.4.md](DEVICE-TEST-0.4.md)). **Update 2026-10-04: Mohamed reports that he completed all five "Now" priorities below (installed v0.18.0 on his phone, ran the device checks, stored the signing key, approved the pilot templates and thresholds, arranged reviewers and pilot people) and that the Device verified gate (G1) passed. This is reported by Mohamed 2026-10-04, not independently verified: no results file, issue list or screenshots have been committed, so the builder has not seen the evidence.** Everything marked "done" below that is not covered by that report means code written and unit-tested on Node, nothing more. Anything marked **unknown** has not been checked. 
 
@@ -71,7 +71,7 @@ Sequencing rule: **no new features until the core loop works on a real Android p
 
 - **New program templates** (the 47 stay as they are; no re-tuning; no new ones except `ppl_upper_4`, added in v0.19.0 on Mohamed's explicit request, now 48 templates in all).
 - **AI / model layer** (Step 23). Nothing calls a model; the guardrail code stays as tests only.
-- **Billing implementation of any kind.** There is none and none is planned; GAIN is free (PRODUCT.md).
+- **Billing implementation of any kind.** There is none and none is planned for launch; GAIN launches free (PRODUCT.md).
 - **Further cosmetic redesigns** (the v0.16 lime identity stays until a phone shows a real problem; fix usability bugs, do not restyle).
 - Also frozen: library growth beyond the current 607 exercises, iOS, shared gyms (dropped), email sign-in work (blocked on a provider), new Settings features, new coach-card formats.
 
@@ -334,7 +334,7 @@ Each step: goal, deliverables, done means, tests, size, Mohamed, risks. Steps ar
 - **Risks:** cost, latency, and the model sounding confident. If pilot shows few flagged cases, skip it.
 
 ### Step 24. (Removed) Subscription, paywall, pricing test
-- Removed 2026-10-03; nothing replaces it. GAIN is completely free (PRODUCT.md, "Free for everyone"). The step number is kept so older references still resolve.
+- Removed 2026-10-03; nothing replaces it for launch. GAIN launches free (PRODUCT.md, "Free at launch"). The step number is kept so older references still resolve.
 
 ### Step 25. Play internal and closed testing
 - [ ] Gate G4. **2026-10-04 (v0.20.0): the Play-compatible build exists as a build switch** (no self-updater, no `REQUEST_INSTALL_PACKAGES`; AAB built, manifest measured; [PLAY-BUILD.md](PLAY-BUILD.md)). Everything that needs an account, a payment, an identity or a phone is still open. **Goal:** install via the store, with signed AAB.

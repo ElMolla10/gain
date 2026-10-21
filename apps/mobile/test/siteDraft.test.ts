@@ -63,12 +63,12 @@ describe("docs/site drafts", () => {
     expect(read("privacy.html")).toMatch(/test builds only/);
     expect(read("privacy.html")).toMatch(/will not contain this feature/);
   });
-  it("the index and terms keep the 'completely free' statement and the not-a-doctor line, with no pricing words", () => {
+  it("the index and terms describe the free launch and the not-a-doctor line, with no purchase offers", () => {
     for (const f of pages) {
       expect(read(f), f).not.toMatch(/subscribe now|premium|upgrade to|free trial|\bpricing\b|\$\d/i);
     }
-    expect(read("index.html")).toMatch(/completely free: no subscriptions, in-app purchases or paid tiers/);
-    expect(read("terms.html")).toMatch(/completely free: no subscriptions, in-app purchases or paid feature tiers/);
+    expect(read("index.html")).toMatch(/free at launch: no subscriptions, in-app purchases or paid tiers are currently offered/);
+    expect(read("terms.html")).toMatch(/Free at launch.*currently has no subscriptions, in-app purchases or paid feature tiers/);
     expect(read("index.html")).toMatch(/not a doctor or a coach/);
     expect(read("privacy.html")).toMatch(/not a doctor, a physiotherapist or a certified coach/);
   });

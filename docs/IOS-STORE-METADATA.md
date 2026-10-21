@@ -25,7 +25,7 @@ During a workout, experimental on-device AI can suggest a next-set adjustment. O
 • Export your data and restore a GAIN backup.
 • Choose optional cloud backup and sync, or keep your training local.
 
-Free to use, with no ads or in-app purchases.
+Free at launch, with no ads or in-app purchases.
 
 GAIN is a training aid, not medical advice. Stop if you experience pain or dizziness and seek qualified advice when needed. You decide what to lift.
 
@@ -52,7 +52,7 @@ GAIN بيساعدك تسجّل تمرين الحديد وتعرف خطوتك ا�
 • صدّر بياناتك واسترجع نسخة GAIN الاحتياطية.
 • اختار النسخ الاحتياطي والمزامنة السحابية، أو خلّي تمرينك محلي.
 
-مجاني، من غير إعلانات ولا مشتريات جوّه التطبيق.
+التطبيق مجاني عند الإطلاق، من غير إعلانات ولا مشتريات جوّه التطبيق.
 
 GAIN أداة مساعدة للتمرين، مش نصيحة طبية. لو عندك ألم أو دوخة وقّف، واسأل متخصص مؤهل عند الحاجة. إنت اللي بتقرر ترفع إيه.
 

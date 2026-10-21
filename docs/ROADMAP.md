@@ -4,7 +4,7 @@
 
 The full plan (the "Now" list, the freeze list, the status by screen, numbered steps, gates, decisions, risks) lives in **[MASTER-PLAN.md](MASTER-PLAN.md)**. Start with its "Now" section. What already shipped, release by release (v0.1.0 to v0.20.0), the old milestone map and older test runs are in **[RELEASE-HISTORY.md](RELEASE-HISTORY.md)**.
 
-**Where things stand (2026-10-04, v0.21.0):** GAIN is completely free (see "Free for everyone" in [PRODUCT.md](PRODUCT.md)), Android first, Arabic and English. 21 pre-release APKs exist. Mohamed reports (2026-10-04, **not independently verified**; no results are committed to the repo) that he installed v0.18.0 on his phone, ran the device checks, stored the signing key, approved the pilot templates and thresholds and arranged reviewers and pilot people, and that the Device verified gate passed. v0.19.0 itself has not been reported as run on a device. No new feature work happens until the pilot is validated, except what Mohamed explicitly asked for: the template `ppl_upper_4` (v0.19.0) and four changes in v0.21.0 (pilot-metric baseline fix, program rep range wins / rule-v0.4, top set + back-offs, per-exercise available weights).
+**Where things stood (2026-10-04, v0.21.0):** GAIN was free with no payment integration (see "Free at launch" in [PRODUCT.md](PRODUCT.md)), Android first, Arabic and English. 21 pre-release APKs exist. Mohamed reports (2026-10-04, **not independently verified**; no results are committed to the repo) that he installed v0.18.0 on his phone, ran the device checks, stored the signing key, approved the pilot templates and thresholds and arranged reviewers and pilot people, and that the Device verified gate passed. v0.19.0 itself has not been reported as run on a device. No new feature work happens until the pilot is validated, except what Mohamed explicitly asked for: the template `ppl_upper_4` (v0.19.0) and four changes in v0.21.0 (pilot-metric baseline fix, program rep range wins / rule-v0.4, top set + back-offs, per-exercise available weights).
 
 ## Now (in this order; all five reported done by Mohamed on 2026-10-04, not independently verified)
 
@@ -29,7 +29,7 @@ Exit criteria and the steps behind each gate: MASTER-PLAN.md section 3. After G4
 
 ## Frozen until the pilot has been validated
 
-New templates, the AI / model layer, billing of any kind (there is none and none is planned), further cosmetic redesigns, library growth beyond 607 exercises, iOS, shared gyms (dropped), email sign-in work (blocked on a provider). Bug fixes found by a device or the pilot, data-safety fixes, accessibility and Arabic corrections, docs and tooling are always allowed.
+New templates, the AI / model layer, billing of any kind (none for launch), further cosmetic redesigns, library growth beyond 607 exercises, iOS, shared gyms (dropped), email sign-in work (blocked on a provider). Bug fixes found by a device or the pilot, data-safety fixes, accessibility and Arabic corrections, docs and tooling are always allowed.
 
 ## Decisions that shape this
 

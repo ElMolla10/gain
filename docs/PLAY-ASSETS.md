@@ -30,10 +30,10 @@ Drafts exist: [play-assets/](play-assets/README.md). Brief: charcoal `#10120E` b
 | --- | --- | --- |
 | App name | `GAIN: Next Weight, Lifting Log` (30 characters, the limit) | Trademark search unknown; avoid promotional words in the title |
 | Short description (80) | `Log your lifts. Leave knowing the next weight and if your goal is on pace.` (74) | Arabic variant in PLAY-LISTING-DRAFT.md (53) |
-| Full description (4000) | In PLAY-LISTING-DRAFT.md; checked 2026-10-04: English 1,923 characters, Arabic 1,446 | Contains the "completely free" statement, which `free.test.ts` guards |
+| Full description (4000) | In PLAY-LISTING-DRAFT.md; checked 2026-10-04: English 1,923 characters, Arabic 1,446 | Contains the "free at launch" statement, which `free.test.ts` guards |
 | App category | Health & Fitness | Play may ask for a Health apps declaration for this category: **check at submission** |
 | Tags | Fitness / workout log / weightlifting (pick from Play's list) | |
-| Free / paid | Free, no in-app purchases, no ads | Permanent: a free app cannot become paid later |
+| Free / paid | Free, no in-app purchases, no ads | Store app price stays free; optional in-app purchases could be added later in a reviewed update |
 | Contact email | `[support email: Mohamed]` (same address as the site: [site/README.md](site/README.md)) | Required; public |
 | Contact website | The hosted site (privacy page) once a final home exists; the draft is on `https://gain-site.elmolla10.workers.dev` | |
 | Privacy policy URL | `.../privacy` of the same site, after legal review | **Must not be the draft when submitted** |

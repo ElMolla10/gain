@@ -51,4 +51,4 @@ Tooling: `npm run pilot-metrics -w @gain/mobile -- --tz-minutes 180 /full/path/P
 | Share of targets rejected that makes the rule suspect | | |
 
 ## Later (Step 29, after launch)
-The same definitions hold. Crash-free sessions need a crash service that does not exist yet; they are not part of this document. GAIN is completely free, so there is no conversion or revenue metric.
+The same definitions hold. Crash-free sessions need a crash service that does not exist yet; they are not part of this document. GAIN is free during this pilot, so there is no conversion or revenue metric.

@@ -75,14 +75,6 @@ export const enGoals = {
   "goals.pace.onPace": "On Pace 🟢",
   "goals.pace.behind": "Behind Pace ⚠️",
   "goals.pace.maintaining": "Maintaining",
-  "goals.strengthTier.title": "Strength Tier Benchmark",
-  "goals.bodyweightRatio": "Bodyweight",
-  "goals.bw": "BW",
-  "goals.tier.novice": "Novice",
-  "goals.tier.intermediate": "Intermediate",
-  "goals.tier.proficient": "Proficient",
-  "goals.tier.advanced": "Advanced",
-  "goals.tier.elite": "Elite",
 } as const;
 
 export const arGoals: Record<keyof typeof enGoals, string> = {
@@ -158,12 +150,4 @@ export const arGoals: Record<keyof typeof enGoals, string> = {
   "goals.pace.onPace": "ماشي مع الجدول 🟢",
   "goals.pace.behind": "متأخر شوية ⚠️",
   "goals.pace.maintaining": "ثابت",
-  "goals.strengthTier.title": "مستوى القوة البدنية",
-  "goals.bodyweightRatio": "من وزن الجسم",
-  "goals.bw": "وزن الجسم",
-  "goals.tier.novice": "مبتدئ",
-  "goals.tier.intermediate": "متوسط",
-  "goals.tier.proficient": "محترف",
-  "goals.tier.advanced": "متقدم",
-  "goals.tier.elite": "نخبة",
 };

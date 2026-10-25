@@ -1,7 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { GoalHeroIronCard } from "../src/components/goals/GoalHeroIronCard";
-import { StrengthTierRadar } from "../src/components/goals/StrengthTierRadar";
 import { RepMaxPowerCurve } from "../src/components/trend/RepMaxPowerCurve";
 import { byType, expand, nodes, texts } from "./achievementRender";
 
@@ -47,14 +46,6 @@ vi.mock("../src/i18n", () => ({
       if (k === "goals.pace.onPace") return "On Pace";
       if (k === "goals.pace.behind") return "Needs Focus";
       if (k === "goals.pace.maintaining") return "Maintaining";
-      if (k === "goals.strengthTier.title") return "ATHLETIC STRENGTH TIER";
-      if (k === "goals.tier.novice") return "Novice";
-      if (k === "goals.tier.intermediate") return "Intermediate";
-      if (k === "goals.tier.proficient") return "Proficient";
-      if (k === "goals.tier.advanced") return "Advanced";
-      if (k === "goals.tier.elite") return "Elite";
-      if (k === "goals.bodyweightRatio") return "Bodyweight";
-      if (k === "goals.bw") return "BW";
       if (k === "trend.powerCurve.title") return "REP MAX POWER CURVE";
       if (k === "trend.powerCurve.subtitle") return "Strength Profile by Rep Range";
       if (k === "trend.peakE1rm") return "Peak e1RM";
@@ -133,60 +124,6 @@ describe("Page 6: Goals & Lift Trend 10x Components", () => {
     });
   });
 
-  describe("StrengthTierRadar", () => {
-    it("returns null if bodyweight is not provided or zero", () => {
-      const tree1 = expand(
-        React.createElement(StrengthTierRadar, {
-          currentE1rm: 100,
-          bodyweightKg: null,
-          unit: "kg",
-        })
-      );
-      expect(tree1).toBeNull();
-
-      const tree2 = expand(
-        React.createElement(StrengthTierRadar, {
-          currentE1rm: 100,
-          bodyweightKg: 0,
-          unit: "kg",
-        })
-      );
-      expect(tree2).toBeNull();
-    });
-
-    it("calculates ratio and classifies athlete into the correct tier", () => {
-      // 80kg lifter with 120kg squat -> 1.5x BW -> Advanced (1.45 < ratio <= 1.8)
-      const tree = expand(
-        React.createElement(StrengthTierRadar, {
-          currentE1rm: 120,
-          bodyweightKg: 80,
-          unit: "kg",
-        })
-      );
-
-      const allTexts = strip(texts(tree).join(" "));
-      expect(allTexts).toContain("ATHLETIC STRENGTH TIER");
-      expect(allTexts).toContain("Advanced · 1.5× Bodyweight");
-      expect(allTexts).toContain("80 kg BW");
-      expect(allTexts).toContain("Novice");
-      expect(allTexts).toContain("Elite");
-    });
-
-    it("correctly identifies Elite tier when ratio exceeds 1.8x", () => {
-      // 70kg lifter with 160kg squat -> 2.29x BW -> Elite
-      const tree = expand(
-        React.createElement(StrengthTierRadar, {
-          currentE1rm: 160,
-          bodyweightKg: 70,
-          unit: "kg",
-        })
-      );
-
-      const allTexts = strip(texts(tree).join(" "));
-      expect(allTexts).toContain("Elite · 2.29× Bodyweight");
-    });
-  });
-
   describe("RepMaxPowerCurve", () => {
     it("returns null when repMaxes array is empty", () => {
       const tree = expand(
@@ -225,5 +162,17 @@ describe("Page 6: Goals & Lift Trend 10x Components", () => {
       expect(allTexts).toContain("Your strongest potential was unlocked at 5 reps");
       expect(allTexts).toContain("104.1 kg e1RM");
     });
+  });
+});
+
+describe("strength tier removed (item 23)", () => {
+  it("Goals no longer renders a one-size strength tier, and its strings are gone", async () => {
+    const { readFileSync, existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { en, ar } = await import("../src/i18n/strings");
+    expect(existsSync(join(__dirname, "../src/components/goals/StrengthTierRadar.tsx"))).toBe(false);
+    expect(readFileSync(join(__dirname, "../src/screens/GoalsScreen.tsx"), "utf8")).not.toContain("StrengthTier");
+    for (const k of Object.keys(en)) expect(k).not.toMatch(/^goals\.(tier\.|strengthTier|bodyweightRatio$|bw$)/);
+    for (const k of Object.keys(ar)) expect(k).not.toMatch(/^goals\.(tier\.|strengthTier|bodyweightRatio$|bw$)/);
   });
 });

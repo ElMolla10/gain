@@ -1,7 +1,8 @@
 import React from "react";
 import { View } from "react-native";
 import { useI18n } from "../../i18n";
-import { isolateLtr } from "../../i18n/format";
+import { formatLoad, isolateLtr } from "../../i18n/format";
+import { e1rmText } from "../../logic/loadText";
 import type { Unit } from "../../logic/units";
 import { radius, space, type as ty, usePalette } from "../../theme";
 import { AppText } from "../../ui";
@@ -33,7 +34,7 @@ function calcE1rm(load: number, reps: number): number {
  * (1RM, 3RM, 5RM, 8RM, 10RM) and highlights untapped potential brackets.
  */
 export function RepMaxPowerCurve({ repMaxes, unit }: RepMaxPowerCurveProps) {
-  const { t, unitText } = useI18n();
+  const { t, lang } = useI18n();
   const p = usePalette();
 
   if (!repMaxes || repMaxes.length === 0) return null;
@@ -73,7 +74,7 @@ export function RepMaxPowerCurve({ repMaxes, unit }: RepMaxPowerCurveProps) {
         </View>
         <View style={{ paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: p.tint }}>
           <AppText style={{ fontSize: ty.caption, fontWeight: "700", color: p.accent }}>
-            {isolateLtr(`${bestE1rm} ${unitText}`)} {t("trend.peakE1rm")}
+            {e1rmText(bestE1rm, lang, unit)} {t("trend.peakE1rm")}
           </AppText>
         </View>
       </View>
@@ -89,10 +90,10 @@ export function RepMaxPowerCurve({ repMaxes, unit }: RepMaxPowerCurveProps) {
             <View key={item.reps} style={{ gap: 2 }}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: isPeak ? p.accent : p.text }}>
-                  {item.reps}RM: {isolateLtr(`${item.set.load} ${unitText}`)}
+                  {t("trend.powerCurve.rm", { reps: isolateLtr(String(item.reps)), load: formatLoad(item.set.load, lang, unit) })}
                 </AppText>
                 <AppText style={{ fontSize: 13, color: p.muted }}>
-                  {t("trend.calcE1rm", { load: isolateLtr(`${e1rm} ${unitText}`) })}
+                  {t("trend.calcE1rm", { load: e1rmText(e1rm, lang, unit) })}
                 </AppText>
               </View>
 
@@ -117,7 +118,7 @@ export function RepMaxPowerCurve({ repMaxes, unit }: RepMaxPowerCurveProps) {
         <AppText style={{ fontSize: ty.caption, color: p.muted, lineHeight: 18 }}>
           {t("trend.powerCurve.insight", {
             reps: isolateLtr(String(bestE1rmReps)),
-            load: isolateLtr(`${bestE1rm} ${unitText}`),
+            load: e1rmText(bestE1rm, lang, unit),
           })}
         </AppText>
       </View>

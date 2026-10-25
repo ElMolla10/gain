@@ -80,7 +80,7 @@ vi.mock("../src/ui", () => ({
   InlineStatus: "InlineStatus",
 }));
 
-const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "");
+const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "").replace(/\u00A0/g, " ");
 
 const mockDetail: SessionDetail = {
   id: "s1",

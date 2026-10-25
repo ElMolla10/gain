@@ -50,6 +50,8 @@ vi.mock("../src/i18n", () => ({
       if (k === "trend.powerCurve.subtitle") return "Strength Profile by Rep Range";
       if (k === "trend.peakE1rm") return "Peak e1RM";
       if (k === "trend.calcE1rm") return `e1RM: ${p?.load}`;
+      if (k === "trend.powerCurve.rm") return `${p?.reps}RM: ${p?.load}`;
+      if (k === "goals.bar.currentE1rm") return `${p?.load} e1RM`;
       if (k === "trend.powerCurve.insight") return `Your strongest potential was unlocked at ${p?.reps} reps (${p?.load} e1RM).`;
       return k;
     },
@@ -74,7 +76,7 @@ vi.mock("../src/ui", () => ({
   AppText: "AppText",
 }));
 
-const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "");
+const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "").replace(/\u00A0/g, " ");
 
 describe("Page 6: Goals & Lift Trend 10x Components", () => {
   describe("GoalHeroIronCard", () => {

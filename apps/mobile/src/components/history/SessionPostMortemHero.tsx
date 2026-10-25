@@ -2,10 +2,11 @@ import React, { useMemo } from "react";
 import { View } from "react-native";
 import { barbellPlates } from "@gain/engine";
 import { useI18n } from "../../i18n";
+import { setText, tonnageInUnit } from "../../logic/loadText";
 import { formatDay } from "../../logic/dateText";
 import { isolateLtr } from "../../i18n/format";
 import { isTimed } from "../../logic/quantity";
-import type { Unit } from "../../logic/units";
+import { unitLabel, type Unit } from "../../logic/units";
 import { radius, space, type as ty, usePalette } from "../../theme";
 import { AppText } from "../../ui";
 import { BarArt } from "../today/BarArt";
@@ -35,7 +36,7 @@ interface SessionPostMortemMetrics {
 }
 
 export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMortemHeroProps) {
-  const { t, lang, unitText } = useI18n();
+  const { t, lang } = useI18n();
   const p = usePalette();
 
   const metrics = useMemo<SessionPostMortemMetrics>(() => {
@@ -81,7 +82,7 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
 
     distribution.sort((a, b) => b.kg - a.kg);
 
-    const totalTonnage = Math.round(unit === "lb" ? totalKg * 2.20462 : totalKg);
+    const totalTonnage = tonnageInUnit(totalKg, unit);
     const durationMin =
       detail.startedAt && detail.finishedAt > detail.startedAt
         ? Math.max(1, Math.round((detail.finishedAt - detail.startedAt - detail.pausedMs) / 60000))
@@ -184,7 +185,7 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
           <AppText style={{ fontSize: ty.section, fontWeight: "800", color: p.text }}>
             {isolateLtr(`${metrics.totalTonnage.toLocaleString()}`)}
           </AppText>
-          <AppText style={{ fontSize: 13, color: p.muted }}>{unitText.toUpperCase()}</AppText>
+          <AppText style={{ fontSize: 13, color: p.muted }}>{unitLabel(unit, lang).toUpperCase()}</AppText>
         </View>
 
         {/* Work Sets */}
@@ -234,7 +235,7 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
           </View>
 
           <AppText style={{ fontSize: ty.body, fontWeight: "700", color: p.text }}>
-            {isolateLtr(`${metrics.apexSet.load} ${unitText} × ${metrics.apexSet.reps}`)}
+            {setText(metrics.apexSet.load, metrics.apexSet.reps, lang, unit)}
           </AppText>
 
           {apexPlates.length > 0 ? (

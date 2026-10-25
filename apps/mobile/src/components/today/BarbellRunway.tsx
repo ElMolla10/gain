@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, View } from "react-native";
 import { useI18n } from "../../i18n";
+import { setText } from "../../logic/loadText";
 import { isolateLtr } from "../../i18n/format";
 import type { HeroWarmupStep } from "../../logic/todayHero";
 import type { Unit } from "../../logic/units";
@@ -28,7 +29,7 @@ export function BarbellRunway({
   selectedStepIndex,
   onSelectStep,
 }: BarbellRunwayProps) {
-  const { t, unitText } = useI18n();
+  const { t, lang } = useI18n();
   const p = usePalette();
 
   if (!warmups || warmups.length === 0) return null;
@@ -50,13 +51,13 @@ export function BarbellRunway({
           const repsText = isolateLtr(String(step.reps));
           const stepText = step.load === 20
             ? `${t("today.emptyBar")} × ${repsText}`
-            : `${isolateLtr(String(step.load))} ${unitText} × ${repsText}`;
+            : setText(step.load, step.reps, lang, unit);
           return (
             <Pressable
               key={`warmup-${idx}`}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={`${t("today.runway.warmup")} ${idx + 1}: ${step.load} ${unitText} × ${step.reps}`}
+              accessibilityLabel={`${t("today.runway.warmup")} ${idx + 1}: ${setText(step.load, step.reps, lang, unit)}`}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
               onPress={() => {
                 onSelectStep(idx);
@@ -91,7 +92,7 @@ export function BarbellRunway({
           key="top-work-set"
           accessibilityRole="button"
           accessibilityState={{ selected: selectedStepIndex === -1 }}
-          accessibilityLabel={`${t("today.runway.top")}: ${topLoad} ${unitText} × ${topReps}`}
+          accessibilityLabel={`${t("today.runway.top")}: ${setText(topLoad, topReps, lang, unit)}`}
           hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
           onPress={() => {
             onSelectStep(-1);
@@ -117,7 +118,7 @@ export function BarbellRunway({
               color: selectedStepIndex === -1 ? p.accent : p.text,
             }}
           >
-            {`${isolateLtr(String(topLoad))} ${unitText} × ${isolateLtr(String(topReps))}`}
+            {setText(topLoad, topReps, lang, unit)}
           </AppText>
         </Pressable>
       </View>

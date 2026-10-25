@@ -7,7 +7,6 @@ import type { PaceResult, WeighIn } from "../db/goalRepo";
 import type { StoredReview } from "../db/weeklyRepo";
 import { changeText } from "../components/WeeklyReviewCard";
 import { GoalHeroIronCard } from "../components/goals/GoalHeroIronCard";
-import { StrengthTierRadar } from "../components/goals/StrengthTierRadar";
 import { DateSelect } from "../components/DateSelect";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { useI18n } from "../i18n";
@@ -140,11 +139,6 @@ export function GoalsScreen() {
             paceStatus={pace.pace.status}
             ratePerExposure={pace.pace.ratePerExposure}
             exposuresLeft={pace.pace.exposuresLeft}
-          />
-          <StrengthTierRadar
-            currentE1rm={pace.pace.currentE1rm ?? pace.goal.targetLoad}
-            bodyweightKg={weighIns[0]?.kg ?? null}
-            unit={unit}
           />
         </>
       ) : null}

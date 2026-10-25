@@ -22,6 +22,7 @@ import type { LibraryExercise } from "../db/programmeRepo";
 import { DEFAULT_EXERCISE_REST_OFF, type ExerciseState, type SetRow } from "../db/workoutRepo";
 import { exerciseLabels } from "../i18n/format";
 import { weightText, parseUnit, type Unit } from "../logic/units";
+import { mergeExerciseUnits, shownExerciseIdsKey, unitIdsToRead } from "../logic/exerciseUnits";
 import type { MachineLoadKind, PinMachineStep } from "../logic/machineLoadKind";
 import { useI18n } from "../i18n";
 import { reorderBlocks, restAfterSet, supersetLabels } from "../logic/superset";
@@ -243,21 +244,29 @@ export function useWorkoutSession() {
     });
   }, [repos, gyms, workout, programmes, mlEvaluation, db, dayId, unit, makeDisp, buildInfo, attempt]);
 
-  // Read each exercise's remembered unit once the workout is open.
+  // Read each exercise's remembered unit: when the workout opens, and again for any exercise added or swapped in later.
   const openSessionId = loaded && loaded !== "nogym" ? loaded.sessionId : null;
+  const shownIdsKey = loaded && loaded !== "nogym" ? shownExerciseIdsKey(loaded.slots, exState) : "";
+  const unitsRead = useRef<{ session: string | null; ids: Set<string> }>({ session: null, ids: new Set() });
   useEffect(() => {
-    if (!openSessionId || !loaded || loaded === "nogym") return;
+    if (!openSessionId) return;
+    if (unitsRead.current.session !== openSessionId) unitsRead.current = { session: openSessionId, ids: new Set() };
+    const ids = unitIdsToRead(shownIdsKey, unitsRead.current.ids);
+    if (!ids.length) return;
+    for (const id of ids) unitsRead.current.ids.add(id);
     let alive = true;
-    const ids = [...new Set(loaded.slots.map((s) => s.exerciseId))];
     void Promise.all(ids.map(async (id) => [id, await repos.getSetting(exerciseUnitKey(id)).catch(() => null)] as const)).then((pairs) => {
       if (!alive) return;
       const saved: Record<string, Unit> = {};
       for (const [id, v] of pairs) if (v === "kg" || v === "lb") saved[id] = parseUnit(v);
-      setExerciseUnits((prev) => ({ ...saved, ...prev }));
+      setExerciseUnits((prev) => mergeExerciseUnits(prev, saved));
     });
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openSessionId, repos]);
+    return () => {
+      alive = false;
+      // Not applied: let the next run read these again.
+      for (const id of ids) unitsRead.current.ids.delete(id);
+    };
+  }, [openSessionId, shownIdsKey, repos]);
 
   /** The unit one exercise is shown and typed in. */
   const unitFor = (exerciseId: string): Unit => exerciseUnits[exerciseId] ?? unit;

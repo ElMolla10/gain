@@ -209,7 +209,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
         {list.map((row, i) => (
           <React.Fragment key={row.key}>
             {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
-            <MemoWorkoutSetRow key={row.key} ex={ex} unit={unit} row={row} label={numbering[i] ?? i + 1}
+            <MemoWorkoutSetRow key={row.key} ex={ex} unit={unit} loadSpec={spec} row={row} label={numbering[i] ?? i + 1}
               workingIndex={widx[i] ?? null} lastSets={(info.previous ? info.previous[previousSource] : info.last)?.sets ?? null}
               strengthPr={strengthPrSetId === row.key}
               current={active && currentKey === row.key} stacked={stacked} busy={busy}

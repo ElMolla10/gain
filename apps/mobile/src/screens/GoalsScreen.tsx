@@ -132,8 +132,8 @@ export function GoalsScreen() {
         <>
           <GoalHeroIronCard
             exerciseName={nameOf(pace.goal.exerciseId) || t("goals.chooseExercise")}
-            currentE1rm={pace.pace.currentE1rm ?? pace.goal.targetLoad}
-            targetE1rm={pace.pace.targetE1rm ?? pace.goal.targetLoad}
+            currentE1rm={pace.pace.currentE1rm}
+            targetE1rm={pace.pace.targetE1rm}
             unit={unit}
             projectedDate={pace.pace.projectedDate}
             paceStatus={pace.pace.status}

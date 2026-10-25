@@ -3,7 +3,8 @@ import { View } from "react-native";
 import { barbellPlates, type PaceStatus } from "@gain/engine";
 import { useI18n } from "../../i18n";
 import { formatDay } from "../../logic/dateText";
-import { isolateLtr } from "../../i18n/format";
+import { isolateLtr, isolateParam } from "../../i18n/format";
+import { goalHeroModel } from "../../logic/goalHero";
 import type { Unit } from "../../logic/units";
 import { radius, space, type as ty, usePalette } from "../../theme";
 import { AppText } from "../../ui";
@@ -11,7 +12,8 @@ import { BarArt } from "../today/BarArt";
 
 export interface GoalHeroIronCardProps {
   exerciseName: string;
-  currentE1rm: number;
+  /** null = no usable history for this lift yet: the card shows the target and an empty state only. */
+  currentE1rm: number | null;
   targetE1rm: number;
   unit: Unit;
   projectedDate?: string | null;
@@ -46,16 +48,9 @@ export function GoalHeroIronCard({
     plates: unit === "lb" ? [45, 35, 25, 10, 5, 2.5] : [25, 20, 15, 10, 5, 2.5, 1.25],
   };
 
-  const currentPlates = (currentE1rm >= (standardSpec.min ?? 20) ? barbellPlates(standardSpec, currentE1rm)?.perSide : null) ?? [];
+  const model = goalHeroModel(currentE1rm, targetE1rm);
+  const currentPlates = (currentE1rm !== null && currentE1rm >= (standardSpec.min ?? 20) ? barbellPlates(standardSpec, currentE1rm)?.perSide : null) ?? [];
   const targetPlates = (targetE1rm >= (standardSpec.min ?? 20) ? barbellPlates(standardSpec, targetE1rm)?.perSide : null) ?? [];
-
-  const deltaKg = Math.max(0, Math.round((targetE1rm - currentE1rm) * 10) / 10);
-  const progressRatio = targetE1rm > 0 ? Math.min(1, Math.max(0, currentE1rm / targetE1rm)) : 0;
-  const progressPercent = Math.round(progressRatio * 100);
-
-  // Intermediate checkpoints (e.g. halfway and 80% to goal)
-  const cp1 = Math.round((currentE1rm + (targetE1rm - currentE1rm) * 0.4) * 2) / 2;
-  const cp2 = Math.round((currentE1rm + (targetE1rm - currentE1rm) * 0.75) * 2) / 2;
 
   const paceBadgeText =
     paceStatus === "reached"
@@ -129,6 +124,8 @@ export function GoalHeroIronCard({
           <BarArt perSide={targetPlates} unit={unit} height={60} />
         </View>
 
+        {model.kind === "progress" ? (
+          <>
         {/* Current Bar */}
         <View style={{ gap: 4 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -147,18 +144,26 @@ export function GoalHeroIronCard({
         {/* Delta Callout */}
         <View style={{ paddingHorizontal: space.xs, paddingTop: 2 }}>
           <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent }}>
-            {deltaKg > 0
-              ? t("goals.deltaEarn", { delta: isolateLtr(`+${deltaKg} ${unitText}`) })
+            {model.deltaKg > 0
+              ? t("goals.deltaEarn", { delta: isolateLtr(`+${model.deltaKg} ${unitText}`) })
               : t("goals.milestoneReached")}
           </AppText>
         </View>
+          </>
+        ) : (
+          <AppText style={{ fontSize: ty.caption, color: p.muted, paddingHorizontal: space.xs }}>
+            {t("goals.hero.noData", { exercise: isolateParam(exerciseName) })}
+          </AppText>
+        )}
       </View>
 
+      {model.kind === "progress" ? (
+        <>
       {/* Progress Rail */}
       <View style={{ gap: space.xs }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted }}>
-            {t("goals.progressPercent", { percent: isolateLtr(String(progressPercent)) })}
+            {t("goals.progressPercent", { percent: isolateLtr(String(model.percent)) })}
           </AppText>
           {projectedDate ? (
             <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent }}>
@@ -172,7 +177,7 @@ export function GoalHeroIronCard({
           <View
             style={{
               height: "100%",
-              width: `${progressPercent}%`,
+              width: `${model.percent}%`,
               borderRadius: 4,
               backgroundColor: p.accent,
             }}
@@ -193,12 +198,12 @@ export function GoalHeroIronCard({
           </View>
           <View style={{ paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.button, backgroundColor: p.card, borderWidth: 1, borderColor: p.border }}>
             <AppText style={{ fontSize: ty.caption, color: p.text }}>
-              {isolateLtr(`► ${cp1} ${unitText}`)}
+              {isolateLtr(`► ${model.cp1} ${unitText}`)}
             </AppText>
           </View>
           <View style={{ paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.button, backgroundColor: p.card, borderWidth: 1, borderColor: p.border }}>
             <AppText style={{ fontSize: ty.caption, color: p.text }}>
-              {isolateLtr(`🔒 ${cp2} ${unitText}`)}
+              {isolateLtr(`🔒 ${model.cp2} ${unitText}`)}
             </AppText>
           </View>
           <View style={{ paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.button, backgroundColor: p.card, borderWidth: 1, borderColor: p.border }}>
@@ -208,6 +213,8 @@ export function GoalHeroIronCard({
           </View>
         </View>
       </View>
+        </>
+      ) : null}
     </View>
   );
 }

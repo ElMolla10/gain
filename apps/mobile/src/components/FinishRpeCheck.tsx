@@ -36,6 +36,7 @@ export function FinishRpeCheck({
               <Pressable
                 key={opt.id}
                 accessibilityRole="button"
+                accessibilityLabel={t("finish.rpe.a11y", { option: opt.label })}
                 accessibilityState={{ selected }}
                 onPress={() => {
                   haptics.selection();

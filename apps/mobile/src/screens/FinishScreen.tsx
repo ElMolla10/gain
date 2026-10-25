@@ -30,6 +30,8 @@ import { runFinishFlow } from "../logic/finishFlow";
 import { FinishHeroPlaque } from "../components/FinishHeroPlaque";
 import { FinishMuscleStrip, type MuscleSetCount } from "../components/FinishMuscleStrip";
 import { FinishRpeCheck, type RpeOption } from "../components/FinishRpeCheck";
+import { asSessionFeel } from "../db/sessionFeel";
+import { nextFeel, persistFeel } from "../logic/finishFeel";
 import { muscleGroupOf } from "../logic/muscleVolume";
 import { isTrustedWorkingSet } from "@gain/engine";
 import type { LibraryExercise } from "../db/programmeRepo";
@@ -66,6 +68,17 @@ export function FinishScreen() {
   const [whyTargets, setWhyTargets] = useState<Record<string, string>>({});
   const [library, setLibrary] = useState<Map<string, LibraryExercise>>(new Map());
   const [rpe, setRpe] = useState<RpeOption | null>(null);
+  // The answer is saved on the session (optimistic; the write never blocks or fails Finish). Reopening Finish shows the saved one.
+  useEffect(() => {
+    let alive = true;
+    workout.getSession(sessionId).then((s) => { const f = asSessionFeel(s?.feel); if (alive && f) setRpe((cur) => cur ?? f); }, () => undefined);
+    return () => { alive = false; };
+  }, [workout, sessionId]);
+  const pickFeel = (opt: RpeOption) => {
+    const next = nextFeel(rpe, opt);
+    setRpe(next);
+    void persistFeel(() => workout.setSessionFeel(sessionId, next), (e) => diagnostics.record("warn", "finish feel", e));
+  };
 
   useEffect(() => {
     let alive = true;
@@ -395,7 +408,7 @@ export function FinishScreen() {
       <FinishMuscleStrip counts={muscleCounts} />
 
       {/* 6. Perceived effort / fatigue quick-check. */}
-      <FinishRpeCheck value={rpe} onChange={setRpe} />
+      <FinishRpeCheck value={rpe} onChange={pickFeel} />
 
       <Card>
         <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("progress.improved")}</AppText>

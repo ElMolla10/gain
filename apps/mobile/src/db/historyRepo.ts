@@ -3,6 +3,7 @@ import { strengthBreakthroughs, type BreakthroughInput } from "../logic/achievem
 import { findSpec, weekStartOf, isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
 import { syncAchievements } from "./achievementRepo";
 import type { Db, Deps } from "./driver";
+import { asSessionFeel, type SessionFeel } from "./sessionFeel";
 import { hasLoggedSets } from "./sessionSql";
 import type { FinishRepo } from "./finishRepo";
 import type { Repos } from "./repos";
@@ -49,6 +50,8 @@ export interface SessionDetail {
   startedAt: number | null;
   pausedMs: number;
   imported: boolean;
+  /** The Finish "Session Perception" answer, if one was given. */
+  feel?: SessionFeel | null;
   exercises: { exerciseId: string; nameEn: string; nameAr: string; setup: SetupType; measure: Measure; sets: HistorySetRow[] }[];
 }
 export interface LiftItem {
@@ -167,8 +170,8 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   }
 
   async function getSession(id: string): Promise<SessionDetail | null> {
-    const s = await db.get<{ id: string; day_name: string; gym_name: string; finished_at: number; started_at: number | null; paused_ms: number; imported: number }>(
-      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, s.started_at, s.paused_ms, (s.import_key IS NOT NULL) AS imported
+    const s = await db.get<{ id: string; day_name: string; gym_name: string; finished_at: number; started_at: number | null; paused_ms: number; imported: number; feel: string | null }>(
+      `SELECT s.id, d.name AS day_name, g.name AS gym_name, s.finished_at, s.started_at, s.paused_ms, (s.import_key IS NOT NULL) AS imported, s.feel
          FROM session s JOIN programme_day d ON d.id = s.programme_day_id JOIN gym g ON g.id = s.gym_id
         WHERE s.id = ? AND s.status = 'finished' AND s.deleted_at IS NULL AND ${hasLoggedSets("s")}`,
       [id],
@@ -192,7 +195,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
       }
       ex.sets.push({ id: r.id, load: r.load, reps: r.reps, durationS: r.duration_s, distanceM: r.distance_m, rir: r.rir, warmup: r.is_warmup === 1, tags: JSON.parse(r.tags_json) as string[], outlierStatus: r.outlier_status });
     }
-    return { id: s.id, dayName: s.day_name, gymName: s.gym_name, finishedAt: s.finished_at, startedAt: s.started_at, pausedMs: s.paused_ms ?? 0, imported: s.imported === 1, exercises };
+    return { id: s.id, dayName: s.day_name, gymName: s.gym_name, finishedAt: s.finished_at, startedAt: s.started_at, pausedMs: s.paused_ms ?? 0, imported: s.imported === 1, feel: asSessionFeel(s.feel), exercises };
   }
 
   /** Every exercise + gym + setup line that has at least one finished working set. Lines are never merged. */

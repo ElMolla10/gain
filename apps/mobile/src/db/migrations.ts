@@ -491,6 +491,14 @@ ALTER TABLE weekly_review ADD COLUMN ended_at INTEGER;
 ALTER TABLE weekly_review ADD COLUMN ended_how TEXT;
 `,
   },
+  {
+    version: 19,
+    name: "session feel",
+    sql: `
+-- How the whole session felt, asked on Finish: smooth / target / heavy (a session-RPE style answer). Null = not answered or cleared.
+ALTER TABLE session ADD COLUMN feel TEXT;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

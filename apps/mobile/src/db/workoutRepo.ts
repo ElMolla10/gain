@@ -29,6 +29,8 @@ import { gridFor, resolveLoads } from "./exerciseGrid";
 import { foldPausedMs } from "../logic/workoutClock";
 import { orderSlots, validReorder } from "../logic/superset";
 
+import { asSessionFeel, type SessionFeel } from "./sessionFeel";
+
 /** No per-exercise opt-out by default. Whether rest runs at all is the `rest_auto` setting (off by default, see restOffFor). */
 export const DEFAULT_EXERCISE_REST_OFF = false;
 
@@ -209,8 +211,8 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   }
 
   async function getSession(sessionId: string) {
-    return db.get<{ id: string; programme_day_id: string; gym_id: string; status: string; started_at: number | null; finished_at: number | null; paused_ms: number; paused_at: number | null; readiness: string | null }>(
-      "SELECT id, programme_day_id, gym_id, status, started_at, finished_at, paused_ms, paused_at, readiness FROM session WHERE id = ? AND deleted_at IS NULL",
+    return db.get<{ id: string; programme_day_id: string; gym_id: string; status: string; started_at: number | null; finished_at: number | null; paused_ms: number; paused_at: number | null; readiness: string | null; feel: string | null }>(
+      "SELECT id, programme_day_id, gym_id, status, started_at, finished_at, paused_ms, paused_at, readiness, feel FROM session WHERE id = ? AND deleted_at IS NULL",
       [sessionId],
     );
   }
@@ -220,6 +222,12 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     const stored = flag === "fatigued" || flag === "returning" ? flag : null;
     const t = now();
     await db.run("UPDATE session SET readiness = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [stored, t, sessionId]);
+  }
+
+  /** How the session felt (Finish). Anything but smooth / target / heavy clears it. Bumps updated_at so it syncs (last write wins). */
+  async function setSessionFeel(sessionId: string, feel: SessionFeel | null): Promise<void> {
+    const stored = asSessionFeel(feel);
+    await db.run("UPDATE session SET feel = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [stored, now(), sessionId]);
   }
 
   /** Freeze the duration clock. No-op if already paused or the session is not in progress. */
@@ -713,6 +721,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     getOpenSession,
     getSession,
     setSessionReadiness,
+    setSessionFeel,
     pauseDuration,
     resumeDuration,
     finishSession,

@@ -144,6 +144,7 @@ export function SessionDetailScreen() {
       <BigButton variant="secondary" icon="export" label={t("recap.shareText")} loading={sharingText} disabled={sharingText} onPress={() => void shareWorkout()} />
       {shareFailed ? <InlineStatus kind="error" text={t("recap.shareFailed")} /> : null}
       <AppText style={{ color: p.muted, fontWeight: "600" }}>{formatDay(detail.finishedAt, lang)}</AppText>
+      {detail.feel ? <AppText style={{ color: p.muted }}>{`${t("finish.rpe.title")}: ${t(`finish.rpe.${detail.feel}`)}`}</AppText> : null}
       <BigButton variant="secondary" icon={editing ? "check" : "edit"} label={editing ? t("common.done") : t("history.editWorkout")} onPress={() => { setEditing((v) => !v); setEdit(null); setAsking(null); setErr(null); }} />
       {editing ? <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("history.editNote")}</AppText> : null}
       {detail.exercises.map((ex) => {

@@ -7,7 +7,7 @@ import { copyAtVersion, dumpAll, populatedWithRealHistory } from "./realData";
 describe("update over install: schema 9 -> latest in one run, real data (Mohamed's 70-workout Hevy export + own sessions)", () => {
   it("runs the pending migrations together, keeps every row, adds top_sets and load_spec_json as NULL, and a second run changes nothing", async () => {
     const cur = await populatedWithRealHistory();
-    expect(LATEST_VERSION).toBe(18);
+    expect(LATEST_VERSION).toBe(19);
     const before = await dumpAll(cur.db);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);
     const old = await copyAtVersion(cur.db, 9);
@@ -26,6 +26,7 @@ describe("update over install: schema 9 -> latest in one run, real data (Mohamed
     expect((await old.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('user_achievements','achievement_audit_log','user_quest','lift_pin')")).map((r) => r.name).sort()).toEqual(["achievement_audit_log", "lift_pin", "user_achievements", "user_quest"]);
     expect((await old.all<{ name: string }>("PRAGMA table_info(exercise_line)")).map((c) => c.name)).toContain("load_spec_json");
     expect((await old.all<{ name: string }>("PRAGMA table_info(session)")).map((c) => c.name)).toContain("readiness");
+    expect((await old.all<{ name: string }>("PRAGMA table_info(session)")).map((c) => c.name)).toContain("feel");
     expect((await old.all<{ name: string }>("PRAGMA table_info(lift_pin)")).map((c) => c.name)).toEqual(expect.arrayContaining(["weeks", "started_week"]));
     expect((await old.all<{ name: string }>("PRAGMA table_info(weekly_review)")).map((c) => c.name)).toEqual(expect.arrayContaining(["original_version_id", "applied_version_id", "ends_at", "ended_at", "ended_how"]));
 

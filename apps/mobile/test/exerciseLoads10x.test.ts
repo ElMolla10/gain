@@ -75,7 +75,7 @@ vi.mock("../src/ui", () => ({
   AppText: "AppText",
 }));
 
-const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "");
+const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "").replace(/\u00A0/g, " ");
 
 describe("Page 8: The Iron Rack & Loading Precision 10x Components", () => {
   describe("RackEquipmentPresets", () => {

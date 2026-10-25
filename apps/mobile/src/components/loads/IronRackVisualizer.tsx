@@ -174,7 +174,8 @@ export function IronRackVisualizer({
         >
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted }}>
-              {t("loads.rack.selected")}: {isolateLtr(`${selectedLoad} ${unitText}`)}
+              {/* The rack values are what the lifter typed, already in the unit on screen: only the number is isolated. */}
+              {t("loads.rack.selected")}: {isolateLtr(String(selectedLoad))}{"\u00A0"}{unitText}
             </AppText>
             {delta !== null ? (
               <View style={{ paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: p.tint }}>

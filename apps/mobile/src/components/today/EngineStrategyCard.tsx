@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { useI18n } from "../../i18n";
+import { setText } from "../../logic/loadText";
 import { isolateLtr } from "../../i18n/format";
 import type { Unit } from "../../logic/units";
 import { radius, space, type as ty, usePalette } from "../../theme";
@@ -31,10 +32,10 @@ export function EngineStrategyCard({
   isGoal,
   onWhy,
 }: EngineStrategyCardProps) {
-  const { t, unitText } = useI18n();
+  const { t, lang } = useI18n();
   const p = usePalette();
 
-  const formattedTarget = isolateLtr(`${targetLoad} ${unitText} × ${targetReps}`);
+  const formattedTarget = setText(targetLoad, targetReps, lang, unit);
 
   return (
     <View

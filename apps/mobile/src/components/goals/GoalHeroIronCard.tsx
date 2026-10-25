@@ -2,6 +2,7 @@ import React from "react";
 import { View } from "react-native";
 import { barbellPlates, type PaceStatus } from "@gain/engine";
 import { useI18n } from "../../i18n";
+import { e1rmText } from "../../logic/loadText";
 import { formatDay } from "../../logic/dateText";
 import { isolateLtr, isolateParam } from "../../i18n/format";
 import { goalHeroModel } from "../../logic/goalHero";
@@ -37,7 +38,8 @@ export function GoalHeroIronCard({
   ratePerExposure,
   exposuresLeft,
 }: GoalHeroIronCardProps) {
-  const { t, lang, unitText } = useI18n();
+  const { t, lang } = useI18n();
+  const fmt = (kg: number) => e1rmText(kg, lang, unit);
   const p = usePalette();
 
   const standardSpec = {
@@ -103,7 +105,7 @@ export function GoalHeroIronCard({
           {exerciseName}
         </AppText>
         <AppText style={{ fontSize: ty.body, color: p.muted }}>
-          {t("goals.targetGoal", { target: isolateLtr(`${targetE1rm} ${unitText}`) })}
+          {t("goals.targetGoal", { target: fmt(targetE1rm) })}
         </AppText>
       </View>
 
@@ -113,7 +115,7 @@ export function GoalHeroIronCard({
         <View style={{ gap: 4 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent }}>
-              {t("goals.bar.goal")} ({isolateLtr(`${targetE1rm} ${unitText}`)})
+              {t("goals.bar.goal")} ({fmt(targetE1rm)})
             </AppText>
             <AppText style={{ fontSize: ty.caption, color: p.muted }}>
               {targetPlates.length > 0
@@ -130,7 +132,7 @@ export function GoalHeroIronCard({
         <View style={{ gap: 4 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.text }}>
-              {t("goals.bar.current")} ({isolateLtr(`${currentE1rm} ${unitText} e1RM`)})
+              {t("goals.bar.current")} ({t("goals.bar.currentE1rm", { load: fmt(currentE1rm ?? 0) })})
             </AppText>
             <AppText style={{ fontSize: ty.caption, color: p.muted }}>
               {currentPlates.length > 0
@@ -145,7 +147,7 @@ export function GoalHeroIronCard({
         <View style={{ paddingHorizontal: space.xs, paddingTop: 2 }}>
           <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent }}>
             {model.deltaKg > 0
-              ? t("goals.deltaEarn", { delta: isolateLtr(`+${model.deltaKg} ${unitText}`) })
+              ? t("goals.deltaEarn", { delta: `+${fmt(model.deltaKg)}` })
               : t("goals.milestoneReached")}
           </AppText>
         </View>
@@ -193,22 +195,22 @@ export function GoalHeroIronCard({
         <View style={{ flexDirection: "row", gap: space.xs, flexWrap: "wrap" }}>
           <View style={{ paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.button, backgroundColor: p.tint, borderWidth: 1, borderColor: p.accent }}>
             <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.accent }}>
-              {isolateLtr(`✓ ${currentE1rm} ${unitText}`)}
+              {`✓ ${fmt(currentE1rm ?? 0)}`}
             </AppText>
           </View>
           <View style={{ paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.button, backgroundColor: p.card, borderWidth: 1, borderColor: p.border }}>
             <AppText style={{ fontSize: ty.caption, color: p.text }}>
-              {isolateLtr(`► ${model.cp1} ${unitText}`)}
+              {`► ${fmt(model.cp1)}`}
             </AppText>
           </View>
           <View style={{ paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.button, backgroundColor: p.card, borderWidth: 1, borderColor: p.border }}>
             <AppText style={{ fontSize: ty.caption, color: p.text }}>
-              {isolateLtr(`🔒 ${model.cp2} ${unitText}`)}
+              {`🔒 ${fmt(model.cp2)}`}
             </AppText>
           </View>
           <View style={{ paddingHorizontal: space.sm, paddingVertical: 4, borderRadius: radius.button, backgroundColor: p.card, borderWidth: 1, borderColor: p.border }}>
             <AppText style={{ fontSize: ty.caption, fontWeight: "700", color: p.text }}>
-              {isolateLtr(`⭐ ${targetE1rm} ${unitText}`)}
+              {`⭐ ${fmt(targetE1rm)}`}
             </AppText>
           </View>
         </View>

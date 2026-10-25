@@ -63,7 +63,7 @@ vi.mock("../src/ui", () => ({
   QuietAction: "QuietAction",
 }));
 
-const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "");
+const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "").replace(/\u00A0/g, " ");
 
 describe("Page 5: Today Screen & Active Workout Logger 10x Components", () => {
   describe("BarbellRunway", () => {

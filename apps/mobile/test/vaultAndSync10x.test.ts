@@ -121,7 +121,7 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
     expect(onRestore).toHaveBeenCalled();
   });
 
-  it("renders CloudSyncCard offline and active states with recovery code", () => {
+  it("renders CloudSyncCard offline and active states (the recovery code never shows on the card)", () => {
     const onTurnOn = vi.fn();
     const onSyncNow = vi.fn();
     const onShowDetails = vi.fn();
@@ -130,7 +130,7 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
     const offTree = expand(
       React.createElement(CloudSyncCard, {
         info: { status: "off", accountId: null, email: null, lastSyncAt: null, lastError: null, pendingOut: 0, parked: { waiting_parent: 0, conflict: 0, newer_app: 0 }, rejectedTotal: 0 },
-        code: null,
+        busy: false,
         onTurnOn,
         onSyncNow,
         onShowDetails,
@@ -139,11 +139,11 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
     expect(strip(texts(offTree).join(" "))).toContain("LOCAL-ONLY VAULT");
     expect(strip(texts(offTree).join(" "))).toContain("Turn on Sync");
 
-    // Active state with recovery code
+    // Active state
     const onTree = expand(
       React.createElement(CloudSyncCard, {
         info: { status: "on", accountId: "acc_1", email: null, lastSyncAt: 1729330000000, lastError: null, pendingOut: 2, parked: { waiting_parent: 0, conflict: 0, newer_app: 0 }, rejectedTotal: 0 },
-        code: "abcd1234efgh5678",
+        busy: false,
         onTurnOn,
         onSyncNow,
         onShowDetails,
@@ -151,7 +151,7 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
     );
     const onTexts = strip(texts(onTree).join(" "));
     expect(onTexts).toContain("ENCRYPTED SYNC ACTIVE");
-    expect(onTexts).toContain("Recovery Code");
+    expect(onTexts).not.toContain("Recovery Code");
     expect(onTexts).toContain("Sync Now");
     expect(onTexts).toContain("Sync Details");
 

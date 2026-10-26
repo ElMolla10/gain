@@ -2,14 +2,15 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { useI18n } from "../../i18n";
 import { isolateLtr } from "../../i18n/format";
-import { groupCode } from "../../logic/recoveryCodeText";
+import { formatDay } from "../../logic/dateText";
 import type { SyncInfo } from "../../sync/engine";
 import { space, usePalette } from "../../theme";
 import { AppText, BigButton, Card, InlineStatus } from "../../ui";
 
 interface CloudSyncCardProps {
   info: SyncInfo | null;
-  code: string | null;
+  /** A sync job is running: every button is disabled. */
+  busy: boolean;
   onTurnOn: () => void;
   onSyncNow: () => void;
   onShowDetails: () => void;
@@ -17,18 +18,18 @@ interface CloudSyncCardProps {
 
 export function CloudSyncCard({
   info,
-  code,
+  busy,
   onTurnOn,
   onSyncNow,
   onShowDetails,
 }: CloudSyncCardProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const p = usePalette();
 
   const isSyncOn = info && info.status !== "off";
   const lastSyncDate =
     info?.lastSyncAt && Number.isFinite(info.lastSyncAt)
-      ? new Date(info.lastSyncAt).toISOString().slice(0, 10)
+      ? `${formatDay(info.lastSyncAt, lang)} ${isolateLtr(new Date(info.lastSyncAt).toTimeString().slice(0, 5))}`
       : null;
 
   return (
@@ -71,38 +72,26 @@ export function CloudSyncCard({
           ) : null}
         </View>
 
-        {/* Cryptographic Recovery Code presentation */}
-        {code ? (
-          <View style={[styles.codeBox, { backgroundColor: p.card, borderColor: p.border }]}>
-            <AppText style={[styles.codeLabel, { color: p.muted }]}>
-              {t("sync.code.title")}
-            </AppText>
-            <AppText ltr selectable style={[styles.codeText, { color: p.text }]}>
-              {groupCode(code)}
-            </AppText>
-            <AppText style={[styles.codeHint, { color: p.muted }]}>
-              {t("sync.code.saveNote")}
-            </AppText>
-          </View>
-        ) : null}
-
         {/* Action Triggers */}
         <View style={styles.actionsContainer}>
           {!isSyncOn ? (
             <BigButton
               hero
               label={t("sync.turnOn")}
+              disabled={busy}
               onPress={onTurnOn}
             />
           ) : (
             <>
               <BigButton
                 label={t("sync.now")}
+                disabled={busy}
                 variant="secondary"
                 onPress={onSyncNow}
               />
               <BigButton
                 label={t("sync.details")}
+                disabled={busy}
                 variant="secondary"
                 onPress={onShowDetails}
               />

@@ -46,6 +46,8 @@ jobs:
         run: |
           bash -n scripts/ios-setup.sh
           shellcheck scripts/ios-setup.sh
+          bash -n scripts/ios-screenshots.sh
+          shellcheck scripts/ios-screenshots.sh
       - name: Generate the iOS project and check its settings
         working-directory: apps/mobile
         run: |

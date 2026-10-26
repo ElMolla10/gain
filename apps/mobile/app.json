@@ -56,7 +56,7 @@
       ]
     ],
     "ios": {
-      "bundleIdentifier": "app.gain.mobile",
+      "bundleIdentifier": "com.elmolla.gain",
       "buildNumber": "1",
       "supportsTablet": false,
       "icon": "./assets/icon.png",

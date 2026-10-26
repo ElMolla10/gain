@@ -15,3 +15,7 @@ android/
 web-build/
 .wrangler/
 docs/site/dist/
+
+# App Store Connect API keys (eas submit / CI). Never commit them.
+*.p8
+AuthKey_*.p8

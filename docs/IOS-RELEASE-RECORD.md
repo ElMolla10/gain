@@ -55,7 +55,7 @@ Agents prepare source and drafts only; they never create, upload or submit anyth
 
 ### Open placeholders (as of 2026-10-26)
 
-- `[operator name and address not set yet]`, `[support email not set yet]`, `[pilot contact not set yet]` in `docs/site/public/*.html` (filled by `docs/site/fill-contact.mjs`), plus the same markers in the policy/terms drafts and in-app strings listed in the PR.
+- `[operator name and address not set yet]`, `[support email not set yet]`, `[pilot contact not set yet]` in `docs/site/public/` support, privacy, terms, pilot-guide and delete-account pages (filled by `docs/site/fill-contact.mjs`), and in docs/ACCOUNT-DELETION-SPEC.md.
 - `<<OPERATOR_NAME>>`, `<<SUPPORT_EMAIL>>` in the App Review contact (docs/IOS-STORE-METADATA.md).
 - Privacy policy URL and support URL for App Store Connect (after the site is deployed).
 - EAS `projectId` (from `eas init`), ASC app ID, Team ID, API key ID / issuer ID (env/secrets only).

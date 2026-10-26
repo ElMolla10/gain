@@ -16,7 +16,7 @@ Everything is saved **on your phone**, in GAIN's private app storage (a SQLite d
 | Language, units, rest-timer, week-start and similar settings | the product | yes |
 | Goal (lift, bodyweight or muscle) and weekly review decisions | pace and weekly decision | optional |
 | Bodyweight entries, height, birthday | pace for a bodyweight goal; body-weight exercise loads. Health-adjacent, so optional. The birthday is stored but not used for anything yet. | optional |
-| Imported Hevy/Strong files | you choose a file; its workouts are copied into the app's database; the file itself is not kept | optional |
+| Imported workout files (CSV) | you choose a file; its workouts are copied into the app's database; the file itself is not kept | optional |
 | Safety copy before an update (`gain-before-update.json`, a full copy of your data in GAIN's private folder, written only when an update changes the database layout; replaced next time; removed by Delete everything) | restoring your data if an update goes wrong | on, not optional |
 | Local model evaluation records (frozen forecast inputs, predictions and matched logged outcomes; outside sync) | evaluating the experimental model; included in full JSON backups and separately shareable from Developer Mode | captured automatically when eligible |
 | Crash log (error names, short messages, trimmed stack, where) | fixing bugs. No workout data. | on by default, can be switched off |

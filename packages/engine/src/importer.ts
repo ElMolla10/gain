@@ -94,7 +94,7 @@ export function parseImport(text: string): ImportParse {
   if (source === "strong") return parseStrong(text);
   if (source === "fitnotes") return parseFitNotes(text);
   if (source === "csv") return parseMappedCsv(text, suggestCsvMapping(headerOf(text, detectDelimiter(text)).map(normHeader))!);
-  throw new HevyParseError("This does not look like a Hevy, Strong, FitNotes or CSV export");
+  throw new HevyParseError("This file is not a supported workout export. Use a CSV file with exercise, date, weight and reps columns");
 }
 
 export function csvHeaders(text: string): string[] {

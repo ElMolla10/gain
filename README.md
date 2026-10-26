@@ -83,7 +83,7 @@ GAIN does one job extremely well:
 
 It is Arabic-first (RTL, Egyptian gym aliases), gym-aware (it will never ask for 21 kg dumbbells if the rack goes 20 → 22.5), and honest (missing data is said out loud; nothing is invented).
 
-Switching is cheap: Hevy and Strong history import on day one. Continuity is the product.
+Switching is cheap: bring your history from any app you previously used (CSV) on day one. Continuity is the product.
 
 ---
 

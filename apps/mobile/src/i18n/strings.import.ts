@@ -68,6 +68,10 @@ export const enImport = {
   "import.done.skipped": "{n} sets were skipped because they had no valid weight or reps.",
   "import.undo": "Undo this import",
   "import.undone": "Import removed: {workouts} workouts.",
+  "import.undo.confirmTitle": "Remove this import?",
+  "import.undo.confirmBody": "This removes {workouts} imported workouts and {sets} sets from your history. Your own logged workouts are not touched.",
+  "import.undoing": "Removing the import…",
+  "import.undo.failed": "Couldn't remove the import. Nothing was changed.",
   "import.history.title": "Earlier imports",
   "import.history.row": "{source} · {workouts} workouts, {sets} sets",
 } as const;
@@ -138,6 +142,10 @@ export const arImport: Record<keyof typeof enImport, string> = {
   "import.done.skipped": "{n} مجموعة اتخطّت لأن مفيهاش وزن أو عدّات صح.",
   "import.undo": "الغي الاستيراد ده",
   "import.undone": "الاستيراد اتشال: {workouts} تمرين.",
+  "import.undo.confirmTitle": "تشيل الاستيراد ده؟",
+  "import.undo.confirmBody": "ده هيشيل {workouts} تمرين مستورد و{sets} مجموعة من سجلك. تمارينك اللي سجلتها بنفسك مش هتتأثر.",
+  "import.undoing": "بنشيل الاستيراد…",
+  "import.undo.failed": "معرفناش نشيل الاستيراد. مفيش حاجة اتغيرت.",
   "import.history.title": "استيرادات سابقة",
   "import.history.row": "{source} · {workouts} تمرين، {sets} مجموعة",
 };

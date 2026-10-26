@@ -229,6 +229,6 @@ describe("Page 11: The Vault Importer & Cloud Sync", () => {
     const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
     expect(buttons.length).toBeGreaterThan(0);
     buttons[0]!.props.onPress();
-    expect(onUndoBatch).toHaveBeenCalledWith("b1");
+    expect(onUndoBatch).toHaveBeenCalledWith(expect.objectContaining({ id: "b1" }));
   });
 });

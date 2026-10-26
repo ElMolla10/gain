@@ -17,6 +17,15 @@
   <img src="https://img.shields.io/badge/offline--first-yes-informational?style=flat-square" alt="Offline First" />
 </p>
 
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/screenshots/01-today-en.png" width="200" alt="Today screen" /><br><sub>Today</sub></td>
+    <td align="center"><img src="docs/screenshots/02-workout-logging.png" width="200" alt="Workout logging" /><br><sub>Logging</sub></td>
+    <td align="center"><img src="docs/screenshots/03-today-ar.png" width="200" alt="Today screen in Arabic (RTL)" /><br><sub>Arabic RTL</sub></td>
+    <td align="center"><img src="docs/screenshots/04-trophy-cabinet.png" width="200" alt="Trophy Cabinet" /><br><sub>Trophy Cabinet</sub></td>
+  </tr>
+</table>
+
 <p align="center">
   <em>An Arabic + English lifting app that ends every workout by deciding the next one.</em>
 </p>

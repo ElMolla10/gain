@@ -1,6 +1,6 @@
 # iOS listing and review drafts
 
-Finalized draft 2026-10-26 (first prepared 2026-10-15). Not submitted. Confirm each advertised flow on the release build. Operator/contact, final URLs, age rating, screenshots and Apple account details remain open. AI wording intentionally makes no real-workout superiority claim.
+Finalized draft 2026-10-26 (first prepared 2026-10-15). Not submitted. Confirm each advertised flow on the release build. Final URLs, age rating, screenshots and Apple account details remain open. AI wording intentionally makes no real-workout superiority claim.
 
 ## Limits check
 
@@ -12,6 +12,12 @@ Finalized draft 2026-10-26 (first prepared 2026-10-15). Not submitted. Confirm e
 | Promotional text | 170 | under | under |
 
 If App Store Connect says "GAIN" is taken, pick the fallback with Mohamed; do not change it here silently.
+
+## Seller and support
+
+Seller (Individual): Mohamed Ehab. Support email: imody101@gmail.com. Support URL and privacy policy URL: the deployed docs/site `support.html` and `privacy.html` (URLs open until deployed). Copyright: © 2026 Mohamed Ehab.
+
+The store name is **GAIN** (owner's decision; the old draft "GAIN: Workout Log & AI" is retired). The listing makes no "AI" claim; in-app experimental suggestions are described plainly.
 
 ## English listing (final draft)
 
@@ -29,7 +35,7 @@ GAIN helps you log your lifting and know what to lift next.
 
 Build your program, set your exercise targets and record working sets, with or without a connection. See clear next-session weight suggestions based on your own history, with the reason behind each one, then adjust them to your training.
 
-During a workout, experimental on-device AI can suggest a next-set adjustment. Open the explanation, use your judgment and choose what to lift. The model is still being evaluated on real workouts; its predictions are estimates, not a measure of your capacity.
+During a workout, GAIN can suggest a next-set adjustment, worked out on your phone. Open the explanation, use your judgment and choose what to lift. Suggestions are estimates, not a measure of your capacity.
 
 • Log sets, reps and weights offline.
 • Edit programs, reorder workouts and set exercise details.
@@ -61,7 +67,7 @@ GAIN بيساعدك تسجّل تمرين الحديد وتعرف ترفع إي�
 
 اعمل برنامجك، ظبّط أهداف كل تمرين، وسجّل مجموعاتك بإنترنت أو من غيره. شوف اقتراحات وزن الحصة الجاية من تاريخ تمرينك، مع سبب كل اقتراح، وعدّلها حسب تمرينك.
 
-أثناء التمرين، الذكاء الاصطناعي التجريبي بيشتغل على تليفونك وممكن يقترح تعديل للمجموعة الجاية. افتح السبب واختار الوزن المناسب ليك. النموذج لسه بيتقيّم على تمارين حقيقية؛ التوقعات تقديرات، مش قياس لقدرتك.
+أثناء التمرين، GAIN ممكن يقترح تعديل للمجموعة الجاية، محسوب على تليفونك. افتح السبب واختار الوزن المناسب ليك. الاقتراحات تقديرات، مش قياس لقدرتك.
 
 • سجّل المجموعات والتكرارات والأوزان من غير إنترنت.
 • عدّل برنامجك ورتّب أيام التمرين واضبط تفاصيل كل تمرين.
@@ -85,25 +91,26 @@ Optional backup/sync is in Settings > Back up and sync. It uses a random account
 
 Notifications are local rest/training reminders, enabled by the user; no push account is needed. No Apple Watch integration is offered. Apple Health is an opt-in, write-only export that exists only in builds made with `GAIN_IOS_HEALTHKIT=1` (default builds contain no HealthKit code or entitlement): when the lifter turns on Settings > Save workouts to Apple Health, each finished workout is saved as Traditional Strength Training (start, end, duration; no calories). GAIN reads nothing from Health. If a build with the flag is submitted, declare HealthKit in review notes and App Privacy. Technical prediction/evaluation tools are in Developer Mode (hold the About version or tap it seven times within five seconds); the normal app does not require it.
 
-Contact for review: `<<OPERATOR_NAME>>`, `<<SUPPORT_EMAIL>>` (placeholders, not yet known). Before submitting, supply a reachable review contact and confirm the deployed optional backend is available. Do not claim optional online features work from source tests alone. Provide any access information Apple actually needs; no demo login is required for local training.
+Contact for review: Mohamed Ehab, imody101@gmail.com. Before submitting, supply a reachable review contact and confirm the deployed optional backend is available. Do not claim optional online features work from source tests alone. Provide any access information Apple actually needs; no demo login is required for local training.
 
 ## TestFlight — What to Test
 
 Please test a complete workout in a standalone Release build, including logging, editing a saved set, reordering and replacing an exercise, force-closing and resuming offline, and finishing the workout. Check history and confirm an upgrade retained existing data. Try backup export/restore using a copy, rest alerts with the phone locked, the number-pad Done bar, VoiceOver, large text and Arabic layout.
 
-AI next-set suggestions are experimental. Note confusing or unsuitable suggestions and what you chose instead; do not lift beyond your judgment to satisfy a test. Report the build number, device, iOS version, language and reproduction steps. Avoid posting private training exports in public feedback.
+Next-set suggestions are experimental. Note confusing or unsuitable suggestions and what you chose instead; do not lift beyond your judgment to satisfy a test. Report the build number, device, iOS version, language and reproduction steps. Avoid posting private training exports in public feedback.
 
 ## Screenshot plan
 
-App Store Connect needs iPhone screenshots for the 6.9" class (1320×2868, portrait) and accepts the 6.5" class (1284×2778) as well. Capture both, in English and Arabic: 5 scenes × 2 sizes × 2 languages = 20 PNGs. Real simulator captures of the release build with synthetic demo data only; no private workouts, recovery codes or emails. Status bar is forced to 9:41, full battery, full signal.
+App Store Connect needs iPhone screenshots for the 6.9" class (1320×2868, portrait) and accepts the 6.5" class (1284×2778) as well. Capture both, in English and Arabic: 6 scenes × 2 sizes × 2 languages = 24 PNGs. Real simulator captures of the release build with synthetic demo data only; no private workouts, recovery codes or emails. Status bar is forced to 9:41, full battery, full signal.
 
 | # | Scene | What to show |
 | --- | --- | --- |
-| 1 | Today | Next workout and Start, with the week bar |
-| 2 | The Rack (logger) | Current set, Log set dock, "load the change" line |
-| 3 | Finish | Next workout first, a personal best, Why |
-| 4 | Progress | Trophy cabinet at the top, a lift trend |
-| 5 | Plan / Settings | Program editor, or optional sync separated from local logging |
+| 01-today | Today | Next workout, loaded barbell, Start |
+| 02-logger | The Rack (logger) | Current set, Log set dock, "load the change" line |
+| 03-finish | Finish | Next targets first, with Why |
+| 04-progress | Progress | Trophy cabinet at the top, personal bests |
+| 05-arabic | Any screen in Arabic | Full right-to-left layout |
+| 06-private | Your data / sync | Local by default, optional backup |
 
-Run on the Mac: `scripts/ios-screenshots.sh` (see the script header). It builds a Release simulator app, launches it per language and device, and saves each scene to `screenshots/<lang>/<size>/NN-scene.png` after you navigate and press Enter. Defaults: 6.9" = "iPhone 17 Pro Max", 6.5" = "iPhone 14 Plus" (1284×2778); override with `GAIN_SHOT_DEVICE_69` / `GAIN_SHOT_DEVICE_65` if your Xcode has other simulators. The script checks every PNG's pixel size. The designer may frame them afterwards; the underlying screen must stay a real capture.
+Six scenes and their DRAFT captions are in `scripts/appstore-shots/captions.py` (01-today, 02-logger, 03-finish, 04-progress, 05-arabic, 06-private); the table above is the overview. Run on the Mac: `scripts/ios-screenshots.sh` (see the script header). It builds a Release simulator app, launches it per language and device, and saves each scene to `screenshots/<lang>/<size>/NN-scene.png` after you navigate and press Enter, then frames the 6.9" captures with the designer's generator `scripts/appstore-shots/shots.py` (via `frame_all.py`) into `screenshots/framed/` at both exact sizes. **Never upload the designer's PLACEHOLDER mockups**; `frame_all.py` refuses them. Defaults: 6.9" = "iPhone 17 Pro Max", 6.5" = "iPhone 14 Plus" (1284×2778); override with `GAIN_SHOT_DEVICE_69` / `GAIN_SHOT_DEVICE_65` if your Xcode has other simulators. The script checks every PNG's pixel size. The designer may frame them afterwards; the underlying screen must stay a real capture.
 

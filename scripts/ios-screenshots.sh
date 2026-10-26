@@ -2,6 +2,7 @@
 # App Store screenshots on a Mac via the iOS Simulator (docs/IOS-STORE-METADATA.md, "Screenshot plan").
 # Builds a Release simulator app once, then for each device size (6.9" 1320x2868, 6.5" 1284x2778) and language (en, ar)
 # boots the simulator, forces a clean status bar, launches GAIN and waits for you to navigate to each scene; press Enter to capture.
+# Then frames the 6.9" captures with the designer's generator (scripts/appstore-shots/shots.py) into both App Store sizes.
 # Nothing is uploaded. Use synthetic demo data only.
 #
 #   scripts/ios-screenshots.sh                 # all sizes, both languages
@@ -15,7 +16,8 @@ OUT="${GAIN_SHOT_OUT:-$ROOT/screenshots}"
 DERIVED="$MOBILE/ios/build-screenshots"
 DEVICE_69="${GAIN_SHOT_DEVICE_69:-iPhone 17 Pro Max}"
 DEVICE_65="${GAIN_SHOT_DEVICE_65:-iPhone 14 Plus}"
-SCENES=("01-today" "02-rack" "03-finish" "04-progress" "05-plan")
+# Scene ids match scripts/appstore-shots/captions.py (DRAFT copy).
+SCENES=("01-today" "02-logger" "03-finish" "04-progress" "05-arabic" "06-private")
 SKIP_BUILD=0
 [ "${1:-}" = "--skip-build" ] && SKIP_BUILD=1
 
@@ -63,4 +65,10 @@ shoot() { # $1 device name, $2 size label, $3 expected WxH
 
 shoot "$DEVICE_69" "6.9" "1320x2868"
 shoot "$DEVICE_65" "6.5" "1284x2778"
-say "Done. Screenshots are in $OUT (git-ignored). Nothing was uploaded."
+if command -v python3 >/dev/null && python3 -c "import PIL" 2>/dev/null; then
+  say "Framing with the designer's captions (scripts/appstore-shots, DRAFT copy)..."
+  python3 "$ROOT/scripts/appstore-shots/frame_all.py" "$OUT"
+else
+  say "Skipped framing: needs python3 with Pillow and Google Chrome. Run scripts/appstore-shots/frame_all.py later."
+fi
+say "Done. Raw and framed screenshots are in $OUT (git-ignored). Nothing was uploaded."

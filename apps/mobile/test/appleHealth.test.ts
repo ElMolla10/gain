@@ -104,3 +104,21 @@ describe("Apple Health export: repo and isolation", () => {
     expect(native).toContain("appleHealthEnabled !== true");
   });
 });
+
+describe("Apple Health export: wiring and strings", () => {
+  const src = (f: string) => readFileSync(join(__dirname, "../src", f), "utf8");
+  it("Finish fires the export without awaiting it; Settings shows the switch only when available; delete removes the Health entry", () => {
+    expect(src("hooks/useWorkoutSession.ts")).toContain(".then(() => { saveToAppleHealth(lo.sessionId); })");
+    const settings = src("screens/SettingsScreen.tsx");
+    expect(settings).toContain('Platform.OS === "ios" && appleHealth.isAvailable()');
+    expect(settings).toContain("if (!available) return null;");
+    expect(src("screens/SessionDetailScreen.tsx")).toContain("appleHealth.deleteWorkout(health.healthUuid)");
+  });
+  it("EN and AR strings; brand names isolated in Arabic", async () => {
+    const { en, ar } = await import("../src/i18n/strings");
+    expect(en["health.apple.save"]).toBe("Save workouts to Apple Health");
+    expect(ar["health.apple.save"]).toBe("احفظ التمارين في \u2066Apple Health\u2069");
+    expect(en["health.apple.denied"]).toContain("Settings → Health → Data Access");
+    expect(ar["health.apple.note"]).toContain("\u2066GAIN\u2069 مش بيقرا");
+  });
+});

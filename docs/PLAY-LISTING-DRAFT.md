@@ -24,7 +24,7 @@ Rules used for every line: no medical, physique or results promise; each claim m
 > • Short week? Tell GAIN how many days and minutes you have. It shows what it would cut before changing anything, and can undo it.
 > • Holds and carries: plank, dead hang and farmer's walk are logged in seconds or metres.
 > • Warm-up sets from today's target, a rest timer, supersets, notes, drop sets.
-> • History and trends for each lift. Import your history from Hevy or Strong. Export everything (JSON, CSV) at any time.
+> • History and trends for each lift. Import your history from any app you previously used (CSV). Export everything (JSON, CSV) at any time.
 > • English and Arabic, with right-to-left layout. kg or lb. Light and dark.
 >
 > FREE
@@ -56,7 +56,7 @@ Rules used for every line: no medical, physique or results promise; each claim m
 > • أسبوع زحمة؟ قوله عندك كام يوم وكام دقيقة، وهيوريك إيه اللي هيتشال قبل ما يغيّر حاجة، وتقدر ترجّع.
 > • الثبات والمشي بالأوزان: البلانك والتعليق ومشي المزارع بتتسجل بالثواني أو بالمتر.
 > • إحماء من هدف النهارده، مؤقت راحة، سوبر سيت، ملاحظات، دروب سيت.
-> • تاريخ واتجاه كل تمرين. استورد تاريخك من Hevy أو Strong. صدّر كل حاجة (JSON وCSV) في أي وقت.
+> • تاريخ واتجاه كل تمرين. استورد تاريخك من أي تطبيق كنت بتستخدمه قبل كده (CSV). صدّر كل حاجة (JSON وCSV) في أي وقت.
 > • عربي وإنجليزي بتخطيط يمين لشمال. كجم أو رطل. فاتح وغامق.
 >
 > مجاني
@@ -108,7 +108,7 @@ The draft answers now live in [DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md) (buil
 | Short week | Short-week rebuild with preview and undo | built, unit-tested |
 | Holds and carries in seconds/metres | v0.13.0 | built, unit-tested, NOT on a device |
 | Warm-ups, rest timer, supersets, drop sets, notes | Logger | built; rest alert not device-verified |
-| Import Hevy/Strong; export JSON/CSV | Data screens | built, unit-tested |
+| Import CSV from other apps; export JSON/CSV | Data screens | built, unit-tested |
 | Arabic RTL, kg/lb, dark | i18n/theme | built; NOT device-verified; Arabic is draft |
 | Everything on the phone, no account, no ads | privacy tests | true for 0.12/0.13 |
 | Free at launch, no subscriptions, in-app purchases or paid tiers | no billing dependency or gate in the code (`free.test.ts`) | true |

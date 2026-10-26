@@ -48,7 +48,7 @@ Drafts exist: [play-assets/](play-assets/README.md). Brief: charcoal `#10120E` b
 | Name of the developer | Mohamed's choice: person or organisation | Affects identity checks and the policy's controller line |
 
 ## 4. Wording risks to settle before submission
-- **Hevy / Strong in the description** ("Import your history from Hevy or Strong"): naming other products is a nominative, compatibility use, but Play's metadata policy forbids implying affiliation or endorsement, and trademark owners can object. Safer wording: "Import your workouts from a CSV file exported by other logging apps". Mohamed's call; the drafts keep the names for now.
+- **Other apps in the description:** resolved. Store text and the import screen name no other apps (Mohamed, Oct 26 2026); the listing says "Import your history from any app you previously used (CSV)".
 - **"Why this weight / decision log", "goal on pace"**: claims are about transparency of a rule, not about results. Keep "estimate" and "suggestion". Trainer review of the rules (Step 16) is still blank; no public coaching claim is cleared.
 - **Arabic copy** is a builder's draft; do not publish it without a native read.
 - **"Holds and carries"** (v0.13.0) and other features that have never run on a phone: a listing claim is only as true as the phone test (G1 covers v0.18.0, reported by Mohamed, not independently verified).

@@ -49,7 +49,7 @@ Completely free, with no ads, no subscriptions and no in-app purchases.
 
 GAIN is a training aid, not medical advice. Stop if you feel pain or dizziness and seek qualified advice when needed. You decide what to lift.
 
-Brand note: the listing deliberately names no other apps. The in-app import screen names Hevy, Strong and FitNotes as CSV sources (`strings.import.ts`, `strings.data.ts`); that factual compatibility mention is flagged for Mohamed to keep or genericise before submission.
+Brand note: the listing deliberately names no other apps. The in-app import screen is generic too ("Import from any app you previously used"); it accepts CSV files only (Mohamed's decision, Oct 26 2026).
 
 ## Arabic listing: DRAFT, needs native review
 

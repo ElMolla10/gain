@@ -1,5 +1,5 @@
 import { File } from "expo-file-system";
-import { csvHeaders, ImportParseError, parseImport, parseMappedCsv, toKilograms, type CsvMapping, type EquipmentType, type ImportParse, type SetupType, type WeightUnit } from "@gain/engine";
+import { checkImportFile, csvHeaders, IMPORT_MIME_TYPES, ImportParseError, parseImport, parseMappedCsv, toKilograms, type CsvMapping, type EquipmentType, type ImportParse, type SetupType, type WeightUnit } from "@gain/engine";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, View } from "react-native";
 import { diagnostics } from "../diagnostics";
@@ -130,10 +130,17 @@ export function ImportScreen() {
     setResult(null);
     setUndone(null);
     try {
-      const picked = await File.pickFileAsync({ mimeTypes: ["text/csv", "text/comma-separated-values", "application/csv", "text/plain", "application/vnd.ms-excel", "*/*"] });
+      const picked = await File.pickFileAsync({ mimeTypes: [...IMPORT_MIME_TYPES] });
       if (picked.canceled) return;
       setBusy(t("import.reading"));
       const text = await picked.result.text();
+      const check = checkImportFile(picked.result.name, text);
+      if (!check.ok) {
+        setParsed(null);
+        setMapFile(null);
+        setError(t("import.unsupported"));
+        return;
+      }
       try {
         const parse = parseImport(text);
         setMapFile(null);
@@ -148,7 +155,8 @@ export function ImportScreen() {
           setParsed(null);
           setError(null);
         } else {
-          throw e;
+          setParsed(null);
+          setError(t("import.unsupported"));
         }
       }
     } catch (e) {

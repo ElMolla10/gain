@@ -11,6 +11,7 @@ export * from "./model";
 export * from "./policy";
 export * from "./progression";
 export * from "./importer";
+export * from "./importFile";
 export * from "./pace";
 export * from "./weekly";
 export * from "./trend";

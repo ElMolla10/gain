@@ -46,7 +46,7 @@ Agents prepare source and drafts only; they never create, upload or submit anyth
 | 6 | `eas login` + `eas init` in `apps/mobile` (commits the projectId), `eas build:version:set -p ios` | OPEN | docs/IOS-RELEASE.md §2 |
 | 7 | Operator Mohamed Ehab, support imody101@gmail.com: the site pages keep their placeholders in git by design (`siteDraft.test.ts`); fill them at deploy with `node docs/site/fill-contact.mjs --email imody101@gmail.com --operator "Mohamed Ehab"` (writes docs/site/dist, 14 placeholders), then deploy dist and put the privacy-policy and support URLs into ASC | PARTLY DONE | Postal address and pilot contact still open |
 | 8 | Native Arabic review of the store listing and new in-app strings | OPEN | docs/IOS-STORE-METADATA.md, docs/ARABIC-REVIEW-SHEET.md |
-| 9 | Keep or genericise the Hevy/Strong/FitNotes names in the in-app import screen | OPEN | `strings.import.ts`, `strings.data.ts` |
+| 9 | Genericise the other-app names in the in-app import screen (Mohamed: genericise, CSV only) | DONE | `strings.import.ts`, `strings.data.ts` |
 | 10 | Screenshots: run `scripts/ios-screenshots.sh` on the Mac (6.9" and 6.5", EN and AR), review, upload to ASC | OPEN | Synthetic data only |
 | 11 | Enter App Privacy answers, age rating and export compliance from docs/IOS-APP-PRIVACY.md | OPEN | Check against the archive's privacy report |
 | 12 | Approve the first `eas build -p ios --profile production` and `eas submit` (upload to TestFlight) | OPEN | Upload ≠ review submission |

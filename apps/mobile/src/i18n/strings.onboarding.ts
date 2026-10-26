@@ -5,7 +5,7 @@
 export const enOnboarding = {
   "ob.progress": "Step {i} of {n}",
   "ob.welcome": "Welcome to GAIN",
-  "ob.importHint": "Already log workouts in Hevy or Strong? After setup, Settings > Import workouts brings that history in.",
+  "ob.importHint": "Already log workouts in another app? After setup, Settings > Import workouts brings that history in.",
   "ob.welcomeBody": "A few questions so the first session can be written. You can change every answer later.",
   "ob.language": "Language",
   "ob.skip": "Just start logging",
@@ -90,7 +90,7 @@ export const enOnboarding = {
 export const arOnboarding: Record<keyof typeof enOnboarding, string> = {
   "ob.progress": "الخطوة {i} من {n}",
   "ob.welcome": "أهلاً بيك في GAIN",
-  "ob.importHint": "بتسجّل تمارينك في Hevy أو Strong؟ بعد الإعداد، من الإعدادات > استورد تمارينك هتجيب التاريخ ده.",
+  "ob.importHint": "بتسجّل تمارينك في تطبيق تاني؟ بعد الإعداد، من الإعدادات > استورد تمارينك هتجيب التاريخ ده.", // DRAFT ar
   "ob.welcomeBody": "كام سؤال عشان نكتب أول تمرينة. تقدر تغيّر أي إجابة بعد كده.",
   "ob.language": "اللغة",
   "ob.skip": "ابدأ سجّل وخلاص",

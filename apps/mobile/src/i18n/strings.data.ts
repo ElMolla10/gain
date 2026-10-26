@@ -10,7 +10,7 @@ export const enData = {
   "data.exportJson": "Export a full backup (JSON)",
   "data.exportJsonNote": "Everything: workouts, targets, programs, goals, settings. Use it with Restore.",
   "data.exportCsv": "Export my sets (CSV)",
-  "data.exportCsvNote": "One row per set in Hevy's columns, in kg. Opens in Excel, and GAIN's Import reads it back.",
+  "data.exportCsvNote": "One row per set in a standard workout-log CSV layout, in kg. Opens in Excel, and GAIN's Import reads it back.",
   "data.exporting": "Preparing the file...",
   "data.exported": "File ready: {name}. Pick where to send it. It is not uploaded anywhere by GAIN.",
   "data.shareFailed": "Could not open the share sheet: {detail}",
@@ -47,7 +47,7 @@ export const arData: Record<keyof typeof enData, string> = {
   "data.exportJson": "صدّر نسخة احتياطية كاملة (JSON)",
   "data.exportJsonNote": "كل حاجة: التمارين والأهداف والبرامج والإعدادات. استخدمها مع الاستعادة.",
   "data.exportCsv": "صدّر مجموعاتي (CSV)",
-  "data.exportCsvNote": "صف لكل مجموعة بأعمدة Hevy، بالكيلو. بيتفتح في Excel، واستيراد GAIN بيقراه تاني.",
+  "data.exportCsvNote": "صف لكل مجموعة بأعمدة CSV معروفة لسجل التمارين، بالكيلو. بيتفتح في Excel، واستيراد GAIN بيقراه تاني.", // DRAFT ar
   "data.exporting": "بجهّز الملف...",
   "data.exported": "الملف جاهز: {name}. اختار تبعته فين. GAIN مبيرفعوش في أي مكان.",
   "data.shareFailed": "معرفتش أفتح قايمة المشاركة: {detail}",

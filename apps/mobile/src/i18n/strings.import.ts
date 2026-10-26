@@ -4,11 +4,11 @@
  */
 export const enImport = {
   "import.title": "Import history",
-  "import.entry": "Import workouts from Hevy, Strong, FitNotes or CSV",
+  "import.entry": "Import from any app you previously used",
   "import.entryNote": "Bring your past workouts into GAIN so suggestions start from your real history.",
-  "import.intro": "Export your workouts as a CSV file from Hevy, Strong, FitNotes, or a spreadsheet with exercise, date, weight and reps, then choose the file here. Nothing leaves your phone.",
-  "import.source.fitnotes": "FitNotes",
-  "import.source.csv": "CSV",
+  "import.intro": "Export your workouts as a CSV file from any app you previously used, or from a spreadsheet with exercise, date, weight and reps columns, then choose the file here. Nothing leaves your phone.",
+  "import.source.fitnotes": "Workout app export",
+  "import.source.csv": "Spreadsheet CSV",
   "import.map.title": "Match columns",
   "import.map.note": "This file is not a known export. Say which column is which. Invalid dates are skipped, not guessed.",
   "import.map.exercise": "Exercise",
@@ -22,10 +22,11 @@ export const enImport = {
   "import.pick": "Choose CSV file",
   "import.pickAnother": "Choose another file",
   "import.reading": "Reading the file...",
+  "import.unsupported": "GAIN can't import this file. It accepts CSV files (.csv or .txt, comma or semicolon separated) exported from a workout app, or any CSV with exercise, date, weight and reps columns. Spreadsheets (.xlsx), JSON, PDF and other files are not supported.",
   "import.readFailed": "Could not read this file: {detail}",
   "import.fileInfo": "{name} · {source}",
-  "import.source.hevy": "Hevy",
-  "import.source.strong": "Strong",
+  "import.source.hevy": "Workout app export",
+  "import.source.strong": "Workout app export",
   "import.unit.title": "Weight unit in this file",
   "import.unit.note": "This file does not say which unit its weights are in. Choose it. GAIN stores kilograms and shows weights in the unit you chose in Settings.",
   "import.unit.kg": "Kilograms (kg)",
@@ -78,11 +79,11 @@ export const enImport = {
 
 export const arImport: Record<keyof typeof enImport, string> = {
   "import.title": "استيراد التاريخ",
-  "import.entry": "استورد تمارينك من Hevy أو Strong أو FitNotes أو CSV",
+  "import.entry": "استورد من أي تطبيق كنت بتستخدمه قبل كده", // DRAFT ar
   "import.entryNote": "هات تمارينك القديمة جوه GAIN عشان الاقتراحات تبدأ من تاريخك الحقيقي.",
-  "import.intro": "اعمل تصدير لتمارينك كملف CSV من Hevy أو Strong أو FitNotes أو جدول فيه التمرين والتاريخ والوزن والعدّات وبعدين اختار الملف هنا. مفيش حاجة بتطلع من موبايلك.",
-  "import.source.fitnotes": "FitNotes",
-  "import.source.csv": "CSV",
+  "import.intro": "اعمل تصدير لتمارينك كملف CSV من أي تطبيق كنت بتستخدمه قبل كده، أو من جدول فيه أعمدة التمرين والتاريخ والوزن والعدّات، وبعدين اختار الملف هنا. مفيش حاجة بتطلع من موبايلك.", // DRAFT ar
+  "import.source.fitnotes": "تصدير من تطبيق تمارين", // DRAFT ar
+  "import.source.csv": "جدول CSV", // DRAFT ar
   "import.map.title": "طابق الأعمدة",
   "import.map.note": "الملف ده مش تصدير معروف. حدد كل عمود إيه. التواريخ الغلط بتتخطى ومش بتتخمّن.",
   "import.map.exercise": "التمرين",
@@ -96,10 +97,11 @@ export const arImport: Record<keyof typeof enImport, string> = {
   "import.pick": "اختار ملف CSV",
   "import.pickAnother": "اختار ملف تاني",
   "import.reading": "بقرا الملف...",
+  "import.unsupported": "GAIN مش بيقدر يستورد الملف ده. بيقبل ملفات CSV بس (.csv أو .txt، مفصولة بفاصلة أو فاصلة منقوطة) متصدّرة من تطبيق تمارين، أو أي CSV فيه أعمدة التمرين والتاريخ والوزن والعدّات. ملفات الإكسل (.xlsx) وJSON وPDF وغيرها مش مدعومة.", // DRAFT ar
   "import.readFailed": "معرفتش أقرا الملف ده: {detail}",
   "import.fileInfo": "الملف {name} · من {source}",
-  "import.source.hevy": "Hevy",
-  "import.source.strong": "Strong",
+  "import.source.hevy": "تصدير من تطبيق تمارين", // DRAFT ar
+  "import.source.strong": "تصدير من تطبيق تمارين", // DRAFT ar
   "import.unit.title": "وحدة الوزن في الملف",
   "import.unit.note": "الملف مش بيقول الأوزان بأنهي وحدة. اختار الوحدة؛ GAIN بيحفظ بالكيلو وبيعرض الأوزان بالوحدة اللي اخترتها في الإعدادات.",
   "import.unit.kg": "كيلوجرام (kg)",

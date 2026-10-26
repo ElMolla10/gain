@@ -45,6 +45,7 @@ vi.mock("react", async original => {
 const native = vi.hoisted(() => ({ appState: [] as ((s: string) => void)[], alert: vi.fn(), sync: vi.fn(async (_p?: any) => {}), stop: vi.fn(async () => {}), reconcile: vi.fn(async (_open?: () => Promise<boolean>) => {}) }));
 vi.mock("react-native", () => ({ AppState: { addEventListener: (_e: string, fn: (s: string) => void) => { native.appState.push(fn); return { remove: () => { native.appState.splice(native.appState.indexOf(fn), 1); } }; } }, Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
+vi.mock("expo-keep-awake", () => ({ activateKeepAwakeAsync: async () => undefined, deactivateKeepAwake: () => undefined }));
 vi.mock("@react-navigation/native", () => ({ useRoute: () => ({ params: { dayId: host.dayId } }), useNavigation: () => ({ dispatch: vi.fn(), goBack: vi.fn() }), StackActions: { push: vi.fn(), replace: vi.fn() } }));
 vi.mock("../src/AppContext", () => ({ useServices: () => host.services }));
 vi.mock("../src/i18n", () => {

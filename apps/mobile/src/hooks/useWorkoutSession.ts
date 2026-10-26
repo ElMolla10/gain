@@ -16,6 +16,7 @@ import { Alert, AppState, TextInput } from "react-native";
 import { applyDrafts, draftKey, parseDrafts, serializeDrafts } from "../logic/draftPersist";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
+import { setKeepAwake } from "../keepAwake";
 import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
 import { PREVIOUS_SOURCE_KEY, parsePreviousSource, type PreviousSource } from "../components/PreviousSourceToggle";
 import type { LibraryExercise } from "../db/programmeRepo";
@@ -737,7 +738,7 @@ export function useWorkoutSession() {
     setFinishing(true);
     setFinishFailed(false);
     const r = await attemptFinish(
-      () => workout.finishSession(lo.sessionId).then(() => { void endRest(); void workoutLiveActivity.stop(); clearDrafts(lo.sessionId); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
+      () => workout.finishSession(lo.sessionId).then(() => { void endRest(); void workoutLiveActivity.stop(); clearDrafts(lo.sessionId); setKeepAwake(false); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
       () => navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId })),
       (e) => diagnostics.record("error", "finish workout", e),
     );
@@ -754,6 +755,7 @@ export function useWorkoutSession() {
       void endRest();
       void workoutLiveActivity.stop();
       clearDrafts(lo.sessionId);
+      setKeepAwake(false);
       navigation.goBack();
     } catch (e) {
       diagnostics.record("error", "discard empty workout", e);

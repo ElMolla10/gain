@@ -19,6 +19,7 @@ import Constants from "expo-constants";
 import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
 import { loadReminderSettings, REMINDER_KEYS, reminderText, serializeDays, serializeTime, syncReminders, toggleDay, type ReminderSettings } from "../logic/reminders";
 import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
+import { KEEP_AWAKE_KEY, keepAwakeSetting } from "../logic/keepAwake";
 import { parsePeriodization, serializePeriodization, type PeriodizationState } from "../logic/periodization";
 import { isolateLtr } from "../i18n/format";
 import { useDeveloperMode } from "../DeveloperMode";
@@ -216,8 +217,11 @@ function RestCard() {
   const { repos, restAlerts } = useServices();
   const [s, setS] = useState<RestSettings | null>(null);
   const [note, setNote] = useState<StringKey | null>(null);
+  // Keep screen on during workouts: unset = on.
+  const [awake, setAwake] = useState(true);
   useEffect(() => {
     void loadRestSettings(repos).then(setS);
+    void repos.getSetting(KEEP_AWAKE_KEY).then((raw) => setAwake(keepAwakeSetting(raw))).catch(() => undefined);
   }, [repos]);
   if (!s) return null;
   const save = async (key: keyof typeof REST_KEYS, value: string, next: RestSettings) => {
@@ -258,6 +262,15 @@ function RestCard() {
         }}
       />
       {note ? <InlineStatus kind="error" text={t(note)} /> : null}
+      <SwitchRow
+        label={t("workout.keepAwake")}
+        note={t("workout.keepAwake.note")}
+        value={awake}
+        onChange={(on) => {
+          setAwake(on);
+          void repos.setSetting(KEEP_AWAKE_KEY, on ? "1" : "0");
+        }}
+      />
     </>
   );
 }

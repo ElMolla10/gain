@@ -1,3 +1,4 @@
+import type { HealthExportSession } from "../logic/appleHealth";
 import { replacementRange } from "../logic/replacement";
 import {
   checkOutlier,
@@ -228,6 +229,25 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   async function setSessionFeel(sessionId: string, feel: SessionFeel | null): Promise<void> {
     const stored = asSessionFeel(feel);
     await db.run("UPDATE session SET feel = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL", [stored, now(), sessionId]);
+  }
+
+  /** What an Apple Health export needs for one finished session; null when it is not finished or was deleted. */
+  async function getHealthExport(sessionId: string): Promise<HealthExportSession | null> {
+    const r = await db.get<{ id: string; started_at: number | null; finished_at: number | null; paused_ms: number | null; imported: number; health_uuid: string | null; day_name: string | null; sets: number }>(
+      `SELECT s.id, s.started_at, s.finished_at, s.paused_ms, (s.import_key IS NOT NULL OR s.import_batch_id IS NOT NULL) AS imported, s.health_uuid, d.name AS day_name,
+              (SELECT COUNT(*) FROM workout_set ws WHERE ws.session_id = s.id AND ws.deleted_at IS NULL AND ws.is_warmup = 0) AS sets
+         FROM session s LEFT JOIN programme_day d ON d.id = s.programme_day_id
+        WHERE s.id = ? AND s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL`,
+      [sessionId],
+    );
+    if (!r) return null;
+    return { id: r.id, startedAt: r.started_at, finishedAt: r.finished_at!, pausedMs: r.paused_ms ?? 0, imported: r.imported === 1, healthUuid: r.health_uuid, dayName: r.day_name ?? "", sets: r.sets };
+  }
+
+  /** Remember the Apple Health workout for a session. Set once: an existing UUID is never overwritten. True when stored. */
+  async function setHealthUuid(sessionId: string, uuid: string): Promise<boolean> {
+    const r = await db.run("UPDATE session SET health_uuid = ?, updated_at = ? WHERE id = ? AND health_uuid IS NULL", [uuid, now(), sessionId]);
+    return r.changes > 0;
   }
 
   /** Freeze the duration clock. No-op if already paused or the session is not in progress. */
@@ -722,6 +742,8 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     getSession,
     setSessionReadiness,
     setSessionFeel,
+    getHealthExport,
+    setHealthUuid,
     pauseDuration,
     resumeDuration,
     finishSession,

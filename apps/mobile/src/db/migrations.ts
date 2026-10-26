@@ -499,6 +499,14 @@ ALTER TABLE weekly_review ADD COLUMN ended_how TEXT;
 ALTER TABLE session ADD COLUMN feel TEXT;
 `,
   },
+  {
+    version: 20,
+    name: "apple health workout uuid",
+    sql: `
+-- The Apple Health workout written for this session (opt-in export). Set once; null = not written.
+ALTER TABLE session ADD COLUMN health_uuid TEXT;
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

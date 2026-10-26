@@ -5,6 +5,7 @@ import type { ImportParse } from "@gain/engine";
 import { useI18n } from "../../i18n";
 import { isolateLtr } from "../../i18n/format";
 import type { StringKey } from "../../i18n/strings";
+import { formatDay } from "../../logic/dateText";
 import { dateRange } from "../../logic/importFlow";
 import { space, usePalette } from "../../theme";
 import { AppText, BigButton, Card, InlineStatus } from "../../ui";
@@ -15,7 +16,7 @@ interface ImportBatchHeroProps {
   heaviestKg: number | null;
   batches: BatchInfo[];
   onPickFile: () => void;
-  onUndoBatch: (batchId: string) => void;
+  onUndoBatch: (batch: BatchInfo) => void;
   busy: boolean;
 }
 
@@ -28,7 +29,7 @@ export function ImportBatchHero({
   onUndoBatch,
   busy,
 }: ImportBatchHeroProps) {
-  const { t, fmt } = useI18n();
+  const { t, fmt, lang } = useI18n();
   const p = usePalette();
 
   return (
@@ -115,15 +116,16 @@ export function ImportBatchHero({
                       sets: b.sets,
                     })}
                   </AppText>
-                  <AppText ltr style={[styles.batchDate, { color: p.muted }]}>
-                    {new Date(b.createdAt).toISOString().slice(0, 10)}
-                    {b.fileName ? ` · ${b.fileName}` : ""}
+                  <AppText style={[styles.batchDate, { color: p.muted }]}>
+                    {formatDay(b.createdAt, lang)}
+                    {b.fileName ? ` · ${isolateLtr(b.fileName)}` : ""}
                   </AppText>
                 </View>
                 <BigButton
                   label={t("import.undo")}
                   variant="secondary"
-                  onPress={() => onUndoBatch(b.id)}
+                  disabled={busy}
+                  onPress={() => onUndoBatch(b)}
                 />
               </View>
             ))}

@@ -1,7 +1,9 @@
 import { File } from "expo-file-system";
 import { csvHeaders, ImportParseError, parseImport, parseMappedCsv, toKilograms, type CsvMapping, type EquipmentType, type ImportParse, type SetupType, type WeightUnit } from "@gain/engine";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, View } from "react-native";
+import { diagnostics } from "../diagnostics";
+import { runUndo, undoConfirmText } from "../logic/importUndo";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
 import type { BatchInfo, ImportPreview, ImportResult, TitlePreview } from "../db/importRepo";
@@ -177,11 +179,36 @@ export function ImportScreen() {
       setBusy(null);
     }
   }
+  // One undo at a time: the ref blocks a same-frame double tap before `busy` re-renders the buttons disabled.
+  const undoing = useRef(false);
   async function undo(batchId: string) {
-    const r = await imports.undoBatch(batchId);
-    setUndone(r.workouts);
-    setResult(null);
-    refreshBatches();
+    if (undoing.current) return;
+    undoing.current = true;
+    setBusy(t("import.undoing"));
+    setError(null);
+    try {
+      const r = await runUndo(() => imports.undoBatch(batchId), (e) => {
+        diagnostics.record("error", "import undo", e);
+        setError(t("import.undo.failed"));
+      });
+      if (r) {
+        setUndone(r.workouts);
+        setResult(null);
+      }
+    } finally {
+      undoing.current = false;
+      setBusy(null);
+      refreshBatches();
+    }
+  }
+  /** Undo never removes data without a confirm. */
+  function confirmUndo(batchId: string, counts: { workouts: number; sets: number }) {
+    if (busy || undoing.current) return;
+    const { title, body } = undoConfirmText(counts, t);
+    Alert.alert(title, body, [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("import.undo"), style: "destructive", onPress: () => void undo(batchId) },
+    ]);
   }
 
   const unitFromFile = parsed && parsed.parse.unit !== "unknown";
@@ -240,7 +267,7 @@ export function ImportScreen() {
           <InlineStatus kind="success" text={t("import.done.title")} />
           <AppText>{t("import.done.body", { workouts: result.workouts, sets: result.sets, exercises: result.newExercises })}</AppText>
           {result.skippedSets > 0 ? <AppText style={{ color: p.muted }}>{t("import.done.skipped", { n: result.skippedSets })}</AppText> : null}
-          {result.batchId ? <BigButton label={t("import.undo")} variant="secondary" onPress={() => void undo(result.batchId!)} /> : null}
+          {result.batchId ? <BigButton label={t("import.undo")} variant="secondary" disabled={!!busy} onPress={() => confirmUndo(result.batchId!, result)} /> : null}
         </Card>
       ) : null}
 
@@ -324,21 +351,9 @@ export function ImportScreen() {
         heaviestKg={heaviestKg}
         batches={batches}
         onPickFile={() => void choose()}
-        onUndoBatch={(bId) => void undo(bId)}
+        onUndoBatch={(b) => confirmUndo(b.id, b)}
         busy={!!busy}
       />
-      {false && batches.length > 0 ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("import.history.title")}</AppText>
-          {batches.map((b) => (
-            <View key={b.id} style={{ gap: space.xs }}>
-              <AppText>{t("import.history.row", { source: t(`import.source.${b.source}` as StringKey), workouts: b.workouts, sets: b.sets })}</AppText>
-              <AppText ltr style={{ color: p.muted, fontSize: 13 }}>{new Date(b.createdAt).toISOString().slice(0, 10)}{b.fileName ? ` · ${b.fileName}` : ""}</AppText>
-              <BigButton label={t("import.undo")} variant="secondary" onPress={() => void undo(b.id)} />
-            </View>
-          ))}
-        </Card>
-      ) : null}
 
       <ExercisePicker
         visible={pickFor !== null}

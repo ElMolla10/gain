@@ -16,6 +16,10 @@ import { adjustTimer, startTimer, stopTimer } from "../logic/restTimer";
 import { MIN_TOUCH, radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
 import { useWorkoutSession } from "../hooks/useWorkoutSession";
+import { useIsFocused } from "@react-navigation/native";
+import { useServices } from "../AppContext";
+import { setKeepAwake } from "../keepAwake";
+import { KEEP_AWAKE_KEY, keepAwakeSetting, shouldKeepAwake } from "../logic/keepAwake";
 import { WorkoutSessionSheets } from "../components/WorkoutSessionSheets";
 
 /** Developer Mode "loggerCommit": React commit time of the logger's scroll content. Returns at once with Developer Mode off. */
@@ -28,6 +32,24 @@ const onLoggerRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) =
 export function WorkoutScreen() {
   const session = useWorkoutSession();
   const { t, lang, unit, unitText, fmt, direction } = useI18n();
+  // Keep the screen on while this logger is focused and a session is open (setting on by default). Re-read on every
+  // focus, so a change made in Settings mid-workout applies on return. Released on blur, unmount, finish and discard.
+  const { repos } = useServices();
+  const focused = useIsFocused();
+  const [keepAwakeOn, setKeepAwakeOn] = useState(true);
+  useEffect(() => {
+    if (!focused) return;
+    let alive = true;
+    void repos.getSetting(KEEP_AWAKE_KEY).then((raw) => alive && setKeepAwakeOn(keepAwakeSetting(raw))).catch(() => undefined);
+    return () => { alive = false; };
+  }, [focused, repos]);
+  const sessionOpen = session.phase === "ready" && !session.finishing;
+  const awake = shouldKeepAwake({ setting: keepAwakeOn, focused, sessionOpen });
+  useEffect(() => {
+    if (!awake) return;
+    setKeepAwake(true);
+    return () => setKeepAwake(false);
+  }, [awake]);
   const p = useLogPalette();
   const insets = useSafeAreaInsets();
   const largeText = useWindowDimensions().fontScale > 1.3;

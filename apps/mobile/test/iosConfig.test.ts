@@ -62,3 +62,13 @@ describe("app.json iOS section", () => {
     expect(cfg.android.softwareKeyboardLayoutMode).toBe("resize");
   });
 });
+
+describe("iOS privacy manifest matches the optional email sign-in", () => {
+  it("declares Email Address as linked, app functionality, no tracking", () => {
+    const cfgAll = JSON.parse(readFileSync(join(__dirname, "..", "app.json"), "utf8")).expo;
+    const types = cfgAll.ios.privacyManifests.NSPrivacyCollectedDataTypes as { NSPrivacyCollectedDataType: string; NSPrivacyCollectedDataTypeTracking: boolean }[];
+    const email = types.find((t) => t.NSPrivacyCollectedDataType === "NSPrivacyCollectedDataTypeEmailAddress");
+    expect(email).toBeDefined();
+    expect(email!.NSPrivacyCollectedDataTypeTracking).toBe(false);
+  });
+});

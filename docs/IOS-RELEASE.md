@@ -96,3 +96,12 @@ Submission/upload is a separate action; these scripts never perform it. Record A
 - [Apple: Screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications)
 
 Recheck the current console requirements and SDK privacy report at submission time.
+
+## Icon and splash audit (2026-10-26)
+
+| Asset | Size | Mode | Alpha | Colour profile | Background |
+| --- | --- | --- | --- | --- | --- |
+| `apps/mobile/assets/icon.png` | 1024×1024 | RGB | none | no ICC chunk (treated as sRGB) | `#10120E` charcoal, edge to edge |
+| `apps/mobile/assets/splash-icon.png` | 1024×1024 | RGB | none | no ICC chunk (treated as sRGB) | `#10120E`, matches the splash `backgroundColor` |
+
+No change was needed; the lime arrow is untouched. The splash uses one charcoal background in both light and dark appearance (the app UI is dark-first), and because the image's own background equals the splash colour there is no visible box in either mode. `test/iosAssets.test.ts` guards size and the no-alpha rule. Still to check on a device: the splash in light mode and the icon at small sizes on the Home Screen.

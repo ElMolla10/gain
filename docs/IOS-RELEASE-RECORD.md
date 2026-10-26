@@ -38,13 +38,13 @@ Agents prepare source and drafts only; they never create, upload or submit anyth
 
 | # | Step | Status | Notes |
 | --- | --- | --- | --- |
-| 1 | Apple Developer Program membership active | PENDING (enrolled, awaiting Apple) | Individual vs company decides the seller name on the store |
+| 1 | Apple Developer Program membership active | PENDING (enrolled as **Individual**, awaiting Apple) | Seller name on the store: Mohamed Ehab |
 | 2 | Accept the agreements in App Store Connect > Business (Free Apps agreement is enough; no banking/tax needed for a free app) | OPEN | |
 | 3 | Register bundle ID `com.elmolla.gain` (Certificates, IDs & Profiles), enabling HealthKit only if the store build sets `GAIN_IOS_HEALTHKIT=1` | OPEN | Cannot change after the first upload |
 | 4 | Create the ASC app record: name **GAIN** (fallback if taken: decide then), primary language English, bundle ID `com.elmolla.gain`, SKU e.g. `gain-ios` | OPEN | Add Arabic as a localization |
 | 5 | Create an App Store Connect API key (Users and Access > Integrations, role App Manager); keep the `.p8` outside the repo; give Key ID / Issuer ID via EAS secrets or env (`EXPO_ASC_*`), never in git | OPEN | Alternative: sign in when `eas build` asks |
 | 6 | `eas login` + `eas init` in `apps/mobile` (commits the projectId), `eas build:version:set -p ios` | OPEN | docs/IOS-RELEASE.md §2 |
-| 7 | Operator name/address, support email, (optional) pilot contact → run `node docs/site/fill-contact.mjs --email … --operator "…" --contact "…"`, deploy the site, and put the privacy-policy and support URLs into ASC | OPEN | Placeholders listed below |
+| 7 | Operator Mohamed Ehab, support imody101@gmail.com: the site pages keep their placeholders in git by design (`siteDraft.test.ts`); fill them at deploy with `node docs/site/fill-contact.mjs --email imody101@gmail.com --operator "Mohamed Ehab"` (writes docs/site/dist, 14 placeholders), then deploy dist and put the privacy-policy and support URLs into ASC | PARTLY DONE | Postal address and pilot contact still open |
 | 8 | Native Arabic review of the store listing and new in-app strings | OPEN | docs/IOS-STORE-METADATA.md, docs/ARABIC-REVIEW-SHEET.md |
 | 9 | Keep or genericise the Hevy/Strong/FitNotes names in the in-app import screen | OPEN | `strings.import.ts`, `strings.data.ts` |
 | 10 | Screenshots: run `scripts/ios-screenshots.sh` on the Mac (6.9" and 6.5", EN and AR), review, upload to ASC | OPEN | Synthetic data only |
@@ -55,8 +55,12 @@ Agents prepare source and drafts only; they never create, upload or submit anyth
 
 ### Open placeholders (as of 2026-10-26)
 
-- `[operator name and address not set yet]`, `[support email not set yet]`, `[pilot contact not set yet]` in `docs/site/public/` support, privacy, terms, pilot-guide and delete-account pages (filled by `docs/site/fill-contact.mjs`), and in docs/ACCOUNT-DELETION-SPEC.md.
-- `<<OPERATOR_NAME>>`, `<<SUPPORT_EMAIL>>` in the App Review contact (docs/IOS-STORE-METADATA.md).
+Filled: operator "Mohamed Ehab" and support email imody101@gmail.com in PRIVACY-POLICY-DRAFT.md, TERMS-DRAFT.md, ACCOUNT-DELETION-SPEC.md, the in-app privacy contact string and IOS-STORE-METADATA.md.
+
+Still open:
+- Site pages (support, privacy, terms, delete-account) are filled only in the generated dist, via the command above; verified locally that it fills 14 placeholders.
+- `[pilot contact not set yet]` in docs/site/public/pilot-guide.html (Android pilot only).
+- Postal address in the privacy policy, if required; age limit and governing law in the terms.
 - Privacy policy URL and support URL for App Store Connect (after the site is deployed).
 - EAS `projectId` (from `eas init`), ASC app ID, Team ID, API key ID / issuer ID (env/secrets only).
 - Store name fallback if "GAIN" is taken.

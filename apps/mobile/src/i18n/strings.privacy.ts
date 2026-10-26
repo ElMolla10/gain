@@ -29,7 +29,7 @@ export const enPrivacy = {
   "privacy.health.title": "Health and safety",
   "privacy.health.body": "GAIN is a training log and suggestion tool. It is not a doctor, a physiotherapist or a certified coach, and it gives no medical advice. Targets and estimates are suggestions based only on what you logged; you decide what to lift. If you have pain, dizziness, an injury or a medical condition, stop and ask a qualified professional before continuing. Warm up and use safe loads and spotters.",
   "privacy.age": "GAIN is not designed for children. If you are under 18, train under an adult or qualified coach's guidance.",
-  "privacy.contact": "Contact: [to be filled in]",
+  "privacy.contact": "Contact: Mohamed Ehab, imody101@gmail.com",
   "health.note": "GAIN is a training aid, not a doctor and not medical advice. Pain, dizziness or injury: stop and see a qualified professional.",
 } as const;
 
@@ -59,6 +59,6 @@ export const arPrivacy: Record<keyof typeof enPrivacy, string> = {
   "privacy.health.title": "الصحة والسلامة",
   "privacy.health.body": "GAIN دفتر تمرين وأداة اقتراحات. مش دكتور ولا أخصائي علاج طبيعي ولا مدرب معتمد، ومبيدّيش نصيحة طبية. الأهداف والتقديرات مجرد اقتراحات من اللي سجلته بس؛ إنت اللي بتقرر ترفع إيه. لو عندك ألم أو دوخة أو إصابة أو حالة طبية، وقّف واسأل متخصص مؤهل قبل ما تكمل. سخّن واستخدم أوزان آمنة ومعاك حد يسندك.",
   "privacy.age": "GAIN مش متصمم للأطفال. لو سنك أقل من 18، تمرّن بتوجيه شخص كبير أو مدرب مؤهل.",
-  "privacy.contact": "التواصل: [هيتكتب]",
+  "privacy.contact": "التواصل: Mohamed Ehab، imody101@gmail.com",
   "health.note": "GAIN أداة مساعدة للتمرين، مش دكتور ومش نصيحة طبية. ألم أو دوخة أو إصابة: وقّف وروح لمتخصص مؤهل.",
 };

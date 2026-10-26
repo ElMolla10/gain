@@ -5,7 +5,7 @@
 > The in-app version is Settings > Privacy and safety (`strings.privacy.ts`, English and a DRAFT Arabic translation). `apps/mobile/test/privacyFlows.test.ts` fails if the code stops matching the statements below. Factual update: 2026-10-15, current iOS/Android source (app version 0.22.0); this is not a signed-build or hosted-policy verification. iOS is the release priority. See [the iOS privacy worksheet](IOS-APP-PRIVACY.md).
 
 ## 1. Who is responsible
-[Controller: person or company name], [postal address], contact: [email]. (Mohamed to decide; D6.)
+Mohamed Ehab (individual developer; the App Store seller), contact: imody101@gmail.com. [Postal address: still open, add if required; D6.]
 
 ## 2. What GAIN stores, and where
 Everything is saved **on your phone**, in GAIN's private app storage (a SQLite database, plus the crash-log file in section 5). With sync and coach links unused, no online account is created. Optional sync and coach links use a GAIN server on Cloudflare. GAIN has no analytics or advertising service.
@@ -47,7 +47,7 @@ GAIN is not designed for children. [Reviewer to set the minimum age.]
 GAIN is a training log and suggestion tool. It is not a doctor, a physiotherapist or a certified coach and gives no medical advice. Targets, pace and weekly decisions are suggestions based only on what you logged ([PROGRESSION-RULES.md](PROGRESSION-RULES.md) says exactly how). You decide what to lift. Pain, dizziness, injury or a medical condition: stop and ask a qualified professional. In the app: one-line note on the first onboarding screen, Today, Finish, Goals and Settings; full text on the privacy page; the coach-card PDF carries its own not-a-doctor line. Wording is a draft and not reviewed by a medical or legal professional.
 
 ## 8. Changes and contact
-[How changes are announced.] Contact: [email].
+[How changes are announced.] Contact: imody101@gmail.com.
 
 ## What changes this text (future steps)
 Remote inference, any new telemetry, enabling email sign-in in the mobile UI, or changing sync/share payloads requires reviewing this policy, the in-app text, SDK manifests and store privacy answers. The Worker implements email endpoints, but the current mobile UI uses recovery codes; do not claim those endpoints are deployed or configured without checking production. Cloudflare request metadata and retention settings must be verified before submission.

@@ -8,4 +8,4 @@
 4. **Your data.** It stays on your phone ([PRIVACY-POLICY-DRAFT.md](PRIVACY-POLICY-DRAFT.md)). You can export and delete it. Back it up yourself; a lost phone without a backup loses the data.
 5. **Pre-release software.** Test builds come as is, may contain bugs, and may change. Updates are installed only by you.
 6. **Content.** Exercise names, Arabic names and aliases are drafts. [Reviewer: licences for any future media.]
-7. **Open points:** operator identity, age limit, contact, governing law. GAIN is free at launch (no subscriptions, in-app purchases or paid feature tiers currently), so there are no fees or refunds to describe for the current version.
+7. **Operator and contact:** Mohamed Ehab (individual), imody101@gmail.com. **Open points:** age limit, governing law. GAIN is free at launch (no subscriptions, in-app purchases or paid feature tiers currently), so there are no fees or refunds to describe for the current version.

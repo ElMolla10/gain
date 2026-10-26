@@ -53,7 +53,7 @@ describe("local ML evaluation persistence and matching", () => {
     delete after.user_quest;
     delete after.lift_pin;
     after.exercise_line = (after.exercise_line as Record<string, unknown>[]).map(({ load_spec_json: _l, ...rest }) => rest);
-    after.session = (after.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, local_calendar_date: _d, readiness: _r, feel: _f, ...rest }) => rest);
+    after.session = (after.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, local_calendar_date: _d, readiness: _r, feel: _f, health_uuid: _h, ...rest }) => rest);
     after.import_batch = (after.import_batch as Record<string, unknown>[]).map(({ source_kind: _s, ...rest }) => rest);
     expect(after).toEqual(before);
     expect(await migrate(old)).toEqual({ from: LATEST_VERSION, to: LATEST_VERSION });

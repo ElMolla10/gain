@@ -18,6 +18,7 @@ import { rowLabels } from "../logic/workoutRows";
 import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
 import { formatWorkoutShareText } from "../logic/workoutRecap";
 import { diagnostics } from "../diagnostics";
+import { appleHealth } from "../native/appleHealth";
 import { AppText, BigButton, Card, EmptyState, Field, InlineStatus, LoadingState, Screen } from "../ui";
 
 interface EditState {
@@ -30,7 +31,7 @@ interface EditState {
 
 /** A finished workout, set by set. A set can be corrected or deleted; planned targets are re-worked from the fixed history. */
 export function SessionDetailScreen() {
-  const { history, finish } = useServices();
+  const { history, finish, workout } = useServices();
   const navigation = useNavigation<{ goBack: () => void; setOptions: (o: { title: string }) => void }>();
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
@@ -119,7 +120,10 @@ export function SessionDetailScreen() {
     setDeletingWorkout(true);
     setDeleteFailed(false);
     try {
+      const health = await workout.getHealthExport(sessionId).catch(() => null);
       await history.deleteWorkout(sessionId);
+      // Best effort: also remove the Apple Health workout GAIN wrote for it (opt-in export).
+      if (health?.healthUuid) void appleHealth.deleteWorkout(health.healthUuid).catch((e) => diagnostics.record("warn", "apple health", e));
       navigation.goBack(); // Progress reloads its session list on focus.
     } catch (e) {
       diagnostics.record("error", "delete finished workout", e);

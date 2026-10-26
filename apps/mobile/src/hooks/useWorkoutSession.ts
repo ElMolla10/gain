@@ -17,6 +17,8 @@ import { applyDrafts, draftKey, parseDrafts, serializeDrafts } from "../logic/dr
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
 import { setKeepAwake } from "../keepAwake";
+import { APPLE_HEALTH_KEY, exportFinishedSession } from "../logic/appleHealth";
+import { appleHealth } from "../native/appleHealth";
 import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
 import { PREVIOUS_SOURCE_KEY, parsePreviousSource, type PreviousSource } from "../components/PreviousSourceToggle";
 import type { LibraryExercise } from "../db/programmeRepo";
@@ -738,7 +740,7 @@ export function useWorkoutSession() {
     setFinishing(true);
     setFinishFailed(false);
     const r = await attemptFinish(
-      () => workout.finishSession(lo.sessionId).then(() => { void endRest(); void workoutLiveActivity.stop(); clearDrafts(lo.sessionId); setKeepAwake(false); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))),
+      () => workout.finishSession(lo.sessionId).then(() => { void endRest(); void workoutLiveActivity.stop(); clearDrafts(lo.sessionId); setKeepAwake(false); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))).then(() => { saveToAppleHealth(lo.sessionId); }),
       () => navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId })),
       (e) => diagnostics.record("error", "finish workout", e),
     );
@@ -746,6 +748,17 @@ export function useWorkoutSession() {
       setFinishing(false);
       setFinishFailed(true);
     }
+  }
+
+  /** Opt-in Apple Health export after Finish: fire and forget, never awaited by the UI, failures to diagnostics only. */
+  function saveToAppleHealth(sessionId: string) {
+    void exportFinishedSession(sessionId, {
+      setting: () => repos.getSetting(APPLE_HEALTH_KEY),
+      load: (id) => workout.getHealthExport(id),
+      store: (id, uuid) => workout.setHealthUuid(id, uuid),
+      health: appleHealth,
+      onError: (e) => diagnostics.record("warn", "apple health", e),
+    });
   }
 
   async function doDiscard(lo: Loaded) {

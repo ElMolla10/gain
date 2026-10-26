@@ -20,6 +20,9 @@ import { defaultGymLoads, isStandardRack } from "../logic/defaultGym";
 import { loadReminderSettings, REMINDER_KEYS, reminderText, serializeDays, serializeTime, syncReminders, toggleDay, type ReminderSettings } from "../logic/reminders";
 import { loadRestSettings, REST_CHOICES, REST_KEYS, type RestSettings } from "../logic/restAlert";
 import { KEEP_AWAKE_KEY, keepAwakeSetting } from "../logic/keepAwake";
+import { APPLE_HEALTH_KEY, appleHealthSetting } from "../logic/appleHealth";
+import { appleHealth } from "../native/appleHealth";
+import { diagnostics } from "../diagnostics";
 import { parsePeriodization, serializePeriodization, type PeriodizationState } from "../logic/periodization";
 import { isolateLtr } from "../i18n/format";
 import { useDeveloperMode } from "../DeveloperMode";
@@ -271,6 +274,45 @@ function RestCard() {
           void repos.setSetting(KEEP_AWAKE_KEY, on ? "1" : "0");
         }}
       />
+      <AppleHealthRow />
+    </>
+  );
+}
+
+/** Opt-in Apple Health export. Only on iOS builds made with GAIN_IOS_HEALTHKIT=1 (otherwise not shown at all). */
+function AppleHealthRow() {
+  const { t } = useI18n();
+  const { repos } = useServices();
+  const [available] = useState(() => Platform.OS === "ios" && appleHealth.isAvailable());
+  const [on, setOn] = useState(false);
+  const [denied, setDenied] = useState(false);
+  useEffect(() => {
+    if (!available) return;
+    void repos.getSetting(APPLE_HEALTH_KEY).then((raw) => setOn(appleHealthSetting(raw))).catch(() => undefined);
+  }, [available, repos]);
+  if (!available) return null;
+  return (
+    <>
+      <SwitchRow
+        label={t("health.apple.save")}
+        note={t("health.apple.note")}
+        value={on}
+        onChange={async (next) => {
+          setDenied(false);
+          if (!next) {
+            setOn(false);
+            return repos.setSetting(APPLE_HEALTH_KEY, "0");
+          }
+          setOn(true);
+          const ok = await appleHealth.requestWrite().catch((e: unknown) => { diagnostics.record("warn", "apple health", e); return false; });
+          if (!ok) {
+            setOn(false);
+            setDenied(true);
+          }
+          await repos.setSetting(APPLE_HEALTH_KEY, ok ? "1" : "0");
+        }}
+      />
+      {denied ? <InlineStatus kind="error" text={t("health.apple.denied")} /> : null}
     </>
   );
 }

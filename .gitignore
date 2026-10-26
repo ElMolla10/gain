@@ -19,3 +19,6 @@ docs/site/dist/
 # App Store Connect API keys (eas submit / CI). Never commit them.
 *.p8
 AuthKey_*.p8
+
+# App Store screenshot captures (scripts/ios-screenshots.sh)
+/screenshots/

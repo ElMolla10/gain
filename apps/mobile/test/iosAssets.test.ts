@@ -10,12 +10,22 @@ function ihdr(file: string) {
 }
 
 describe("iOS icon and splash assets", () => {
-  for (const file of ["icon.png", "splash-icon.png"]) {
-    it(`${file} is 1024x1024 truecolour with no alpha channel or transparency chunk`, () => {
+  it("icon.png is 1024x1024 truecolour with no alpha channel or transparency chunk", () => {
+    const h = ihdr("icon.png");
+    expect([h.width, h.height]).toEqual([1024, 1024]);
+    expect(h.colorType).toBe(2); // 2 = RGB; 6 = RGBA would be rejected by App Store Connect for the icon
+    expect(h.hasTrns).toBe(false);
+  });
+  for (const file of ["splash-icon-dark.png", "splash-icon-light.png"]) {
+    it(`${file} is 1024x1024 with transparency, so it sits on either splash background`, () => {
       const h = ihdr(file);
       expect([h.width, h.height]).toEqual([1024, 1024]);
-      expect(h.colorType).toBe(2); // 2 = RGB; 6 = RGBA would be rejected by App Store Connect for the icon
-      expect(h.hasTrns).toBe(false);
+      expect(h.colorType).toBe(6);
     });
   }
+  it("the splash has a light and a dark variant at 128pt", () => {
+    const cfg = JSON.parse(readFileSync(join(__dirname, "..", "app.json"), "utf8")).expo;
+    const entry = cfg.plugins.find((p: unknown) => Array.isArray(p) && p[0] === "expo-splash-screen")[1];
+    expect(entry).toMatchObject({ image: "./assets/splash-icon-light.png", backgroundColor: "#F5F6EF", imageWidth: 128, dark: { image: "./assets/splash-icon-dark.png", backgroundColor: "#10120E" } });
+  });
 });

@@ -19,7 +19,7 @@ describe("iOS build switches", () => {
     const out = applyBuildFlags(base, { GAIN_IOS_BUNDLE_ID: "com.mohamed.gain", GAIN_IOS_TEAM_ID: "AB12CD34EF" });
     expect(out.ios).toEqual({ ...base.ios, bundleIdentifier: "com.mohamed.gain", appleTeamId: "AB12CD34EF" });
     expect(out.android).toEqual(base.android);
-    expect(base.ios.bundleIdentifier).toBe("app.gain.mobile"); // input not mutated
+    expect(base.ios.bundleIdentifier).toBe("com.elmolla.gain"); // input not mutated
   });
   it("rejects a bundle id or team id that Apple would refuse", () => {
     for (const bad of ["gain", "com.my gain.app", "com..gain", "com.gain_app.x", "com.gain."]) expect(() => applyBuildFlags(base, { GAIN_IOS_BUNDLE_ID: bad }), bad).toThrow(/GAIN_IOS_BUNDLE_ID/);

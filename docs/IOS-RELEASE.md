@@ -10,7 +10,47 @@ Run `scripts/ios-setup.sh --run` on the Mac to install a standalone Release buil
 
 Required evidence includes upgrade retention, interrupted/offline logging, long histories, native import/export/restore, background rest alerts, keyboard, VoiceOver, large text and Arabic layouts. Keep screenshots of failures and fix blockers before inviting testers. Do not advertise accessibility support based only on labels in source.
 
-## 2. Create a local Release archive
+## 2. Build for the App Store with EAS (primary)
+
+The App Store bundle ID is `com.elmolla.gain` (the default in `apps/mobile/app.json`; it cannot change after the first upload). `GAIN_IOS_BUNDLE_ID` still overrides it for personal free-Apple-ID builds via `scripts/ios-setup.sh`/`.env.ios`. **A different bundle ID is a different app on the phone, with empty data**: before moving a phone from a personal ID to `com.elmolla.gain`, export a full backup (Settings > Your data) and restore it in the new app. Android keeps `app.gain.mobile`.
+
+Profiles in `apps/mobile/eas.json`:
+
+| Profile | Use | Distribution |
+| --- | --- | --- |
+| `development` | Simulator Debug build | internal |
+| `preview` | Device build for registered test phones (ad hoc) | internal |
+| `production` | App Store / TestFlight build; build number auto-increments (tracked remotely by EAS, `appVersionSource: remote`) | store |
+
+One-time (owner, after the Apple Developer membership is active), from `apps/mobile`:
+
+```bash
+npm i -g eas-cli
+eas login
+eas init                      # links the Expo project; commit the projectId it writes
+eas build:version:set -p ios  # seed the remote build number (e.g. 1)
+```
+
+Build and upload:
+
+```bash
+cd apps/mobile
+eas build -p ios --profile production   # EAS manages certificates/profiles when you sign in to Apple or provide the ASC key
+eas submit -p ios --profile production --latest   # uploads to App Store Connect / TestFlight only; does NOT submit for review
+```
+
+`eas submit` reads the App Store Connect API key from the environment or EAS secrets, never from the repo:
+
+```bash
+export EXPO_ASC_API_KEY_PATH=/secure/path/AuthKey_XXXXXXXXXX.p8   # never inside the repo (*.p8 is git-ignored)
+export EXPO_ASC_KEY_ID=XXXXXXXXXX
+export EXPO_ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+export EXPO_APPLE_TEAM_ID=XXXXXXXXXX
+```
+
+The ASC app ID (`ascAppId`) is chosen interactively on the first submit, or passed with `--asc-app-id`. Health export ships only if the build sets `GAIN_IOS_HEALTHKIT=1` (add it to the profile's `env` deliberately, after the HealthKit capability is enabled for the App ID).
+
+## 3. Fallback: local Xcode archive
 
 Select the intended Apple Developer Program team in Xcode and confirm its provisioning for the bundle ID. Local Personal Team installation is separate from TestFlight distribution. The helper preserves `.env.ios`/existing Xcode identity; an archive requires a team and an explicit build number. Never change the installed identity just to get signing to pass.
 
@@ -33,7 +73,7 @@ The read-only JSON report checks app identity/version/build, device platform, iP
 
 Open the archive in Xcode Organizer. Inspect signing, generate the complete privacy report including all embedded SDKs, resolve validation warnings, and use Validate App. Confirm that bundle ID, version and build number match the record. The app-level manifest is not a substitute for each SDK's manifest or the App Store Connect privacy answers.
 
-## 3. Resolve the remaining submission inputs
+## 4. Resolve the remaining submission inputs
 
 - Complete [IOS-APP-PRIVACY.md](IOS-APP-PRIVACY.md), the operator/contact details and final public privacy/support URLs. Existing HTML and policy text remain drafts; merging source is not evidence that the URLs are deployed or accessible.
 - Verify the production Worker has the auth fixes and passes its smoke script. The source changes alone do not establish this. Email-provider setup is separate; the current mobile UI uses recovery codes.
@@ -41,7 +81,7 @@ Open the archive in Xcode Organizer. Inspect signing, generate the complete priv
 - Complete the current App Store Connect age-rating, export-compliance and other required questionnaires against the actual binary and offered regions. Do not copy an assumed age rating or claim untested accessibility support.
 - Keep AI labeled experimental. Phase 4's real-workout collection/evaluation remains open; no superiority, clinical, injury-prevention or strength-gain claims are supported.
 
-## 4. Upload and test through Apple
+## 5. Upload and test through Apple
 
 When the record is complete and blockers are resolved, use Xcode Organizer's distribution flow for App Store Connect. Check the processed build's version and number before selecting it. Set beta review contact and What to Test information; follow the current internal/external tester workflow shown by Apple. Verify installation through TestFlight itself, including upgrading an earlier installation, before treating local installation as distribution evidence.
 

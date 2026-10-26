@@ -96,3 +96,12 @@ Submission/upload is a separate action; these scripts never perform it. Record A
 - [Apple: Screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications)
 
 Recheck the current console requirements and SDK privacy report at submission time.
+
+## Icon and splash audit (2026-10-26)
+
+| Asset | Size | Mode | Alpha | Colour profile | Background |
+| --- | --- | --- | --- | --- | --- |
+| `apps/mobile/assets/icon.png` | 1024×1024 | RGB | none | no ICC chunk (treated as sRGB) | `#10120E` charcoal, edge to edge |
+| `apps/mobile/assets/splash-icon-dark.png` / `-light.png` (new, from the designer) | 1024×1024 | RGBA | transparent outside the disc | sRGB | dark `#10120E`, light `#F5F6EF` |
+
+Icon: no change needed; the lime arrow is untouched (the designer's optional variants and iOS 18 dark/tinted icons wait for Mohamed's pick). Splash: the old `splash-icon.png` had an opaque ink square baked in, so it could not sit on a light background and the splash was dark-only. It is replaced by the designer's transparent dark and light marks with `expo-splash-screen` `dark` config, imageWidth 128 (visible disc ≈115 pt, about the same as before). The light mark has a thin #5C8A00 rim so the lime holds on bone. `expo.backgroundColor` stays #10120E; check on a device that a light-mode launch does not flash ink before the first screen. The same plugin config also applies to the Android splash. `test/iosAssets.test.ts` guards the icon and splash rules.

@@ -82,7 +82,7 @@ describe("contrast of the identity pairs (kit CONTRAST.md)", () => {
 
 describe("brand assets", () => {
   it("launcher, adaptive layers, splash, notification and logo files exist", () => {
-    for (const f of ["icon.png", "adaptive-icon-foreground.png", "adaptive-icon-background.png", "adaptive-icon-monochrome.png", "splash-icon.png", "notification-icon.png", "favicon.png", "gain-logo.png"]) {
+    for (const f of ["icon.png", "adaptive-icon-foreground.png", "adaptive-icon-background.png", "adaptive-icon-monochrome.png", "splash-icon-dark.png", "splash-icon-light.png", "notification-icon.png", "favicon.png", "gain-logo.png"]) {
       expect(existsSync(join(root, "assets", f)), f).toBe(true);
     }
     const cfg = JSON.parse(read("app.json")).expo;

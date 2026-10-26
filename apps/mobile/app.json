@@ -20,10 +20,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 240,
+          "image": "./assets/splash-icon-light.png",
+          "backgroundColor": "#F5F6EF",
+          "imageWidth": 128,
           "resizeMode": "contain",
-          "backgroundColor": "#10120E"
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#10120E"
+          }
         }
       ],
       "expo-sharing",

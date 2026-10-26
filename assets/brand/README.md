@@ -10,7 +10,7 @@ The official GAIN logo is the lime weight-plate disc (12 o'clock tab, two concen
 | `gain-logo.svg` | Crisp vector master, 1024x1024, ink square, flat lime. |
 | `gain-mark.svg` | Same mark, transparent background, tight box (in-app, web). |
 | `ios-icon-1024.png` | iOS App Store icon: 1024x1024 RGB, **no alpha**. |
-| `icon.png`, `adaptive-icon-foreground.png`, `adaptive-icon-monochrome.png`, `splash-icon.png`, `notification-icon.png` | Copies of what `apps/mobile/assets/` ships (see `apps/mobile/app.json`). |
+| `icon.png`, `adaptive-icon-foreground.png`, `adaptive-icon-monochrome.png`, `splash-icon-dark.png`, `splash-icon-light.png`, `notification-icon.png` | Copies of what `apps/mobile/assets/` ships (see `apps/mobile/app.json`). |
 | `compare-original-vs-svg.png` | Original / recreation / abs-diff, 2x. |
 | `before-original.png`, `after-recreated.png` | Before/after squares for the PR. |
 | `preview-icons.png` | Mask previews (circle, rounded), small sizes, mono, notification, in-app. |

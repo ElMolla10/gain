@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 /** apps/mobile/eas.json (docs/IOS-RELEASE.md): three build profiles, store builds auto-increment, and no secret is ever committed. */
 const raw = readFileSync(join(__dirname, "..", "eas.json"), "utf8");
-const eas = JSON.parse(raw) as { cli: Record<string, unknown>; build: Record<string, Record<string, any>>; submit: Record<string, any> };
+const eas = JSON.parse(raw) as { cli: Record<string, unknown>; build: { development: Record<string, any>; preview: Record<string, any>; production: Record<string, any> }; submit: Record<string, any> };
 
 describe("eas.json", () => {
   it("has development, preview (internal) and production (store) profiles", () => {

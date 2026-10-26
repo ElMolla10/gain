@@ -1,5 +1,5 @@
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Icon, type IconName } from "../components/Icon";
 import { useServices } from "../AppContext";
@@ -12,6 +12,7 @@ import type { SyncInfo } from "../sync/engine";
 import { radius, space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, Field, InlineStatus, Notice, Screen } from "../ui";
 import { CloudSyncCard } from "../components/vault/CloudSyncCard";
+import { onceAtATime } from "../logic/onceAtATime";
 
 type Step = "idle" | "code" | "choice";
 
@@ -50,7 +51,10 @@ export function SyncScreen() {
     setMsg(null);
   };
 
-  async function turnOn(recoveryCode?: string) {
+  // Turn on / Sync now / verify email: one at a time (a double tap on Turn on must not create two accounts).
+  const gate = useRef(onceAtATime()).current;
+  const turnOn = (recoveryCode?: string) => gate(() => turnOnNow(recoveryCode));
+  async function turnOnNow(recoveryCode?: string) {
     clear();
     setBusy("sync.connecting");
     try {
@@ -95,7 +99,8 @@ export function SyncScreen() {
     await reload();
   }
 
-  async function syncNow() {
+  const syncNow = () => gate(syncNowNow);
+  async function syncNowNow() {
     clear();
     setBusy("sync.syncing");
     try {
@@ -124,6 +129,12 @@ export function SyncScreen() {
     }
   }
 
+  /** Leaving the code step forgets the code: after "I've saved it" it shows nowhere on the screen. */
+  function leaveCode() {
+    setCode(null);
+    setStep("idle");
+  }
+
   async function showCode() {
     setCode(await sync.getRecoveryCode());
     setStep("code");
@@ -141,7 +152,8 @@ export function SyncScreen() {
     }
   }
 
-  async function verifyEmail() {
+  const verifyEmail = () => gate(verifyEmailNow);
+  async function verifyEmailNow() {
     clear();
     setBusy("sync.connecting");
     try {
@@ -171,7 +183,7 @@ export function SyncScreen() {
     <Screen>
       <CloudSyncCard
         info={info}
-        code={code}
+        busy={!!busy}
         onTurnOn={() => void turnOn()}
         onSyncNow={() => void syncNow()}
         onShowDetails={() => setDetailsOpen(true)}
@@ -230,7 +242,7 @@ export function SyncScreen() {
           </View>
           <AppText style={{ color: p.muted, fontSize: 14, lineHeight: 20 }}>{t("sync.code.copyHint")}</AppText>
           <AppText>{t("sync.code.body")}</AppText>
-          <BigButton label={t("sync.code.saved")} onPress={() => setStep("idle")} />
+          <BigButton label={t("sync.code.saved")} onPress={leaveCode} />
         </Card>
       ) : null}
 
@@ -295,7 +307,7 @@ export function SyncScreen() {
           </Card>
           <Card>
             {step === "code" ? (
-              <BigButton label={t("sync.code.hide")} variant="secondary" onPress={() => setStep("idle")} />
+              <BigButton label={t("sync.code.hide")} variant="secondary" onPress={leaveCode} />
             ) : (
               <BigButton label={t("sync.code.show")} variant="secondary" onPress={showCode} />
             )}

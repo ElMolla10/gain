@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { View } from "react-native";
-import { barbellPlates } from "@gain/engine";
+import { displayBarPlates } from "../../logic/plateText";
 import { useI18n } from "../../i18n";
 import { setText, tonnageInUnit } from "../../logic/loadText";
 import { formatDay } from "../../logic/dateText";
@@ -101,18 +101,8 @@ export function SessionPostMortemHero({ detail, summary, unit }: SessionPostMort
     };
   }, [detail, summary, unit, lang]);
 
-  const standardSpec = {
-    equipment: "barbell" as const,
-    increment: unit === "lb" ? 5 : 2.5,
-    min: unit === "lb" ? 45 : 20,
-    max: unit === "lb" ? 600 : 300,
-    plates: unit === "lb" ? [45, 35, 25, 10, 5, 2.5] : [25, 20, 15, 10, 5, 2.5, 1.25],
-  };
-
-  const apexPlates =
-    metrics.apexSet && metrics.apexSet.load >= (standardSpec.min ?? 20)
-      ? barbellPlates(standardSpec, metrics.apexSet.load)?.perSide ?? []
-      : [];
+  // kg load on the kg-based bar for the unit (BarArt draws kg plates).
+  const apexPlates = displayBarPlates(metrics.apexSet?.load ?? null, unit, lang, t).perSide;
 
   return (
     <View

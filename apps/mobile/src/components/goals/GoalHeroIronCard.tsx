@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
-import { barbellPlates, type PaceStatus } from "@gain/engine";
+import type { PaceStatus } from "@gain/engine";
+import { displayBarPlates } from "../../logic/plateText";
 import { useI18n } from "../../i18n";
 import { e1rmText } from "../../logic/loadText";
 import { formatDay } from "../../logic/dateText";
@@ -42,17 +43,12 @@ export function GoalHeroIronCard({
   const fmt = (kg: number) => e1rmText(kg, lang, unit);
   const p = usePalette();
 
-  const standardSpec = {
-    equipment: "barbell" as const,
-    increment: unit === "lb" ? 5 : 2.5,
-    min: unit === "lb" ? 45 : 20,
-    max: unit === "lb" ? 600 : 300,
-    plates: unit === "lb" ? [45, 35, 25, 10, 5, 2.5] : [25, 20, 15, 10, 5, 2.5, 1.25],
-  };
-
   const model = goalHeroModel(currentE1rm, targetE1rm);
-  const currentPlates = (currentE1rm !== null && currentE1rm >= (standardSpec.min ?? 20) ? barbellPlates(standardSpec, currentE1rm)?.perSide : null) ?? [];
-  const targetPlates = (targetE1rm >= (standardSpec.min ?? 20) ? barbellPlates(standardSpec, targetE1rm)?.perSide : null) ?? [];
+  // Plates are solved on the kg values with the kg-based bar for the unit; the caption shows them in the lifter's unit.
+  const current = displayBarPlates(currentE1rm, unit, lang, t);
+  const target = displayBarPlates(targetE1rm, unit, lang, t);
+  const currentPlates = current.perSide;
+  const targetPlates = target.perSide;
 
   const paceBadgeText =
     paceStatus === "reached"
@@ -63,7 +59,9 @@ export function GoalHeroIronCard({
           ? t("goals.pace.onPace")
           : paceStatus === "behind"
             ? t("goals.pace.behind")
-            : t("goals.pace.maintaining");
+            : paceStatus === "too_thin"
+              ? t("pace.status.too_thin")
+              : t("goals.pace.maintaining");
 
   return (
     <View
@@ -118,9 +116,7 @@ export function GoalHeroIronCard({
               {t("goals.bar.goal")} ({fmt(targetE1rm)})
             </AppText>
             <AppText style={{ fontSize: ty.caption, color: p.muted }}>
-              {targetPlates.length > 0
-                ? t("plates.each", { plates: isolateLtr(targetPlates.join(" · ")) })
-                : t("plates.bar")}
+              {target.text}
             </AppText>
           </View>
           <BarArt perSide={targetPlates} unit={unit} height={60} />
@@ -135,9 +131,7 @@ export function GoalHeroIronCard({
               {t("goals.bar.current")} ({t("goals.bar.currentE1rm", { load: fmt(currentE1rm ?? 0) })})
             </AppText>
             <AppText style={{ fontSize: ty.caption, color: p.muted }}>
-              {currentPlates.length > 0
-                ? t("plates.each", { plates: isolateLtr(currentPlates.join(" · ")) })
-                : t("plates.bar")}
+              {current.text}
             </AppText>
           </View>
           <BarArt perSide={currentPlates} unit={unit} height={60} />

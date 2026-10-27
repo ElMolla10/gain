@@ -18,6 +18,11 @@ describe("Live Activity build opt-in", () => {
     expect(result.extra.restLiveActivityEnabled).toBe(true);
     expect(result.android).toEqual(config.android);
   });
+  it("uses GAIN_IOS_APP_GROUP for the App Group when set, and rejects a malformed one", () => {
+    const result = applyRestLiveActivityConfig(config, { GAIN_IOS_LIVE_ACTIVITY: "1", GAIN_IOS_APP_GROUP: "group.com.mohamedelmolla.gain" });
+    expect(result.plugins).toContainEqual(["expo-widgets", expect.objectContaining({ bundleIdentifier: "com.example.gain.ExpoWidgetsTarget", groupIdentifier: "group.com.mohamedelmolla.gain" })]);
+    expect(() => applyRestLiveActivityConfig(config, { GAIN_IOS_LIVE_ACTIVITY: "1", GAIN_IOS_APP_GROUP: "com.bad" })).toThrow("GAIN_IOS_APP_GROUP");
+  });
   it("rejects a misspelled opt-in", () => {
     expect(() => applyRestLiveActivityConfig(config, { GAIN_IOS_LIVE_ACTIVITY: "true" })).toThrow("GAIN_IOS_LIVE_ACTIVITY");
   });

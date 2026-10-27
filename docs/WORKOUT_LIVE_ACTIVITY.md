@@ -13,7 +13,7 @@ cd apps/mobile
 GAIN_IOS_LIVE_ACTIVITY=1 npx expo run:ios
 ```
 
-Use the same variable for prebuild/EAS builds. The extension uses the resolved iOS bundle ID (including `GAIN_IOS_BUNDLE_ID`) plus `.ExpoWidgetsTarget`, and the App Group `group.<bundle ID>`. Register/provision both targets and that group with an Apple Developer Program team. The plugin deliberately disables remote push and frequent updates. Neither target receives an `aps-environment` entitlement.
+Use the same variable for prebuild/EAS builds. The extension uses the resolved iOS bundle ID (including `GAIN_IOS_BUNDLE_ID`) plus `.ExpoWidgetsTarget`, and the App Group `group.<bundle ID>` unless `GAIN_IOS_APP_GROUP` names another one (the `testflight-live` EAS profile sets `group.com.mohamedelmolla.gain`, the group already on the account). Register/provision both targets and that group with an Apple Developer Program team. The plugin deliberately disables remote push and frequent updates. Neither target receives an `aps-environment` entitlement.
 
 The default (`GAIN_IOS_LIVE_ACTIVITY=0`, or unset) omits the extension and App Group, preserving the existing free Personal Team signing path. Apple Personal Teams cannot provision App Groups. Keep the environment consistent between prebuild, bundling, and native builds; switching it requires regenerating the native project. Android is unchanged.
 

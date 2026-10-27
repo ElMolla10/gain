@@ -23,7 +23,7 @@ describe("eas.json", () => {
   it("testflight-live is the store profile plus the Live Activity flag, and submits to the same app", () => {
     const live = (eas.build as Record<string, any>)["testflight-live"];
     expect(live.extends).toBe("production");
-    expect(live.env).toEqual({ GAIN_IOS_LIVE_ACTIVITY: "1" });
+    expect(live.env).toEqual({ GAIN_IOS_LIVE_ACTIVITY: "1", GAIN_IOS_APP_GROUP: "group.com.mohamedelmolla.gain" });
     expect(eas.submit["testflight-live"].ios).toEqual({ ascAppId: "6827498090" });
   });
 });

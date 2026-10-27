@@ -27,10 +27,12 @@ describe("sync idle step", () => {
     expect(idle).toContain("accessibilityState={{ expanded: detailsOpen }}");
     expect(idle).toContain("minHeight: 56");
     expect(idle).toContain('<Icon name="chevron" color={p.muted} size={20} mirror />');
-    expect(idle).toMatch(/\{detailsOpen \? \([\s\S]*t\("sync\.privacy\.body"\)[\s\S]*t\("sync\.privacy\.body2"\)/);
+    expect(idle).toMatch(/\{detailsOpen \? \([\s\S]*t\("sync\.privacy\.body"\)[\s\S]*"sync\.privacy\.body2"/);
   });
   it("every previously rendered idle string still renders", () => {
-    for (const k of ["sync.draft", "sync.privacy.title", "sync.privacy.body", "sync.privacy.body2", "sync.on", "sync.restoreTitle", "sync.restoreNote", "sync.codeField", "sync.restore", "sync.email.title", "sync.email.send", "sync.email.verify"]) expect(f).toContain(`t("${k}")`);
+    for (const k of ["sync.draft", "sync.privacy.title", "sync.privacy.body", "sync.on", "sync.restoreTitle", "sync.restoreNote", "sync.codeField", "sync.restore", "sync.email.title", "sync.email.send", "sync.email.verify"]) expect(f).toContain(`t("${k}")`);
+    // The long text's second paragraph has an email variant (flag on) and a recovery-code-only variant (default).
+    expect(f).toContain('buildFlags.emailSignIn ? "sync.privacy.body2" : "sync.privacy.body2NoEmail"');
     expect(f.match(/<BigButton hero label=\{t\("sync\.on"\)\}/g)).toHaveLength(1);
   });
   it("summary strings exist in both languages and mention Cloudflare", () => {

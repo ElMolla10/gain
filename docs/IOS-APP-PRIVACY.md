@@ -78,3 +78,7 @@ All content descriptors "None": no violence, sexual content, profanity, horror, 
 2. Settings > Your data > **Delete all my data** → deletes the server account and backup, then wipes the phone. If the server is unreachable it says so and offers "Delete only on this phone"; the online copy can still be deleted later with the recovery code.
 
 No account is needed to use the app; sync is optional and created by the user.
+
+## Update 2026-10-27: email sign-in hidden
+
+The store build ships with the email sign-in cards hidden (`GAIN_EMAIL_SIGNIN` off) because the server cannot send mail yet. Email Address stays declared in the App Privacy label and the manifest on purpose: the server code can store an address and the flag can come back without a label change.

@@ -3,6 +3,7 @@
 //
 //   GAIN_DISTRIBUTION=sideload (default)  the GitHub APK: the "Check for updates" card and REQUEST_INSTALL_PACKAGES are present.
 //   GAIN_DISTRIBUTION=play                a Google Play build: no updater card, no REQUEST_INSTALL_PACKAGES in the manifest, no in-app self-install.
+//   GAIN_EMAIL_SIGNIN=1                   show the optional email sign-in cards in Settings > Back up and sync. OFF by default: the sync server has no email provider yet (it answers 501), so the cards would be a dead end. Turn on once the server sends mail.
 //   GAIN_PILOT_TEMPLATES=1                a pilot build: the template pickers offer only the six pilot programs (PILOT_TEMPLATE_IDS).
 //   GAIN_IOS_BUNDLE_ID=<id>              iOS only (docs/IOS.md): the bundle id for a personal free-Apple-ID build. Apple refuses an id that another team already holds, so pick your own, e.g. com.yourname.gain.
 //   GAIN_IOS_TEAM_ID=<10 characters>     iOS only: your Apple Team ID, so Xcode signs without you picking the team by hand.
@@ -16,6 +17,8 @@ function applyBuildFlags(config, env) {
   if (dist !== "sideload" && dist !== "play") throw new Error(`GAIN_DISTRIBUTION must be "sideload" or "play", got "${dist}"`);
   const pilotRaw = env.GAIN_PILOT_TEMPLATES === undefined || env.GAIN_PILOT_TEMPLATES === "" ? "0" : env.GAIN_PILOT_TEMPLATES;
   if (pilotRaw !== "0" && pilotRaw !== "1") throw new Error(`GAIN_PILOT_TEMPLATES must be "1" or "0", got "${pilotRaw}"`);
+  const emailRaw = env.GAIN_EMAIL_SIGNIN === undefined || env.GAIN_EMAIL_SIGNIN === "" ? "0" : env.GAIN_EMAIL_SIGNIN;
+  if (emailRaw !== "0" && emailRaw !== "1") throw new Error(`GAIN_EMAIL_SIGNIN must be "1" or "0", got "${emailRaw}"`);
   const android = { ...(config.android || {}) };
   if (dist === "play") {
     android.permissions = (android.permissions || []).filter((p) => p !== INSTALL_PERMISSION && p !== `android.permission.${INSTALL_PERMISSION}`);
@@ -46,7 +49,7 @@ function applyBuildFlags(config, env) {
   const out = {
     ...config,
     android,
-    extra: { ...(config.extra || {}), distribution: dist, pilotTemplateIds: pilotRaw === "1" ? [...PILOT_TEMPLATE_IDS] : null },
+    extra: { ...(config.extra || {}), distribution: dist, emailSignIn: emailRaw === "1", pilotTemplateIds: pilotRaw === "1" ? [...PILOT_TEMPLATE_IDS] : null },
   };
   // Only touch `ios` / `plugins` when a switch asked for it, so the default result is app.json plus `extra`, exactly as before.
   if (config.ios !== undefined || Object.keys(ios).length > 0) out.ios = ios;

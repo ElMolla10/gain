@@ -46,7 +46,7 @@ export function PrivacyScreen() {
       />
       <Notice kind="warn">{t("privacy.draft")}</Notice>
       {block("privacy.local.title", ["privacy.local.body", "privacy.ai.body"])}
-      {block("privacy.leaves.title", [...(hasSelfUpdater(buildFlags, Platform.OS) ? (["privacy.leaves.update"] as const) : []), "privacy.leaves.sync", "privacy.leaves.link", osTextKey("privacy.leaves.share", Platform.OS), osTextKey("privacy.leaves.backup", Platform.OS)])}
+      {block("privacy.leaves.title", [...(hasSelfUpdater(buildFlags, Platform.OS) ? (["privacy.leaves.update"] as const) : []), buildFlags.emailSignIn ? "privacy.leaves.sync" : "privacy.leaves.syncNoEmail", "privacy.leaves.link", osTextKey("privacy.leaves.share", Platform.OS), osTextKey("privacy.leaves.backup", Platform.OS)])}
       {developerMode ? <Card>
         <AppText style={{ fontWeight: "600", fontSize: 20 }} accessibilityRole="header">{t("privacy.crash.title")}</AppText>
         <AppText>{t("privacy.crash.body")}</AppText>

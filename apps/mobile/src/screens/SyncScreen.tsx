@@ -3,6 +3,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Icon, type IconName } from "../components/Icon";
 import { useServices } from "../AppContext";
+import { buildFlags } from "../buildConfig";
 import { useI18n } from "../i18n";
 import { isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
@@ -212,7 +213,7 @@ export function SyncScreen() {
           {detailsOpen ? (
             <Card>
               <AppText>{t("sync.privacy.body")}</AppText>
-              <AppText>{t("sync.privacy.body2")}</AppText>
+              <AppText>{t(buildFlags.emailSignIn ? "sync.privacy.body2" : "sync.privacy.body2NoEmail")}</AppText>
             </Card>
           ) : null}
           <Notice kind="warn">{t("sync.draft")}</Notice>
@@ -223,7 +224,7 @@ export function SyncScreen() {
           <Card>
             <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.privacy.title")}</AppText>
             <AppText>{t("sync.privacy.body")}</AppText>
-            <AppText>{t("sync.privacy.body2")}</AppText>
+            <AppText>{t(buildFlags.emailSignIn ? "sync.privacy.body2" : "sync.privacy.body2NoEmail")}</AppText>
           </Card>
         </>
       )}
@@ -264,14 +265,16 @@ export function SyncScreen() {
             <Field label={t("sync.codeField")} hint={t("sync.codeHint")} value={typed} onChangeText={setTyped} />
             <BigButton label={t("sync.restore")} variant="secondary" disabled={!!busy || normalizeCode(typed).length < 10} onPress={() => turnOn(typed)} />
           </Card>
-          <Card>
-            <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.email.title")}</AppText>
-            <AppText style={{ color: p.muted }}>{t("sync.email.body")}</AppText>
-            <Field label={t("sync.email.field")} hint={t("sync.email.hint")} value={email} onChangeText={setEmail} keyboardType="email-address" />
-            <BigButton label={t("sync.email.send")} variant="secondary" disabled={!!busy || !email.includes("@")} onPress={sendEmailCode} />
-            <Field label={t("sync.email.code")} hint={t("sync.email.codeHint")} value={emailCode} onChangeText={setEmailCode} keyboardType="number-pad" />
-            <BigButton label={t("sync.email.verify")} disabled={!!busy || emailCode.trim().length !== 8} onPress={verifyEmail} />
-          </Card>
+          {buildFlags.emailSignIn ? (
+            <Card>
+              <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t("sync.email.title")}</AppText>
+              <AppText style={{ color: p.muted }}>{t("sync.email.body")}</AppText>
+              <Field label={t("sync.email.field")} hint={t("sync.email.hint")} value={email} onChangeText={setEmail} keyboardType="email-address" />
+              <BigButton label={t("sync.email.send")} variant="secondary" disabled={!!busy || !email.includes("@")} onPress={sendEmailCode} />
+              <Field label={t("sync.email.code")} hint={t("sync.email.codeHint")} value={emailCode} onChangeText={setEmailCode} keyboardType="number-pad" />
+              <BigButton label={t("sync.email.verify")} disabled={!!busy || emailCode.trim().length !== 8} onPress={verifyEmail} />
+            </Card>
+          ) : null}
         </>
       ) : null}
 
@@ -294,6 +297,7 @@ export function SyncScreen() {
             {info?.lastError ? <Notice kind="error" actionLabel={t("sync.syncNow")} onAction={syncNow}>{t(`sync.err.${info.lastError.split(":")[0]}` as StringKey)}</Notice> : null}
             <BigButton icon="cloud" label={t("sync.syncNow")} disabled={!!busy} onPress={syncNow} />
           </Card>
+          {buildFlags.emailSignIn || info?.email ? (
           <Card>
             {info?.email ? <AppText>{t("sync.email.linked", { email: info.email })}</AppText> : <AppText>{t("sync.email.none")}</AppText>}
             {!info?.email ? (
@@ -305,6 +309,7 @@ export function SyncScreen() {
               </>
             ) : null}
           </Card>
+          ) : null}
           <Card>
             {step === "code" ? (
               <BigButton label={t("sync.code.hide")} variant="secondary" onPress={leaveCode} />

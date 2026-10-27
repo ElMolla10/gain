@@ -32,5 +32,6 @@ Uses `wrangler.jsonc` (Worker name `gain-site`, assets from `./public`). GitHub 
 | When (Cairo) | What | Where |
 | --- | --- | --- |
 | 2026-10-04 04:29 | First deploy of the six DRAFT pages from `main` at PR #131 (placeholders unfilled, noindex), with `npx wrangler@4.147.0 deploy` from `docs/site` using the wrangler login already on the build box (Cloudflare account of Mohamed, free plan, Worker `gain-site`, static assets only) | https://gain-site.elmolla10.workers.dev (pages: `/privacy`, `/terms`, `/delete-account`, `/support`, `/pilot-guide`; `.html` URLs redirect to these) |
+| 2026-10-27 15:20 | Redeployed with the contact filled (`fill-contact.mjs --email imody101@gmail.com --operator "Mohamed Ehab" --contact imody101@gmail.com`, deploying `dist` with `npx wrangler@4.147.0 deploy --assets ./dist`), after updating the pages for the iPhone app ("GAIN: Workout Tracker"), optional email sign-in and the deletion paths. Still DRAFT + noindex | https://gain-site.elmolla10.workers.dev/privacy , `/support`, `/terms`, `/delete-account` |
 
 Note: wrangler needs a `node_modules` folder to exist under `docs/site` for its cache (`mkdir docs/site/node_modules`; git-ignored). To take the site down: `npx wrangler@4.147.0 delete gain-site`. Re-deploy after any change to `public/`; nothing is deployed automatically.

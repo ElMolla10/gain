@@ -15,7 +15,7 @@ Finalized draft 2026-10-26 (first prepared 2026-10-15). Not submitted. Confirm e
 
 ## Seller and support
 
-Seller (Individual): Mohamed Ehab. Support email: imody101@gmail.com. Support URL and privacy policy URL: the deployed docs/site `support.html` and `privacy.html` (URLs open until deployed). Copyright: © 2026 Mohamed Ehab.
+Seller (Individual): Mohamed Ehab. Support email: imody101@gmail.com. Deployed 2026-10-27 (all return 200; EN and AR on each page): **Support URL** https://gain-site.elmolla10.workers.dev/support, **Privacy policy URL** https://gain-site.elmolla10.workers.dev/privacy, **Terms** https://gain-site.elmolla10.workers.dev/terms, delete-your-data page https://gain-site.elmolla10.workers.dev/delete-account. The pages are still marked DRAFT and noindex (see IOS-RELEASE-RECORD.md). Copyright: © 2026 Mohamed Ehab.
 
 The store name is **GAIN: Workout Tracker** (owner's decision; "GAIN" alone was taken, and the old draft "GAIN: Workout Log & AI" is retired). The home-screen name stays **GAIN**. The listing makes no "AI" claim; in-app experimental suggestions are described plainly.
 

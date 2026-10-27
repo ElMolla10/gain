@@ -23,7 +23,7 @@ Template — no native result is pre-filled. Complete for one candidate; keep ev
 | Phase-4 real-workout evaluation | PENDING REAL EXPORTS | |
 | Production Worker auth deployment and smoke | NOT VERIFIED | |
 | Account deletion incl. coach-link-only account | NOT VERIFIED ON PRODUCTION | |
-| Operator / contact / final policy and support URLs | OPEN | |
+| Operator / contact / final policy and support URLs | URLs LIVE 2026-10-27, text still DRAFT | Privacy https://gain-site.elmolla10.workers.dev/privacy, Support https://gain-site.elmolla10.workers.dev/support, Terms https://gain-site.elmolla10.workers.dev/terms (EN + AR on one page, 200 checked). Contact filled at deploy; DRAFT banners, noindex and the reviewer placeholders (rights/retention wording, minimum age, governing law) remain until a human review |
 | Store privacy / age rating / export compliance answers | NOT ENTERED | |
 | Real screenshots and localized metadata review | PENDING | |
 | App Store Connect processed build identity | NOT UPLOADED HERE | |
@@ -44,7 +44,7 @@ Agents prepare source and drafts only; they never create, upload or submit anyth
 | 4 | Create the ASC app record: name **GAIN: Workout Tracker** ("GAIN" was taken; the home-screen name stays GAIN), primary language English, bundle ID `com.mohamedehabelmolla.gain`, SKU `gain-ios` | DONE 2026-10-27 (ASC app ID 6827498090) | Add Arabic as a localization |
 | 5 | Create an App Store Connect API key (Users and Access > Integrations, role App Manager); keep the `.p8` outside the repo; give Key ID / Issuer ID via EAS secrets or env (`EXPO_ASC_*`), never in git | DONE 2026-10-27 (key held in the builder's env; not in git) | Alternative: sign in when `eas build` asks |
 | 6 | `eas login` + `eas init` in `apps/mobile` (commits the projectId), `eas build:version:set -p ios` | `eas init` DONE 2026-10-27 (project `@mo_ehab10/gain`, projectId and ASC app ID 6827498090 committed in app.json / eas.json) | docs/IOS-RELEASE.md §2 |
-| 7 | Operator Mohamed Ehab, support imody101@gmail.com: the site pages keep their placeholders in git by design (`siteDraft.test.ts`); fill them at deploy with `node docs/site/fill-contact.mjs --email imody101@gmail.com --operator "Mohamed Ehab"` (writes docs/site/dist, 14 placeholders), then deploy dist and put the privacy-policy and support URLs into ASC | PARTLY DONE | Postal address and pilot contact still open |
+| 7 | Operator Mohamed Ehab, support imody101@gmail.com: the site pages keep their placeholders in git by design (`siteDraft.test.ts`); fill them at deploy with `node docs/site/fill-contact.mjs --email imody101@gmail.com --operator "Mohamed Ehab"` (writes docs/site/dist, 14 placeholders), then deploy dist and put the privacy-policy and support URLs into ASC | DONE 2026-10-27 (deployed to https://gain-site.elmolla10.workers.dev) | Enter the URLs in ASC. Postal address still open; pilot contact set to the support email |
 | 8 | Native Arabic review of the store listing and new in-app strings | OPEN | docs/IOS-STORE-METADATA.md, docs/ARABIC-REVIEW-SHEET.md |
 | 9 | Genericise the other-app names in the in-app import screen (Mohamed: genericise, CSV only) | DONE | `strings.import.ts`, `strings.data.ts` |
 | 10 | Screenshots: run `scripts/ios-screenshots.sh` on the Mac (6.9" and 6.5", EN and AR), review, upload to ASC | OPEN | Synthetic data only |
@@ -61,5 +61,5 @@ Still open:
 - Site pages (support, privacy, terms, delete-account) are filled only in the generated dist, via the command above; verified locally that it fills 14 placeholders.
 - `[pilot contact not set yet]` in docs/site/public/pilot-guide.html (Android pilot only).
 - Postal address in the privacy policy, if required; age limit and governing law in the terms.
-- Privacy policy URL and support URL for App Store Connect (after the site is deployed).
+- Enter the privacy, support and (optional) terms URLs above in App Store Connect; replace the remaining reviewer placeholders on the privacy and terms pages and remove the DRAFT banners/noindex on purpose before App Review.
 - Team ID, API key ID / issuer ID (env/secrets only). The EAS `projectId` and ASC app ID are committed (not secrets).

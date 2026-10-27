@@ -23,7 +23,7 @@ Template — no native result is pre-filled. Complete for one candidate; keep ev
 | Phase-4 real-workout evaluation | PENDING REAL EXPORTS | |
 | Production Worker auth deployment and smoke | NOT VERIFIED | |
 | Account deletion incl. coach-link-only account | NOT VERIFIED ON PRODUCTION | |
-| Operator / contact / final policy and support URLs | URLs LIVE 2026-10-27, text still DRAFT | Privacy https://gain-site.elmolla10.workers.dev/privacy, Support https://gain-site.elmolla10.workers.dev/support, Terms https://gain-site.elmolla10.workers.dev/terms (EN + AR on one page, 200 checked). Contact filled at deploy; DRAFT banners, noindex and the reviewer placeholders (rights/retention wording, minimum age, governing law) remain until a human review |
+| Operator / contact / final policy and support URLs | LIVE and final text 2026-10-27 (no DRAFT banner, no noindex) | Privacy https://gain-site.elmolla10.workers.dev/privacy, Support https://gain-site.elmolla10.workers.dev/support, Terms https://gain-site.elmolla10.workers.dev/terms (EN + AR on one page, 200 checked). Minimum age 13, Egyptian law, backups kept until the user deletes them, deletion requests confirmed by email from the support address. Email sign-in is worded conditionally: the sync server has no email provider configured yet. Not lawyer-reviewed |
 | Store privacy / age rating / export compliance answers | NOT ENTERED | |
 | Real screenshots and localized metadata review | PENDING | |
 | App Store Connect processed build identity | NOT UPLOADED HERE | |

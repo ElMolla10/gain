@@ -1,8 +1,8 @@
-# GAIN draft site (docs/site)
+# GAIN site (docs/site)
 
 Static pages, no JavaScript, no external requests, no analytics: `public/index.html`, `privacy.html`, `terms.html`, `delete-account.html`, `support.html`, `pilot-guide.html` (each English then Arabic on one page), `style.css`, `_headers`, `robots.txt`.
 
-**Everything here is a DRAFT.** The privacy policy and terms have not been reviewed by a lawyer (decision D6); the Arabic is a builder's draft nobody native has read; the operator name/address and support email are placeholders (`[... not set yet]`, orange in the page). Each page carries a DRAFT banner, `<meta name="robots" content="noindex">`, an `X-Robots-Tag: noindex` header and a `robots.txt` that disallows everything, so the drafts are not meant to be found by search engines. The privacy text is the page version of [../PRIVACY-POLICY-DRAFT.md](../PRIVACY-POLICY-DRAFT.md) and is checked against the code by `apps/mobile/test/siteDraft.test.ts` (permissions, hosts, retention, "no analytics", draft banners, no scripts).
+**Status (2026-10-27): published for the App Store listing.** The DRAFT banners, the `noindex` meta tags, the `X-Robots-Tag` header and the disallow-all `robots.txt` were removed on purpose. The policy text has still not been reviewed by a lawyer; the Arabic has not been read by a native speaker. The privacy text is checked against the code by `apps/mobile/test/siteDraft.test.ts`. The operator name and support email stay as placeholders in git and are filled at deploy time (below).
 
 ## Where it is hosted
 See "Hosting record" at the end of this file (the URL and date are recorded there after each deploy).
@@ -11,7 +11,7 @@ See "Hosting record" at the end of this file (the URL and date are recorded ther
 ```
 node docs/site/fill-contact.mjs --email support@YOURDOMAIN --operator "Name or company, address" --contact "WhatsApp +20..." 
 ```
-This writes a copy to `docs/site/dist/` (git-ignored) with the placeholders replaced; the committed pages keep the visible markers. Then deploy `dist` instead of `public` (change `assets.directory` or copy over `public`). The script does not remove the DRAFT banners or noindex: that is a deliberate human step.
+This writes a copy to `docs/site/dist/` (git-ignored) with the placeholders replaced; the committed pages keep the visible markers. Then deploy `dist`: `npx wrangler@4.147.0 deploy --assets ./dist`.
 
 ## Deploy (Cloudflare Workers static assets, free plan)
 ```
@@ -20,13 +20,11 @@ npx wrangler@4.147.0 deploy          # needs `wrangler login` / an authed Cloudf
 ```
 Uses `wrangler.jsonc` (Worker name `gain-site`, assets from `./public`). GitHub Pages also works (publish `docs/site/public`), but the `_headers` file (CSP, noindex header) is Cloudflare-specific; on GitHub Pages only the meta tags apply.
 
-## Before publishing as final (none of this is done)
-- [ ] A lawyer or a reputable template service reviews privacy and terms (D6); Egyptian and EU applicability confirmed.
-- [ ] Operator identity and support email filled in; same email in the Play listing.
+## Open items
+- [ ] A lawyer or reputable template service reviews privacy and terms (D6).
 - [ ] A native Egyptian-Arabic reader reviews the Arabic text.
-- [ ] Delete-account page: a request path that works without the app ([../ACCOUNT-DELETION-SPEC.md](../ACCOUNT-DELETION-SPEC.md)).
-- [ ] Remove DRAFT banners, `noindex` (meta, header, robots.txt) on purpose; update `siteDraft.test.ts` accordingly.
-- [ ] Re-check against the code at submission; every new data flow updates the page first.
+- [ ] Email sign-in is described conditionally: the server has no email provider configured yet (answers 501). Update the page when Resend is set up and verified.
+- [ ] Re-check against the code at each submission; every new data flow updates the page first.
 
 ## Hosting record
 | When (Cairo) | What | Where |

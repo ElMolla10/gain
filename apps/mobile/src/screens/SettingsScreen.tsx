@@ -336,7 +336,7 @@ export function SettingsScreen() {
   return (
     <Screen>
       <SettingsGroupHero
-        version={Constants.expoConfig?.version ?? "0.22.0"}
+        version={Constants.expoConfig?.version ?? "1.0.0"}
       />
       {/* ST-1: Display first (language is the first row), then Workout, Program & gyms, Advanced, Data, About. Blocks are moved, not rewritten. */}
       <Group title={t("settings.group.display")}>

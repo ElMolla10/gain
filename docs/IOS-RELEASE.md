@@ -12,7 +12,7 @@ Required evidence includes upgrade retention, interrupted/offline logging, long 
 
 ## 2. Build for the App Store with EAS (primary)
 
-The App Store bundle ID is `com.elmolla.gain` (the default in `apps/mobile/app.json`; it cannot change after the first upload). `GAIN_IOS_BUNDLE_ID` still overrides it for personal free-Apple-ID builds via `scripts/ios-setup.sh`/`.env.ios`. **A different bundle ID is a different app on the phone, with empty data**: before moving a phone from a personal ID to `com.elmolla.gain`, export a full backup (Settings > Your data) and restore it in the new app. Android keeps `app.gain.mobile`.
+The App Store bundle ID is `com.mohamedehabelmolla.gain` (the default in `apps/mobile/app.json`; it cannot change after the first upload; it is the ID the App Store Connect record was created with). `GAIN_IOS_BUNDLE_ID` still overrides it for personal free-Apple-ID builds via `scripts/ios-setup.sh`/`.env.ios`. **A different bundle ID is a different app on the phone, with empty data**: before moving a phone from a personal ID to `com.mohamedehabelmolla.gain`, export a full backup (Settings > Your data) and restore it in the new app. Android keeps `app.gain.mobile`.
 
 Profiles in `apps/mobile/eas.json`:
 

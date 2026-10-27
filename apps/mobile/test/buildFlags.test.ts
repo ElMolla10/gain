@@ -22,7 +22,7 @@ describe("build-flags.js (app config)", () => {
     const out = applyBuildFlags(appJson.expo, {});
     expect(out.android.permissions).toEqual(["REQUEST_INSTALL_PACKAGES"]);
     expect(out.android.blockedPermissions).toEqual(appJson.expo.android.blockedPermissions);
-    expect(out.extra).toEqual({ distribution: "sideload", pilotTemplateIds: null });
+    expect(out.extra).toEqual({ ...appJson.expo.extra, distribution: "sideload", pilotTemplateIds: null }); // app.json may carry extra.eas.projectId
     const { extra: _e, ...rest } = out;
     const { extra: _x, ...base } = appJson.expo;
     expect(rest).toEqual(base);
@@ -53,7 +53,7 @@ describe("build-flags.js (app config)", () => {
   });
   it("pilot: the six ids go into `extra`, nothing else changes", () => {
     const out = applyBuildFlags(appJson.expo, { GAIN_PILOT_TEMPLATES: "1" });
-    expect(out.extra).toEqual({ distribution: "sideload", pilotTemplateIds: PILOT_TEMPLATE_IDS });
+    expect(out.extra).toEqual({ ...appJson.expo.extra, distribution: "sideload", pilotTemplateIds: PILOT_TEMPLATE_IDS });
     expect(out.android.permissions).toEqual(["REQUEST_INSTALL_PACKAGES"]);
     expect(PILOT_TEMPLATE_IDS).toEqual(["full_body_2", "full_body_3", "ppl_3", "upper_lower_4", "mix_4", "ppl_6"]);
   });

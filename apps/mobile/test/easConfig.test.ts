@@ -16,8 +16,8 @@ describe("eas.json", () => {
     expect(eas.build.production.autoIncrement).toBe(true);
     expect(eas.cli.appVersionSource).toBe("remote");
   });
-  it("commits no App Store Connect key, issuer or app id: those come from EXPO_ASC_* env / EAS secrets", () => {
-    expect(raw).not.toMatch(/ascApiKey|ascAppId|appleId|BEGIN PRIVATE KEY|\.p8/);
-    expect(eas.submit.production.ios).toEqual({});
+  it("commits no App Store Connect key or issuer (those come from EXPO_ASC_* env / EAS secrets); only the public ASC app id", () => {
+    expect(raw).not.toMatch(/ascApiKey|appleId|BEGIN PRIVATE KEY|\.p8/);
+    expect(eas.submit.production.ios).toEqual({ ascAppId: "6827498090" });
   });
 });

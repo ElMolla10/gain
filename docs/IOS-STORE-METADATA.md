@@ -6,22 +6,22 @@ Finalized draft 2026-10-26 (first prepared 2026-10-15). Not submitted. Confirm e
 
 | Field | Limit | EN | AR |
 | --- | --- | --- | --- |
-| Name | 30 | `GAIN` (4) | `GAIN` (4) |
+| Name | 30 | `GAIN: Workout Tracker` (21) | `GAIN: Workout Tracker` (21) |
 | Subtitle | 30 | 27 | 24 |
 | Keywords | 100 bytes | 96 | 96 (Arabic letters are 2 bytes each) |
 | Promotional text | 170 | under | under |
 
-If App Store Connect says "GAIN" is taken, pick the fallback with Mohamed; do not change it here silently.
+"GAIN" alone was taken in App Store Connect, so the owner chose **GAIN: Workout Tracker** (2026-10-27). The name under the icon on the home screen stays **GAIN** (`expo.name` in `apps/mobile/app.json`).
 
 ## Seller and support
 
 Seller (Individual): Mohamed Ehab. Support email: imody101@gmail.com. Support URL and privacy policy URL: the deployed docs/site `support.html` and `privacy.html` (URLs open until deployed). Copyright: © 2026 Mohamed Ehab.
 
-The store name is **GAIN** (owner's decision; the old draft "GAIN: Workout Log & AI" is retired). The listing makes no "AI" claim; in-app experimental suggestions are described plainly.
+The store name is **GAIN: Workout Tracker** (owner's decision; "GAIN" alone was taken, and the old draft "GAIN: Workout Log & AI" is retired). The home-screen name stays **GAIN**. The listing makes no "AI" claim; in-app experimental suggestions are described plainly.
 
 ## English listing (final draft)
 
-Name: GAIN
+Name: GAIN: Workout Tracker
 
 Subtitle: Lift log & next-set weights
 
@@ -53,7 +53,7 @@ Brand note: the listing deliberately names no other apps. The in-app import scre
 
 ## Arabic listing: DRAFT, needs native review
 
-Name: GAIN
+Name: GAIN: Workout Tracker
 
 Subtitle: تمرينك والوزن الجاي جاهز
 

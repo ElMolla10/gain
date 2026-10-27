@@ -38,12 +38,12 @@ Agents prepare source and drafts only; they never create, upload or submit anyth
 
 | # | Step | Status | Notes |
 | --- | --- | --- | --- |
-| 1 | Apple Developer Program membership active | PENDING (enrolled as **Individual**, awaiting Apple) | Seller name on the store: Mohamed Ehab |
-| 2 | Accept the agreements in App Store Connect > Business (Free Apps agreement is enough; no banking/tax needed for a free app) | OPEN | |
-| 3 | Register bundle ID `com.elmolla.gain` (Certificates, IDs & Profiles), enabling HealthKit only if the store build sets `GAIN_IOS_HEALTHKIT=1` | OPEN | Cannot change after the first upload |
-| 4 | Create the ASC app record: name **GAIN** (fallback if taken: decide then), primary language English, bundle ID `com.elmolla.gain`, SKU e.g. `gain-ios` | OPEN | Add Arabic as a localization |
-| 5 | Create an App Store Connect API key (Users and Access > Integrations, role App Manager); keep the `.p8` outside the repo; give Key ID / Issuer ID via EAS secrets or env (`EXPO_ASC_*`), never in git | OPEN | Alternative: sign in when `eas build` asks |
-| 6 | `eas login` + `eas init` in `apps/mobile` (commits the projectId), `eas build:version:set -p ios` | OPEN | docs/IOS-RELEASE.md §2 |
+| 1 | Apple Developer Program membership active | DONE 2026-10-27 (enrolled as **Individual**) | Seller name on the store: Mohamed Ehab |
+| 2 | Accept the agreements in App Store Connect > Business (Free Apps agreement is enough; no banking/tax needed for a free app) | DONE (app record created) | |
+| 3 | Register bundle ID `com.mohamedehabelmolla.gain` (Certificates, IDs & Profiles), enabling HealthKit only if the store build sets `GAIN_IOS_HEALTHKIT=1` | DONE 2026-10-27 (Xcode-managed ID already on the account; ASC record created with it) | Cannot change after the first upload |
+| 4 | Create the ASC app record: name **GAIN: Workout Tracker** ("GAIN" was taken; the home-screen name stays GAIN), primary language English, bundle ID `com.mohamedehabelmolla.gain`, SKU `gain-ios` | DONE 2026-10-27 (ASC app ID 6827498090) | Add Arabic as a localization |
+| 5 | Create an App Store Connect API key (Users and Access > Integrations, role App Manager); keep the `.p8` outside the repo; give Key ID / Issuer ID via EAS secrets or env (`EXPO_ASC_*`), never in git | DONE 2026-10-27 (key held in the builder's env; not in git) | Alternative: sign in when `eas build` asks |
+| 6 | `eas login` + `eas init` in `apps/mobile` (commits the projectId), `eas build:version:set -p ios` | `eas init` DONE 2026-10-27 (project `@mo_ehab10/gain`, projectId and ASC app ID 6827498090 committed in app.json / eas.json) | docs/IOS-RELEASE.md §2 |
 | 7 | Operator Mohamed Ehab, support imody101@gmail.com: the site pages keep their placeholders in git by design (`siteDraft.test.ts`); fill them at deploy with `node docs/site/fill-contact.mjs --email imody101@gmail.com --operator "Mohamed Ehab"` (writes docs/site/dist, 14 placeholders), then deploy dist and put the privacy-policy and support URLs into ASC | PARTLY DONE | Postal address and pilot contact still open |
 | 8 | Native Arabic review of the store listing and new in-app strings | OPEN | docs/IOS-STORE-METADATA.md, docs/ARABIC-REVIEW-SHEET.md |
 | 9 | Genericise the other-app names in the in-app import screen (Mohamed: genericise, CSV only) | DONE | `strings.import.ts`, `strings.data.ts` |
@@ -62,5 +62,4 @@ Still open:
 - `[pilot contact not set yet]` in docs/site/public/pilot-guide.html (Android pilot only).
 - Postal address in the privacy policy, if required; age limit and governing law in the terms.
 - Privacy policy URL and support URL for App Store Connect (after the site is deployed).
-- EAS `projectId` (from `eas init`), ASC app ID, Team ID, API key ID / issuer ID (env/secrets only).
-- Store name fallback if "GAIN" is taken.
+- Team ID, API key ID / issuer ID (env/secrets only). The EAS `projectId` and ASC app ID are committed (not secrets).

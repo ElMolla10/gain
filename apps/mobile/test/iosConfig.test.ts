@@ -37,7 +37,7 @@ describe("without-push-entitlement plugin", () => {
 
 describe("app.json iOS section", () => {
   it("has a bundle id, a build number, an icon and is iPhone only", () => {
-    expect(cfg.ios.bundleIdentifier).toBe("com.elmolla.gain");
+    expect(cfg.ios.bundleIdentifier).toBe("com.mohamedehabelmolla.gain");
     expect(cfg.ios.buildNumber).toMatch(/^\d+$/);
     expect(cfg.ios.supportsTablet).toBe(false);
     expect(cfg.ios.icon).toBe("./assets/icon.png");

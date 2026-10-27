@@ -32,10 +32,21 @@
       "ios": {
         "resourceClass": "default"
       }
+    },
+    "testflight-live": {
+      "extends": "production",
+      "env": {
+        "GAIN_IOS_LIVE_ACTIVITY": "1"
+      }
     }
   },
   "submit": {
     "production": {
+      "ios": {
+        "ascAppId": "6827498090"
+      }
+    },
+    "testflight-live": {
       "ios": {
         "ascAppId": "6827498090"
       }

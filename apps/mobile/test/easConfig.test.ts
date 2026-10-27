@@ -20,4 +20,10 @@ describe("eas.json", () => {
     expect(raw).not.toMatch(/ascApiKey|appleId|BEGIN PRIVATE KEY|\.p8/);
     expect(eas.submit.production.ios).toEqual({ ascAppId: "6827498090" });
   });
+  it("testflight-live is the store profile plus the Live Activity flag, and submits to the same app", () => {
+    const live = (eas.build as Record<string, any>)["testflight-live"];
+    expect(live.extends).toBe("production");
+    expect(live.env).toEqual({ GAIN_IOS_LIVE_ACTIVITY: "1" });
+    expect(eas.submit["testflight-live"].ios).toEqual({ ascAppId: "6827498090" });
+  });
 });

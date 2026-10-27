@@ -36,7 +36,8 @@
     "testflight-live": {
       "extends": "production",
       "env": {
-        "GAIN_IOS_LIVE_ACTIVITY": "1"
+        "GAIN_IOS_LIVE_ACTIVITY": "1",
+        "GAIN_IOS_APP_GROUP": "group.com.mohamedelmolla.gain"
       }
     }
   },

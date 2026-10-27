@@ -9,8 +9,10 @@ function applyRestLiveActivityConfig(config, env) {
   if (enabled) {
     const bundleId = config.ios?.bundleIdentifier;
     if (!bundleId) throw new Error("Live Activities require ios.bundleIdentifier");
+    const appGroup = env.GAIN_IOS_APP_GROUP || `group.${bundleId}`;
+    if (!/^group\.[A-Za-z0-9.-]+$/.test(appGroup)) throw new Error("GAIN_IOS_APP_GROUP must look like group.com.example.app");
     plugins.push(["expo-widgets", {
-      bundleIdentifier: `${bundleId}.ExpoWidgetsTarget`, groupIdentifier: `group.${bundleId}`,
+      bundleIdentifier: `${bundleId}.ExpoWidgetsTarget`, groupIdentifier: appGroup,
       enablePushNotifications: false, frequentUpdates: false,
     }]);
   }

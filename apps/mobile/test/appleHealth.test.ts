@@ -36,6 +36,8 @@ describe("Apple Health export: build flag (batch item 29)", () => {
     const off = load(undefined).dependencies;
     expect(off["@kingstinct/react-native-healthkit"].platforms).toEqual({ ios: null, android: null });
     expect(off["react-native-nitro-modules"].platforms).toEqual({ ios: null, android: null });
+    // The kingstinct package pulls this in transitively; left linked it needs NitroModules and breaks `pod install` on a build without Health.
+    expect(off["@react-native-healthkit/core"].platforms).toEqual({ ios: null, android: null });
     const on = load("1").dependencies;
     expect(on["@kingstinct/react-native-healthkit"].platforms).toEqual({ android: null });
   });

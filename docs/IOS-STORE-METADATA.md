@@ -1,6 +1,6 @@
 # iOS listing and review drafts
 
-Finalized draft 2026-10-26 (first prepared 2026-10-15). Not submitted. Confirm each advertised flow on the release build. Final URLs, age rating, screenshots and Apple account details remain open. AI wording intentionally makes no real-workout superiority claim.
+Entered in App Store Connect 2026-10-27 (version 1.0.0, build 7); NOT submitted for review (Mohamed gives the final OK). AI wording intentionally makes no real-workout superiority claim.
 
 ## Limits check
 
@@ -25,7 +25,7 @@ Name: GAIN: Workout Tracker
 
 Subtitle: Lift log & next-set weights
 
-Keywords: strength,workout,gym,lifting,weights,progression,reps,sets,tracker,program,offline,arabic,kg,lbs
+Keywords: strength,gym,lifting,weights,progression,reps,sets,log,program,offline,arabic,kg,lbs,barbell
 
 Promotional text: Log every set offline and see the weight for your next session, with the reason behind it. Free, no ads, in English and Arabic.
 
@@ -81,17 +81,21 @@ GAIN بيساعدك تسجّل تمرين الحديد وتعرف ترفع إي�
 
 GAIN أداة مساعدة للتمرين، مش نصيحة طبية. لو حسّيت بألم أو دوخة وقّف، واسأل متخصص لما تحتاج. إنت اللي بتقرر ترفع إيه.
 
-## App Review notes — validate paths on the submitted build
+## App Review notes (as entered in App Store Connect, 2026-10-27, for build 1.0.0 (7))
 
-GAIN is a free offline strength-training log. There are no purchases or ads. No login is required to create a program or record workouts.
+Sign-in is not required. The notes below are what App Review sees; HealthKit is not in this build.
 
-Start with onboarding, choose a program and open today's workout. Record a set to view the next-set suggestion. Next-session progression uses transparent rules. Within-workout adaptation uses an experimental model bundled on the device, with manual choice and conservative product safeguards. It is not a clinical or injury-risk model, and no superiority over simple rules is claimed.
-
-Optional backup/sync is in Settings > Back up and sync. It uses a random account and recovery code, or optionally an email with an 8-digit code. In-app server account deletion: Settings > Back up and sync > Turn off and delete my backup, then confirm. Settings > Your data > Delete all my data also attempts remote account deletion before removing local data. Export a backup before testing deletion. Coach-card links are optional uploads and can be revoked; verify deletion with a coach-link-only account too.
-
-Notifications are local rest/training reminders, enabled by the user; no push account is needed. No Apple Watch integration is offered. Apple Health is an opt-in, write-only export that exists only in builds made with `GAIN_IOS_HEALTHKIT=1` (default builds contain no HealthKit code or entitlement): when the lifter turns on Settings > Save workouts to Apple Health, each finished workout is saved as Traditional Strength Training (start, end, duration; no calories). GAIN reads nothing from Health. If a build with the flag is submitted, declare HealthKit in review notes and App Privacy. Technical prediction/evaluation tools are in Developer Mode (hold the About version or tap it seven times within five seconds); the normal app does not require it.
-
-Contact for review: Mohamed Ehab, imody101@gmail.com. Before submitting, supply a reachable review contact and confirm the deployed optional backend is available. Do not claim optional online features work from source tests alone. Provide any access information Apple actually needs; no demo login is required for local training.
+> GAIN is a free strength-training log. There are no purchases and no ads. No sign-in is required: the whole app (programs, logging, history, achievements) works without an account.
+>
+> How to try it: complete onboarding, choose a program and open today's workout. Record a set to see the next-set suggestion; finish the workout to see next-session targets and the reason behind each. Suggestions are plain training-load estimates, not medical advice.
+>
+> Optional backup/sync (Settings > Back up and sync) is off until the user turns it on. It creates a random account with a recovery code. An optional email sign-in with an 8-digit code also exists; the server's email service is not switched on yet, so that card shows "Email sign-in is not available on this server" and the recovery code works instead.
+>
+> Account deletion (Guideline 5.1.1(v)): Settings > Back up and sync > "Turn off and delete my backup" and confirm. This deletes the server account, its data, linked email and coach links. Settings > Your data > "Delete all my data" also deletes the online copy first, then wipes the phone. Coach-card links are optional private uploads that can be revoked.
+>
+> Notifications are local rest-timer alerts only; no push account is used. No Apple Watch or HealthKit integration is included in this build. No tracking, no analytics, no third-party SDKs that collect data.
+>
+> Privacy policy: https://gain-site.elmolla10.workers.dev/privacy . Support: https://gain-site.elmolla10.workers.dev/support . Contact: Mohamed Ehab, imody101@gmail.com.
 
 ## TestFlight — What to Test
 

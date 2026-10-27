@@ -63,3 +63,10 @@ Still open:
 - Postal address in the privacy policy, if required; age limit and governing law in the terms.
 - Enter the privacy, support and (optional) terms URLs above in App Store Connect; replace the remaining reviewer placeholders on the privacy and terms pages and remove the DRAFT banners/noindex on purpose before App Review.
 - Team ID, API key ID / issuer ID (env/secrets only). The EAS `projectId` and ASC app ID are committed (not secrets).
+
+
+## App Store Connect state (2026-10-27, app 6827498090, version 1.0.0, NOT submitted)
+
+Done through the ASC API: en-GB (primary), en-US and ar-SA localizations (name, subtitle, description, keywords, promotional text, support, marketing and privacy URLs); copyright 2026 Mohamed Ehab; category Health & Fitness; age rating questionnaire all-None (computed 4+); price Free (USA base) with all territories except mainland China (needs an ICP filing); content rights = no third-party content; build 1.0.0 (7) attached (ITSAppUsesNonExemptEncryption = NO); screenshots 6.9" (1320x2868) and 6.5" (1284x2778) uploaded for en-GB, en-US (4 each: Today, Logger, Trophy Cabinet, Arabic Today) and ar-SA (3: Today, Logger, Cabinet), all real iPhone captures with the status bar cropped.
+
+Still needed from Mohamed (web UI or info): App Privacy nutrition label (not available in the API), EU Digital Services Act trader status, App Review contact phone (the review-detail record cannot be created without it), then the final Submit for Review.

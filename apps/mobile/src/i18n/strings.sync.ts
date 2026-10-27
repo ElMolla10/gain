@@ -15,6 +15,8 @@ export const enSync = {
     "If you turn this on, GAIN uploads your training data to a GAIN server (Cloudflare) so a lost or replaced phone does not lose it and a second phone can show the same data: your workouts and sets, notes, programs, goals, earned badges, gyms, bodyweight entries, height and birthday if you gave them, and the settings that describe your training (units, appearance, rest defaults, priorities). Language stays on the phone.",
   "sync.privacy.body2":
     "No account is required to log. An optional email (with a verification code) or a recovery code links your phones; the copy on this phone stays the source of truth. The data is NOT end-to-end encrypted: it is protected in transit and by the account, but the people who run the server could technically read it. Nobody else sees it unless you share a coach link. Sign out any time (local data stays); \"Turn off and delete my backup\" erases everything on the server.",
+  "sync.privacy.body2NoEmail":
+    "No account is required to log. A recovery code links your phones; the copy on this phone stays the source of truth. The data is NOT end-to-end encrypted: it is protected in transit and by the account, but the people who run the server could technically read it. Nobody else sees it unless you share a coach link. Sign out any time (local data stays); \"Turn off and delete my backup\" erases everything on the server.",
   "sync.status.off": "Off. Nothing leaves this phone.",
   "sync.status.pending": "Setting up…",
   "sync.status.on": "On.",
@@ -112,6 +114,8 @@ export const arSync: Record<keyof typeof enSync, string> = {
     "لو شغّلتها، GAIN بيرفع بيانات تمرينك على سيرفر GAIN (Cloudflare) عشان لو التليفون ضاع أو اتغيّر ماتضيعش بياناتك، وتليفون تاني يقدر يعرض نفس البيانات: تمارينك ومجموعاتك وملاحظاتك وبرامجك وأهدافك والشارات المكتسبة والجيمات وأوزان جسمك وطولك وتاريخ ميلادك لو كتبتهم، والإعدادات اللي بتوصف تمرينك (الوحدات والمظهر وراحة افتراضية والأولويات). اللغة بتفضل على التليفون.",
   "sync.privacy.body2":
     "التسجيل مش محتاج حساب. إيميل اختياري (برمز تحقق) أو رمز استرجاع بيربط تليفوناتك؛ النسخة على التليفون ده تفضل المصدر. البيانات مش مشفّرة من طرف لطرف: محمية أثناء النقل وبالحساب، لكن اللي بيشغّلوا السيرفر تقنيًا يقدروا يقروها. محدش تاني بيشوفها إلا لو شاركت رابط للمدرب. تقدر تخرج في أي وقت (البيانات المحلية بتفضل)؛ \"إيقاف ومسح نسختي\" بيمسح كل حاجة من السيرفر.",
+  "sync.privacy.body2NoEmail":
+    "التسجيل مش محتاج حساب. رمز استرجاع بيربط تليفوناتك؛ النسخة على التليفون ده تفضل المصدر. البيانات مش مشفّرة من طرف لطرف: محمية أثناء النقل وبالحساب، لكن اللي بيشغّلوا السيرفر تقنيًا يقدروا يقروها. محدش تاني بيشوفها إلا لو شاركت رابط للمدرب. تقدر تخرج في أي وقت (البيانات المحلية بتفضل)؛ \"إيقاف ومسح نسختي\" بيمسح كل حاجة من السيرفر.",
   "sync.status.off": "مقفولة. مفيش حاجة بتخرج من التليفون ده.",
   "sync.status.pending": "جاري التجهيز…",
   "sync.status.on": "شغّالة.",

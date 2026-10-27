@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { hasSelfUpdater, readBuildFlags } from "../src/logic/buildFlags";
 import { TEMPLATES, templatePool, templatesForDays } from "../src/logic/templates";
-import { en } from "../src/i18n/strings";
+import { ar, en } from "../src/i18n/strings";
 
 /**
  * Build switches (v0.20.0): GAIN_DISTRIBUTION=play drops the self-updater and its install permission; GAIN_PILOT_TEMPLATES=1 offers only the six
@@ -22,7 +22,7 @@ describe("build-flags.js (app config)", () => {
     const out = applyBuildFlags(appJson.expo, {});
     expect(out.android.permissions).toEqual(["REQUEST_INSTALL_PACKAGES"]);
     expect(out.android.blockedPermissions).toEqual(appJson.expo.android.blockedPermissions);
-    expect(out.extra).toEqual({ ...appJson.expo.extra, distribution: "sideload", pilotTemplateIds: null }); // app.json may carry extra.eas.projectId
+    expect(out.extra).toEqual({ ...appJson.expo.extra, distribution: "sideload", emailSignIn: false, pilotTemplateIds: null }); // app.json may carry extra.eas.projectId
     const { extra: _e, ...rest } = out;
     const { extra: _x, ...base } = appJson.expo;
     expect(rest).toEqual(base);
@@ -53,7 +53,7 @@ describe("build-flags.js (app config)", () => {
   });
   it("pilot: the six ids go into `extra`, nothing else changes", () => {
     const out = applyBuildFlags(appJson.expo, { GAIN_PILOT_TEMPLATES: "1" });
-    expect(out.extra).toEqual({ ...appJson.expo.extra, distribution: "sideload", pilotTemplateIds: PILOT_TEMPLATE_IDS });
+    expect(out.extra).toEqual({ ...appJson.expo.extra, distribution: "sideload", emailSignIn: false, pilotTemplateIds: PILOT_TEMPLATE_IDS });
     expect(out.android.permissions).toEqual(["REQUEST_INSTALL_PACKAGES"]);
     expect(PILOT_TEMPLATE_IDS).toEqual(["full_body_2", "full_body_3", "ppl_3", "upper_lower_4", "mix_4", "ppl_6"]);
   });
@@ -73,7 +73,7 @@ describe("build-flags.js (app config)", () => {
 describe("run-time reading of the build flags", () => {
   it("missing, malformed or hostile `extra` means the ordinary sideload app with every template", () => {
     for (const bad of [undefined, null, 5, "play", [], {}, { distribution: "PLAY", pilotTemplateIds: "ppl_3" }, { pilotTemplateIds: [] }, { pilotTemplateIds: [1, 2] }, { pilotTemplateIds: {} }]) {
-      expect(readBuildFlags(bad), JSON.stringify(bad)).toEqual({ distribution: "sideload", pilotTemplateIds: null });
+      expect(readBuildFlags(bad), JSON.stringify(bad)).toEqual({ distribution: "sideload", pilotTemplateIds: null, emailSignIn: false });
     }
     expect(hasSelfUpdater(readBuildFlags({}))).toBe(true);
   });
@@ -129,5 +129,44 @@ describe("wiring in the screens (source checks; no phone here)", () => {
   });
   it("the pilot label exists in both languages", () => {
     expect(en["settings.pilotBuild"]).toMatch(/Pilot build/);
+  });
+});
+
+describe("email sign-in switch (GAIN_EMAIL_SIGNIN)", () => {
+  const rd = (name: string) => readFileSync(join(root, "src", name), "utf8");
+  it("is off unless the build turns it on: no environment, empty, 0 and hostile extras all mean off", () => {
+    expect(applyBuildFlags(appJson.expo, {}).extra.emailSignIn).toBe(false);
+    expect(applyBuildFlags(appJson.expo, { GAIN_EMAIL_SIGNIN: "" }).extra.emailSignIn).toBe(false);
+    expect(applyBuildFlags(appJson.expo, { GAIN_EMAIL_SIGNIN: "0" }).extra.emailSignIn).toBe(false);
+    expect(applyBuildFlags(appJson.expo, { GAIN_EMAIL_SIGNIN: "1" }).extra.emailSignIn).toBe(true);
+    for (const bad of [undefined, null, {}, { emailSignIn: "true" }, { emailSignIn: 1 }, { emailSignIn: "1" }]) expect(readBuildFlags(bad).emailSignIn, JSON.stringify(bad)).toBe(false);
+    expect(readBuildFlags({ emailSignIn: true }).emailSignIn).toBe(true);
+  });
+  it("a typo stops the build instead of silently shipping the wrong screen", () => {
+    expect(() => applyBuildFlags(appJson.expo, { GAIN_EMAIL_SIGNIN: "true" })).toThrow(/GAIN_EMAIL_SIGNIN/);
+    expect(() => applyBuildFlags(appJson.expo, { GAIN_EMAIL_SIGNIN: "yes" })).toThrow(/GAIN_EMAIL_SIGNIN/);
+  });
+  it("the store build profile does not turn it on", () => {
+    const eas = JSON.parse(readFileSync(join(root, "eas.json"), "utf8")) as { build: Record<string, { env?: Record<string, string> }> };
+    for (const p of Object.values(eas.build)) expect(p.env?.GAIN_EMAIL_SIGNIN).toBeUndefined();
+  });
+  it("both email cards (idle and signed-in) are behind the flag, and the linked address still shows if one exists", () => {
+    const f = rd("screens/SyncScreen.tsx");
+    expect(f).toContain('import { buildFlags } from "../buildConfig"');
+    expect(f).toMatch(/\{buildFlags\.emailSignIn \? \(\s*<Card>\s*<AppText[^>]*>\{t\("sync\.email\.title"\)\}/);
+    expect(f).toMatch(/\{buildFlags\.emailSignIn \|\| info\?\.email \? \(\s*<Card>\s*\{info\?\.email \?/);
+    // Nothing outside those two gated cards renders the email form or calls the email endpoints.
+    expect(f.match(/t\("sync\.email\.send"\)/g)).toHaveLength(2);
+    expect(f.match(/onPress=\{sendEmailCode\}/g)).toHaveLength(2);
+  });
+  it("with the flag off the in-app texts do not promise email, in both languages", () => {
+    expect(en["sync.privacy.body2NoEmail"]).not.toMatch(/email/i);
+    expect(ar["sync.privacy.body2NoEmail"]).not.toMatch(/إيميل/);
+    expect(en["privacy.leaves.syncNoEmail"]).not.toMatch(/email/i);
+    expect(ar["privacy.leaves.syncNoEmail"]).not.toMatch(/إيميل/);
+    expect(en["privacy.leaves.syncNoEmail"]).toMatch(/OFF until you turn it on/);
+    expect(en["privacy.leaves.syncNoEmail"]).toMatch(/not end-to-end encrypted/);
+    expect(en["sync.privacy.body2"]).toMatch(/email/i);
+    expect(rd("screens/PrivacyScreen.tsx")).toContain('buildFlags.emailSignIn ? "privacy.leaves.sync" : "privacy.leaves.syncNoEmail"');
   });
 });

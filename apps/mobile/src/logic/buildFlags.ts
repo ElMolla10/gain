@@ -8,12 +8,14 @@ export interface BuildFlags {
   distribution: Distribution;
   /** Template ids a pilot build offers, or null for all of them. */
   pilotTemplateIds: readonly string[] | null;
+  /** Show the optional email sign-in cards. Off unless the build says `emailSignIn: true` (GAIN_EMAIL_SIGNIN=1): the server needs an email provider first. */
+  emailSignIn: boolean;
 }
 
 export function readBuildFlags(extra: unknown): BuildFlags {
   const e = extra && typeof extra === "object" ? (extra as Record<string, unknown>) : {};
   const ids = Array.isArray(e.pilotTemplateIds) && e.pilotTemplateIds.length > 0 && e.pilotTemplateIds.every((x) => typeof x === "string") ? (e.pilotTemplateIds as string[]) : null;
-  return { distribution: e.distribution === "play" ? "play" : "sideload", pilotTemplateIds: ids };
+  return { distribution: e.distribution === "play" ? "play" : "sideload", pilotTemplateIds: ids, emailSignIn: e.emailSignIn === true };
 }
 
 /**

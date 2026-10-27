@@ -105,3 +105,7 @@ Recheck the current console requirements and SDK privacy report at submission ti
 | `apps/mobile/assets/splash-icon-dark.png` / `-light.png` (new, from the designer) | 1024×1024 | RGBA | transparent outside the disc | sRGB | dark `#10120E`, light `#F5F6EF` |
 
 Icon: no change needed; the lime arrow is untouched (the designer's optional variants and iOS 18 dark/tinted icons wait for Mohamed's pick). Splash: the old `splash-icon.png` had an opaque ink square baked in, so it could not sit on a light background and the splash was dark-only. It is replaced by the designer's transparent dark and light marks with `expo-splash-screen` `dark` config, imageWidth 128 (visible disc ≈115 pt, about the same as before). The light mark has a thin #5C8A00 rim so the lime holds on bone. `expo.backgroundColor` stays #10120E; check on a device that a light-mode launch does not flash ink before the first screen. The same plugin config also applies to the Android splash. `test/iosAssets.test.ts` guards the icon and splash rules.
+
+## Build switches added for the store build
+
+`GAIN_EMAIL_SIGNIN=1` shows the optional email sign-in cards in Settings > Back up and sync. It is **off by default** (and not set in any `eas.json` profile) because the sync server has no email provider yet (`/v1/auth/email/start` answers 501). Turn it on only after Resend (or another provider) is configured and verified on the server, and update the site privacy page and App Review notes at the same time. With it off, the in-app privacy text and the sync explanation mention only the recovery code.

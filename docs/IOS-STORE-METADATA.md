@@ -89,9 +89,9 @@ Sign-in is not required. The notes below are what App Review sees; HealthKit is 
 >
 > How to try it: complete onboarding, choose a program and open today's workout. Record a set to see the next-set suggestion; finish the workout to see next-session targets and the reason behind each. Suggestions are plain training-load estimates, not medical advice.
 >
-> Optional backup/sync (Settings > Back up and sync) is off until the user turns it on. It creates a random account with a recovery code. An optional email sign-in with an 8-digit code also exists; the server's email service is not switched on yet, so that card shows "Email sign-in is not available on this server" and the recovery code works instead.
+> Optional backup/sync (Settings > Back up and sync) is off until the user turns it on. It creates a random account with a recovery code.
 >
-> Account deletion (Guideline 5.1.1(v)): Settings > Back up and sync > "Turn off and delete my backup" and confirm. This deletes the server account, its data, linked email and coach links. Settings > Your data > "Delete all my data" also deletes the online copy first, then wipes the phone. Coach-card links are optional private uploads that can be revoked.
+> Account deletion (Guideline 5.1.1(v)): Settings > Back up and sync > "Turn off and delete my backup" and confirm. This deletes the server account, its data and coach links. Settings > Your data > "Delete all my data" also deletes the online copy first, then wipes the phone. Coach-card links are optional private uploads that can be revoked.
 >
 > Notifications are local rest-timer alerts only; no push account is used. No Apple Watch or HealthKit integration is included in this build. No tracking, no analytics, no third-party SDKs that collect data.
 >

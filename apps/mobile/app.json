@@ -60,7 +60,7 @@
       ]
     ],
     "ios": {
-      "bundleIdentifier": "com.elmolla.gain",
+      "bundleIdentifier": "com.mohamedehabelmolla.gain",
       "buildNumber": "1",
       "supportsTablet": false,
       "icon": "./assets/icon.png",
@@ -178,6 +178,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "fc6b6b6c-020b-49fb-8ee4-e0ec954b290e"
+      }
+    },
+    "owner": "mo_ehab10"
   }
 }

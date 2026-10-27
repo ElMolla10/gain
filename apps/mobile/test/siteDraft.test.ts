@@ -6,8 +6,7 @@ import { describe, expect, it } from "vitest";
 import { en } from "../src/i18n/strings";
 
 /**
- * docs/site: the DRAFT static pages (privacy, terms, delete-account, support, pilot guide). They are drafts for a lawyer, so these tests do
- * not judge the legal wording; they keep the pages honest about the code and keep them from becoming tracking or "final" by accident.
+ * docs/site: the static pages (privacy, terms, delete-account, support, pilot guide). These tests do not judge the legal wording; they keep the pages honest about the code and keep them from becoming tracking or "final" by accident.
  */
 const repo = join(__dirname, "..", "..", "..");
 const site = join(repo, "docs/site");
@@ -21,12 +20,13 @@ describe("docs/site drafts", () => {
     expect(pages).toEqual(["delete-account.html", "index.html", "pilot-guide.html", "privacy.html", "support.html", "terms.html"]);
     for (const f of ["style.css", "_headers", "robots.txt"]) expect(existsSync(join(pub, f)), f).toBe(true);
   });
-  it("every page is marked DRAFT, noindex, English with an Arabic RTL section, and has no script, inline style, form or tracker", () => {
+  it("every page is English with an Arabic RTL section, is no longer a DRAFT or noindex page, and has no script, inline style, form or tracker", () => {
     for (const f of pages) {
       const h = read(f);
       expect(h, f).toMatch(/<html lang="en">/);
-      expect(h, f).toMatch(/<meta name="robots" content="noindex, nofollow">/);
-      expect(h, f).toMatch(/class="draft"/);
+      expect(h, f).not.toMatch(/noindex/);
+      expect(h, f).not.toMatch(/class="draft"|DRAFT/);
+      expect(h, f).not.toMatch(/\[(Reviewer|To be written)[^\]]*\]/i);
       expect(h, f).toMatch(/<section id="ar" lang="ar" dir="rtl">/);
       expect(h, f).toMatch(/[\u0600-\u06FF]{3,}/);
       expect(h, f).not.toMatch(/<script|<iframe|<form|<img|\sstyle=|\son[a-z]+=|<link rel="(?!stylesheet)|googletagmanager|google-analytics|facebook|hotjar|fonts\.googleapis/i);
@@ -51,7 +51,11 @@ describe("docs/site drafts", () => {
     expect(h).toMatch(/not end-to-end encrypted/);
     expect(h).toMatch(/7 days by default, 30 at most/);
     expect(h).toMatch(/no analytics events, no crash upload, no advertising, no data selling/);
-    expect(h).toMatch(/verify and document that period before submission/);
+    expect(h).toMatch(/up to 7 days/);
+    expect(h).toMatch(/at least 13/);
+    expect(h).toContain("Optional email sign-in");
+    expect(h).toMatch(/only when the server's email service is switched on/);
+    expect(h).toContain("GAIN: Workout Tracker");
     expect(h).toMatch(/no remote AI provider/);
     expect(h).toMatch(/Frozen forecasts and matched outcomes stay local, outside sync/);
     expect(h).toMatch(/Android's own backup/);
@@ -76,7 +80,6 @@ describe("docs/site drafts", () => {
     const h = read("delete-account.html");
     expect(h).toContain("Turn off and delete my backup");
     expect(h).toContain("Delete all my data");
-    expect(h).toContain("ACCOUNT-DELETION-SPEC.md");
     expect(en["sync.offDelete"]).toBe("Turn off and delete my backup");
     expect(en["data.delete"]).toBe("Delete all my data");
     expect(existsSync(join(repo, "docs/ACCOUNT-DELETION-SPEC.md"))).toBe(true);
@@ -88,10 +91,14 @@ describe("docs/site drafts", () => {
       expect(h, `${k}: ${label}`).toContain(label);
     }
   });
-  it("headers keep the drafts out of search engines and block everything except the page's own files", () => {
-    expect(text(join(pub, "_headers"))).toMatch(/X-Robots-Tag: noindex/);
+  it("headers block everything except the page's own files, and the pages are indexable on purpose", () => {
+    expect(text(join(pub, "_headers"))).not.toMatch(/X-Robots-Tag/);
     expect(text(join(pub, "_headers"))).toMatch(/default-src 'none'/);
-    expect(text(join(pub, "robots.txt"))).toMatch(/Disallow: \//);
+    expect(text(join(pub, "robots.txt"))).not.toMatch(/Disallow: \//);
+  });
+  it("terms name the governing law and the minimum age", () => {
+    expect(read("terms.html")).toMatch(/Egyptian law governs/);
+    expect(read("terms.html")).toMatch(/at least 13/);
   });
   it("wrangler.jsonc serves only public/ as static assets (no code, no bindings)", () => {
     const w = text(join(site, "wrangler.jsonc")).replace(/\/\/.*$/gm, "");
@@ -100,7 +107,7 @@ describe("docs/site drafts", () => {
     expect(cfg.assets).toMatchObject({ directory: "./public" });
     expect(Object.keys(cfg).sort()).toEqual(["assets", "compatibility_date", "name", "workers_dev"]);
   });
-  it("fill-contact.mjs fills the placeholders into a copy and leaves the committed pages and the DRAFT banners alone", () => {
+  it("fill-contact.mjs fills the placeholders into a copy and leaves the committed pages alone", () => {
     const out = mkdtempSync(join(tmpdir(), "gain-site-"));
     const run = execFileSync("node", [join(site, "fill-contact.mjs"), "--email", "help@example.org", "--operator", "Test <Op> & Co", "--contact", "WhatsApp", "--out", out], { encoding: "utf8" });
     expect(run).toMatch(/placeholders filled/);
@@ -108,7 +115,6 @@ describe("docs/site drafts", () => {
       const h = text(join(out, f));
       expect(h, f).not.toMatch(/\[[^\]]*not set yet\]/);
       expect(h, f).toContain(f === "pilot-guide.html" ? "WhatsApp" : "mailto:help@example.org");
-      expect(h, f).toMatch(/class="draft"/);
     }
     expect(text(join(out, "privacy.html"))).toContain("Test &lt;Op&gt; &amp; Co");
     expect(read("privacy.html")).toMatch(/\[[^\]]*not set yet\]/);

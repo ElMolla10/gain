@@ -18,6 +18,7 @@ vi.mock("react-native", () => ({
 }));
 vi.mock("../src/theme", () => ({
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
+  useIsDark: () => false,
   usePalette: () => ({
     card: "#FFFFFF",
     border: "#E0E0E0",
@@ -82,6 +83,10 @@ describe("Page 12: Lifter's Initiation & System Shell", () => {
 
     expect(allTexts).toContain("STEP 3 OF 7");
     expect(allTexts).toContain("Schedule");
+    const progress = nodes(tree).filter(n => n.props.accessibilityRole === "progressbar");
+    expect(progress).toHaveLength(1);
+    expect(progress[0]!.props.accessibilityValue).toEqual({ min: 1, max: 7, now: 3 });
+    expect(nodes(tree).filter(n => n.props.accessibilityRole === "header")).toHaveLength(0);
   });
 
   it("renders SettingsGroupHero with version and active gym badge", () => {

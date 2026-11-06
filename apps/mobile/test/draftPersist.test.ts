@@ -29,3 +29,10 @@ describe("typed drafts across app termination (iOS audit 10)", () => {
     expect(serializeDrafts({ bench: [row({ key: "u" }), row({ key: "s", saved: true })] })).toBe("");
   });
 });
+
+it("restores extra typed rows beyond planned count with kind and ghost quantity", () => {
+  const extra = row({ key: "extra", load: 75, ghostReps: 5, warmup: true });
+  const out = applyDrafts({ bench: [row({ key: "new" })] }, parseDrafts(serializeDrafts({ bench: [row({ key: "planned" }), extra] })));
+  expect(out.bench).toHaveLength(2);
+  expect(out.bench![1]).toMatchObject({ key: "extra", load: 75, reps: null, ghostReps: 5, warmup: true, saved: false });
+});

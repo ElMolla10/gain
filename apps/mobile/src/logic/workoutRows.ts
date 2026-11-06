@@ -135,6 +135,19 @@ export function editRow(rows: SetRowDraft[], key: string, patch: Partial<Pick<Se
 
 export const markSaved = (rows: SetRowDraft[], key: string): SetRowDraft[] => rows.map((r) => (r.key === key ? { ...r, saved: true, dirty: false } : r));
 
+/** A save acknowledges only its submitted values; edits typed while it awaited storage remain pending. */
+export function acknowledgeSavedRow(rows: SetRowDraft[], submitted: SetRowDraft): SetRowDraft[] {
+  const committed = effectiveOf(submitted);
+  return rows.map(current => {
+    if (current.key !== submitted.key) return current;
+    const latest = effectiveOf(current);
+    const unchanged = !hasInvalidInput(current) && latest.load === committed.load && latest.reps === committed.reps
+      && current.rir === submitted.rir && current.warmup === submitted.warmup
+      && JSON.stringify(current.tags) === JSON.stringify(submitted.tags);
+    return unchanged ? { ...current, ...committed, saved: true, dirty: false } : { ...current, saved: true, dirty: true };
+  });
+}
+
 /**
  * Labels shown to the lifter: W warm-up, D drop set (neither is numbered), F a failure set (a working set: it keeps its place in the
  * numbering, so the next set still reads 3 after a set 2 taken to failure shown as F), working sets 1, 2, 3 ...

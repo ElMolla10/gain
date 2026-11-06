@@ -39,6 +39,6 @@ describe("light-mode state cues (plan 1.3)", () => {
   });
   it("the components use the helpers", () => {
     expect(src("src/components/SettingsRows.tsx")).toContain("ios_backgroundColor={sw.iosBackground}");
-    expect(src("src/screens/OnboardingScreen.tsx")).toContain("progressColors(p, !useIsDark())");
+    expect(src("src/components/onboarding/OnboardingStepIndicator.tsx")).toContain("progressColors(p, !useIsDark())");
   });
 });

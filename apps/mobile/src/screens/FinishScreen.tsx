@@ -18,7 +18,7 @@ import { formatWorkoutShareText, improvementLines, personalBestLines, workoutRec
 import { volumeText } from "../logic/liveSummary";
 import type { StringKey } from "../i18n/strings";
 import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, ErrorState, InlineStatus, LoadingState, Notice, Screen } from "../ui";
+import { AppText, BigButton, Card, CollapsibleCard, ErrorState, InlineStatus, LoadingState, Notice, Screen } from "../ui";
 import { FinishedDayForecast, type SameDayForecast } from "../components/FinishedDayForecast";
 import { MenuSheet } from "../components/LogParts";
 import { Icon } from "../components/Icon";
@@ -404,18 +404,18 @@ export function FinishScreen() {
         </Card>
       )}
 
-      {/* 5. Muscle volume exposure for today's session. */}
-      <FinishMuscleStrip counts={muscleCounts} />
-
-      {/* 6. Perceived effort / fatigue quick-check. */}
+      {/* Optional effort stays visible; secondary recap sections start closed. */}
       <FinishRpeCheck value={rpe} onChange={pickFeel} />
 
-      <Card>
-        <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("progress.improved")}</AppText>
-        {improvements.length ? improvements.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText>{t("progress.steady")}</AppText>}
-        <AppText style={{ color: p.muted }}>{t("progress.note")}</AppText>
-      </Card>
-      {detail ? <AchievementCard detail={detail} summary={summary} shareRef={achievementShare} /> : null}
+      <CollapsibleCard title={t("finish.details")}>
+        <FinishMuscleStrip counts={muscleCounts} />
+        <Card>
+          <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("progress.improved")}</AppText>
+          {improvements.length ? improvements.map((line, i) => <AppText key={i}>{line}</AppText>) : <AppText>{t("progress.steady")}</AppText>}
+          <AppText style={{ color: p.muted }}>{t("progress.note")}</AppText>
+        </Card>
+        {detail ? <AchievementCard detail={detail} summary={summary} shareRef={achievementShare} /> : null}
+      </CollapsibleCard>
 
       {/* 3. Sharing is optional and secondary. */}
       {/* 5. One Share button; text, PDF and link are in a menu (F-7). The link still asks for consent before anything is uploaded. */}

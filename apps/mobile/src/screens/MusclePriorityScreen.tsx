@@ -7,8 +7,8 @@ import {
   serializeMusclePriorities,
   type MusclePriorities,
   type MuscleRank,
-  type RANKABLE_MUSCLES,
 } from "../logic/musclePriority";
+import type { LibraryGroup } from "../db/library/types";
 import { usePalette } from "../theme";
 import { AppText, Screen } from "../ui";
 import { MusclePriorityGrid } from "../components/coach/MusclePriorityGrid";
@@ -29,7 +29,7 @@ export function MusclePriorityScreen() {
     }, [repos]),
   );
 
-  function setRank(group: (typeof RANKABLE_MUSCLES)[number], rank: MuscleRank) {
+  function setRank(group: LibraryGroup, rank: MuscleRank) {
     const next = { ...priorities, [group]: rank };
     setPriorities(next);
     void repos.setSetting("muscle_priorities", serializeMusclePriorities(next));

@@ -20,11 +20,16 @@ vi.mock("react-native", () => ({
 }));
 vi.mock("../src/theme", () => ({
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
+  MIN_TOUCH: 48,
+  radius: { sm: 4, md: 8, lg: 12, pill: 999 },
+  type: { body: 15, label: 13, meta: 11 },
   usePalette: () => ({
     card: "#FFFFFF",
     border: "#E0E0E0",
     text: "#111111",
     muted: "#666666",
+    tint: "#F0F0F0",
+    accent: "#000000",
   }),
 }));
 vi.mock("../src/ui", () => ({
@@ -188,7 +193,7 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
     expect(onUndo).toHaveBeenCalled();
   });
 
-  it("renders MusclePriorityGrid with live summary and updates rank", () => {
+  it("renders MusclePriorityGrid compact list with one Prioritise toggle per muscle and updates rank", () => {
     const onSetRank = vi.fn();
     const priorities = {
       chest: "priority" as const,
@@ -203,16 +208,21 @@ describe("Page 10: Adaptive Engine Tools & Programme Generator", () => {
     );
     const allTexts = strip(texts(tree).join(" "));
 
-    expect(allTexts).toContain("1 Priority · 1 Maintenance · 8 Balanced");
     expect(allTexts).toContain("CHEST");
     expect(allTexts).toContain("BACK");
-    expect(allTexts).toContain("🔥 Priority");
+    expect(allTexts).toContain("GLUTES");
+    // Summary count and status badges removed
+    expect(allTexts).not.toContain("Balanced");
+    expect(allTexts).not.toContain("🔥");
 
-    // Check pressing a rank chip
-    const buttons = nodes(tree).filter((n) => n.props?.accessibilityRole === "button");
-    expect(buttons.length).toBeGreaterThan(0);
-    buttons[0]!.props.onPress();
-    expect(onSetRank).toHaveBeenCalled();
+    // Check switches
+    const switches = nodes(tree).filter((n) => n.props?.accessibilityRole === "switch");
+    expect(switches.length).toBe(10);
+    // Chest is priority -> checked
+    expect(switches[0]?.props?.accessibilityState?.checked).toBe(true);
+    // Tapping chest toggles it back to normal
+    switches[0]!.props.onPress();
+    expect(onSetRank).toHaveBeenCalledWith("chest", "normal");
   });
 
   it("renders GeneratedProgrammeHero and triggers onSave", () => {

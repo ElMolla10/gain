@@ -245,6 +245,53 @@ function applyTimeCap(draft: ProgrammeDraft, minutes: number, protect: Set<strin
 }
 
 /**
+ * Reorders day exercises so exercises for prioritised muscles come earlier on relevant days
+ * (e.g. biceps before back on a Pull day containing both). Handles multiple priorities deterministically
+ * by grouping prioritised muscles in order of appearance while preserving exercise order within groups.
+ */
+export function applyPriorityOrdering(
+  draft: ProgrammeDraft,
+  priorities: MusclePriorities,
+  idToKey: Map<string, string>,
+): ProgrammeDraft {
+  return {
+    ...draft,
+    days: draft.days.map((day) => {
+      const prioritised: DraftExercise[] = [];
+      const normal: DraftExercise[] = [];
+      for (const ex of day.exercises) {
+        const g = groupOfId(ex.exerciseId, idToKey);
+        if (g && rankOf(priorities, g) === "priority") {
+          prioritised.push(ex);
+        } else {
+          normal.push(ex);
+        }
+      }
+      if (prioritised.length === 0) return day;
+
+      const groupsSeen: LibraryGroup[] = [];
+      const byGroup = new Map<LibraryGroup, DraftExercise[]>();
+      for (const ex of prioritised) {
+        const g = groupOfId(ex.exerciseId, idToKey)!;
+        let list = byGroup.get(g);
+        if (!list) {
+          list = [];
+          byGroup.set(g, list);
+          groupsSeen.push(g);
+        }
+        list.push(ex);
+      }
+      const orderedPrioritised = groupsSeen.flatMap((g) => byGroup.get(g)!);
+
+      return {
+        ...day,
+        exercises: [...orderedPrioritised, ...normal],
+      };
+    }),
+  };
+}
+
+/**
  * Pick a catalogue template, instantiate it, then apply avoid-list and muscle-priority edits.
  * The result is an ordinary ProgrammeDraft the editor already knows how to save.
  */
@@ -263,6 +310,7 @@ export function generateProgramme(input: GenerateInput, lib: LibraryLookup, ceil
   const protect = new Set<string>();
   draft = applySetRanks(draft, input.priorities, reverseKeys(lib.byKey));
   draft = applyPrioritySlots(draft, input, reverseKeys(lib.byKey), lib.byKey, protect);
+  draft = applyPriorityOrdering(draft, input.priorities, reverseKeys(lib.byKey));
   draft = applyTimeCap(draft, input.sessionMinutes, protect, reverseKeys(lib.byKey), dropped);
   return { draft, template, dropped };
 }

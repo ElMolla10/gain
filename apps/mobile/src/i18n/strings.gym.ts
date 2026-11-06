@@ -4,6 +4,8 @@
  */
 export const enGym = {
   "gyms.title": "Gyms",
+  "gyms.sampleName": "Sample gym",
+  "gyms.sampleNote": "Placeholder weights. Edit this gym to match the equipment you use.",
   "gyms.entry": "Gyms",
   "gyms.entryNote": "Racks and plates for each place you train. Switching gyms never mixes history.",
   "gyms.active": "In use",
@@ -52,6 +54,8 @@ export const enGym = {
 
 export const arGym: Record<keyof typeof enGym, string> = {
   "gyms.title": "الجيمات",
+  "gyms.sampleName": "جيم تجريبي",
+  "gyms.sampleNote": "أوزان تجريبية. عدّل الجيم عشان يطابق المعدات اللي بتستخدمها.",
   "gyms.entry": "الجيمات",
   "gyms.entryNote": "الرفوف والأطباق لكل مكان بتتمرن فيه. تغيير الجيم مش بيخلط التاريخ.",
   "gyms.active": "المستخدم",

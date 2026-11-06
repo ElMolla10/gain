@@ -5,6 +5,8 @@ import { useServices } from "../AppContext";
 import { useI18n } from "../i18n";
 import { isolateLtr } from "../i18n/format";
 import type { GymSummary } from "../db/gymRepo";
+import { gymDisplayName } from "../logic/gymDisplayName";
+import { SAMPLE_GYM } from "../db/seedData";
 import { defaultGymLoads } from "../logic/defaultGym";
 import { radius, space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Card, InlineStatus, LoadingState, Screen } from "../ui";
@@ -86,7 +88,7 @@ export function GymsScreen() {
               <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <View style={{ gap: 2, flex: 1 }}>
                   <AppText style={{ fontSize: ty.section, fontWeight: "600", color: p.text }}>
-                    {g.name}
+                    {gymDisplayName(g.name, t("gyms.sampleName"))}
                   </AppText>
                   <AppText style={{ color: p.muted, fontSize: ty.caption }}>
                     {t("gyms.forgedSessions", { n: isolateLtr(String(g.finishedSessions)) })}
@@ -101,6 +103,8 @@ export function GymsScreen() {
                   </View>
                 ) : null}
               </View>
+
+              {g.name === SAMPLE_GYM.name ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("gyms.sampleNote")}</AppText> : null}
 
               {/* Equipment Inventory Badges */}
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.xs }}>

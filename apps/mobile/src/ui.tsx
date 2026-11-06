@@ -92,8 +92,9 @@ export function Screen({ children, footer, scroll = true, scrollEnabled = true, 
       ) : (
         <View style={[{ flex: 1 }, ...body]}>{heading}{children}</View>
       )}
+      {/* Tab roots sit above a navigator-owned bottom inset; stack screens own it here. */}
       {pinned ? (
-        <View style={{ paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md + insets.bottom, gap: space.sm, backgroundColor: p.bg, borderTopWidth: 1, borderColor: p.border }}>{pinned}</View>
+        <View style={{ paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md + (tab ? 0 : insets.bottom), gap: space.sm, backgroundColor: p.bg, borderTopWidth: 1, borderColor: p.border }}>{pinned}</View>
       ) : null}
     </View>
   );

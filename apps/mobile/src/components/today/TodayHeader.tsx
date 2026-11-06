@@ -3,6 +3,7 @@ import { Pressable, View } from "react-native";
 import { useI18n } from "../../i18n";
 import { radius, space, type as ty, usePalette } from "../../theme";
 import { Icon } from "../Icon";
+import { gymDisplayName } from "../../logic/gymDisplayName";
 import { AppText, QuietAction } from "../../ui";
 
 /**
@@ -14,17 +15,19 @@ export function TodayHeader({ date, dayName, label, dayIndex, dayCount, onChange
   const p = usePalette();
   return (
     <View style={{ gap: 2 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <AppText style={{ fontSize: ty.caption, lineHeight: 18, fontWeight: "600", color: p.muted }}>{date}</AppText>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", columnGap: space.sm }}>
+        <AppText style={{ fontSize: ty.caption, lineHeight: 18, fontWeight: "600", color: p.muted, flexShrink: 1 }}>{date}</AppText>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, flexShrink: 1, minWidth: 0, marginStart: "auto" }}>
           {onGyms ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("gyms.title")}
+              accessibilityLabel={activeGymName ? `${t("gyms.title")}: ${gymDisplayName(activeGymName, t("gyms.sampleName"))}` : t("gyms.title")}
               onPress={onGyms}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={({ pressed }) => ({
-                minHeight: 36,
+                minHeight: 44,
+                flexShrink: 1,
+                minWidth: 0,
                 paddingHorizontal: space.sm,
                 flexDirection: "row",
                 alignItems: "center",
@@ -36,8 +39,8 @@ export function TodayHeader({ date, dayName, label, dayIndex, dayCount, onChange
               })}
             >
               <AppText style={{ fontSize: 13 }}>🏋️</AppText>
-              <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted }}>
-                {activeGymName ? activeGymName : t("gyms.title")}
+              <AppText numberOfLines={1} ellipsizeMode="tail" style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted, flexShrink: 1, minWidth: 0 }}>
+                {activeGymName ? gymDisplayName(activeGymName, t("gyms.sampleName")) : t("gyms.title")}
               </AppText>
             </Pressable>
           ) : null}
@@ -48,6 +51,7 @@ export function TodayHeader({ date, dayName, label, dayIndex, dayCount, onChange
               onPress={onSettings}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={({ pressed }) => ({
+                flexShrink: 0,
                 minWidth: 44,
                 minHeight: 44,
                 alignItems: "center",

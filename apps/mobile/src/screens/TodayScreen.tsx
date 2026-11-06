@@ -415,7 +415,7 @@ export function TodayScreen() {
       ) : null}
 
       {/* Today's Bar: the lead lift as the real loaded object, on bg with no card. */}
-      {hero ? (
+      {hero && hero.kind !== "firstRun" ? (
         <View style={{ gap: space.sm }}>
           {mode === "openElsewhere" && openDay ? (
             <View style={{ alignSelf: "flex-end", paddingHorizontal: space.sm, borderRadius: radius.pill, backgroundColor: p.raised, borderWidth: 1, borderColor: p.edge }}>
@@ -429,7 +429,6 @@ export function TodayScreen() {
           {pathOpen && hero.kind === "barbell" && hero.warmups.length > 0 ? (
             <LoadPath steps={hero.warmups} work={{ load: hero.calc.load, reps: hero.reps ?? 0, perSide: hero.calc.perSide }} skippedHint={hero.skippedHint} onClose={() => setPathOpen(false)} />
           ) : null}
-          {hero.kind === "firstRun" ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.first.note")}</AppText> : null}
           {lead && mode !== "open" && mode !== "openElsewhere" ? (
             <>
               <DoorStub
@@ -462,8 +461,8 @@ export function TodayScreen() {
       {/* The rack: every other exercise, 64 dp rows. Planned vs preview is said once, in the header. */}
       {mode !== "openElsewhere" ? (
       <View style={{ gap: space.sm }}>
-        <SectionTitle action={<QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen} onPress={() => setNoteOpen((o) => !o)} />}>{isPreview ? t("today.rack.preview") : t("today.rack.planned")}</SectionTitle>
-        {noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}
+        <SectionTitle action={anyWeight ? <QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen} onPress={() => setNoteOpen((o) => !o)} /> : undefined}>{!anyWeight ? t("today.rack.exercises") : isPreview ? t("today.rack.preview") : t("today.rack.planned")}</SectionTitle>
+        {anyWeight && noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}
         {previewDay ? <AppText style={{ color: p.muted }}>{t("common.loading")}</AppText> : !anyWeight ? <AppText style={{ color: p.muted }}>{t("today.noTargetsYet")}</AppText> : null}
         <Card style={{ paddingVertical: space.xs }}>
           {exercises.filter((e) => !(lead && hero && e.exerciseId === lead.exerciseId)).map((e) => {
@@ -485,7 +484,6 @@ export function TodayScreen() {
                 name={l.primary}
                 scheme={scheme}
                 target={target}
-                noTarget={t("today.noWeightYet")}
                 chip={chip}
                 glyph={glyphFor(e.equipment, e.setup)}
                 a11yLabel={rackA11yLabel({ name: l.primary, scheme: planned, target, chip }, t, lang)}

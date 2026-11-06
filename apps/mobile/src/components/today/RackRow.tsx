@@ -1,6 +1,6 @@
 import type { EquipmentType, SetupType } from "@gain/engine";
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import { useI18n } from "../../i18n";
 import { barLayout, HERO_W } from "../../logic/barArt";
@@ -74,7 +74,6 @@ export interface RackRowProps {
   name: string;
   scheme: string;
   target: string | null;
-  noTarget: string;
   chip: string | null;
   glyph: RackGlyphName;
   a11yLabel: string;
@@ -86,10 +85,13 @@ export interface RackRowProps {
   children?: React.ReactNode;
 }
 
-/** A 64 dp rack row: glyph at the start, name 16/600 + scheme 14 muted, target 20/26 600 tabular in `text` with the chip under it. */
+/** A flexible rack row: name + prescription lead, numeric target beside or below, explanations below. */
 export function RackRow(props: RackRowProps) {
   const { t, unit } = useI18n();
   const p = usePalette();
+  const { width, fontScale } = useWindowDimensions();
+  // Give names the row at narrow widths / large system text, without reducing type.
+  const stacked = width / fontScale < 360;
   const actions = [{ name: "activate", label: t("today.rack.expand") }, ...(props.xray ? [{ name: "longpress", label: t("today.rack.showPlates") }] : [])];
   return (
     <View>
@@ -105,16 +107,16 @@ export function RackRow(props: RackRowProps) {
         style={({ pressed }) => ({ minHeight: RACK_ROW_HEIGHT, flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.sm, backgroundColor: pressed ? p.raised : "transparent", borderRadius: radius.button })}
       >
         <RackGlyph name={props.glyph} color={p.muted} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{props.name}</AppText>
-          <AppText style={{ fontSize: ty.label, lineHeight: 20, color: p.muted }}>{props.scheme}</AppText>
-        </View>
-        <View style={{ alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
-          {props.target ? (
-            <AppText style={{ fontSize: ty.section, lineHeight: 26, fontWeight: "600", color: p.text, fontVariant: ["tabular-nums"] }}>{props.target}</AppText>
-          ) : (
-            <AppText style={{ fontSize: ty.label, color: p.muted }}>{props.noTarget}</AppText>
-          )}
+        <View style={{ flex: 1, minWidth: 0, gap: space.xs }}>
+          <View style={{ flexDirection: stacked ? "column" : "row", alignItems: stacked ? "stretch" : "center", gap: space.sm }}>
+            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+              <AppText style={{ fontSize: ty.body, fontWeight: "600" }}>{props.name}</AppText>
+              <AppText style={{ fontSize: ty.label, lineHeight: 20, color: p.muted }}>{props.scheme}</AppText>
+            </View>
+            {props.target ? (
+              <AppText style={{ fontSize: ty.section, lineHeight: 26, fontWeight: "600", color: p.text, fontVariant: ["tabular-nums"], flexShrink: 1 }}>{props.target}</AppText>
+            ) : null}
+          </View>
           {props.chip ? <DeltaChip text={props.chip} /> : null}
         </View>
       </Pressable>

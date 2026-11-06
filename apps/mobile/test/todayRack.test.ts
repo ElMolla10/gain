@@ -8,10 +8,10 @@ import { todayRows } from "../src/logic/todayRows";
 import { clock, lastText, rackA11yLabel, stubArrow, stubLines, timeLine, writtenAfter } from "../src/logic/todayStub";
 import { byType, expand, nodes, texts } from "./achievementRender";
 
-const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar" }));
+const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar", width: 400, fontScale: 1 }));
 vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig(), { useContext: () => null }));
-vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: 1, width: 400, height: 800 }) }));
-vi.mock("react-native-svg", () => ({ default: "Svg", Path: "Path", Rect: "Rect", Defs: "Defs", G: "G", Ellipse: "Ellipse", LinearGradient: "LinearGradient", Stop: "Stop" }));
+vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale, width: settings.width, height: 800 }) }));
+vi.mock("react-native-svg", () => ({ default: "Svg", Path: "Path", Circle: "Circle", Rect: "Rect", Defs: "Defs", G: "G", Ellipse: "Ellipse", LinearGradient: "LinearGradient", Stop: "Stop" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: settings.lang, unit: "kg", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(settings.lang, k, p) }) }));
 vi.mock("../src/theme", () => ({
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
@@ -35,6 +35,8 @@ const WRITTEN = new Date(2026, 9, 15, 21, 14).getTime();
 
 beforeEach(() => {
   settings.lang = "en";
+  settings.width = 400;
+  settings.fontScale = 1;
 });
 
 describe("stub words", () => {
@@ -89,7 +91,7 @@ describe("todayRows", () => {
 
 describe("rack row and stub render (EN / AR)", () => {
   const row = (extra = {}) =>
-    expand(React.createElement(RackRow, { name: "Incline Dumbbell Press", scheme: "3 × 8–10", target: "28 kg × 9", noTarget: "-", chip: "+1 rep", glyph: "dumbbell", a11yLabel: rackA11yLabel({ name: "Incline Dumbbell Press", scheme: "3 × 8–10", target: "28 kg × 9", chip: "+1 rep" }, t("en"), "en"), expanded: false, onToggle: vi.fn(), ...extra }));
+    expand(React.createElement(RackRow, { name: "Incline Dumbbell Press", scheme: "3 × 8–10", target: "28 kg × 9", chip: "+1 rep", glyph: "dumbbell", a11yLabel: rackA11yLabel({ name: "Incline Dumbbell Press", scheme: "3 × 8–10", target: "28 kg × 9", chip: "+1 rep" }, t("en"), "en"), expanded: false, onToggle: vi.fn(), ...extra }));
   it("64 dp row, one button whose label includes the chip; target in text; glyph hidden and never mirrored", () => {
     const tree = row();
     const btn = byType(tree, "Pressable")[0]!;
@@ -99,6 +101,23 @@ describe("rack row and stub render (EN / AR)", () => {
     const svg = byType(tree, "Svg")[0]!;
     expect(svg.props.accessibilityElementsHidden).toBe(true);
     expect(svg.props.style.direction).toBe("ltr");
+  });
+  it("leaves the full name and prescription visible without a repeated empty-target sentence", () => {
+    const tree = row({ target: null, chip: null });
+    expect(texts(tree)).toEqual(["Incline Dumbbell Press", "3 × 8–10"]);
+  });
+  it.each([[320, 1], [375, 1.5]])("stacks targets below names at %s dp / %sx text", (width, fontScale) => {
+    settings.width = width;
+    settings.fontScale = fontScale;
+    const tree = row();
+    const target = byType(tree, "AppText").find((n) => n.props.children === "28 kg × 9")!;
+    const name = byType(tree, "AppText").find((n) => n.props.children === "Incline Dumbbell Press")!;
+    // In the stacked layout the target follows the name/scheme block, rather than taking a sibling column.
+    const parent = nodes(tree).find((n) => Array.isArray(n.props.children) && n.props.children.includes(target));
+    expect(parent).toBeDefined();
+    expect(nodes(parent)).toContain(name);
+    expect(parent?.props.style.flexDirection).toBe("column");
+    expect(name.props.numberOfLines).toBeUndefined();
   });
   it("barbell rows: long-press (400 ms) opens the x-ray, and 'Show plates' is a custom action", () => {
     const onOpen = vi.fn();
@@ -127,6 +146,20 @@ describe("rack row and stub render (EN / AR)", () => {
     expect(byType(tree, "QuietAction")).toHaveLength(1);
     const one = expand(React.createElement(TodayHeader, { date: "Sun 18 Oct", dayName: "Upper A", label: "Suggested today", dayIndex: 0, dayCount: 1, onChange: vi.fn() }));
     expect(byType(one, "QuietAction")).toHaveLength(0);
+  });
+  it("keeps long gym names available to accessibility and the gym/settings actions", () => {
+    const onGyms = vi.fn(), onSettings = vi.fn();
+    const name = "Downtown Strength and Conditioning Club with a Very Long Name";
+    const tree = expand(React.createElement(TodayHeader, { date: "Fri 6 Nov", dayName: "Upper A", label: "Suggested today", dayIndex: 0, dayCount: 1, onChange: vi.fn(), onGyms, onSettings, activeGymName: name }));
+    const text = byType(tree, "AppText").find((n) => n.props.children === name)!;
+    expect(text.props.numberOfLines).toBe(1);
+    expect(text.props.ellipsizeMode).toBe("tail");
+    const buttons = byType(tree, "Pressable");
+    const gym = buttons.find((n) => n.props.accessibilityLabel.includes(name))!;
+    gym.props.onPress();
+    buttons.find((n) => n.props.accessibilityLabel === "Settings")!.props.onPress();
+    expect(onGyms).toHaveBeenCalledOnce();
+    expect(onSettings).toHaveBeenCalledOnce();
   });
   it("glyphs: ≤ 6 paths each; equipment and setup pick one", () => {
     for (const [k, v] of Object.entries(RACK_GLYPHS)) expect(v.length, k).toBeLessThanOrEqual(6);

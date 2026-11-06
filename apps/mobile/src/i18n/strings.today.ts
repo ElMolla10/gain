@@ -41,6 +41,7 @@ export const enToday = {
   "today.stub.sets.one": "{n} set",
   "today.stub.sets.few": "{n} sets",
   "today.rack.planned": "Also today · written at the door",
+  "today.rack.exercises": "Today’s exercises",
   "today.rack.preview": "Also today · preview from your history",
   "today.rack.a11yTarget": "target {target}",
   "today.rack.expand": "Expand",
@@ -165,6 +166,7 @@ export const arToday: Record<keyof typeof enToday, string> = {
   // DRAFT ar
   "today.rack.planned": "كمان النهارده · مكتوبة من قبلها",
   // DRAFT ar
+  "today.rack.exercises": "تمارين النهارده",
   "today.rack.preview": "كمان النهارده · معاينة من سجلك",
   // DRAFT ar
   "today.rack.a11yTarget": "الهدف {target}",

@@ -59,7 +59,7 @@ describe("Today layout (design audit T-3..T-8)", () => {
   it("T-6: the preview note sits behind a 48 dp Why toggle with a spoken label, closed by default", () => {
     expect(today).toContain(`<QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={t("today.previewNoteToggle")} expanded={noteOpen}`);
     expect(today).toContain("const [noteOpen, setNoteOpen] = useState(false);");
-    expect(today).toContain('{noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}');
+    expect(today).toContain('{anyWeight && noteOpen ? <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("today.previewNote")}</AppText> : null}');
   });
   it("T-7: fillEdge is olive #5C8A00 in light only (>= 3:1 against bone), transparent in dark, and edges enabled primary buttons", () => {
     expect(lightPalette.fillEdge).toBe("#5C8A00");
@@ -86,4 +86,16 @@ describe("design QA round 1 (B-R1, B-R2)", () => {
     const ui = readFileSync(join(__dirname, "..", "src", "ui.tsx"), "utf8");
     expect(ui).toMatch(/inset && asked === "primary" && !props\.hero \? "secondary" : asked/);
   });
+});
+
+// Empty-state copy belongs to the list, never to a name/target column.
+it("uses one empty-list explanation and hides the generic Why until recommendations exist", () => {
+  expect(today).toContain('!anyWeight ? t("today.rack.exercises")');
+  expect(today.match(/t\("today.noTargetsYet"\)/g)).toHaveLength(1);
+  expect(today).not.toContain('t("today.noWeightYet")');
+  expect(today).not.toContain('t("today.first.note")');
+  expect(today).toContain('<SectionTitle action={anyWeight ?');
+  expect(today).toContain('r?.targetId ? <QuietAction');
+  expect(en["today.rack.exercises"]).toBe("Today’s exercises");
+  expect(ar["today.rack.exercises"]).toBeTruthy();
 });

@@ -1,9 +1,9 @@
-import { recommendLiveSet, predictNextReps, type Decision, type FeatureMap, type SetContext, type GymLoadSpec, type EquipmentType, type Measure, type SetupType, type XGBoostJSON, type ModelSchema, type LoggedSet } from "@gain/engine";
+import { recommendLiveSet, predictNextReps, nextLoadAbove, nextLoadBelow, type Decision, type FeatureMap, type SetContext, type GymLoadSpec, type EquipmentType, type Measure, type SetupType, type XGBoostJSON, type ModelSchema, type LoggedSet } from "@gain/engine";
 import type { SetRow } from "../db/workoutRepo";
 import { effectiveOf, kindOf, type SetRowDraft } from "./workoutRows";
 
 export const LIVE_MISSING_FEATURES = ["rest", "rir", "sleep", "readiness", "rpe", "equipment", "days"];
-export const trustedWorkingSet = (s: SetRow): boolean => !s.warmup && !s.tags.includes("drop") && (s.outlierStatus === "none" || s.outlierStatus === "confirmed") && s.durationS === null && s.distanceM === null && s.load > 0 && s.reps > 0;
+export const trustedWorkingSet = (s: SetRow, allowsZero = false): boolean => !s.warmup && !s.tags.includes("drop") && (s.outlierStatus === "none" || s.outlierStatus === "confirmed") && s.durationS === null && s.distanceM === null && (allowsZero ? s.load >= 0 : s.load > 0) && s.reps > 0;
 export function nextAdaptiveRow(rows: SetRowDraft[]): SetRowDraft | undefined {
   const next = rows.find(r => !r.saved);
   return next && kindOf(next) !== "warmup" && kindOf(next) !== "drop" ? next : undefined;
@@ -21,7 +21,7 @@ export function liveContext(input: { exerciseId: string; measure: Measure; setup
   // First-time exercises may have no target/ghost weight for the next set.
   // Use the most recent saved, trusted working weight as the baseline instead of
   // suppressing a useful recommendation. An explicitly entered next load wins.
-  const proposed = effectiveOf(next).load ?? previous?.load ?? null;
+  const proposed = next.load !== null ? next.load : (previous?.load ?? next.ghostLoad ?? null);
   if (!previous || proposed === null || proposed <= 0) return null;
   const prior = input.last?.sets.find(s => !s.warmup && !s.tags?.includes("drop") && (s.outlierStatus === undefined || s.outlierStatus === "none" || s.outlierStatus === "confirmed") && !s.durationS && !s.distanceM);
   const convention = input.equipment === "dumbbell" ? "per_dumbbell" : input.equipment === "barbell" ? "total_barbell_load" : input.equipment === "machine" || input.equipment === "cable" ? "displayed_machine_load" : "unknown";
@@ -74,16 +74,16 @@ export function applyExpectedReps(rows: SetRowDraft[], key: string, reps: number
   return rows.map(r => r.key === key ? { ...r, ghostReps: reps } : r);
 }
 /** Fill the next working row without overwriting either value the lifter typed. */
-export function applyLiveTarget(rows: SetRowDraft[], key: string, load: number, reps: number): SetRowDraft[] {
+export function applyLiveTarget(rows: SetRowDraft[], key: string, load: number, reps: number, allowsZero = false): SetRowDraft[] {
   const next = nextAdaptiveRow(rows);
-  if (!next || next.key !== key || !Number.isFinite(load) || load <= 0 || !Number.isInteger(reps) || reps < 1) return rows;
+  if (!next || next.key !== key || !Number.isFinite(load) || (allowsZero ? load < 0 : load <= 0) || !Number.isInteger(reps) || reps < 1) return rows;
   if (next.ghostLoad === load && next.ghostReps === reps) return rows;
   return rows.map(r => r.key === key ? { ...r, ghostLoad: load, ghostReps: reps } : r);
 }
 /** "Use this": put the suggestion in the next working row, replacing typed values. Saved rows stay. */
-export function takeLiveTarget(rows: SetRowDraft[], key: string, load: number, reps: number): SetRowDraft[] {
+export function takeLiveTarget(rows: SetRowDraft[], key: string, load: number, reps: number, allowsZero = false): SetRowDraft[] {
   const next = nextAdaptiveRow(rows);
-  if (!next || next.key !== key || !Number.isFinite(load) || load <= 0 || !Number.isInteger(reps) || reps < 1) return rows;
+  if (!next || next.key !== key || !Number.isFinite(load) || (allowsZero ? load < 0 : load <= 0) || !Number.isInteger(reps) || reps < 1) return rows;
   if (next.load === null && next.reps === null && next.ghostLoad === load && next.ghostReps === reps) return rows;
   return rows.map(r => r.key === key ? { ...r, load: null, reps: null, invalidLoad: false, invalidReps: false, ghostLoad: load, ghostReps: reps } : r);
 }
@@ -96,9 +96,9 @@ export function clearLiveTarget(rows: SetRowDraft[], key: string): SetRowDraft[]
 }
 /** A maintain recommendation is still a real weight recommendation.
  * Never invent one when inference is unavailable or the exercise should stop. */
-export function suggestedNextLoad(decision: Decision | undefined, hasLoggedWorkingSet: boolean): number | null {
+export function suggestedNextLoad(decision: Decision | undefined, hasLoggedWorkingSet: boolean, allowsZero = false): number | null {
   if (!hasLoggedWorkingSet || !decision || decision.action === "stop") return null;
-  return Number.isFinite(decision.suggestedWeightKg) && decision.suggestedWeightKg > 0 ? decision.suggestedWeightKg : null;
+  return Number.isFinite(decision.suggestedWeightKg) && (allowsZero ? decision.suggestedWeightKg >= 0 : decision.suggestedWeightKg > 0) ? decision.suggestedWeightKg : null;
 }
 
 /**
@@ -111,8 +111,8 @@ export function liveCardCurrent(card: { key: string; performance: string } | und
 }
 
 /** Stable across row keystrokes; dismissal lasts until the saved confirmed performance changes. */
-export function livePerformanceKey(sets: SetRow[], exerciseId: string): string {
-  return JSON.stringify(sets.filter(s => s.exerciseId === exerciseId && trustedWorkingSet(s)).map(s => [s.id,s.load,s.reps]));
+export function livePerformanceKey(sets: SetRow[], exerciseId: string, allowsZero = false): string {
+  return JSON.stringify(sets.filter(s => s.exerciseId === exerciseId && trustedWorkingSet(s, allowsZero)).map(s => [s.id,s.load,s.reps]));
 }
 
 export type ReportedSymptom = "severe_pain" | "dizziness";
@@ -124,4 +124,66 @@ export function reportedSymptomDecision(decision: Decision, symptom?: ReportedSy
 export function tryLiveRecommendation(context: SetContext, targetMin: number, targetMax: number, loadSpec: GymLoadSpec | null, predict = localPrediction, onError?: (error: unknown) => void): Decision | null {
   try { return liveRecommendation(context, targetMin, targetMax, loadSpec, predict); }
   catch (error) { onError?.(error); return null; }
+}
+
+/**
+ * Conservative rule-based recommendation for non-free setups (bodyweight+added, assisted)
+ * or as a fallback when ML inference is unavailable.
+ */
+export function conservativeLiveDecision(input: {
+  previousSet: { load: number; reps: number; rir?: number | null };
+  targetMin: number;
+  targetMax: number;
+  setup: SetupType;
+  equipment: EquipmentType;
+  spec?: GymLoadSpec | null;
+  proposedWeightKg?: number | null;
+}): Decision | null {
+  const { previousSet, targetMin, targetMax, setup, spec } = input;
+  const currentLoad = input.proposedWeightKg ?? previousSet.load;
+  if (!Number.isFinite(currentLoad)) return null;
+
+  if (setup === "bodyweight_plus_added") {
+    if (currentLoad < 0) return null;
+    if (previousSet.reps < targetMin) {
+      if (currentLoad > 0) {
+        const lower = spec ? nextLoadBelow(spec, currentLoad, true) : Math.max(0, currentLoad - 2.5);
+        if (lower !== null && lower >= 0 && lower < currentLoad) {
+          return { action: "decrease", suggestedWeightKg: lower, suggestedReps: targetMin, predictedReps: targetMin, reason: "below_range", predictionAvailable: false };
+        }
+      }
+      return { action: "maintain", suggestedWeightKg: 0, suggestedReps: targetMin, predictedReps: targetMin, reason: "no_lighter_load", predictionAvailable: false };
+    }
+    const targetReps = Math.min(targetMax, Math.max(targetMin, previousSet.reps));
+    return { action: "maintain", suggestedWeightKg: currentLoad, suggestedReps: targetReps, predictedReps: targetReps, reason: "within_range", predictionAvailable: false };
+  }
+
+  if (setup === "assisted") {
+    if (currentLoad <= 0) return null;
+    // For assisted lifts, missing reps means more assistance is needed (higher load on stack).
+    if (previousSet.reps < targetMin) {
+      const higher = spec ? nextLoadAbove(spec, currentLoad) : currentLoad + 5;
+      if (higher !== null && higher > currentLoad) {
+        return { action: "decrease", suggestedWeightKg: higher, suggestedReps: targetMin, predictedReps: targetMin, reason: "below_range", predictionAvailable: false };
+      }
+      return { action: "maintain", suggestedWeightKg: currentLoad, suggestedReps: targetMin, predictedReps: targetMin, reason: "no_lighter_load", predictionAvailable: false };
+    }
+    const targetReps = Math.min(targetMax, Math.max(targetMin, previousSet.reps));
+    return { action: "maintain", suggestedWeightKg: currentLoad, suggestedReps: targetReps, predictedReps: targetReps, reason: "within_range", predictionAvailable: false };
+  }
+
+  if (setup === "free") {
+    if (currentLoad <= 0) return null;
+    if (previousSet.reps < targetMin) {
+      const lower = spec ? nextLoadBelow(spec, currentLoad) : null;
+      if (lower !== null && lower > 0 && lower < currentLoad) {
+        return { action: "decrease", suggestedWeightKg: lower, suggestedReps: targetMin, predictedReps: targetMin, reason: "below_range", predictionAvailable: false };
+      }
+      return { action: "maintain", suggestedWeightKg: currentLoad, suggestedReps: targetMin, predictedReps: targetMin, reason: "no_lighter_load", predictionAvailable: false };
+    }
+    const targetReps = Math.min(targetMax, Math.max(targetMin, previousSet.reps));
+    return { action: "maintain", suggestedWeightKg: currentLoad, suggestedReps: targetReps, predictedReps: targetReps, reason: "within_range", predictionAvailable: false };
+  }
+
+  return null;
 }

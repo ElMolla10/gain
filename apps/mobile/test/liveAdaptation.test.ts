@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { applyExpectedReps, applyLiveTarget, takeLiveTarget, clearLiveTarget, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow, suggestedNextLoad } from "../src/logic/liveAdaptation";
+import { applyExpectedReps, applyLiveTarget, takeLiveTarget, clearLiveTarget, conservativeLiveDecision, liveContext, livePerformanceKey, localPrediction, reportedSymptomDecision, tryLiveRecommendation, nextAdaptiveRow, suggestedNextLoad } from "../src/logic/liveAdaptation";
 import { nextSetState } from "../src/logic/nextSetCard";
 import { initialRows, editRow, markSaved } from "../src/logic/workoutRows";
 import type { SetRow } from "../src/db/workoutRepo";
@@ -232,4 +232,118 @@ it("counts repeated very-low sets from real rows, but keeps legitimate low-rep t
   const spec = {equipment:"barbell" as const,increment:2.5,min:20,max:200};
   expect(tryLiveRecommendation(c,6,10,spec,()=>15)).toMatchObject({action:"stop",reason:"performance_stop",predictionAvailable:false});
   expect(tryLiveRecommendation(c,1,3,spec,()=>2)?.action).not.toBe("stop");
+});
+
+describe("first workout next-set weight suggestions and conservative decisions", () => {
+  it("uses the just-logged set weight rather than an initial starting estimate when set 2 is untyped", () => {
+    // Initial rows with starting estimate (40 kg x 8 reps)
+    const estimated = initialRows([], 3, { load: 40, reps: 8 }, (() => { let n = 0; return () => `row${++n}`; })());
+    expect(estimated[1]!.ghostLoad).toBe(40);
+    // User types 60 kg x 10 reps in row 1 and logs it
+    const loggedRow1 = markSaved(editRow(estimated, "row1", { load: 60, reps: 10 }), "row1");
+    const ctx = context({ rows: loggedRow1, sets: [saved({ id: "row1", load: 60, reps: 10 })] })!;
+    expect(ctx.previousSetWeightKg).toBe(60);
+    // Baseline proposed weight for set 2 is 60 kg (the logged weight), NOT the old 40 kg starting estimate!
+    expect(ctx.proposedWeightKg).toBe(60);
+
+    // If user explicitly types 65 kg into row 2, the explicitly entered load wins
+    const typedRow2 = editRow(loggedRow1, "row2", { load: 65 });
+    const ctxTyped = context({ rows: typedRow2, sets: [saved({ id: "row1", load: 60, reps: 10 })] })!;
+    expect(ctxTyped.proposedWeightKg).toBe(65);
+  });
+
+  it("bodyweight+added: maintains added load within range, decreases on missed reps, and caps at 0 kg", () => {
+    const plateSpec = { equipment: "plate" as const, loads: [1.25, 2.5, 5, 10, 15, 20] };
+    // Within range (10 kg x 8 reps, range 6-10) -> maintain 10 kg
+    const inRange = conservativeLiveDecision({
+      previousSet: { load: 10, reps: 8 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "bodyweight_plus_added",
+      equipment: "plate",
+      spec: plateSpec,
+    });
+    expect(inRange).toMatchObject({ action: "maintain", suggestedWeightKg: 10, suggestedReps: 8, reason: "within_range" });
+
+    // Missed reps (10 kg x 4 reps, range 6-10) -> decrease to 5 kg
+    const missed = conservativeLiveDecision({
+      previousSet: { load: 10, reps: 4 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "bodyweight_plus_added",
+      equipment: "plate",
+      spec: plateSpec,
+    });
+    expect(missed).toMatchObject({ action: "decrease", suggestedWeightKg: 5, suggestedReps: 6, reason: "below_range" });
+
+    // Missed reps at 0 kg added (0 kg x 3 reps, range 6-10) -> maintain 0 kg with no_lighter_load
+    const floor = conservativeLiveDecision({
+      previousSet: { load: 0, reps: 3 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "bodyweight_plus_added",
+      equipment: "plate",
+      spec: plateSpec,
+    });
+    expect(floor).toMatchObject({ action: "maintain", suggestedWeightKg: 0, suggestedReps: 6, reason: "no_lighter_load" });
+
+    // Bodyweight only within range (0 kg x 8 reps, range 6-10) -> maintain 0 kg
+    const bwInRange = conservativeLiveDecision({
+      previousSet: { load: 0, reps: 8 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "bodyweight_plus_added",
+      equipment: "plate",
+      spec: plateSpec,
+    });
+    expect(bwInRange).toMatchObject({ action: "maintain", suggestedWeightKg: 0, suggestedReps: 8, reason: "within_range" });
+  });
+
+  it("assisted lift: maintains assistance within range, increases assistance on missed reps", () => {
+    const assistedSpec = { equipment: "assisted" as const, loads: [15, 20, 25, 30, 35, 40] };
+    // Within range (25 kg x 8 reps, range 6-10) -> maintain 25 kg
+    const inRange = conservativeLiveDecision({
+      previousSet: { load: 25, reps: 8 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "assisted",
+      equipment: "assisted",
+      spec: assistedSpec,
+    });
+    expect(inRange).toMatchObject({ action: "maintain", suggestedWeightKg: 25, suggestedReps: 8, reason: "within_range" });
+
+    // Missed reps (25 kg x 4 reps, range 6-10) -> need more assistance (easier): decrease difficulty to 30 kg
+    const missed = conservativeLiveDecision({
+      previousSet: { load: 25, reps: 4 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "assisted",
+      equipment: "assisted",
+      spec: assistedSpec,
+    });
+    expect(missed).toMatchObject({ action: "decrease", suggestedWeightKg: 30, suggestedReps: 6, reason: "below_range" });
+
+    // Missed reps at maximum assistance stack (40 kg x 3 reps) -> maintain 40 kg with no_lighter_load
+    const ceiling = conservativeLiveDecision({
+      previousSet: { load: 40, reps: 3 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "assisted",
+      equipment: "assisted",
+      spec: assistedSpec,
+    });
+    expect(ceiling).toMatchObject({ action: "maintain", suggestedWeightKg: 40, suggestedReps: 6, reason: "no_lighter_load" });
+  });
+
+  it("applyLiveTarget and takeLiveTarget support 0 kg for bodyweight+added lines", () => {
+    const original = initialRows([], 2, { load: null, reps: null }, (() => { let n = 0; return () => `r${++n}`; })());
+    const appliedZero = applyLiveTarget(original, "r1", 0, 8, true);
+    expect(appliedZero[0]!.ghostLoad).toBe(0);
+    expect(appliedZero[0]!.ghostReps).toBe(8);
+
+    const takenZero = takeLiveTarget(original, "r1", 0, 8, true);
+    expect(takenZero[0]!.ghostLoad).toBe(0);
+    expect(takenZero[0]!.ghostReps).toBe(8);
+    expect(takenZero[0]!.load).toBeNull();
+  });
 });

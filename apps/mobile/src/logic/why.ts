@@ -69,7 +69,7 @@ export function describeWhyWeight(
 ): { sentence: string; details: string[] } {
   const W = (kg: number): string => `${weightText(kg, unit)} ${unitLabel(unit, locale)}`;
   const parts: string[] = [];
-  if (input.trigger && input.trigger.load > 0 && input.trigger.reps > 0) {
+  if (input.trigger && input.trigger.load >= 0 && input.trigger.reps > 0) {
     let set = L("why.weight.after", { set: isolateLtr(`${W(input.trigger.load)} × ${input.trigger.reps}`) });
     if (input.trigger.rir != null) set += L("why.weight.effort", { effort: String(input.trigger.rir) });
     if (input.position) set += L(`why.weight.${input.position}`);

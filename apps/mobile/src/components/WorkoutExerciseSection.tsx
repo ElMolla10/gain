@@ -3,7 +3,7 @@ import { loadTargetText } from "../logic/bidiText";
 import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, View, useWindowDimensions } from "react-native";
-import { findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
+import { allowsZero, findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
 import type { Disp, ExInfo } from "../logic/workoutTypes";
 import type { ExerciseState, SetRow } from "../db/workoutRepo";
 import { useI18n } from "../i18n";
@@ -87,8 +87,9 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
   const pending = exSets.filter((s) => s.outlierStatus === "unconfirmed");
   // "Maintain" is an actual recommendation too: show its current load, not a blank.
   // If inference is unavailable or tells the lifter to stop, do not fake a weight.
-  const suggestedKg = suggestedNextLoad(candidate?.decision, exSets.some(s => !s.warmup && s.outlierStatus !== "unconfirmed" && s.outlierStatus !== "rejected"));
-  const trusted = exSets.filter(trustedWorkingSet);
+  const zero = allowsZero(ex.setup);
+  const suggestedKg = suggestedNextLoad(candidate?.decision, exSets.some(s => !s.warmup && s.outlierStatus !== "unconfirmed" && s.outlierStatus !== "rejected"), zero);
+  const trusted = exSets.filter(s => trustedWorkingSet(s, zero));
   const basis = trusted.at(-1);
   const why = card
     ? describeWhyWeight(

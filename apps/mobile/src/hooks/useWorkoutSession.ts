@@ -323,15 +323,21 @@ export function useWorkoutSession() {
   // iOS may terminate a backgrounded app without running JS: on background, save pending notes and ONE draft snapshot (never per keystroke).
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  const draftSessionRef = useRef(openSessionId);
+  draftSessionRef.current = openSessionId;
   const ended = useRef(false);
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (s) => {
+    const saveDrafts = () => {
       const sid = sessionRef.current;
-      if ((s !== "background" && s !== "inactive") || !sid || ended.current) return;
+      if (!sid || draftSessionRef.current !== sid || ended.current) return;
       flushNotes();
       void repos.setSetting(draftKey(sid), serializeDrafts(rowsRef.current)).catch((e) => diagnostics.record("warn", "save drafts", e));
+    };
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "background" || s === "inactive") saveDrafts();
     });
-    return () => sub.remove();
+    // Collapse leaves the app active: it still needs a snapshot before reopening.
+    return () => { sub.remove(); saveDrafts(); };
   }, [repos, flushNotes]);
   const clearDrafts = (sid: string) => {
     ended.current = true;

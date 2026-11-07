@@ -121,6 +121,18 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
   const targetText = targetNone ? t("workout.targetNone") : timed ? ((tLoad as number) > 0 ? `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(quantityText(tReps as number, ex.measure, qUnits))}` : isolateLtr(quantityText(tReps as number, ex.measure, qUnits))) : `${formatLoad(tLoad as number, lang, unit)} × ${isolateLtr(String(tReps))}`;
   const reasonText = info.stored?.status === "rejected" ? t("finish.rejectedNote") : renderReason(localizeReason(info.stored ? info.stored.reason : pr.reason, unit, lang), lang);
 
+  const nextRow = nextAdaptiveRow(list);
+  const showNextHint = !!basis && !!card && !card.starting && !timed && card.decision.action !== "stop"
+    && nextRow?.key === card.key && !list.some(r => r.saved && r.dirty)
+    && Number.isFinite(card.decision.suggestedWeightKg) && (zero ? card.decision.suggestedWeightKg >= 0 : card.decision.suggestedWeightKg > 0)
+    && Number.isInteger(card.decision.suggestedReps) && card.decision.suggestedReps > 0;
+  const shortReason = card?.decision.reason === "no_lighter_load" ? t("live.compact.noEasier")
+    : card?.decision.reason === "no_suitable_increase" ? t("live.compact.noIncrease")
+    : card?.decision.reason === "unknown_increment" ? t("live.compact.unknownIncrement")
+    : card?.decision.action === "decrease" ? t(ex.setup === "assisted" ? "live.compact.moreAssistance" : "live.compact.decrease")
+    : card?.decision.action === "increase" ? t(ex.setup === "assisted" ? "live.compact.lessAssistance" : "live.compact.increase")
+    : t(card?.decision.predictionAvailable === false ? "live.compact.holdObserved" : "live.compact.hold");
+
   const colSet = { width: 48, alignItems: "center" as const };
   const colTick = { width: 48, alignItems: "center" as const };
   const head = { color: p.muted, fontSize: 13, fontWeight: "600" as const, textAlign: "center" as const };
@@ -171,7 +183,12 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
       {/* Tight vertical rhythm (spacing tokens): exercise block starts space.md below the previous one; heading, target line and set table sit directly on each other (the 48 dp controls already carry the breathing room), with space.xs above the column heads. */}
       {/* Compact target line: "Target 55 kg × 9 · Why". It wraps onto a second line when it is long and is never cut off. */}
       <View style={{ paddingHorizontal: space.lg }}>
-        <TargetLine
+        {targetNone && showNextHint ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+            <QuietAction label={t("workout.nextSetDetails")} expanded={suggestionOpen} onPress={() => onToggleSuggestion?.()} />
+            <QuietAction label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${labels.primary}`} expanded={suggestionOpen} onPress={() => onToggleSuggestion?.()} onLongPress={() => onToggleSuggestion?.()} />
+          </View>
+        ) : <TargetLine
           label={t("workout.nextTarget")}
           value={targetText}
           whyLabel={t("workout.whyShort")}
@@ -184,7 +201,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
           moreA11y={`${t("workout.nextSetDetails")}: ${labels.primary}`}
           moreExpanded={suggestionOpen}
           onMore={() => onToggleSuggestion?.()}
-        />
+        />}
         {!why && afterExercise ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("why.weight.afterExercise", { exercise: afterExercise })}</AppText> : null}
         {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}
         {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
@@ -209,6 +226,13 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
       <View>
         {list.map((row, i) => (
           <React.Fragment key={row.key}>
+            {showNextHint && card?.key === row.key ? (
+              <View testID="next-set-hint" accessibilityLiveRegion="polite" style={{ marginHorizontal: space.md, marginVertical: space.xs, padding: space.sm, gap: space.xs, borderStartWidth: 2, borderStartColor: p.accent }}>
+                <AppText style={{ fontWeight: "600", color: p.accent }}>{t("live.compact.next")}: {loadTargetText(card.decision.suggestedWeightKg, card.decision.suggestedReps, ex.measure, lang, unit, qUnits)}</AppText>
+                <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("live.basis", { load: formatLoad(basis!.load, lang, unit), reps: basis!.reps })}</AppText>
+                <AppText style={{ fontSize: ty.label, color: p.muted }}>{shortReason}</AppText>
+              </View>
+            ) : null}
             {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
             <MemoWorkoutSetRow key={row.key} ex={ex} unit={unit} loadSpec={spec} row={row} label={numbering[i] ?? i + 1}
               workingIndex={widx[i] ?? null} lastSets={(info.previous ? info.previous[previousSource] : info.last)?.sets ?? null}

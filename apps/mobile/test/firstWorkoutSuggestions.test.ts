@@ -149,10 +149,10 @@ describe("next-set weight suggestions during the very first workout", () => {
     expect((await c.workout.getSession(s.loaded.sessionId))!.status).toBe("in_progress");
     expect(await c.history.listSessions()).toHaveLength(0);
 
-    // "Next set details" is present on TargetLine
+    // A real next-set hint replaces the empty target headline; details remain one tap away.
     const tree = nodes(WorkoutExerciseSection(props));
-    const target = tree.find(n => n.type as unknown === "TargetLine")!;
-    expect(target.props.moreLabel).toBe("Next set details");
+    expect(tree.some(n => n.props.testID === "next-set-hint")).toBe(true);
+    expect(tree.find(n => n.type as unknown === "QuietAction" && n.props.label === "Next set details")).toBeDefined();
   });
 
   it("editing set 1 re-evaluates set 2 suggestion immediately", async () => {

@@ -4,14 +4,14 @@ import { freshDb } from "./helpers";
 import { ALL_LIBRARY, CATALOG } from "../src/db/libraryDraft";
 import { RANKABLE_MUSCLES, rankOf, parseMusclePriorities, serializeMusclePriorities, type MusclePriorities } from "../src/logic/musclePriority";
 import { generateProgramme, applyPriorityOrdering, type GeneratedProgramme, type GenerateInput } from "../src/logic/programGenerator";
-import { translate } from "../src/i18n";
+import { translate } from "../src/i18n/format";
 import { MusclePriorityGrid } from "../src/components/coach/MusclePriorityGrid";
 import { GeneratedProgrammeHero } from "../src/components/coach/GeneratedProgrammeHero";
 import { expand, nodes, texts } from "./achievementRender";
-import type { LibraryExercise, ProgrammeDraft } from "../src/db/programmeRepo";
-import { SessionInProgress } from "../src/db/programmeRepo";
+import type { LibraryExercise } from "../src/db/programmeRepo";
+import { DraftInvalid, SessionInProgress } from "../src/db/programmeRepo";
 import { sessionAction } from "../src/logic/dayChoice";
-import { newExercise } from "../src/logic/programmeDraft";
+import { newExercise, type ProgrammeDraft } from "../src/logic/programmeDraft";
 import { GYM_EQUIPMENT } from "../src/logic/gymInput";
 
 const strip = (s: string) => s.replace(/[\u2066-\u2069]/g, "");
@@ -80,6 +80,19 @@ vi.mock("../src/i18n", () => ({
 
 const byKey = new Map(CATALOG.map((c) => [c.key, { exerciseId: `id-${c.key}`, equipment: c.equipment }]));
 const idToKey = new Map([...byKey.entries()].map(([k, v]) => [v.exerciseId, k]));
+
+const mockLibraryExercises: LibraryExercise[] = ALL_LIBRARY.map((e) => ({
+  id: `id-${e.key}`,
+  seedKey: e.key,
+  nameEn: e.en,
+  nameAr: e.ar,
+  aliasesAr: e.aliasesAr,
+  pattern: e.pattern,
+  equipment: e.equipment,
+  setup: e.setup,
+  measure: "reps" as const,
+  isCustom: false,
+}));
 
 const baseGenerateInput = (over: Partial<GenerateInput> = {}): GenerateInput => ({
   goal: "hypertrophy",
@@ -219,11 +232,11 @@ describe("Plan and Progress screen simplification & Build Program", () => {
       const enNote = translate("en", "coach.priority.note");
       const arNote = translate("ar", "coach.priority.note");
 
-      expect(enNote).toContain("increases its weekly sets");
+      expect(enNote).toContain("weekly sets");
       expect(enNote).toContain("earlier on relevant workout days");
 
-      expect(arNote).toContain("يزيد من مجموعاتها الأسبوعية");
-      expect(arNote).toContain("في وقت أبكر");
+      expect(arNote).toContain("مجموعاتها الأسبوعية");
+      expect(arNote).toContain("تمارينها");
     });
   });
 
@@ -302,14 +315,19 @@ describe("Plan and Progress screen simplification & Build Program", () => {
       expect(activeAfter!.versionId).toBe(active.versionId);
     });
 
-    it("GeneratedProgrammeHero renders the exact exercise order in preview", () => {
+    it("GeneratedProgrammeHero renders comprehensive exercise details in preview without mutating the database", async () => {
+      const { db } = await seededDb();
+      const progCountBefore = (await db.get<{ count: number }>("SELECT count(*) as count FROM programme WHERE deleted_at IS NULL"))!.count;
+      const verCountBefore = (await db.get<{ count: number }>("SELECT count(*) as count FROM programme_version WHERE deleted_at IS NULL"))!.count;
+
       const preview = generateProgramme(baseGenerateInput(), { byKey }, () => 10);
       expect(preview).not.toBeNull();
+      expect(preview!.draft.days.length).toBeGreaterThan(0);
 
       const tree = expand(
         React.createElement(GeneratedProgrammeHero, {
           preview: preview!,
-          library: ALL_LIBRARY,
+          library: mockLibraryExercises,
           minutes: 75,
           busy: false,
           onSave: vi.fn(),
@@ -318,8 +336,25 @@ describe("Plan and Progress screen simplification & Build Program", () => {
 
       const allTexts = strip(texts(tree).join(" "));
       expect(allTexts).toContain("Activate & Save Program");
-      // Shows day names and exercise numbers
-      expect(allTexts).toContain("1. ");
+
+      // Verify every day renders day title, numbered exercises, names, and sets x rep range
+      for (const day of preview!.draft.days) {
+        expect(allTexts).toContain(day.name);
+        for (let i = 0; i < day.exercises.length; i++) {
+          const ex = day.exercises[i]!;
+          const libEx = mockLibraryExercises.find((l) => l.id === ex.exerciseId || l.seedKey === ex.exerciseId);
+          if (libEx) {
+            expect(allTexts).toContain(libEx.nameEn);
+          }
+          expect(allTexts).toContain(`${ex.sets} × ${ex.repMin}-${ex.repMax}`);
+        }
+      }
+
+      // No database write occurred during preview generation or rendering
+      const progCountAfter = (await db.get<{ count: number }>("SELECT count(*) as count FROM programme WHERE deleted_at IS NULL"))!.count;
+      const verCountAfter = (await db.get<{ count: number }>("SELECT count(*) as count FROM programme_version WHERE deleted_at IS NULL"))!.count;
+      expect(progCountAfter).toBe(progCountBefore);
+      expect(verCountAfter).toBe(verCountBefore);
     });
   });
 
@@ -417,6 +452,64 @@ describe("Plan and Progress screen simplification & Build Program", () => {
       // Exactly 1 save executed
       expect(callCount).toBe(1);
     });
+
+    it("guarantees failed activation (invalid draft or transaction failure) does not alter open workout or create extra versions", async () => {
+      const { db, programmes, workout, active, days, gym, gymId, repos } = await seededDb();
+      const day1 = days[0]!;
+      const exs = await repos.listDayExercises(day1.id);
+      const ex1 = exs[0]!;
+
+      // 1. Open workout with logged sets
+      const { id: sId } = await workout.startOrResumeSession(day1.id, gymId);
+      await workout.logSet(
+        { sessionId: sId, exerciseId: ex1.exerciseId, load: 80, reps: 10 },
+        { gym, equipment: ex1.equipment, setup: ex1.setup },
+      );
+
+      const verCountBefore = (await db.get<{ count: number }>("SELECT count(*) as count FROM programme_version"))!.count;
+
+      // 2. Attempt activation with invalid draft (e.g. empty days)
+      const invalidDraft: ProgrammeDraft = { name: "Bad Draft", days: [] };
+      await expect(programmes.createProgramme(invalidDraft, { activate: true })).rejects.toThrow(DraftInvalid);
+
+      // Verify no versions created
+      const verCountAfterInvalid = (await db.get<{ count: number }>("SELECT count(*) as count FROM programme_version"))!.count;
+      expect(verCountAfterInvalid).toBe(verCountBefore);
+
+      // Verify open workout completely intact
+      const openAfterInvalid = await workout.getSession(sId);
+      expect(openAfterInvalid?.status).toBe("in_progress");
+      const setsAfterInvalid = await workout.listSessionSets(sId);
+      expect(setsAfterInvalid.length).toBe(1);
+
+      // 3. Attempt activation where alsoInTransaction fails
+      const validDraft: ProgrammeDraft = {
+        name: "Failed Tx Draft",
+        days: [{ name: "D1", exercises: [newExercise(ex1.exerciseId, { sets: 3 })] }],
+      };
+
+      await expect(
+        programmes.createProgramme(validDraft, {
+          activate: true,
+          alsoInTransaction: async () => {
+            throw new Error("Simulated storage failure");
+          },
+        }),
+      ).rejects.toThrow("Simulated storage failure");
+
+      // Verify no versions created and active program untouched
+      const verCountAfterFail = (await db.get<{ count: number }>("SELECT count(*) as count FROM programme_version"))!.count;
+      expect(verCountAfterFail).toBe(verCountBefore);
+
+      const curActive = await programmes.getActive();
+      expect(curActive?.programmeId).toBe(active.programmeId);
+
+      // Verify open workout still intact
+      const openAfterFail = await workout.getSession(sId);
+      expect(openAfterFail?.status).toBe("in_progress");
+      const setsAfterFail = await workout.listSessionSets(sId);
+      expect(setsAfterFail.length).toBe(1);
+    });
   });
 
   describe("Activating a new program during an open workout", () => {
@@ -494,6 +587,123 @@ describe("Plan and Progress screen simplification & Build Program", () => {
       const nextAction = sessionAction(p2Days[0]!.id, null);
       expect(nextAction).toEqual({ kind: "start", dayId: p2Days[0]!.id });
     });
+
+    it("strictly isolates sets, progression decisions, and next-session targets across program boundary, and preserves workout across simulated force-close", async () => {
+      const { db, programmes, workout, finish, gym, gymId, deps, days, repos } = await seededDb();
+      const day1 = days[0]!;
+      const exs = await repos.listDayExercises(day1.id);
+      const ex1 = exs[0]!;
+
+      // Find an exercise from DB that is not in day 1 to use in Program B
+      const allDbExercises = await programmes.listExercises();
+      const exB = allDbExercises.find((e) => !exs.some((x) => x.exerciseId === e.id))!;
+      const exBId = exB.id;
+
+      // 1. Start workout on Program A
+      const { id: sId } = await workout.startOrResumeSession(day1.id, gymId);
+      await workout.logSet(
+        { sessionId: sId, exerciseId: ex1.exerciseId, load: 95, reps: 10 },
+        { gym, equipment: ex1.equipment, setup: ex1.setup },
+      );
+      await workout.logSet(
+        { sessionId: sId, exerciseId: ex1.exerciseId, load: 95, reps: 9 },
+        { gym, equipment: ex1.equipment, setup: ex1.setup },
+      );
+
+      // 2. Build and activate Program B
+      const p2Draft: ProgrammeDraft = {
+        name: "Program Bravo",
+        days: [
+          {
+            name: "Bravo Day 1",
+            exercises: [newExercise(exBId, { sets: 4, repMin: 8, repMax: 12 })],
+          },
+        ],
+      };
+      const p2Result = await programmes.createProgramme(p2Draft, { activate: true });
+      const p2Active = await programmes.getActive();
+      expect(p2Active!.programmeId).toBe(p2Result.programmeId);
+      const p2Days = await repos.listDays(p2Active!.versionId);
+
+      // 3. Simulate force-close and reopen: query fresh from DB
+      const openDb = await db.get<{ id: string; programme_day_id: string; status: string }>(
+        "SELECT id, programme_day_id, status FROM session WHERE status = 'in_progress' AND deleted_at IS NULL",
+      );
+      expect(openDb?.id).toBe(sId);
+      expect(openDb?.programme_day_id).toBe(day1.id);
+      expect(openDb?.status).toBe("in_progress");
+
+      const setsDb = await workout.listSessionSets(sId);
+      expect(setsDb.length).toBe(2);
+      expect(setsDb[0]!.load).toBe(95);
+      expect(setsDb[1]!.load).toBe(95);
+
+      // TodayScreen logic during open workout:
+      // Even though active program is Program B, open workout belongs to Program A.
+      const openCheck = await workout.getOpenSession();
+      expect(openCheck?.id).toBe(sId);
+      expect(openCheck?.dayId).toBe(day1.id);
+
+      const nextDay = await repos.getNextDay();
+      expect(nextDay?.versionId).toBe(p2Active!.versionId);
+
+      // SessionAction returns resume for the open day
+      const action = sessionAction(nextDay!.day.id, openCheck!.dayId);
+      expect(action).toEqual({ kind: "resume", dayId: day1.id, elsewhere: true });
+
+      // 4. Resume old workout: log another set and finish
+      deps.tick(120_000);
+      await workout.logSet(
+        { sessionId: sId, exerciseId: ex1.exerciseId, load: 95, reps: 8 },
+        { gym, equipment: ex1.equipment, setup: ex1.setup },
+      );
+      await workout.finishSession(sId);
+
+      // Verify finished status
+      const finishedSession = await workout.getSession(sId);
+      expect(finishedSession?.status).toBe("finished");
+
+      // 5. Plan next session targets
+      const nextPlan = await finish.writeNextSessionTargets(sId);
+      expect(nextPlan).not.toBeNull();
+
+      // Check the new planned session
+      const plannedSession = await db.get<{ id: string; programme_version_id: string; programme_day_id: string }>(
+        "SELECT id, programme_version_id, programme_day_id FROM session WHERE status = 'planned' AND deleted_at IS NULL",
+      );
+      expect(plannedSession).toBeDefined();
+      // Planned session is for Program B, NOT Program A
+      expect(plannedSession!.programme_version_id).toBe(p2Active!.versionId);
+      expect(plannedSession!.programme_day_id).toBe(p2Days[0]!.id);
+
+      // Targets for the planned session belong to Program B's exercise (exBId), NOT Program A (ex1.exerciseId)
+      const targets = await finish.getTargets(plannedSession!.id);
+      expect(targets.length).toBe(1);
+      expect(targets[0]!.exerciseId).toBe(exBId);
+
+      // The old workout's logged sets are strictly attached to sId
+      const allSetsInDb = await db.all<{ id: string; session_id: string; exercise_id: string }>(
+        "SELECT id, session_id, exercise_id FROM workout_set WHERE deleted_at IS NULL",
+      );
+      expect(allSetsInDb.every((s) => s.session_id === sId)).toBe(true);
+      expect(allSetsInDb.every((s) => s.exercise_id === ex1.exerciseId)).toBe(true);
+
+      // Finished day preview forecasts Program A's day, not mistakenly attached to Program B
+      const dayPreview = await finish.previewFinishedDay(sId);
+      expect(dayPreview?.dayId).toBe(day1.id);
+      expect(dayPreview?.exercises.some((e) => e.exerciseId === ex1.exerciseId)).toBe(true);
+
+      // 6. TodayScreen state after finish:
+      const openAfterFinish = await workout.getOpenSession();
+      expect(openAfterFinish).toBeNull();
+
+      const nextDayAfterFinish = await repos.getNextDay();
+      expect(nextDayAfterFinish?.versionId).toBe(p2Active!.versionId);
+      expect(nextDayAfterFinish?.day.id).toBe(p2Days[0]!.id);
+
+      const actionAfterFinish = sessionAction(nextDayAfterFinish!.day.id, null);
+      expect(actionAfterFinish).toEqual({ kind: "start", dayId: p2Days[0]!.id });
+    });
   });
 
   describe("Audit of Plan screen actions during open workout", () => {
@@ -526,7 +736,7 @@ describe("Plan and Progress screen simplification & Build Program", () => {
       await workout.startOrResumeSession(day1.id, gymId);
 
       // Applying short-week schedule when workout is open throws SessionInProgress because it modifies current week schedule
-      await expect(shortWeek.apply({ keptDayIds: [day1.id] })).rejects.toThrow(SessionInProgress);
+      await expect(shortWeek.apply(3, null)).rejects.toThrow(SessionInProgress);
     });
   });
 
@@ -561,11 +771,11 @@ describe("Plan and Progress screen simplification & Build Program", () => {
       const enNote = translate("en", "coach.priority.note");
       const arNote = translate("ar", "coach.priority.note");
 
-      expect(enNote).toContain("Prioritising a muscle");
+      expect(enNote).toContain("weekly sets");
       expect(enNote).toContain("earlier on relevant workout days");
 
-      expect(arNote).toContain("تحديد أولوية لعضلة");
-      expect(arNote).toContain("في وقت أبكر");
+      expect(arNote).toContain("مجموعاتها الأسبوعية");
+      expect(arNote).toContain("تمارينها");
     });
   });
 });

@@ -210,6 +210,38 @@ describe("one tap on the real session checkmark", () => {
 });
 
 describe("typed drafts survive iOS terminating the app (iOS audit 10)", () => {
+  it("closing a failed resume does not replace the existing draft with an empty snapshot", async () => {
+    const c = await fixture();
+    const s = ready(); const ex = s.shown[0]!;
+    const sid = s.loaded.sessionId;
+    s.patch(ex.exerciseId, s.rows[ex.exerciseId]![1]!.key, { load: 62.5, reps: 8 });
+    ready();
+    host.values.forEach(v => v?.cleanup?.());
+    await vi.waitFor(async () => expect(await c.repos.getSetting(`workout_drafts:${sid}`)).toContain("62.5"));
+    const snapshot = await c.repos.getSetting(`workout_drafts:${sid}`);
+    host.values = []; host.effects = [];
+    vi.spyOn(c.repos, "listDayExercises").mockRejectedValueOnce(new Error("read failed"));
+    render();
+    await vi.waitFor(() => expect(render().phase).toBe("error"));
+    host.values.forEach(v => v?.cleanup?.());
+    await Promise.resolve();
+    expect(await c.repos.getSetting(`workout_drafts:${sid}`)).toBe(snapshot);
+  });
+  it("collapsing and reopening keeps typed sets without a background event or logging them", async () => {
+    const c = await fixture();
+    const s = ready(); const ex = s.shown[0]!;
+    const sid = s.loaded.sessionId;
+    const before = await c.workout.listSessionSets(sid);
+    s.patch(ex.exerciseId, s.rows[ex.exerciseId]![1]!.key, { load: 62.5, reps: 8 });
+    ready();
+    // Collapse navigates back while the app remains active, unmounting the logger.
+    host.values.forEach(v => v?.cleanup?.());
+    await vi.waitFor(async () => expect(await c.repos.getSetting(`workout_drafts:${sid}`)).toContain("62.5"));
+    host.values = []; host.effects = [];
+    render();
+    await vi.waitFor(() => expect(ready().rows[ex.exerciseId]![1]).toMatchObject({ load: 62.5, reps: 8, saved: false }));
+    expect(await c.workout.listSessionSets(sid)).toEqual(before);
+  });
   it("backgrounding saves one draft snapshot; reopening restores it unticked; ticking logs exactly that; finishing clears it", async () => {
     const c = await fixture();
     let s = ready(); const ex = s.shown[0]!;

@@ -332,7 +332,31 @@ describe("first workout next-set weight suggestions and conservative decisions",
       equipment: "assisted",
       spec: assistedSpec,
     });
-    expect(ceiling).toMatchObject({ action: "maintain", suggestedWeightKg: 40, suggestedReps: 6, reason: "no_lighter_load" });
+    expect(ceiling).toMatchObject({ action: "maintain", suggestedWeightKg: 40, suggestedReps: 6, reason: "no_lighter_load", predictionAvailable: false });
+
+    // When gym load spec is MISSING: missing reps must NEVER invent a load beyond stack maximum
+    // It safely maintains currentLoad with no_lighter_load instead of guessing a higher assistance weight
+    const missingSpec = conservativeLiveDecision({
+      previousSet: { load: 35, reps: 4 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "assisted",
+      equipment: "assisted",
+      spec: null,
+    });
+    expect(missingSpec).toMatchObject({ action: "maintain", suggestedWeightKg: 35, suggestedReps: 6, reason: "no_lighter_load", predictionAvailable: false });
+
+    // With an increment spec (e.g. max 70 kg): missing reps at 70 kg cannot exceed 70 kg
+    const incrementSpec = { equipment: "assisted" as const, increment: 5, min: 0, max: 70 };
+    const maxStack = conservativeLiveDecision({
+      previousSet: { load: 70, reps: 3 },
+      targetMin: 6,
+      targetMax: 10,
+      setup: "assisted",
+      equipment: "assisted",
+      spec: incrementSpec,
+    });
+    expect(maxStack).toMatchObject({ action: "maintain", suggestedWeightKg: 70, suggestedReps: 6, reason: "no_lighter_load", predictionAvailable: false });
   });
 
   it("applyLiveTarget and takeLiveTarget support 0 kg for bodyweight+added lines", () => {

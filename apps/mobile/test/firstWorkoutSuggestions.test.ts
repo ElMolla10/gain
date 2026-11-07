@@ -49,10 +49,14 @@ vi.mock("../src/i18n", () => {
   const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate("en", key, params);
   return { useI18n: () => ({ t, lang: "en", unit: "kg", unitText: "kg", fmt: (kg: number) => String(kg) }) };
 });
-const recs = vi.hoisted(() => ({ n: 0 }));
+const recs = vi.hoisted(() => ({ n: 0, unavailable: false }));
 vi.mock("../src/logic/liveAdaptation", async (orig) => {
   const actual = await orig<typeof import("../src/logic/liveAdaptation")>();
-  return { ...actual, tryLiveRecommendation: (...args: Parameters<typeof actual.tryLiveRecommendation>) => { recs.n++; return actual.tryLiveRecommendation(...args); } };
+  return { ...actual, tryLiveRecommendation: (...args: Parameters<typeof actual.tryLiveRecommendation>) => {
+    recs.n++;
+    if (recs.unavailable) return actual.tryLiveRecommendation(args[0], args[1], args[2], args[3], () => { throw new Error("model unavailable"); }, args[5]);
+    return actual.tryLiveRecommendation(...args);
+  } };
 });
 vi.mock("../src/diagnostics", () => ({ diagnostics: { record: vi.fn() } }));
 vi.mock("../src/native/workoutLiveActivity", () => ({ workoutLiveActivity: { sync: native.sync, stop: native.stop, reconcile: native.reconcile } }));
@@ -101,12 +105,12 @@ async function firstWorkoutFixture(opts: { restOn?: boolean } = {}) {
   return c;
 }
 
-beforeEach(() => { host.values = []; host.effects = []; host.index = 0; vi.clearAllMocks(); vi.useFakeTimers(); });
+beforeEach(() => { host.values = []; host.effects = []; host.index = 0; recs.unavailable = false; vi.clearAllMocks(); vi.useFakeTimers(); });
 afterEach(() => { host.values.forEach(v => v?.cleanup?.()); vi.useRealTimers(); });
 
 describe("next-set weight suggestions during the very first workout", () => {
   it("log set 1 -> immediately suggests set 2 with ghost values without prior history", async () => {
-    await firstWorkoutFixture();
+    const c = await firstWorkoutFixture();
     let s = ready();
     const ex = s.shown[0]!;
     // Exercise has no prior history: info.last is null, info.stored is null
@@ -141,6 +145,9 @@ describe("next-set weight suggestions during the very first workout", () => {
     expect(props.card!.decision.action).toBe("maintain");
     expect(props.card!.decision.suggestedWeightKg).toBe(60);
     expect(props.card!.decision.reason).toBe("within_range");
+    expect(await c.workout.listSessionSets(s.loaded.sessionId)).toHaveLength(1);
+    expect((await c.workout.getSession(s.loaded.sessionId))!.status).toBe("in_progress");
+    expect(await c.history.listSessions()).toHaveLength(0);
 
     // "Next set details" is present on TargetLine
     const tree = nodes(WorkoutExerciseSection(props));
@@ -309,8 +316,10 @@ describe("next-set weight suggestions during the very first workout", () => {
     const row1 = rows[1]!;
     expect(row1.saved).toBe(false);
     const props = s.exerciseProps(ex, 0)!;
-    // No suggestion card forced on back-off set without history
+    // No suggestion card on back-off set without history, leaving the weight for the lifter to choose
     expect(props.card).toBeUndefined();
+    expect(row1.ghostLoad).toBeNull();
+    expect(row1.load).toBeNull();
   });
 
   it("bodyweight+added exercise on first workout suggests maintaining added load", async () => {
@@ -396,7 +405,7 @@ describe("next-set weight suggestions during the very first workout", () => {
 // historical planning. The production hook and real adapter/policy still run.
 import { useWorkoutSuggestions } from "../src/hooks/useWorkoutSuggestions";
 import { initialRows, editRow, type SetRowDraft } from "../src/logic/workoutRows";
-import type { Disp, LoadedWorkout } from "../src/logic/workoutTypes";
+import type { DayEx, Disp, LoadedWorkout } from "../src/logic/workoutTypes";
 import type { SetRow } from "../src/db/workoutRepo";
 import type { EquipmentType, GymLoadSpec, SetupType } from "@gain/engine";
 
@@ -413,7 +422,7 @@ function suggestionFixture(options: { equipment?: EquipmentType; setup?: SetupTy
   const input = {
     loaded: { sessionId: saved.sessionId, resumed: false, startedAt: 1, pausedMs: 0, pausedAt: null, gym: { id: "gym", loads: [spec] }, slots: [ex], info: { [ex.exerciseId]: { last: null, stored: null, prefill: { load: null, reps: null }, proposal: { currency: "none" } } } } as unknown as LoadedWorkout,
     rows: { [ex.exerciseId]: list }, sets: options.noSaved ? [] : [saved], exState: {}, readiness: null,
-    makeDisp: (slot: typeof ex) => slot,
+    makeDisp: (slot: DayEx): Disp => ({ ...slot, slot: slot.exerciseId }),
     setRows: (update: React.SetStateAction<Record<string, SetRowDraft[]>>) => { input.rows = typeof update === "function" ? update(input.rows) : update; },
   };
   const evaluation = { record: vi.fn(async (_prediction: unknown) => {}) };
@@ -515,11 +524,20 @@ describe("first-workout suggestion hook scheduling and draft safety", () => {
     expect(f.evaluation.record).not.toHaveBeenCalled();
   });
 
-  it("uses the first logged top set for the next row even without previous back-off history", async () => {
+  it("keeps the observed load as a conservative hold when the model is unavailable", async () => {
+    recs.unavailable = true;
+    const f = suggestionFixture({ load: 24, reps: 8 });
+    const result = await f.settle();
+    expect(result.liveCards[f.ex.exerciseId]).toMatchObject({ decision: { action: "maintain", suggestedWeightKg: 24, predictionAvailable: false } });
+    expect(f.next()).toMatchObject({ ghostLoad: 24, ghostReps: 8, load: null, reps: null, saved: false });
+    Object.values(f.writes).forEach(write => expect(write).not.toHaveBeenCalled());
+  });
+
+  it("does not advise a back-off set without previous back-off history", async () => {
     const f = suggestionFixture({ topSets: 1 });
     const result = await f.settle();
-    expect(result.liveCards[f.ex.exerciseId]).toBeDefined();
-    expect(f.next().ghostLoad).toBeGreaterThan(0);
+    expect(result.liveCards[f.ex.exerciseId]).toBeUndefined();
+    expect(f.next().ghostLoad).toBeNull();
     expect(f.next().saved).toBe(false);
   });
 

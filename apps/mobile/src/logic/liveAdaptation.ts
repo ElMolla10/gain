@@ -147,7 +147,7 @@ export function conservativeLiveDecision(input: {
     if (currentLoad < 0) return null;
     if (previousSet.reps < targetMin) {
       if (currentLoad > 0) {
-        const lower = spec ? nextLoadBelow(spec, currentLoad, true) : Math.max(0, currentLoad - 2.5);
+        const lower = spec ? nextLoadBelow(spec, currentLoad, true) : null;
         if (lower !== null && lower >= 0 && lower < currentLoad) {
           return { action: "decrease", suggestedWeightKg: lower, suggestedReps: targetMin, predictedReps: targetMin, reason: "below_range", predictionAvailable: false };
         }
@@ -161,8 +161,9 @@ export function conservativeLiveDecision(input: {
   if (setup === "assisted") {
     if (currentLoad <= 0) return null;
     // For assisted lifts, missing reps means more assistance is needed (higher load on stack).
+    // Alternate loads require a gym load spec so suggestions never exceed the stack maximum or invent non-existent pins.
     if (previousSet.reps < targetMin) {
-      const higher = spec ? nextLoadAbove(spec, currentLoad) : currentLoad + 5;
+      const higher = spec ? nextLoadAbove(spec, currentLoad) : null;
       if (higher !== null && higher > currentLoad) {
         return { action: "decrease", suggestedWeightKg: higher, suggestedReps: targetMin, predictedReps: targetMin, reason: "below_range", predictionAvailable: false };
       }

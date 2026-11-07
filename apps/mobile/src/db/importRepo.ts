@@ -44,6 +44,8 @@ export interface ImportPreview {
   warnings: string[];
 }
 
+export type ImportRefreshWarning = "targets" | "achievements";
+
 export interface ImportResult {
   batchId: string | null;
   workouts: number;
@@ -52,6 +54,8 @@ export interface ImportResult {
   empty: number;
   skippedSets: number;
   newExercises: number;
+  /** History is committed; this follow-up stage failed and can be retried without importing again. */
+  refreshWarning?: ImportRefreshWarning;
 }
 
 export interface BatchInfo {
@@ -385,19 +389,37 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
       }
       return { batchId, workouts, sets, duplicates, empty: emptyNow, skippedSets, newExercises };
     }).then(async (r) => {
-      await resync();
-      return r;
+      const refreshWarning = await refreshAfterImport();
+      return refreshWarning ? { ...r, refreshWarning } : r;
     });
   }
 
   /** Planned sessions were proposed from the history that existed then; imported history can change them. */
-  async function resync(): Promise<void> {
+  async function refreshTargets(): Promise<void> {
     const active = await repos.getActiveGymId();
     if (active) await finish.refreshPlannedSessions(active);
+  }
+
+  async function refreshAchievements(): Promise<void> {
     const raw = await repos.getSetting("week_starts_on");
     const v = raw === null || raw === "" ? Number.NaN : Number(raw);
     const startsOn = Number.isInteger(v) && v >= 0 && v <= 6 ? v : 1;
     await syncAchievements(db, deps, { weekStartsOn: startsOn, backfill: false, repos });
+  }
+
+  /** Refresh derived data after COMMIT. Failures must not report that history changes were rolled back. */
+  async function refreshAfterImport(): Promise<ImportRefreshWarning | null> {
+    try {
+      await refreshTargets();
+    } catch {
+      return "targets";
+    }
+    try {
+      await refreshAchievements();
+    } catch {
+      return "achievements";
+    }
+    return null;
   }
 
   async function listBatches(): Promise<BatchInfo[]> {
@@ -412,7 +434,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
    * Takes one import back: its sessions and sets are soft-deleted, so the history lines return to what they were and the same file
    * can be imported again. Exercises and lines created by the import stay (they hold no history once the sessions are gone).
    */
-  async function undoBatch(batchId: string): Promise<{ workouts: number; sets: number }> {
+  async function undoBatch(batchId: string): Promise<{ workouts: number; sets: number; refreshWarning?: ImportRefreshWarning }> {
     const r = await db.transaction(async () => {
       const b = await db.get<{ id: string }>("SELECT id FROM import_batch WHERE id = ? AND deleted_at IS NULL", [batchId]);
       if (!b) throw new Error("Unknown import");
@@ -425,10 +447,10 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
       await db.run("UPDATE import_batch SET deleted_at = ?, updated_at = ? WHERE id = ?", [t, t, batchId]);
       return { workouts: sessions.changes, sets: sets.changes };
     });
-    await resync();
-    return r;
+    const refreshWarning = await refreshAfterImport();
+    return refreshWarning ? { ...r, refreshWarning } : r;
   }
 
-  return { preview, importHistory, listBatches, undoBatch };
+  return { preview, importHistory, listBatches, undoBatch, refreshAfterImport };
 }
 export type ImportRepo = ReturnType<typeof createImportRepo>;

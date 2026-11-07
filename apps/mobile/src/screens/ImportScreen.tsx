@@ -6,7 +6,7 @@ import { diagnostics } from "../diagnostics";
 import { runUndo, undoConfirmText } from "../logic/importUndo";
 import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
-import type { BatchInfo, ImportPreview, ImportResult, TitlePreview } from "../db/importRepo";
+import type { BatchInfo, ImportPreview, ImportRefreshWarning, ImportResult, TitlePreview } from "../db/importRepo";
 import type { LibraryExercise } from "../db/programmeRepo";
 import { useI18n } from "../i18n";
 import type { StringKey } from "../i18n/strings";
@@ -89,6 +89,7 @@ export function ImportScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<(ImportResult) | null>(null);
+  const [refreshWarning, setRefreshWarning] = useState<ImportRefreshWarning | null>(null);
   const [undone, setUndone] = useState<number | null>(null);
   const [batches, setBatches] = useState<BatchInfo[]>([]);
   const [mapFile, setMapFile] = useState<{ name: string; text: string; headers: string[] } | null>(null);
@@ -178,12 +179,29 @@ export function ImportScreen() {
     try {
       const r = await imports.importHistory({ parse: kgParse, gymId, mappings: res.mappings, fileName: parsed?.name });
       setResult(r);
+      setRefreshWarning(r.refreshWarning ?? null);
       setParsed(null);
       setPreview(null);
       refreshBatches();
     } catch (e) {
       setError(t("import.failed", { detail: e instanceof Error ? e.message : String(e) }));
     } finally {
+      setBusy(null);
+    }
+  }
+  const refreshing = useRef(false);
+  async function retryRefresh() {
+    if (refreshing.current || busy || !refreshWarning) return;
+    refreshing.current = true;
+    setBusy(t("import.refresh.working"));
+    setError(null);
+    try {
+      setRefreshWarning(await imports.refreshAfterImport());
+    } catch (e) {
+      diagnostics.record("error", "import refresh", e);
+      setError(t("import.refresh.failed"));
+    } finally {
+      refreshing.current = false;
       setBusy(null);
     }
   }
@@ -202,6 +220,7 @@ export function ImportScreen() {
       if (r) {
         setUndone(r.workouts);
         setResult(null);
+        setRefreshWarning(r.refreshWarning ?? null);
       }
     } finally {
       undoing.current = false;
@@ -269,6 +288,12 @@ export function ImportScreen() {
       {busy ? <InlineStatus kind="info" text={busy} /> : null}
       {error ? <Notice kind="error">{error}</Notice> : null}
       {undone !== null ? <InlineStatus kind="success" text={t("import.undone", { workouts: undone })} /> : null}
+      {refreshWarning ? (
+        <Card>
+          <Notice kind="warn">{t(refreshWarning === "targets" ? "import.refresh.targets" : "import.refresh.achievements")}</Notice>
+          <BigButton label={t("import.refresh.retry")} variant="secondary" disabled={!!busy} onPress={() => void retryRefresh()} />
+        </Card>
+      ) : null}
 
       {result ? (
         <Card>

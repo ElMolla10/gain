@@ -37,7 +37,7 @@ export function ProgramGenerateScreen() {
   const { programmes, repos, gyms } = useServices();
   const { t, lang } = useI18n();
   const p = usePalette();
-  const nav = useNavigation<{ goBack: () => void; navigate: (n: "ProgrammeEdit" | "Today", params?: { programmeId?: string }) => void }>();
+  const nav = useNavigation<{ goBack: () => void; navigate: (name: string, params?: object) => void }>();
   const [goal, setGoal] = useState<GeneratorGoal>("hypertrophy");
   const [experience, setExperience] = useState<GeneratorExperience>("intermediate");
   const [days, setDays] = useState(4);
@@ -109,7 +109,7 @@ export function ProgramGenerateScreen() {
           await repos.setSetting("muscle_priorities", serializeMusclePriorities(priorities));
         },
       });
-      nav.navigate("Today");
+      nav.navigate("Tabs", { screen: "Programme", params: { activated: true } });
     } catch (e) {
       if (e instanceof SessionInProgress) setMessage(t("prog.openWorkout"));
       else if (e instanceof DraftInvalid) setMessage(t("ob.error"));
@@ -123,7 +123,7 @@ export function ProgramGenerateScreen() {
   return (
     <Screen>
       <AppText style={{ color: p.muted }}>{t("coach.build.note")}</AppText>
-      {message ? <Notice kind="warn">{message}</Notice> : null}
+      {message ? <Notice kind="error">{message}</Notice> : null}
 
       <SectionTitle>{t("coach.goal")}</SectionTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>

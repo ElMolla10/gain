@@ -408,7 +408,23 @@ export function InlineStatus({ kind, text, icon: iconOverride, compact }: { kind
 }
 
 /** A boxed message (error, warning, note) with optional action, e.g. Retry. Text is always ink-on-tint readable, with an icon and a heading. */
-export function Notice({ kind, title, children, actionLabel, onAction }: { kind: "info" | "success" | "warn" | "error"; title?: string; children?: React.ReactNode; actionLabel?: string; onAction?: () => void }) {
+export function Notice({
+  kind,
+  title,
+  children,
+  actionLabel,
+  onAction,
+  dismissLabel,
+  onDismiss,
+}: {
+  kind: "info" | "success" | "warn" | "error";
+  title?: string;
+  children?: React.ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
+  dismissLabel?: string;
+  onDismiss?: () => void;
+}) {
   const p = usePalette();
   const tone: Tone = kind === "error" ? "danger" : kind === "warn" ? "warn" : kind === "success" ? "success" : "raised";
   const color = kind === "error" ? p.danger : kind === "warn" ? p.warn : kind === "success" ? p.success : p.accent;
@@ -421,6 +437,17 @@ export function Notice({ kind, title, children, actionLabel, onAction }: { kind:
           {title ? <AppText style={{ fontWeight: "600", fontSize: ty.body }}>{title}</AppText> : null}
           {typeof children === "string" ? <AppText style={{ fontSize: ty.label }}>{children}</AppText> : children}
         </View>
+        {onDismiss ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={dismissLabel ?? "Dismiss"}
+            onPress={onDismiss}
+            hitSlop={8}
+            style={{ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, alignItems: "center", justifyContent: "center" }}
+          >
+            <Icon name="close" color={p.muted} size={18} />
+          </Pressable>
+        ) : null}
       </View>
       {actionLabel && onAction ? <BigButton variant="secondary" label={actionLabel} onPress={onAction} /> : null}
     </Card>

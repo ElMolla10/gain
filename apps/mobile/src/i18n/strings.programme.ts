@@ -211,6 +211,8 @@ export const enProgramme = {
   "prog.share.previewTitle": "{days} days, {n} exercises",
   "prog.share.add": "Add as a new program",
   "prog.share.added": "Program added. It is in Choose a program; yours were not changed.",
+  "prog.activated": "Your plan is ready",
+  "prog.activated.dismiss": "Dismiss",
 } as const;
 
 export const arProgramme: Record<keyof typeof enProgramme, string> = {
@@ -422,4 +424,6 @@ export const arProgramme: Record<keyof typeof enProgramme, string> = {
   "prog.share.previewTitle": "{days} أيام، {n} تمارين",
   "prog.share.add": "ضيفه كبرنامج جديد",
   "prog.share.added": "البرنامج اتضاف. هتلاقيه في اختار برنامج؛ برامجك ما اتغيرتش.",
+  "prog.activated": "برنامجك جاهز",
+  "prog.activated.dismiss": "إغلاق",
 };

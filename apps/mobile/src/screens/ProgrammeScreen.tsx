@@ -1,5 +1,5 @@
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
+import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Icon } from "../components/Icon";
 import { useServices } from "../AppContext";
@@ -8,7 +8,7 @@ import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr, NBSP } from "../i18n/format";
 import type { ProgrammeDraft } from "../logic/programmeDraft";
 import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
-import { AppText, ArDraftNote, BigButton, Card, EmptyState, ListRow, LoadingState, QuietAction, Screen, SectionTitle, Sheet } from "../ui";
+import { AppText, ArDraftNote, BigButton, Card, EmptyState, ListRow, LoadingState, Notice, QuietAction, Screen, SectionTitle, Sheet } from "../ui";
 import { SchemePips } from "../components/SchemePips";
 import { EN_DASH } from "../logic/bidiText";
 import { ceilingForName } from "../logic/ceilings";
@@ -20,7 +20,12 @@ import { PlanMuscleRadar } from "../components/PlanMuscleRadar";
 import type { ExposureRow } from "../logic/exposure";
 import { glyphFor, RackGlyph } from "../components/today/RackRow";
 
-type Nav = { navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions" | "ProgrammeShare" | "ProgramGenerate" | "MusclePriority", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void };
+type ProgrammeRouteParams = { activated?: boolean };
+
+type Nav = {
+  navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions" | "ProgrammeShare" | "ProgramGenerate" | "MusclePriority", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void;
+  setParams: (params: Partial<ProgrammeRouteParams>) => void;
+};
 
 interface Data {
   programmeId: string;
@@ -38,10 +43,26 @@ export function ProgrammeScreen() {
   const { t, lang } = useI18n();
   const p = usePalette();
   const nav = useNavigation<Nav>();
+  const route = useRoute();
+  const params = (route.params ?? {}) as ProgrammeRouteParams;
   const [data, setData] = useState<Data | null | undefined>(undefined);
   const [open, setOpen] = useState<number | null>(0);
   const [ruleOpen, setRuleOpen] = useState(false);
   const [exposure, setExposure] = useState<ExposureRow[]>([]);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (params.activated) {
+      setDismissed(false);
+    }
+  }, [params.activated]);
+
+  const dismissNotice = useCallback(() => {
+    setDismissed(true);
+    nav.setParams({ activated: undefined });
+  }, [nav]);
+
+  const showActivatedNotice = Boolean(params.activated) && !dismissed;
 
   useFocusEffect(
     useCallback(() => {
@@ -60,8 +81,11 @@ export function ProgrammeScreen() {
       })().catch(() => alive && setData(null));
       return () => {
         alive = false;
+        if (params.activated) {
+          nav.setParams({ activated: undefined });
+        }
       };
-    }, [programmes, repos]),
+    }, [programmes, repos, params.activated, nav]),
   );
 
   if (data === undefined) return <LoadingState />;
@@ -80,6 +104,16 @@ export function ProgrammeScreen() {
   if (data === null)
     return (
       <Screen tab title={t("prog.title")}>
+        {showActivatedNotice ? (
+          <Notice
+            kind="success"
+            title={t("prog.activated")}
+            dismissLabel={t("prog.activated.dismiss")}
+            onDismiss={dismissNotice}
+            actionLabel={t("prog.activated.dismiss")}
+            onAction={dismissNotice}
+          />
+        ) : null}
         <EmptyState icon="plan" title={t("prog.none")} actionLabel={t("prog.switch.entry")} onAction={() => nav.navigate("ProgrammeSwitch")} />
         <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
         <BigButton variant="secondary" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
@@ -88,6 +122,16 @@ export function ProgrammeScreen() {
 
   return (
     <Screen tab>
+      {showActivatedNotice ? (
+        <Notice
+          kind="success"
+          title={t("prog.activated")}
+          dismissLabel={t("prog.activated.dismiss")}
+          onDismiss={dismissNotice}
+          actionLabel={t("prog.activated.dismiss")}
+          onAction={dismissNotice}
+        />
+      ) : null}
       <View style={{ gap: space.xs }}>
         <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{data.name}</AppText>
         <Pressable

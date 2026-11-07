@@ -9,7 +9,7 @@ import { workoutLiveActivity } from "../native/workoutLiveActivity";
 import { workoutActivityProps } from "../logic/workoutActivityModel";
 import { shownExercises } from "../logic/workoutShown";
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
-import { estimateStartingLoad, findSpec, parseReadiness, sessionOrderFatigue, type GymFingerprint, type GymLoadSpec, type OutlierResult, type ReadinessFlag } from "@gain/engine";
+import { allowsZero, estimateStartingLoad, findSpec, parseReadiness, sessionOrderFatigue, type GymFingerprint, type GymLoadSpec, type OutlierResult, type ReadinessFlag } from "@gain/engine";
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, TextInput } from "react-native";
@@ -707,7 +707,7 @@ export function useWorkoutSession() {
     exerciseId: ex.exerciseId,
     name: exerciseLabels(ex, lang).primary,
     muscle: muscleGroupOf({ seedKey: ex.seedKey ?? null, pattern: ex.pattern, equipment: ex.equipment }),
-    done: sets.some((s) => s.exerciseId === ex.exerciseId && trustedWorkingSet(s)),
+    done: sets.some((s) => s.exerciseId === ex.exerciseId && trustedWorkingSet(s, allowsZero(ex.setup))),
   }));
   const removedSlots = loaded.slots.filter((s) => exState[s.exerciseId]?.removed);
   const reorderGroups = reorderBlocks(order, exState);
@@ -851,7 +851,8 @@ export function useWorkoutSession() {
     if (!info) return null;
     const list = rows[ex.exerciseId] ?? [];
     const candidate = liveCards[ex.exerciseId];
-    const currentCandidate = liveCardCurrent(candidate, list, livePerformanceKey(sets, ex.exerciseId)) ? candidate : undefined;
+    const zero = allowsZero(ex.setup);
+    const currentCandidate = liveCardCurrent(candidate, list, livePerformanceKey(sets, ex.exerciseId, zero)) ? candidate : undefined;
     const fatigue = sessionOrderFatigue(fatigueSlots, ex.exerciseId);
     const protectFirst = !currentCandidate && info.proposal.currency === "load";
     const afterExercise = fatigue && !protectFirst ? fatigue.earlierName : null;
@@ -908,7 +909,7 @@ export function useWorkoutSession() {
       onLiveApply: () => {
           if (!card || card.decision.action === "stop") return;
           setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
-          setRows(r => ({ ...r, [ex.exerciseId]: takeLiveTarget(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg, card.decision.suggestedReps) }));
+          setRows(r => ({ ...r, [ex.exerciseId]: takeLiveTarget(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg, card.decision.suggestedReps, zero) }));
           setPreferredExercise(ex.exerciseId);
           setFocusRow({ exId: ex.exerciseId, key: card.key, nonce: Date.now() });
         },

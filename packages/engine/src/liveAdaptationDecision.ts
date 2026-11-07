@@ -6,7 +6,7 @@ import type { GymLoadSpec } from './types';
 
 export type Action = 'increase' | 'maintain' | 'decrease' | 'stop';
 /** Stable keys translated by the mobile app; the regressor does not assess injury risk. */
-export type LiveReason = 'within_range' | 'above_range' | 'below_range' | 'no_lighter_load' | 'performance_stop' | 'reported_symptoms' | 'no_suitable_increase';
+export type LiveReason = 'within_range' | 'above_range' | 'below_range' | 'no_lighter_load' | 'performance_stop' | 'reported_symptoms' | 'no_suitable_increase' | 'unknown_increment';
 export interface Decision { action: Action; suggestedWeightKg: number; suggestedReps: number; reason: LiveReason; predictedReps: number; /** False for an observed stop before inference; predictedReps must not be displayed/scored. */ predictionAvailable?: boolean }
 export interface DecisionInput {
   predictedReps: number; previousReps: number; targetMin: number; targetMax: number; currentWeightKg: number;

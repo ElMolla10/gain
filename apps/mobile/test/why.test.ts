@@ -178,6 +178,24 @@ describe("Why this weight? from a logged set", () => {
     );
     expect(ar.sentence).toMatch(/[\u0600-\u06FF]/);
   });
+  it("missing gym load spec states that GAIN doesn't know the available increment (en and ar)", () => {
+    const en = describeWhyWeight(
+      { trigger: { load: 60, reps: 8 }, action: "maintain", loadSpec: null },
+      L("en"),
+      "en",
+    );
+    expect(clean(en.sentence)).toContain("GAIN doesn’t know the available increment for this equipment");
+    expect(clean(en.sentence)).not.toContain("available loads were not recorded");
+    expect(clean(en.sentence)).not.toContain("standard steps");
+
+    const ar = describeWhyWeight(
+      { trigger: { load: 60, reps: 8 }, action: "maintain", loadSpec: null },
+      L("ar"),
+      "ar",
+    );
+    expect(ar.sentence).toContain("GAIN مش عارف القفزة المتاحة في المعدة دي");
+    expect(ar.sentence).not.toContain("مش متسجلة");
+  });
 });
 
 describe("16 Why screen speaks plain language", () => {

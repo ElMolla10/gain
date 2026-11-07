@@ -360,10 +360,11 @@ describe("typing into set 2 after set 1 is ticked (Android scroll twitch)", () =
   const layout = (s: WorkoutSession, i: number) => {
     const props = s.exerciseProps(s.shown[i]!, i)!;
     const tree = nodes(WorkoutExerciseSection(props));
-    const target = tree.find(n => n.type as unknown === "TargetLine")!;
+    const target = tree.find(n => n.type as unknown === "TargetLine");
+    const details = tree.find(n => n.type as unknown === "QuietAction" && n.props.label === "Next set details");
     return {
       types: tree.map(n => typeof n.type === "string" ? n.type : (n.type as { name?: string }).name ?? "?"),
-      suggested: [target.props.suggestedLabel, target.props.suggestedValue, target.props.moreLabel],
+      suggested: [target?.props.suggestedLabel, target?.props.suggestedValue, target?.props.moreLabel ?? details?.props.label],
       props,
     };
   };

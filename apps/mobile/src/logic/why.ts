@@ -83,7 +83,7 @@ export function describeWhyWeight(
     const what = loadsSummaryText(input.loadSpec, unit, unitLabel(unit, locale), L);
     parts.push(L(input.loadSource === "line" ? "why.weight.loads.line" : input.loadSource === "exercise" ? "why.weight.loads.own" : "why.weight.loads.gym", { what }));
   } else {
-    parts.push(L(input.loadSource === "gym" ? "why.weight.loads.gymDefault" : "why.weight.loads.unknown"));
+    parts.push(L("why.weight.loads.unknown"));
   }
   // Each part is its own sentence in English (the fragments start lower-case), so capitalise after the ". " join; always end with ".".
   // Arabic has no case and keeps its "، " join; it gets the same terminal ".".

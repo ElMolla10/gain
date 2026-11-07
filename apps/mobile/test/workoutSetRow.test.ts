@@ -370,6 +370,27 @@ describe("live suggestion explanations", () => {
     expect(text).not.toContain("Estimated next set:");
     expect(text).not.toContain("Estimate from logged sets");
   });
+  it("rule-based suggestions (predictionAvailable=false) speak plain facts and never claim estimated performance", () => {
+    const p = presentation();
+    // within_range with predictionAvailable: false
+    const within = nodes(LiveSuggestion({ ...p, detailsOpen: true, state: "hold", decision: { ...p.decision, reason: "within_range", predictionAvailable: false } }));
+    const withinText = within.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(withinText).toContain("Your last set was within your target range, so keep your planned load");
+    expect(withinText).not.toContain("Estimated performance");
+    expect(withinText).not.toContain("Estimated next set:");
+
+    // unknown_increment when spec is missing
+    const unknownInc = nodes(LiveSuggestion({ ...p, detailsOpen: true, state: "hold", decision: { ...p.decision, reason: "unknown_increment", predictionAvailable: false } }));
+    const unknownText = unknownInc.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(unknownText).toContain("GAIN doesn’t know the available increment for this equipment");
+    expect(unknownText).not.toContain("no suitable lighter load is available");
+
+    // no_lighter_load with predictionAvailable: false
+    const noLighter = nodes(LiveSuggestion({ ...p, detailsOpen: true, state: "hold", decision: { ...p.decision, reason: "no_lighter_load", predictionAvailable: false } }));
+    const noLighterText = noLighter.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ");
+    expect(noLighterText).toContain("Your last set was below your target range; no suitable lighter load is available");
+    expect(noLighterText).not.toContain("Performance may fall below your target");
+  });
   it("explains that typed values win over the automatic target", () => {
     const p = presentation();
     const tree = nodes(LiveSuggestion({...p,manualLoad:true}));

@@ -40,8 +40,16 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
   const starting = state === "starting";
   const predictedOk = !stop && !starting && decision.predictionAvailable !== false && decision.reason !== "reported_symptoms";
   const stateKey = state === "stop" ? "live.stop" : `live.state.${state}`;
+  const liveReasonText = (r: string): string => {
+    if (decision.predictionAvailable === false) {
+      const ruleKey = `live.reason.rule.${r}` as never;
+      const translated = t(ruleKey);
+      if (translated && translated !== ruleKey) return translated;
+    }
+    return t(`live.reason.${r}` as never);
+  };
   const reason = stop
-    ? t(`live.reason.${decision.reason}` as never)
+    ? liveReasonText(decision.reason)
     : starting
       ? t("live.startingNote")
       : state === "no_heavier"
@@ -63,7 +71,7 @@ export function LiveSuggestion({ decision, state, detailsOpen = false, onToggleD
       {reason ? <AppText style={{ color: p.muted }}>{reason}</AppText> : null}
       {predictedOk ? <AppText>{t("live.predicted", { reps: Math.round(decision.predictedReps * 10) / 10, min: repMin, max: repMax })}</AppText> : null}
       {detailsOpen ? <View style={{ gap: space.xs }}>
-        {decision.action !== "stop" && state !== "no_heavier" ? <AppText style={{ color: p.muted }}>{t(`live.reason.${decision.reason}` as never)}</AppText> : null}
+        {decision.action !== "stop" && state !== "no_heavier" ? <AppText style={{ color: p.muted }}>{liveReasonText(decision.reason)}</AppText> : null}
         {whySentence && state === "no_heavier" ? <AppText style={{ color: p.muted }}>{whySentence}</AppText> : null}
         {predictedOk ? <AppText style={{ color: p.muted }}>{t("live.estimateNote")}</AppText> : null}
       </View> : null}

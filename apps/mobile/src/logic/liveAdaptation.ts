@@ -147,7 +147,10 @@ export function conservativeLiveDecision(input: {
     if (currentLoad < 0) return null;
     if (previousSet.reps < targetMin) {
       if (currentLoad > 0) {
-        const lower = spec ? nextLoadBelow(spec, currentLoad, true) : null;
+        if (!spec) {
+          return { action: "maintain", suggestedWeightKg: currentLoad, suggestedReps: targetMin, predictedReps: targetMin, reason: "unknown_increment", predictionAvailable: false };
+        }
+        const lower = nextLoadBelow(spec, currentLoad, true);
         if (lower !== null && lower >= 0 && lower < currentLoad) {
           return { action: "decrease", suggestedWeightKg: lower, suggestedReps: targetMin, predictedReps: targetMin, reason: "below_range", predictionAvailable: false };
         }
@@ -163,7 +166,10 @@ export function conservativeLiveDecision(input: {
     // For assisted lifts, missing reps means more assistance is needed (higher load on stack).
     // Alternate loads require a gym load spec so suggestions never exceed the stack maximum or invent non-existent pins.
     if (previousSet.reps < targetMin) {
-      const higher = spec ? nextLoadAbove(spec, currentLoad) : null;
+      if (!spec) {
+        return { action: "maintain", suggestedWeightKg: currentLoad, suggestedReps: targetMin, predictedReps: targetMin, reason: "unknown_increment", predictionAvailable: false };
+      }
+      const higher = nextLoadAbove(spec, currentLoad);
       if (higher !== null && higher > currentLoad) {
         return { action: "decrease", suggestedWeightKg: higher, suggestedReps: targetMin, predictedReps: targetMin, reason: "below_range", predictionAvailable: false };
       }
@@ -176,7 +182,10 @@ export function conservativeLiveDecision(input: {
   if (setup === "free") {
     if (currentLoad <= 0) return null;
     if (previousSet.reps < targetMin) {
-      const lower = spec ? nextLoadBelow(spec, currentLoad) : null;
+      if (!spec) {
+        return { action: "maintain", suggestedWeightKg: currentLoad, suggestedReps: targetMin, predictedReps: targetMin, reason: "unknown_increment", predictionAvailable: false };
+      }
+      const lower = nextLoadBelow(spec, currentLoad);
       if (lower !== null && lower > 0 && lower < currentLoad) {
         return { action: "decrease", suggestedWeightKg: lower, suggestedReps: targetMin, predictedReps: targetMin, reason: "below_range", predictionAvailable: false };
       }

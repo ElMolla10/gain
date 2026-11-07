@@ -6,8 +6,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AppState, Platform, useWindowDimensions, View } from "react-native";
 import { workoutLiveActivity } from "./src/native/workoutLiveActivity";
 import { perfMark, perfMarks, perfNow } from "./src/perfMarks";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { navColors } from "./src/palettes";
+import { TAB_ICON_HEIGHT, TAB_LABEL_MAX_SCALE, tabBarLayout } from "./src/logic/tabBarLayout";
 import { parseAppearance, setAppearance, space, useIsDark, usePalette } from "./src/theme";
 import { DeveloperModeProvider, useDeveloperMode } from "./src/DeveloperMode";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
@@ -108,7 +109,7 @@ const Stack = createNativeStackNavigator();
 function TabBarIcon({ name, color, focused }: { name: IconName; color: string; focused: boolean }) {
   const p = usePalette();
   return (
-    <View style={{ width: 56, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: focused ? p.tint : "transparent", borderWidth: 1.5, borderColor: focused ? p.accent : "transparent" }}>
+    <View style={{ width: 56, height: TAB_ICON_HEIGHT, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: focused ? p.tint : "transparent", borderWidth: 1.5, borderColor: focused ? p.accent : "transparent" }}>
       <Icon name={name} color={color} size={24} />
     </View>
   );
@@ -117,19 +118,23 @@ function TabBarIcon({ name, color, focused }: { name: IconName; color: string; f
 function Tabs() {
   const { t, lang } = useI18n();
   const p = usePalette();
-  // N-6: two-line Arabic labels at large text need a taller bar.
+  // The container height must include the icon, wrapped labels and the bottom safe area.
   const { fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const tabLayout = tabBarLayout(fontScale, insets.bottom, lang === "ar");
   const icon = (name: IconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabBarIcon name={name} color={color} focused={focused} />;
   // Labels wrap to two lines instead of truncating; they scale with the system font up to 1.4x (the bar itself grows with them).
   const label = (text: string) => ({ color, focused }: { color: string; focused: boolean }) => (
-    <AppText maxFontSizeMultiplier={1.4} style={{ fontSize: 13, fontWeight: focused ? "600" : "400", color, textAlign: "center" }}>{text}</AppText>
+    <AppText maxFontSizeMultiplier={TAB_LABEL_MAX_SCALE} style={{ alignSelf: "stretch", fontSize: 13, fontWeight: focused ? "600" : "400", color, textAlign: "center" }}>{text}</AppText>
   );
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: p.card, borderTopColor: p.border, paddingTop: space.xs },
-        tabBarItemStyle: { minHeight: fontScale > 1.2 ? 64 : 56 },
+        tabBarStyle: { height: tabLayout.height, backgroundColor: p.card, borderTopColor: p.border, paddingTop: tabLayout.paddingTop },
+        tabBarItemStyle: { minHeight: tabLayout.itemHeight },
+        tabBarIconStyle: { height: TAB_ICON_HEIGHT },
+        tabBarLabelPosition: "below-icon",
         tabBarActiveTintColor: p.accent,
         tabBarInactiveTintColor: p.muted,
         tabBarLabelStyle: { fontFamily: familyFor({ weight: "600", arabic: lang === "ar" }) },

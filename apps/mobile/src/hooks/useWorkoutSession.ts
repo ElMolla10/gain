@@ -1,3 +1,4 @@
+import { openWorkoutContext } from "../logic/openWorkout";
 import { useWorkoutSuggestions } from "./useWorkoutSuggestions";
 import type { LoadedWorkout as Loaded } from "../logic/workoutTypes";
 import { useWorkoutRest } from "./useWorkoutRest";
@@ -13,7 +14,7 @@ import { estimateStartingLoad, findSpec, parseReadiness, sessionOrderFatigue, ty
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, TextInput } from "react-native";
-import { applyDrafts, draftKey, parseDrafts, serializeDrafts } from "../logic/draftPersist";
+import { applyDrafts, getWorkoutDraftStore, createWorkoutDraftView } from "../logic/draftPersist";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
 import { setKeepAwake } from "../keepAwake";
@@ -41,7 +42,7 @@ import { focusedExercise, focusedRowKey, supersetGroups, livePromptVisible } fro
 import { dockModel } from "../logic/dockModel";
 import { dockExpandInfo } from "../logic/dockExpand";
 import { liveSummary } from "../logic/liveSummary";
-import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, markSaved, loggableUnlogged, mergeRows, pendingCount, removeRow, rowCanLog, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
+import { acceptGhost, addRow, backoffPrefill, editRow, effectiveOf, initialRows, isDropRow, acknowledgeSavedRow, loggableUnlogged, mergeRows, pendingCount, removeRow, rowCanLog, unloggedFilled, unlogRow, type SetRowDraft } from "../logic/workoutRows";
 import { takeLiveTarget, clearLiveTarget, liveCardCurrent, livePerformanceKey, reportedSymptomDecision, trustedWorkingSet } from "../logic/liveAdaptation";
 import { specWithJump, buildLoads, specValues, emptyLoadsForm } from "../logic/exerciseLoads";
 import { muscleGroupOf } from "../logic/muscleVolume";
@@ -80,7 +81,16 @@ export function useWorkoutSession() {
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [finishFailed, setFinishFailed] = useState(false);
-  const [rows, setRows] = useState<Record<string, SetRowDraft[]>>({});
+  const [rows, setRowsState] = useState<Record<string, SetRowDraft[]>>({});
+  // Keep the latest edits synchronously: save completion and unmount may happen before another render.
+  const rowsRef = useRef(rows);
+  const setRows = useCallback((update: React.SetStateAction<Record<string, SetRowDraft[]>>) => {
+    const next = typeof update === "function" ? update(rowsRef.current) : update;
+    rowsRef.current = next;
+    setRowsState(next);
+  }, []);
+  const draftStore = useMemo(() => getWorkoutDraftStore(repos, e => diagnostics.record("warn", "save drafts", e)), [repos]);
+  const draftView = useMemo(() => createWorkoutDraftView(draftStore, () => rowsRef.current), [draftStore]);
   const [focusRow, setFocusRow] = useState<{ exId: string; key: string; nonce: number } | null>(null);
   const [cardListText, setCardListText] = useState<Record<string, string>>({});
   const [sets, setSets] = useState<SetRow[]>([]);
@@ -186,10 +196,15 @@ export function useWorkoutSession() {
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+    const loading = draftView.begin();
+    let restored = false;
     (async () => {
-      const gymId = await repos.getActiveGymId();
-      if (!gymId) return setLoaded("nogym");
-      let gym = await repos.loadGymFingerprint(gymId);
+      const context = await openWorkoutContext(dayId, { db, repos, workout, gyms });
+      if (!draftView.isCurrent(loading)) return;
+      if (!context) return setLoaded("nogym");
+      const { id, resumed } = context;
+      const gymId = context.gym.gymId;
+      let gym = context.gym;
       if (unit === "kg") {
         const upgraded = upgradeLegacyKgDumbbells(gym.loads);
         if (upgraded) {
@@ -200,7 +215,7 @@ export function useWorkoutSession() {
           }
         }
       }
-      const { id, resumed } = await workout.startOrResumeSession(dayId, gymId);
+      if (!draftView.isCurrent(loading)) return;
       sessionRef.current = id;
       const programmeSlots = await repos.listDayExercises(dayId);
       libRef.current = await programmes.listExercises();
@@ -216,6 +231,8 @@ export function useWorkoutSession() {
       }
       const slots = await attachLoads(db, gym, [...programmeSlots, ...addedSlots]);
       const info: Record<string, ExInfo> = {};
+      // Finish the departing logger's pending save/snapshot before reading committed sets.
+      const drafts = await draftStore.read(id);
       const all = await workout.listSessionSets(id);
       const initial: Record<string, SetRowDraft[]> = {};
       for (const slotEx of slots) {
@@ -229,23 +246,31 @@ export function useWorkoutSession() {
         initial[ex.exerciseId] = resumeEvaluationTarget(initial[ex.exerciseId]!, pendingId);
       }
       const session = await workout.getSession(id);
-      setPreviousSource(parsePreviousSource(await repos.getSetting(PREVIOUS_SOURCE_KEY)));
+      const previousSource = parsePreviousSource(await repos.getSetting(PREVIOUS_SOURCE_KEY));
+      const dayRow = await db.get<{ name: string }>("SELECT name FROM programme_day WHERE id = ?", [dayId]).catch(() => null);
+      // A departed or replaced load must never make its empty/partial view eligible to overwrite drafts.
+      if (!draftView.restore(loading, id)) return;
+      restored = true;
+      setPreviousSource(previousSource);
       const flag = parseReadiness(session?.readiness);
       setReadiness(flag === "fatigued" || flag === "returning" ? flag : null);
       setExState(states);
       setSets(all);
       // Typed-but-unticked numbers kept when the app went to the background (iOS may have terminated it since).
-      const drafts = parseDrafts(await repos.getSetting(draftKey(id)).catch(() => null));
       setRows(drafts.length ? applyDrafts(initial, drafts) : initial);
-      const dayRow = await db.get<{ name: string }>("SELECT name FROM programme_day WHERE id = ?", [dayId]).catch(() => null);
       setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), pausedMs: session?.paused_ms ?? 0, pausedAt: session?.paused_at ?? null, gym, slots, info, dayName: dayRow?.name ?? undefined });
       if (resumed) setResumeNote(true);
     })().catch((e) => {
+      if (!draftView.isCurrent(loading)) return;
       diagnostics.record("error", "open workout", e);
       startedRef.current = false;
       setLoadError(true);
     });
-  }, [repos, gyms, workout, programmes, mlEvaluation, db, dayId, unit, makeDisp, buildInfo, attempt]);
+    return () => {
+      draftView.cancel(loading);
+      if (!restored) startedRef.current = false;
+    };
+  }, [repos, gyms, workout, programmes, mlEvaluation, db, dayId, unit, makeDisp, buildInfo, attempt, draftView]);
 
   // Read each exercise's remembered unit: when the workout opens, and again for any exercise added or swapped in later.
   const openSessionId = loaded && loaded !== "nogym" ? loaded.sessionId : null;
@@ -321,21 +346,23 @@ export function useWorkoutSession() {
   useEffect(() => () => flushNotes(), [flushNotes]);
 
   // iOS may terminate a backgrounded app without running JS: on background, save pending notes and ONE draft snapshot (never per keystroke).
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
   const ended = useRef(false);
   useEffect(() => {
     const sub = AppState.addEventListener("change", (s) => {
       const sid = sessionRef.current;
       if ((s !== "background" && s !== "inactive") || !sid || ended.current) return;
       flushNotes();
-      void repos.setSetting(draftKey(sid), serializeDrafts(rowsRef.current)).catch((e) => diagnostics.record("warn", "save drafts", e));
+      void draftView.snapshot(sid);
     });
-    return () => sub.remove();
-  }, [repos, flushNotes]);
+    return () => {
+      sub.remove();
+      const sid = sessionRef.current;
+      if (sid && !ended.current) void draftView.snapshot(sid);
+    };
+  }, [draftView, flushNotes]);
   const clearDrafts = (sid: string) => {
     ended.current = true;
-    void repos.setSetting(draftKey(sid), "").catch(() => undefined);
+    return draftStore.clear(sid);
   };
 
   const setsByEx = useMemo(() => {
@@ -374,24 +401,26 @@ export function useWorkoutSession() {
    * haptics or reload: the callers (a tick, or Finish's "Log N and finish") add what they need. Throws when the write fails.
    */
   async function persistRow(lo: Loaded, ex: Disp, row: SetRowDraft): Promise<"logged" | "updated" | "none"> {
-    setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
-    const eff = effectiveOf(row);
-    const load = eff.load as number;
-    const q = eff.reps as number; // reps, or seconds / metres for a timed exercise
-    const qf = quantityFields(q, ex.measure);
-    const ctx = { gym: lo.gym, equipment: ex.equipment, setup: ex.setup };
-    let kind: "logged" | "updated" | "none" = "none";
-    if (!row.saved) {
-      const r = await workout.logSet({ id: row.key, sessionId: lo.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
-      if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
-      kind = "logged";
-    } else if (row.dirty) {
-      const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
-      if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
-      kind = "updated";
-    }
-    setRows((r) => ({ ...r, [ex.exerciseId]: markSaved(r[ex.exerciseId] ?? [], row.key) }));
-    return kind;
+    return draftStore.save(lo.sessionId, async () => {
+      setRows((r) => ({ ...r, [ex.exerciseId]: acceptGhost(r[ex.exerciseId] ?? [], row.key) }));
+      const eff = effectiveOf(row);
+      const load = eff.load as number;
+      const q = eff.reps as number; // reps, or seconds / metres for a timed exercise
+      const qf = quantityFields(q, ex.measure);
+      const ctx = { gym: lo.gym, equipment: ex.equipment, setup: ex.setup };
+      let kind: "logged" | "updated" | "none" = "none";
+      if (!row.saved) {
+        const r = await workout.logSet({ id: row.key, sessionId: lo.sessionId, exerciseId: ex.exerciseId, load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+        if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [r.id]: r.outlier! }));
+        kind = "logged";
+      } else if (row.dirty) {
+        const r = await workout.updateLiveSet(row.key, { load, ...qf, rir: isTimed(ex.measure) ? null : row.rir, warmup: row.warmup, tags: row.tags }, ctx);
+        if (r.outlier?.verdict === "unconfirmed") setOutliers((o) => ({ ...o, [row.key]: r.outlier! }));
+        kind = "updated";
+      }
+      setRows((r) => ({ ...r, [ex.exerciseId]: acknowledgeSavedRow(r[ex.exerciseId] ?? [], row) }));
+      return kind;
+    }, () => rowsRef.current);
   }
 
   async function logRow(ex: Disp, row: SetRowDraft) {
@@ -436,12 +465,14 @@ export function useWorkoutSession() {
     setBusy(row.key);
     clearStrengthPr();
     try {
-      await workout.deleteSet(row.key);
-      setOutliers((o) => {
-        const { [row.key]: _gone, ...rest2 } = o;
-        return rest2;
-      });
-      setRows((r) => ({ ...r, [ex.exerciseId]: unlogRow(r[ex.exerciseId] ?? [], row.key, Crypto.randomUUID()) }));
+      await draftStore.save(loaded.sessionId, async () => {
+        await workout.deleteSet(row.key);
+        setOutliers((o) => {
+          const { [row.key]: _gone, ...rest2 } = o;
+          return rest2;
+        });
+        setRows((r) => ({ ...r, [ex.exerciseId]: unlogRow(r[ex.exerciseId] ?? [], row.key, Crypto.randomUUID()) }));
+      }, () => rowsRef.current);
       await reload(loaded.sessionId);
       setSavedAt(Date.now());
       setSaveError(false);
@@ -740,7 +771,7 @@ export function useWorkoutSession() {
     setFinishing(true);
     setFinishFailed(false);
     const r = await attemptFinish(
-      () => workout.finishSession(lo.sessionId).then(() => { void endRest(); void workoutLiveActivity.stop(); clearDrafts(lo.sessionId); setKeepAwake(false); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))).then(() => { saveToAppleHealth(lo.sessionId); }),
+      () => workout.finishSession(lo.sessionId).then(async () => { void endRest(); void workoutLiveActivity.stop(); await clearDrafts(lo.sessionId); setKeepAwake(false); }).then(() => void achievements.sync().catch((e) => diagnostics.record("warn", "achievements after finish", e))).then(() => { saveToAppleHealth(lo.sessionId); }),
       () => navigation.dispatch(StackActions.replace("Finish", { sessionId: lo.sessionId })),
       (e) => diagnostics.record("error", "finish workout", e),
     );
@@ -767,7 +798,7 @@ export function useWorkoutSession() {
       if (!(await workout.discardEmptySession(lo.sessionId))) throw new Error("not empty");
       void endRest();
       void workoutLiveActivity.stop();
-      clearDrafts(lo.sessionId);
+      await clearDrafts(lo.sessionId);
       setKeepAwake(false);
       navigation.goBack();
     } catch (e) {

@@ -19,7 +19,7 @@ import { MIN_TOUCH, space, type as ty, usePalette } from "../theme";
 import { formatWorkoutShareText } from "../logic/workoutRecap";
 import { diagnostics } from "../diagnostics";
 import { appleHealth } from "../native/appleHealth";
-import { AppText, BigButton, Card, EmptyState, Field, InlineStatus, LoadingState, Screen } from "../ui";
+import { AppText, BigButton, Card, EmptyState, ErrorState, Field, InlineStatus, LoadingState, Screen } from "../ui";
 
 interface EditState {
   setId: string;
@@ -36,6 +36,7 @@ export function SessionDetailScreen() {
   const { t, lang, unit, unitText, fmt } = useI18n();
   const p = usePalette();
   const sessionId = (useRoute().params as { sessionId: string }).sessionId;
+  const [loadFailed, setLoadFailed] = useState(false);
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [detail, setDetail] = useState<SessionDetail | null | "none">(null);
   const [edit, setEdit] = useState<EditState | null>(null);
@@ -50,11 +51,17 @@ export function SessionDetailScreen() {
 
   const refresh = useCallback(async () => {
     setSummary(null);
-    const fresh = await history.getSession(sessionId);
-    setDetail(fresh ?? "none");
-    if (fresh) {
-      try { setSummary(await finish.summarizeSession(sessionId)); }
-      catch (e) { diagnostics.record("warn", "history achievement", e); }
+    setLoadFailed(false);
+    try {
+      const fresh = await history.getSession(sessionId);
+      setDetail(fresh ?? "none");
+      if (fresh) {
+        try { setSummary(await finish.summarizeSession(sessionId)); }
+        catch (e) { diagnostics.record("warn", "history achievement", e); }
+      }
+    } catch (e) {
+      diagnostics.record("warn", "load finished workout", e);
+      setLoadFailed(true);
     }
   }, [history, finish, sessionId]);
   useFocusEffect(
@@ -67,7 +74,7 @@ export function SessionDetailScreen() {
   const headerTitle = detail && detail !== "none" ? (detail.imported ? t("history.imported") : detail.dayName) : null;
   useLayoutEffect(() => { if (headerTitle) navigation.setOptions({ title: headerTitle }); }, [navigation, headerTitle]);
 
-  if (detail === null) return <LoadingState />;
+  if (detail === null) return loadFailed ? <ErrorState title={t("history.error.title")} body={t("history.error.body")} retryLabel={t("history.error.retry")} onRetry={() => void refresh()} /> : <LoadingState />;
   if (detail === "none") return <EmptyState icon="progress" title={t("empty.workoutMissing")} />;
 
   const startEdit = (s: HistorySetRow) => {
@@ -143,6 +150,10 @@ export function SessionDetailScreen() {
 
   return (
     <Screen>
+      {loadFailed ? <View accessibilityLiveRegion="polite">
+        <InlineStatus kind="error" text={t("history.error.body")} />
+        <BigButton variant="secondary" label={t("history.error.retry")} onPress={() => void refresh()} />
+      </View> : null}
       <SessionPostMortemHero detail={detail} summary={summary} unit={unit} />
       {summary ? <AchievementCard detail={detail} summary={summary} /> : null}
       <BigButton variant="secondary" icon="export" label={t("recap.shareText")} loading={sharingText} disabled={sharingText} onPress={() => void shareWorkout()} />
@@ -194,14 +205,18 @@ export function SessionDetailScreen() {
               ) : editing && asking === s.id ? (
                 <View style={{ gap: space.lg, paddingBottom: space.sm }}>
                   <AppText>{t("history.deleteAsk")}</AppText>
+                  {err ? <InlineStatus kind="error" text={t(err)} /> : null}
                   <BigButton
                     variant="dangerSolid"
                     label={t("history.deleteYes")}
                     onPress={async () => {
+                      setErr(null);
                       try {
                         await history.removeSet(s.id);
-                      } catch {
+                      } catch (e) {
+                        diagnostics.record("warn", "delete finished set", e);
                         setErr("history.err.missing");
+                        return;
                       }
                       setAsking(null);
                       await refresh();
@@ -213,7 +228,7 @@ export function SessionDetailScreen() {
                 // Edit mode only: the existing per-set actions (destructive style unchanged, plan 1.6).
                 <View style={{ flexDirection: "row", gap: space.sm, paddingBottom: space.sm }}>
                   <View style={{ flex: 1 }}><BigButton variant="secondary" icon="edit" label={t("history.edit")} onPress={() => startEdit(s)} /></View>
-                  <View style={{ flex: 1 }}><BigButton variant="danger" icon="trash" label={t("history.delete")} onPress={() => { setEdit(null); setAsking(s.id); }} /></View>
+                  <View style={{ flex: 1 }}><BigButton variant="danger" icon="trash" label={t("history.delete")} onPress={() => { setEdit(null); setErr(null); setAsking(s.id); }} /></View>
                 </View>
               ) : null}
             </View>

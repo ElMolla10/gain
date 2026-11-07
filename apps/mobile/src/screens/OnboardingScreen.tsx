@@ -23,8 +23,7 @@ import { validateDraft, type ProgrammeDraft } from "../logic/programmeDraft";
 import { instantiateTemplate, templatesForDays, type Instantiated, type TemplateOffer } from "../logic/templates";
 import { serializeMusclePriorities } from "../logic/musclePriority";
 import { generateProgramme } from "../logic/programGenerator";
-import { progressColors } from "../logic/stateColors";
-import { space, type as ty, useIsDark, usePalette } from "../theme";
+import { space, type as ty, usePalette } from "../theme";
 import { AppText, ArDraftNote, BigButton, Card, Chip, Field, InlineStatus, Notice, QuietAction, RadioGroup, RadioRow, Screen } from "../ui";
 import { firstInvalidGroup, footerMode, problemsFor, type ProblemGroup } from "../logic/onboardingLayout";
 import { HealthNote } from "../components/HealthNote";
@@ -43,7 +42,6 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   const { repos, programmes, onboarding } = useServices();
   const { t, lang, setLang, unit, setUnit, unitText, fmt } = useI18n();
   const p = usePalette();
-  const bar = progressColors(p, !useIsDark());
   const { fontScale } = useWindowDimensions();
   const [step, setStep] = useState<Step>("language");
   const [form, setForm] = useState<OnboardingForm>(() => emptyOnboardingForm(lang, unit));
@@ -433,14 +431,6 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
         totalSteps={STEPS.length}
         stepName={t(`ob.${step}` as StringKey) || step}
       />
-      <View accessible accessibilityRole="progressbar" accessibilityLabel={t("ob.progress", { i: idx + 1, n: STEPS.length })} accessibilityValue={{ min: 1, max: STEPS.length, now: idx + 1 }} style={{ gap: space.xs }}>
-        <View style={{ flexDirection: "row", gap: 4 }}>
-          {STEPS.map((_, i) => (
-            <View key={i} style={{ flex: 1, height: bar.height, borderRadius: bar.height / 2, backgroundColor: i <= idx ? bar.active : bar.inactive, opacity: i <= idx ? 1 : bar.inactiveOpacity }} />
-          ))}
-        </View>
-        <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("ob.progress", { i: idx + 1, n: STEPS.length })}</AppText>
-      </View>
       {resources === "error" ? <Notice kind="error" title={t("ob.loadFailed")} actionLabel={t("history.error.retry")} onAction={() => void refreshLibrary()} /> : null}
       {body}
       {first && error ? <InlineStatus kind="error" text={error} /> : null}

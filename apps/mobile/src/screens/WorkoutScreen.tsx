@@ -101,6 +101,7 @@ export function WorkoutScreen() {
     statusKind, statusShort, rows,
   } = session;
   const warns = sessionLineWarns(statusKind);
+  const showFirstSetHelp = shown.length > 0 && sets.length === 0 && Object.values(loaded.info).every(info => !info.last && !info.personalHistory?.length);
   const dockVisible = timerOpen || timerRunning || restOver;
   dockActions.current = {
     log: dockLog,
@@ -203,6 +204,8 @@ export function WorkoutScreen() {
             </Notice>
           </View>
         ) : null}
+
+        {showFirstSetHelp ? <AppText style={{ paddingHorizontal: space.lg, paddingVertical: space.sm, fontSize: ty.label, color: p.muted }}>{t("workout.firstSetHelp")}</AppText> : null}
 
         {shown.map((ex, i) => { const props = exerciseProps(ex, i); return props ? <ExerciseBlock key={ex.id} {...props} /> : null; })}
 

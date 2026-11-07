@@ -50,7 +50,8 @@ describe("screen-reader hints and the tab bar", () => {
     expect(src("src/screens/HistoryScreen.tsx")).toContain('accessibilityHint={t("history.liftHint")}');
     expect(src("src/screens/ProgrammeScreen.tsx")).toContain('accessibilityHint={t("prog.workoutSettingsHint")}');
   });
-  it("tab items grow to 64 dp above 1.2x text", () => {
-    expect(src("App.tsx")).toContain("tabBarItemStyle: { minHeight: fontScale > 1.2 ? 64 : 56 }");
+  it("tab container height follows the icon and scaled label layout", () => {
+    expect(src("App.tsx")).toContain('tabBarLayout(fontScale, insets.bottom, lang === "ar")');
+    expect(src("App.tsx")).toContain("tabBarStyle: { height: tabLayout.height");
   });
 });

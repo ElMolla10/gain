@@ -81,6 +81,22 @@ export function GeneratedProgrammeHero({
                     {isolateLtr(String(day.exercises.length))} exercises · {isolateLtr(String(daySets))} sets
                   </AppText>
                 </View>
+                <View style={styles.dayExercisesList}>
+                  {day.exercises.map((e, idx) => {
+                    const ex = library.find((l) => l.id === e.exerciseId || l.seedKey === e.exerciseId);
+                    const name = ex ? exerciseLabels(ex, lang).primary : e.exerciseId;
+                    return (
+                      <View key={`${e.exerciseId}-${idx}`} style={styles.dayExerciseRow}>
+                        <AppText style={[styles.dayExerciseName, { color: p.text }]}>
+                          {isolateLtr(String(idx + 1))}. {name}
+                        </AppText>
+                        <AppText style={[styles.dayExerciseSets, { color: p.muted }]}>
+                          {isolateLtr(`${e.sets} × ${e.repMin}-${e.repMax}`)}
+                        </AppText>
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
             );
           })}
@@ -183,6 +199,26 @@ const styles = StyleSheet.create({
   },
   dayMeta: {
     fontSize: 13,
+  },
+  dayExercisesList: {
+    marginTop: space.sm,
+    gap: space.xs,
+  },
+  dayExerciseRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 2,
+    gap: space.sm,
+  },
+  dayExerciseName: {
+    fontSize: 13,
+    fontWeight: "500",
+    flex: 1,
+  },
+  dayExerciseSets: {
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
   },
   droppedSection: {
     gap: space.xs,

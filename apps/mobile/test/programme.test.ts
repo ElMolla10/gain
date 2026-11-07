@@ -304,13 +304,18 @@ describe("program repo: versions", () => {
     await expect(programmes.saveNewVersion(active.programmeId, { ...v1, name: "" })).rejects.toBeInstanceOf(DraftInvalid);
     expect(await programmes.listVersions(active.programmeId)).toHaveLength(1);
   });
-  it("refuses to switch versions under an open workout", async () => {
+  it("allows saving a new version under an open workout for future sessions", async () => {
     const { programmes, active, v1, workout, gymId, repos } = await seeded();
     const next = (await repos.getNextDay())!;
-    await workout.startOrResumeSession(next.day.id, gymId);
-    await expect(programmes.saveNewVersion(active.programmeId, updateExercise(v1, 0, 0, { sets: 4 }))).rejects.toBeInstanceOf(SessionInProgress);
+    const open = await workout.startOrResumeSession(next.day.id, gymId);
+    const saved = await programmes.saveNewVersion(active.programmeId, updateExercise(v1, 0, 0, { sets: 4 }));
+    expect(saved.changed).toBe(true);
+    expect(saved.version).toBe(2);
+    // The open session is intact and still in progress
+    const current = await workout.getSession(open.id);
+    expect(current?.status).toBe("in_progress");
     // an unchanged draft is still just a no-op
-    expect((await programmes.saveNewVersion(active.programmeId, v1)).changed).toBe(false);
+    expect((await programmes.saveNewVersion(active.programmeId, updateExercise(v1, 0, 0, { sets: 4 }))).changed).toBe(false);
   });
   it("restoring an old version is saving its draft as a new version", async () => {
     const { programmes, active, v1 } = await seeded();
@@ -397,14 +402,16 @@ describe("switching program (v0.8.0)", () => {
     const planned = await db.get<{ pv: string }>("SELECT programme_version_id AS pv FROM session WHERE status = 'planned' AND deleted_at IS NULL");
     expect(planned!.pv).toBe((await programmes.getActive())!.versionId);
   });
-  it("refuses to switch while a workout is open", async () => {
+  it("allows switching active program while a workout is open for future sessions", async () => {
     const { programmes, active, ctx } = await seeded();
     const exs = await programmes.listExercises();
     const made = await programmes.createProgramme({ name: "Other", days: [{ name: "D", exercises: [newExercise(exs[0]!.id)] }] });
     const next = await ctx.repos.getNextDay();
-    await ctx.workout.startOrResumeSession(next!.day.id, (await ctx.repos.getActiveGymId())!);
-    await expect(programmes.setActiveProgramme(active.programmeId)).rejects.toThrow();
-    expect((await programmes.getActive())!.programmeId).toBe(made.programmeId);
+    const open = await ctx.workout.startOrResumeSession(next!.day.id, (await ctx.repos.getActiveGymId())!);
+    await programmes.setActiveProgramme(active.programmeId);
+    expect((await programmes.getActive())!.programmeId).toBe(active.programmeId);
+    const current = await ctx.workout.getSession(open.id);
+    expect(current?.status).toBe("in_progress");
   });
   it("adding a shared program creates a new one and leaves the current program in place", async () => {
     const { programmes, active } = await seeded();

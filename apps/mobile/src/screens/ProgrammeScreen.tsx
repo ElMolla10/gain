@@ -81,7 +81,7 @@ export function ProgrammeScreen() {
     return (
       <Screen tab title={t("prog.title")}>
         <EmptyState icon="plan" title={t("prog.none")} actionLabel={t("prog.switch.entry")} onAction={() => nav.navigate("ProgrammeSwitch")} />
-        <BigButton label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
+        <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
         <BigButton variant="secondary" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
       </Screen>
     );
@@ -90,17 +90,26 @@ export function ProgrammeScreen() {
     <Screen tab>
       <View style={{ gap: space.xs }}>
         <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{data.name}</AppText>
-        <AppText style={{ color: p.muted, fontSize: ty.label }}>
-          {t("prog.version", { v: data.version })}
-          {data.isSample ? ` · ${t("prog.sampleTag")}` : ""}
-        </AppText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t("prog.version", { v: data.version })}, ${t("prog.versions")}`}
+          accessibilityHint={t("prog.versions")}
+          onPress={() => nav.navigate("ProgrammeVersions")}
+          hitSlop={8}
+        >
+          <AppText style={{ color: p.muted, fontSize: ty.label }}>
+            {t("prog.version", { v: data.version })}
+            {data.isSample ? ` · ${t("prog.sampleTag")}` : ""}
+          </AppText>
+        </Pressable>
         {/* The progression rule, once per screen (P-2); per-exercise overrides behind "?". */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
           <AppText style={{ color: p.muted, fontSize: ty.label, flex: 1 }}>{t("prog.ruleNote")}</AppText>
           {overrides.length > 0 ? <QuietAction label="?" accessibilityLabel={t("prog.ruleMore")} expanded={ruleOpen} onPress={() => setRuleOpen(true)} /> : null}
         </View>
       </View>
-      {/* Secondary, not lime: Start on Today is the only primary action (P-6). Reorder lives in the editor. */}
+      {/* Primary: Build me a program first, visually distinct; Edit program is secondary */}
+      <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
       <BigButton variant="secondary" icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
       <PlanDayStrip
         days={data.draft.days.map((d) => ({
@@ -179,16 +188,13 @@ export function ProgrammeScreen() {
       {/* Plan 10x: weekly volume radar */}
       <PlanMuscleRadar rows={exposure} onOpenExposure={() => nav.navigate("ProgrammeExposure")} />
 
-      {/* Secondary: exposure, version history and program management sit below the days. */}
+      {/* Secondary: program management sits below the days. */}
       <View style={{ gap: space.sm }}>
         <SectionTitle>{t("prog.more")}</SectionTitle>
         <Card style={{ paddingVertical: space.xs }}>
-          <ListRow title={t("prog.exposure.title")} onPress={() => nav.navigate("ProgrammeExposure")} />
-          <ListRow title={t("prog.versions")} onPress={() => nav.navigate("ProgrammeVersions")} />
+          <ListRow title={t("coach.priority.entry")} onPress={() => nav.navigate("MusclePriority")} />
           <ListRow title={t("prog.switch.entry")} onPress={() => nav.navigate("ProgrammeSwitch")} />
           <ListRow title={t("prog.share.entry")} onPress={() => nav.navigate("ProgrammeShare")} />
-          <ListRow title={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
-          <ListRow title={t("coach.priority.entry")} onPress={() => nav.navigate("MusclePriority")} />
           <ListRow title={t("prog.new")} last onPress={() => nav.navigate("ProgrammeEdit")} />
         </Card>
       </View>

@@ -1,6 +1,6 @@
 import type { EquipmentType } from "@gain/engine";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View } from "react-native";
 import { useServices } from "../AppContext";
 import { DraftInvalid, SessionInProgress, type LibraryExercise } from "../db/programmeRepo";
@@ -11,12 +11,11 @@ import { ceilingForName } from "../logic/ceilings";
 import { DAYS_OPTIONS, MINUTES_OPTIONS } from "../logic/onboarding";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
 import {
-  RANKABLE_MUSCLES,
   parseMusclePriorities,
   serializeMusclePriorities,
   type MusclePriorities,
-  type MuscleRank,
 } from "../logic/musclePriority";
+import { MusclePriorityGrid } from "../components/coach/MusclePriorityGrid";
 import {
   generateProgramme,
   type GeneratedProgramme,
@@ -29,7 +28,6 @@ import { GeneratedProgrammeHero } from "../components/coach/GeneratedProgrammeHe
 
 const GOALS: GeneratorGoal[] = ["hypertrophy", "strength", "general"];
 const LEVELS: GeneratorExperience[] = ["beginner", "intermediate"];
-const RANKS: MuscleRank[] = ["priority", "normal", "maintenance", "reduced"];
 
 function splitAvoid(text: string): string[] {
   return text.split(/[,،;]+/).map((s) => s.trim()).filter(Boolean);
@@ -39,7 +37,7 @@ export function ProgramGenerateScreen() {
   const { programmes, repos, gyms } = useServices();
   const { t, lang } = useI18n();
   const p = usePalette();
-  const nav = useNavigation<{ goBack: () => void; navigate: (n: "ProgrammeEdit", params?: { programmeId: string }) => void }>();
+  const nav = useNavigation<{ goBack: () => void; navigate: (n: "ProgrammeEdit" | "Today", params?: { programmeId?: string }) => void }>();
   const [goal, setGoal] = useState<GeneratorGoal>("hypertrophy");
   const [experience, setExperience] = useState<GeneratorExperience>("intermediate");
   const [days, setDays] = useState(4);
@@ -51,6 +49,7 @@ export function ProgramGenerateScreen() {
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const activatingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,19 +98,25 @@ export function ProgramGenerateScreen() {
   }
 
   async function save() {
-    if (!preview || busy) return;
+    if (!preview || busy || activatingRef.current) return;
+    activatingRef.current = true;
     setBusy(true);
     setMessage(null);
     try {
-      await repos.setSetting("muscle_priorities", serializeMusclePriorities(priorities));
-      const made = await programmes.createProgramme(preview.draft, { activate: true });
-      nav.navigate("ProgrammeEdit", { programmeId: made.programmeId });
-      setBusy(false);
+      await programmes.createProgramme(preview.draft, {
+        activate: true,
+        alsoInTransaction: async () => {
+          await repos.setSetting("muscle_priorities", serializeMusclePriorities(priorities));
+        },
+      });
+      nav.navigate("Today");
     } catch (e) {
-      setBusy(false);
       if (e instanceof SessionInProgress) setMessage(t("prog.openWorkout"));
       else if (e instanceof DraftInvalid) setMessage(t("ob.error"));
       else setMessage(t("prog.switch.error"));
+    } finally {
+      activatingRef.current = false;
+      setBusy(false);
     }
   }
 
@@ -153,24 +158,13 @@ export function ProgramGenerateScreen() {
 
       <SectionTitle>{t("coach.priority.title")}</SectionTitle>
       <AppText style={{ color: p.muted, fontSize: ty.label }}>{t("coach.priority.note")}</AppText>
-      {RANKABLE_MUSCLES.map((g) => (
-        <View key={g} style={{ gap: space.xs }}>
-          <AppText style={{ fontWeight: "600" }} accessibilityRole="header">{t(`muscle.${g}` as StringKey)}</AppText>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-            {RANKS.map((r) => (
-              <Chip
-                key={r}
-                label={t(`coach.rank.${r}` as StringKey)}
-                selected={(priorities[g] ?? "normal") === r}
-                onPress={() => {
-                  setPriorities((cur) => ({ ...cur, [g]: r }));
-                  setPreview(null);
-                }}
-              />
-            ))}
-          </View>
-        </View>
-      ))}
+      <MusclePriorityGrid
+        priorities={priorities}
+        onSetRank={(g, r) => {
+          setPriorities((cur) => ({ ...cur, [g]: r }));
+          setPreview(null);
+        }}
+      />
 
       <Field label={t("coach.avoid")} hint={t("coach.avoid.hint")} value={avoidText} onChangeText={(s) => { setAvoidText(s); setPreview(null); }} />
       <BigButton label={t("coach.generate")} onPress={() => void build()} />

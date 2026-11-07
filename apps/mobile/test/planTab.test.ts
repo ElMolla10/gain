@@ -16,12 +16,20 @@ describe("2.1 Plan tab (P-1, P-2, P-6, P-7)", () => {
   it("the scheme is one isolated run with an en dash", () => {
     expect(rows).toMatch(/isolateLtr\(`\$\{e\.sets\}\$\{NBSP\}×\$\{NBSP\}\$\{range\.min\}\$\{EN_DASH\}\$\{range\.max\}`\)/);
   });
-  it("no primary button on the populated Plan tab; Reorder moved to the editor", () => {
+  it("Build me a program is the primary button on the populated Plan tab; Edit is secondary; Reorder moved to the editor", () => {
     const populated = f.slice(f.indexOf("<Screen tab>"));
+    expect(populated).toMatch(/<BigButton hero label=\{t\("coach\.build"\)\}/);
     expect(populated).toMatch(/<BigButton variant="secondary" icon="edit"/);
-    expect(populated).not.toMatch(/<BigButton (?!variant)/);
+    expect(populated.indexOf('hero label={t("coach.build")}')).toBeLessThan(populated.indexOf('variant="secondary" icon="edit"'));
     expect(populated).not.toContain("prog.workouts.reorder");
     expect(src("components/ProgrammeEditorView.tsx")).toContain("setReorderWorkouts(true)");
+  });
+  it("removes exposure and versions from the details list while keeping quieter version access", () => {
+    const more = f.slice(f.indexOf('SectionTitle>{t("prog.more")}</SectionTitle>'));
+    const listCard = more.slice(0, more.indexOf("</Card>"));
+    expect(listCard).not.toContain('t("prog.exposure.title")');
+    expect(listCard).not.toContain('t("prog.versions")');
+    expect(f).toContain('onPress={() => nav.navigate("ProgrammeVersions")}');
   });
   it("no gear in collapsed headers; workout settings is a row inside the open card", () => {
     expect(f).not.toMatch(/icon="settings"/);

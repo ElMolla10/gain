@@ -73,7 +73,8 @@ export function HistoryScreen() {
         ) : (
           <View style={{ gap: space.md }}>
             <Card style={{ paddingVertical: space.xs }}>
-              {sessions.map((s, i) => {
+              {/* Show only the five most recent completed sessions, newest first (sessions.map( is limited to 5) */}
+              {sessions.slice(0, 5).map((s, i, arr) => {
                 const min = sessionMinutes(s.startedAt, s.finishedAt, s.imported, s.pausedMs);
                 const line = min !== null ? t("history.rowLine", { min, sets: s.workingSets }) : t("history.rowLineNoTime", { sets: s.workingSets });
                 const title = s.imported ? t("history.imported") : s.dayName;
@@ -85,14 +86,13 @@ export function HistoryScreen() {
                     note={note}
                     accessibilityLabel={s.pr ? `${title}, ${note}, ${t("history.prLabel")}` : undefined}
                     trailingIcon={s.pr ? <PrPill label={t("history.prPill")} /> : undefined}
-                    last={i === sessions.length - 1}
+                    last={i === arr.length - 1}
                     accessibilityHint={t("history.sessionHint")}
                     onPress={() => nav.navigate("SessionDetail", { sessionId: s.id })}
                   />
                 );
               })}
             </Card>
-            {sessions.length < total ? <BigButton variant="secondary" label={t("history.more")} disabled={state.loading} onPress={() => void loader.load(sessions.length + PAGE)} /> : null}
           </View>
         )
       ) : lifts.length === 0 ? (

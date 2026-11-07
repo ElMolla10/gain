@@ -98,9 +98,11 @@ export function createShortWeekRepo(db: Db, deps: Deps, repos: Repos, programmes
     return { original, rebuild: r, exposure: diffExposure(before, after), programmeId: v.programmeId, originalVersionId };
   }
 
-  /** Saves the preview as a new program version. Throws SessionInProgress (from the program repo) if a workout is open. */
+  /** Saves the preview as a new program version. Throws SessionInProgress if a workout is open. */
   async function apply(days: number, minutes: number | null, nowMs: number = now(), tzOffsetMs = 0): Promise<ActiveShortWeek> {
     if (await getActive()) throw new ShortWeekActive();
+    const open = await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'in_progress' AND deleted_at IS NULL LIMIT 1");
+    if (open) throw new SessionInProgress();
     const p = await preview(days, minutes);
     const id = newId();
     const t = now();

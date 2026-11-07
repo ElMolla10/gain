@@ -4,7 +4,7 @@ import { substitutionCandidates } from "../logic/substitutions";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { GoalRepo } from "./goalRepo";
-import type { ProgrammeRepo } from "./programmeRepo";
+import { SessionInProgress, type ProgrammeRepo } from "./programmeRepo";
 import type { Repos } from "./repos";
 import type { ShortWeekRepo } from "./shortWeekRepo";
 import { DELOAD_SETTING } from "./deloadRepo";
@@ -173,6 +173,8 @@ export function createWeeklyPlanRepo(db: Db, deps: Deps, repos: Repos, goals: Go
    * cannot be applied (see RecordReason) the decision is recorded only, as before. Throws SessionInProgress if a workout is open.
    */
   async function apply(reviewId: string, nowMs: number = now(), tzOffsetMs = 0): Promise<PlanPreview> {
+    const open = await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'in_progress' AND deleted_at IS NULL LIMIT 1");
+    if (open) throw new SessionInProgress();
     const change = await reviewChange(reviewId);
     if (!isPlanKind(change.kind)) throw new Error("This proposal does not change the program");
     const p = await plan(change.kind, nowMs, tzOffsetMs);
@@ -221,6 +223,8 @@ export function createWeeklyPlanRepo(db: Db, deps: Deps, repos: Repos, goals: Go
    * asks the screen to offer keep my edits / restore original (see resolve). Throws SessionInProgress if a workout is open.
    */
   async function undo(): Promise<{ conflict: boolean }> {
+    const open = await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'in_progress' AND deleted_at IS NULL LIMIT 1");
+    if (open) throw new SessionInProgress();
     const r = await openRow();
     if (!r?.applied_json) return { conflict: false };
     const a = JSON.parse(r.applied_json) as AppliedPlan;

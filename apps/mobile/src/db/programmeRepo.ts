@@ -387,11 +387,10 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
   }
 
   /** A new program (e.g. from a template or built from scratch). It becomes the active one unless told otherwise. */
-  async function createProgramme(draft: ProgrammeDraft, opts: { activate?: boolean } = {}): Promise<{ programmeId: string; versionId: string }> {
+  async function createProgramme(draft: ProgrammeDraft, opts: { activate?: boolean; alsoInTransaction?: (programmeId: string, versionId: string) => Promise<void> } = {}): Promise<{ programmeId: string; versionId: string }> {
     const problems = validateDraft(draft);
     if (problems.length > 0) throw new DraftInvalid(problems);
     const activate = opts.activate ?? true;
-    if (activate) await assertNoOpenWorkout();
     const ids = await db.transaction(async () => {
       const t = now();
       const programmeId = newId();
@@ -401,9 +400,11 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
         await repos.setSetting("active_programme_id", programmeId);
         await voidStalePlanned(versionId);
       }
+      if (opts.alsoInTransaction) await opts.alsoInTransaction(programmeId, versionId);
       return { programmeId, versionId };
     });
-    if (activate) await replan();
+    const open = await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'in_progress' AND deleted_at IS NULL LIMIT 1");
+    if (activate && !open) await replan();
     return ids;
   }
 
@@ -418,8 +419,6 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
     if (!cur) throw new Error("Unknown program");
     const before = await loadDraft(cur.id);
     if (draftFingerprint(before) === draftFingerprint(draft)) return { versionId: cur.id, version: cur.version, changed: false };
-    // `background`: a program that is not the active one (e.g. closing a short week left behind). Nothing about today's workout or plan is touched.
-    if (!opts.background) await assertNoOpenWorkout();
     const res = await db.transaction(async () => {
       const t = now();
       if (draft.name.trim() !== before.name.trim()) await db.run("UPDATE programme SET name = ?, updated_at = ? WHERE id = ?", [draft.name.trim(), t, programmeId]);
@@ -429,18 +428,19 @@ export function createProgrammeRepo(db: Db, deps: Deps, repos: Repos, finish: Fi
       if (opts.alsoInTransaction) await opts.alsoInTransaction(versionId);
       return { versionId, version, changed: true };
     });
-    if (!opts.background) await replan();
+    const open = await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'in_progress' AND deleted_at IS NULL LIMIT 1");
+    if (!opts.background && !open) await replan();
     return res;
   }
 
   async function setActiveProgramme(programmeId: string): Promise<void> {
     const p = await db.get<{ id: string }>("SELECT id FROM programme WHERE id = ? AND deleted_at IS NULL", [programmeId]);
     if (!p) throw new Error("Unknown program");
-    await assertNoOpenWorkout();
     await repos.setSetting("active_programme_id", programmeId);
     const v = await getActive();
     if (v) await voidStalePlanned(v.versionId);
-    await replan();
+    const open = await db.get<{ id: string }>("SELECT id FROM session WHERE status = 'in_progress' AND deleted_at IS NULL LIMIT 1");
+    if (!open) await replan();
   }
 
   return { listExercises, createExercise, updateExercise, setExerciseMeasure, setExerciseLoads, setLineLoads, getExercisePrescription, setExercisePrescription, setMachineLoadKind, getExerciseLoads: repos.getExerciseLoads, seedKeyMap, getActive, loadDraft, listVersions, listProgrammes, exposureOf, createProgramme, saveNewVersion, setActiveProgramme };

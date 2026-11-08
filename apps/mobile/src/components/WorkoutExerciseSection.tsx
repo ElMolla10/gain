@@ -246,14 +246,14 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
       </View>
 
       {pending.map((s) => {
-        const o = outliers[s.id];
+        const expected = outliers[s.id]?.expected;
         return (
           <View key={s.id} style={{ marginHorizontal: space.md }}>
-            <Notice kind="warn" title={t("workout.outlier.title")}>
+            <Notice kind="warn" title={t(expected ? "workout.outlier.title" : "workout.outlier.checkTitle")}>
               <AppText>
                 {timed
                   ? isolateLtr(quantityText(setQuantity(s, ex.measure), ex.measure, qUnits))
-                  : loadTargetText(s.load, s.reps, "reps", lang, unit, qUnits)} · {timed ? t("workout.outlier.bodyTimed") : t("workout.outlier.body", { load: o?.expected ? fmt(o.expected.medianLoad) : "?", reps: o?.expected?.medianReps ?? "?" })}
+                  : loadTargetText(s.load, s.reps, "reps", lang, unit, qUnits)} · {!expected ? t("workout.outlier.noBaseline") : timed ? t("workout.outlier.bodyTimed") : t("workout.outlier.body", { load: fmt(expected.medianLoad), reps: expected.medianReps })}
               </AppText>
               <AppText style={{ color: p.muted }}>{t("workout.outlier.note")}</AppText>
               <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>

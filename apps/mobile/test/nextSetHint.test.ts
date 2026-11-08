@@ -120,3 +120,36 @@ describe("immediate next-set hint from a saved working set", () => {
     expect(text(hint(props))).toContain(translate(lang, "live.compact.noEasier"));
   });
 });
+
+
+describe("unconfirmed set without a comparable baseline", () => {
+  it.each(["en", "ar"] as const)("%s asks to check the entry without inventing recent history", (lang) => {
+    settings.lang = lang;
+    const props = fixture();
+    props.card = undefined;
+    props.exSets[0]!.load = 0;
+    props.exSets[0]!.outlierStatus = "unconfirmed";
+    props.outliers.saved = { verdict: "unconfirmed", outlierStatus: "unconfirmed", reasons: ["invalid_value"], expected: null };
+    const notice = tree(props).find(n => n.type === "Notice")!;
+    expect(notice.props.title).toBe(lang === "en" ? "Check this set" : "راجع المجموعة دي");
+    expect(text(notice)).toContain(lang === "en" ? "Check the numbers you entered." : "راجع الأرقام اللي دخلتها.");
+    expect(text(notice)).not.toContain("?");
+    // A restored unconfirmed row may not have its transient outlier result.
+    props.outliers = {};
+    expect(tree(props).find(n => n.type === "Notice")!.props.title).toBe(notice.props.title);
+  });
+
+  it("retains a real comparison and the existing confirm/remove actions", () => {
+    const props = fixture();
+    props.card = undefined;
+    props.exSets[0]!.outlierStatus = "unconfirmed";
+    props.outliers.saved = { verdict: "unconfirmed", outlierStatus: "unconfirmed", reasons: ["load_far_from_line"], expected: { medianLoad: 20, medianReps: 8, medianE1rm: null, sampleSize: 2 } };
+    const notice = tree(props).find(n => n.type === "Notice")!;
+    expect(notice.props.title).toBe("This looks far from your usual lifts");
+    expect(text(notice)).toContain("Your recent line is about");
+    expect(text(notice)).toContain("20");
+    expect(text(notice)).toContain("8");
+    const buttons = nodes(notice).filter(n => n.type === "BigButton");
+    expect(buttons.map(n => n.props.label)).toEqual(["It is right", "Not right, remove it"]);
+  });
+});

@@ -1,3 +1,4 @@
+import { isUpperBodyExercise, upperBodyTemplate } from "./upperBodyGenerator";
 import type { EquipmentType } from "@gain/engine";
 import { CATALOG, CATALOG_BY_KEY } from "../db/libraryDraft";
 import { GROUP_OF_MUSCLE, type LibraryGroup } from "../db/library/types";
@@ -11,6 +12,8 @@ export type GeneratorGoal = "strength" | "hypertrophy" | "general";
 export type GeneratorExperience = "beginner" | "intermediate";
 
 export interface GenerateInput {
+  /** Only affects this generated draft; omitted/false preserves the whole-body path. */
+  skipLegs?: boolean;
   goal: GeneratorGoal;
   experience: GeneratorExperience;
   daysPerWeek: number;
@@ -56,10 +59,10 @@ export function avoidPhrases(avoid: readonly string[]): string[] {
 
 export function matchesAvoid(ex: { key: string; nameEn: string }, phrases: readonly string[]): boolean {
   if (phrases.length === 0) return false;
-  const hay = `${ex.key.replace(/_/g, " ")} ${ex.nameEn}`.toLowerCase();
+  const hay = normalizePhrase(`${ex.key.replace(/_/g, " ")} ${ex.nameEn}`);
   for (const p of phrases) {
     const aliases = AVOID_ALIASES[p] ?? AVOID_ALIASES[p.replace(/ /g, "")] ?? [p];
-    if (aliases.some((a) => hay.includes(a))) return true;
+    if (aliases.some((a) => hay.includes(normalizePhrase(a)))) return true;
   }
   return false;
 }
@@ -181,9 +184,11 @@ function extraForGroup(
   phrases: readonly string[],
   usedKeys: Set<string>,
   byKey: LibraryLookup["byKey"],
+  upperOnly = false,
 ): { exerciseId: string; key: string } | null {
   const eq = new Set(equipment);
   for (const c of CATALOG) {
+    if (upperOnly && !isUpperBodyExercise(c)) continue;
     if (GROUP_OF_MUSCLE[c.muscle] !== group) continue;
     if (usedKeys.has(c.key)) continue;
     if (!eq.has(c.equipment)) continue;
@@ -217,7 +222,7 @@ function applyPrioritySlots(
     if (rank !== "priority") continue;
     const have = weeklySetsByGroup(next, reverseKeys(byKey)).get(group) ?? 0;
     if (have >= 8) continue;
-    const extra = extraForGroup(group, input.equipment, avoidPhrases(input.avoid), used, byKey);
+    const extra = extraForGroup(group, input.equipment, avoidPhrases(input.avoid), used, byKey, input.skipLegs);
     if (!extra) continue;
     const days = next.days.map((d, i) => ({ i, already: d.exercises.some((e) => groupOfId(e.exerciseId, reverseKeys(byKey)) === group), name: d.name }));
     days.sort((a, b) => dayScoreForGroup(a.name, a.already) - dayScoreForGroup(b.name, b.already));
@@ -296,7 +301,7 @@ export function applyPriorityOrdering(
  * The result is an ordinary ProgrammeDraft the editor already knows how to save.
  */
 export function generateProgramme(input: GenerateInput, lib: LibraryLookup, ceilingFor: (key: string) => number): GeneratedProgramme | null {
-  const template = pickGeneratorTemplate(input);
+  const template = input.skipLegs ? upperBodyTemplate(input, lib, c => matchesAvoid({ key: c.key, nameEn: c.en }, avoidPhrases(input.avoid))) : pickGeneratorTemplate(input);
   if (!template) return null;
   const inst: Instantiated = instantiateTemplate(template, lib, {
     lang: input.lang,
@@ -312,5 +317,16 @@ export function generateProgramme(input: GenerateInput, lib: LibraryLookup, ceil
   draft = applyPrioritySlots(draft, input, reverseKeys(lib.byKey), lib.byKey, protect);
   draft = applyPriorityOrdering(draft, input.priorities, reverseKeys(lib.byKey));
   draft = applyTimeCap(draft, input.sessionMinutes, protect, reverseKeys(lib.byKey), dropped);
+  if (input.skipLegs) {
+    // Validate the final preview, after priority additions and time trimming.
+    // Failure is atomic: a partial or duplicate rotation is never saveable.
+    const signatures = draft.days.map(d => d.exercises.map(e => e.exerciseId).sort().join("|"));
+    const idToKey = reverseKeys(lib.byKey);
+    if (draft.days.length !== input.daysPerWeek || new Set(signatures).size !== input.daysPerWeek || draft.days.some(d =>
+      d.exercises.length < 2 || new Set(d.exercises.map(e => e.exerciseId)).size !== d.exercises.length ||
+      estimateSessionMinutes(d.exercises.reduce((n,e) => n+e.sets,0)) > input.sessionMinutes ||
+      d.exercises.some(e => { const c = CATALOG_BY_KEY.get(idToKey.get(e.exerciseId) ?? ""); return !c || !isUpperBodyExercise(c); })
+    )) return null;
+  }
   return { draft, template, dropped };
 }

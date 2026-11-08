@@ -2,6 +2,9 @@
 export const enCoach = {
   "coach.build": "Build me a program",
   "coach.build.note": "Answers here make a new editable program. Your current program stays.",
+  "coach.skipLegs": "Skip leg training",
+  "coach.skipLegs.note": "Removes lower-body exercises from this generated program. Keeps your selected number of days. Leg priorities won’t add them back.",
+  "coach.skipLegs.unavailable": "Could not make {n} distinct upper-body days with these choices. Try more equipment, fewer avoided exercises, or more time. Nothing was saved.",
   "coach.goal": "Goal",
   "coach.goal.strength": "Strength",
   "coach.goal.hypertrophy": "Muscle",
@@ -53,6 +56,9 @@ export const enCoach = {
 export const arCoach: Record<keyof typeof enCoach, string> = {
   "coach.build": "ابني لي برنامج",
   "coach.build.note": "الإجابات هنا بتعمل برنامج جديد تقدر تعدّله. برنامجك الحالي بيفضل.",
+  "coach.skipLegs": "من غير تمارين رجل",
+  "coach.skipLegs.note": "بيشيل تمارين الجزء السفلي من البرنامج ده بس، وبيحافظ على عدد الأيام اللي اخترته. أولوية عضلات الرجل مش هترجّع تمارينها.",
+  "coach.skipLegs.unavailable": "مش قادرين نعمل {n} أيام مختلفة للجزء العلوي بالاختيارات دي. جرّب معدات أكتر، أو استبعد تمارين أقل، أو زوّد الوقت. ما اتحفظش أي برنامج.",
   "coach.goal": "الهدف",
   "coach.goal.strength": "قوة",
   "coach.goal.hypertrophy": "عضل",

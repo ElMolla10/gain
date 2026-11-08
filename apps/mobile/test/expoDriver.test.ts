@@ -14,7 +14,19 @@ vi.mock("expo-sqlite", () => ({
     const sql = new DatabaseSync(name);
     const raw = {
       sql,
-      execAsync: async (s: string) => { sql.exec(s); },
+      execAsync: async (s: string) => {
+        // Expo waits for busy locks off the JS thread. Node SQLite is synchronous:
+        // yield/retry BEGIN instead, so the other connection can finish its job.
+        const statement = s.replace(/PRAGMA busy_timeout = \d+;/g, "PRAGMA busy_timeout = 0;");
+        const deadline = Date.now() + 1000;
+        for (;;) {
+          try { sql.exec(statement); return; }
+          catch (e) {
+            if (s !== "BEGIN IMMEDIATE" || !String(e).includes("database is locked") || Date.now() >= deadline) throw e;
+            await new Promise<void>(resolve => setImmediate(resolve));
+          }
+        }
+      },
       runAsync: async (s: string, p: any[]) => sql.prepare(s).run(...p),
       getAllAsync: async (s: string, p: any[]) => sql.prepare(s).all(...p),
       getFirstAsync: async (s: string, p: any[]) => sql.prepare(s).get(...p) ?? null,
@@ -57,24 +69,27 @@ describe("Expo primary/maintenance connection isolation", () => {
     expect(await maintenance.get("PRAGMA foreign_keys")).toEqual({ foreign_keys: 0 });
   });
 
-  it("allows background capture to commit while a primary read snapshot is open", async () => {
+  it("finishes a read-then-write transaction while background capture also writes", async () => {
     const { main, maintenance } = await setup();
-    await main.transaction(async () => {
+    let read!: () => void;
+    const ready = new Promise<void>(resolve => { read = resolve; });
+    const finishing = main.transaction(async () => {
       expect(await main.all("SELECT id FROM qa")).toEqual([{ id: "saved-set" }]);
-      await maintenance.transaction(() => maintenance.run("INSERT INTO qa VALUES ('prediction')"));
-      // WAL snapshot must not see another connection's uncommitted/late changes.
-      expect(await main.all("SELECT id FROM qa")).toEqual([{ id: "saved-set" }]);
+      read();
+      await new Promise<void>(resolve => setImmediate(resolve));
+      await main.run("INSERT INTO qa VALUES ('finished')");
     });
-    expect(await main.all("SELECT id FROM qa ORDER BY id")).toEqual([{ id: "prediction" }, { id: "saved-set" }]);
-    await main.transaction(() => main.run("INSERT INTO qa VALUES ('finished')"));
-    expect(await main.get("SELECT id FROM qa WHERE id = 'finished'")).toEqual({ id: "finished" });
+    const capturing = ready.then(() => maintenance.transaction(() => maintenance.run("INSERT INTO qa VALUES ('prediction')")));
+    const outcomes = await Promise.allSettled([finishing, capturing]);
+    expect(outcomes.map(r => r.status)).toEqual(["fulfilled", "fulfilled"]);
+    expect(await main.all("SELECT id FROM qa ORDER BY id")).toEqual([{ id: "finished" }, { id: "prediction" }, { id: "saved-set" }]);
   });
 
   it("cannot roll back another connection's committed data", async () => {
     const { main, maintenance } = await setup();
+    await maintenance.transaction(() => maintenance.run("INSERT INTO qa VALUES ('prediction')"));
     await expect(main.transaction(async () => {
-      await main.all("SELECT id FROM qa");
-      await maintenance.transaction(() => maintenance.run("INSERT INTO qa VALUES ('prediction')"));
+      await main.run("DELETE FROM qa");
       throw new Error("primary failure");
     })).rejects.toThrow("primary failure");
     await expect(maintenance.transaction(async () => {

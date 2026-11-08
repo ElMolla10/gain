@@ -17,11 +17,17 @@ export async function openExpoDb(name = "gain.db"): Promise<Db> {
       ((await raw.getFirstAsync<T & Record<string, unknown>>(sql, params)) as T | null) ?? null,
     transaction: (fn) =>
       serial(async () => {
-        let out: unknown;
-        await raw.withTransactionAsync(async () => {
-          out = await fn();
-        });
-        return out as never;
+        // Reserve the writer before reading: a deferred transaction cannot upgrade
+        // its WAL snapshot if background evaluation commits in between.
+        await raw.execAsync("BEGIN IMMEDIATE");
+        try {
+          const out = await fn();
+          await raw.execAsync("COMMIT");
+          return out;
+        } catch (e) {
+          await raw.execAsync("ROLLBACK").catch(() => undefined);
+          throw e;
+        }
       }),
   };
 }

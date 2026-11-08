@@ -13,6 +13,7 @@ vi.mock("react-native", () => ({
   View: "View",
   Pressable: "Pressable",
   ScrollView: "ScrollView",
+  useWindowDimensions: () => ({ width: 375, height: 667, fontScale: 1 }),
   StyleSheet: {
     create: (styles: any) => styles,
     hairlineWidth: 1,
@@ -68,6 +69,9 @@ vi.mock("../src/i18n", () => ({
       if (k === "coach.rank.reduced") return "Reduced";
       if (k === "coach.blueprint.title") return "GENERATED PROGRAMME BLUEPRINT";
       if (k === "coach.blueprint.launch") return "Activate & Save Programme";
+      if (k === "coach.preview.movements") return `${p?.n} movements`;
+      if (k === "coach.preview.weeklySets") return `${p?.n} weekly sets`;
+      if (k === "coach.preview.dayCounts") return `${p?.exercises} exercises · ${p?.sets} sets`;
       if (k === "coach.days") return "Days";
       if (k === "ob.programme.dropped") return "Omitted movements";
       if (k === "coach.dropped.avoid") return `${p?.day}: omitted ${p?.lift} (avoided)`;

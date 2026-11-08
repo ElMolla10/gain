@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import type { LibraryExercise } from "../../db/programmeRepo";
 import { useI18n } from "../../i18n";
 import { exerciseLabels, isolateLtr } from "../../i18n/format";
@@ -24,6 +24,7 @@ export function GeneratedProgrammeHero({
 }: GeneratedProgrammeHeroProps) {
   const { t, lang } = useI18n();
   const p = usePalette();
+  const stacked = useWindowDimensions().fontScale > 1.3;
 
   const totalExercises = preview.draft.days.reduce((acc, d) => acc + d.exercises.length, 0);
   const totalWeeklySets = preview.draft.days.reduce(
@@ -53,12 +54,12 @@ export function GeneratedProgrammeHero({
           </View>
           <View style={[styles.statBadge, { backgroundColor: p.card, borderColor: p.border }]}>
             <AppText style={[styles.statText, { color: p.text }]}>
-              {isolateLtr(String(totalExercises))} movements
+              {t("coach.preview.movements", { n: totalExercises })}
             </AppText>
           </View>
           <View style={[styles.statBadge, { backgroundColor: p.card, borderColor: p.border }]}>
             <AppText style={[styles.statText, { color: p.text }]}>
-              {isolateLtr(String(totalWeeklySets))} weekly sets
+              {t("coach.preview.weeklySets", { n: totalWeeklySets })}
             </AppText>
           </View>
         </View>
@@ -78,7 +79,7 @@ export function GeneratedProgrammeHero({
                 <View style={styles.dayHeader}>
                   <AppText style={[styles.dayName, { color: p.text }]}>{day.name}</AppText>
                   <AppText style={[styles.dayMeta, { color: p.muted }]}>
-                    {isolateLtr(String(day.exercises.length))} exercises · {isolateLtr(String(daySets))} sets
+                    {t("coach.preview.dayCounts", { exercises: day.exercises.length, sets: daySets })}
                   </AppText>
                 </View>
                 <View style={styles.dayExercisesList}>
@@ -86,8 +87,8 @@ export function GeneratedProgrammeHero({
                     const ex = library.find((l) => l.id === e.exerciseId || l.seedKey === e.exerciseId);
                     const name = ex ? exerciseLabels(ex, lang).primary : e.exerciseId;
                     return (
-                      <View key={`${e.exerciseId}-${idx}`} style={styles.dayExerciseRow}>
-                        <AppText style={[styles.dayExerciseName, { color: p.text }]}>
+                      <View key={`${e.exerciseId}-${idx}`} style={[styles.dayExerciseRow, stacked && { flexDirection: "column", alignItems: "stretch" }]}>
+                        <AppText style={[styles.dayExerciseName, { color: p.text }, stacked && { flex: 0 }]}>
                           {isolateLtr(String(idx + 1))}. {name}
                         </AppText>
                         <AppText style={[styles.dayExerciseSets, { color: p.muted }]}>

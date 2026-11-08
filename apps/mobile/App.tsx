@@ -154,6 +154,7 @@ function SetupRoute() {
 }
 
 function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
+  const insets = useSafeAreaInsets();
   const { enabled: developerMode } = useDeveloperMode();
   // "Import my workout history" on the first screen opens Import straight after setup is skipped.
   const [openImport, setOpenImport] = useState(false);
@@ -167,7 +168,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   }, [isDark, palette]);
   if (props.needsOnboarding) {
     return (
-      <View style={{ flex: 1, direction }}>
+      <View style={{ flex: 1, direction, paddingTop: insets.top }}>
         <OnboardingScreen
           onDone={(imp) => {
             setOpenImport(imp === true);

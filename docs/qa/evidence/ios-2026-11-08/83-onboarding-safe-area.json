@@ -1,0 +1,39 @@
+{
+  "capture": "Maestro native hierarchy excerpt",
+  "rawSha256": "10681fffb8d17589acb14980b8a3f8c1785cbddaae00899a6410439ec15387da",
+  "simulator": "211D7C57-B389-48BD-8350-5A2A8B73C892",
+  "screenWidth": 402,
+  "minTop": 62,
+  "nodes": [
+    {
+      "attributes": {
+        "accessibilityText": "STEP \u2066\u20661\u2069\u2069 OF \u2066\u20666\u2069\u2069",
+        "title": "",
+        "value": "",
+        "text": "",
+        "hintText": "",
+        "resource-id": "",
+        "bounds": "[16,27][104,45]",
+        "enabled": "true",
+        "focused": "false",
+        "selected": "false",
+        "checked": "false"
+      }
+    },
+    {
+      "attributes": {
+        "accessibilityText": "STEP \u2066\u20661\u2069\u2069 OF \u2066\u20666\u2069\u2069",
+        "title": "",
+        "value": "",
+        "text": "",
+        "hintText": "",
+        "resource-id": "",
+        "bounds": "[16,27][104,45]",
+        "enabled": "true",
+        "focused": "false",
+        "selected": "false",
+        "checked": "false"
+      }
+    }
+  ]
+}

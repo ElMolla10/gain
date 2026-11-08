@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--text", required=True)
     parser.add_argument("--min-height", type=int, required=True)
     parser.add_argument("--screen-width", type=int, required=True)
+    parser.add_argument("--min-top", type=int, default=0, help="Lowest allowed top edge, e.g. the measured status-bar inset")
     args = parser.parse_args()
     with open(args.hierarchy, encoding="utf-8") as source:
         tree = json.load(source)
@@ -40,6 +41,7 @@ def main():
     matches = sorted(matches)  # iOS can expose identical heading/text accessibility nodes.
     assert len(matches) == 1, f"Expected exactly one fixture title, found {matches}"
     left, top, right, bottom = matches[0]
+    assert top >= args.min_top, f"Text overlaps top safe area: {top}pt < {args.min_top}pt; bounds={matches[0]}"
     assert bottom - top >= args.min_height, f"Stale text height: {bottom - top}pt < {args.min_height}pt; bounds={matches[0]}"
     assert 0 <= left < right <= args.screen_width, f"Text exceeds viewport: {matches[0]}"
     print(json.dumps({"text": args.text, "bounds": matches[0], "result": "PASS"}))

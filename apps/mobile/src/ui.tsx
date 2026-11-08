@@ -21,6 +21,7 @@ import { INPUT_HEIGHT, MIN_TOUCH, PRIMARY_HEIGHT, radius, space, type as ty, use
  */
 export function AppText({ ltr, style, children, ...rest }: TextProps & { ltr?: boolean }) {
   const { direction, lang } = useI18n();
+  const { fontScale } = useWindowDimensions();
   const p = usePalette();
   const flat = (StyleSheet.flatten(style) ?? {}) as TextStyle;
   // `ltr` is honoured only for text with no Arabic letters; a mixed run would be laid out backwards ("كجم × 9 40"), so it keeps the
@@ -33,6 +34,9 @@ export function AppText({ ltr, style, children, ...rest }: TextProps & { ltr?: b
   return (
     <Text
       {...rest}
+      // Recreate only native text when Dynamic Type changes. Otherwise iOS can
+      // paint larger glyphs into a stale line box until the app is restarted.
+      key={fontScale}
       style={[
         { color: p.text, writingDirection: forceLtr ? "ltr" : direction, fontFamily: familyFor({ weight: fontWeight, arabic }), fontSize: scaled.fontSize, lineHeight: typeof lineHeight === "number" ? lineHeight : scaled.lineHeight },
         ltr ? { fontVariant: ["tabular-nums"] } : null,

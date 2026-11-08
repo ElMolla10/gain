@@ -221,6 +221,14 @@ describe("CabinetShelf render", () => {
     expect(texts(tree)).toEqual(expect.arrayContaining(["Training days", "Years", "100 days", "1000 days", "2 years"]));
     expect(slots(tree)[0]!.props.style({ pressed: false }).width).toBe(`${100 / 3}%`);
   });
+  it.each(["en", "ar"] as const)("%s: accessibility text gets full-width medal names", (lang) => {
+    settings.lang = lang;
+    settings.fontScale = 2.14;
+    const tree = expand(React.createElement(CabinetShelf, { shelf: "strength", items: strength(), onOpen: () => {} }));
+    expect(slots(tree)).toHaveLength(6);
+    expect(slots(tree).every((slot) => slot.props.style({ pressed: false }).width === "100%")).toBe(true);
+    expect(nodes(tree).filter((n) => n.props.style?.height === 10)).toHaveLength(6);
+  });
   it("partial: earned + next 2 and a See all toggle", () => {
     const items = shelves([earned("first_session", 1), progress("qualified_weeks_4", 1, 4), progress("qualified_weeks_12", 1, 12)])[1]!.items;
     const tree = expand(React.createElement(CabinetShelf, { shelf: "consistency", items, partial: true, onOpen: () => {} }));

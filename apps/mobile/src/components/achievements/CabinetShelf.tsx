@@ -15,8 +15,8 @@ export const SHELF_MEDAL = 56;
 export const SLOT_MIN_HEIGHT = 104;
 const LEDGE = 10;
 
-/** 4 columns, 3 above fontScale 1.3, 2 above 1.6 (spec §8). Labels wrap; medals keep their size. */
-export const shelfColumns = (fontScale: number): number => (fontScale > 1.6 ? 2 : fontScale > 1.3 ? 3 : 4);
+/** Give accessibility text a full row; smaller text keeps the compact shelf. Medals retain their size. */
+export const shelfColumns = (fontScale: number): number => (fontScale > 1.8 ? 1 : fontScale > 1.6 ? 2 : fontScale > 1.3 ? 3 : 4);
 
 function rows<T>(items: readonly T[], cols: number): T[][] {
   const out: T[][] = [];

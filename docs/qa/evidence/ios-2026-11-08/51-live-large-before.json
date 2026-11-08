@@ -1,0 +1,24 @@
+{
+  "artifact": "Maestro native hierarchy excerpt; complete original retained in local QA evidence",
+  "originalSha256": "866096e915d8f93bc17328cf1650ac20c782b00fc75f49b6afe4a9977a8d2b7f",
+  "case": "51",
+  "simulator": "GAIN QA 2026-11-07; iPhone SE3; iOS26.3.1;23D8133",
+  "textCategory": "accessibility-large, changed while Plan remains open",
+  "children": [
+    {
+      "attributes": {
+        "accessibilityText": "QA Full Body Plan",
+        "title": "",
+        "value": "",
+        "text": "",
+        "hintText": "",
+        "resource-id": "",
+        "bounds": "[16,36][359,70]",
+        "enabled": "true",
+        "focused": "false",
+        "selected": "false",
+        "checked": "false"
+      }
+    }
+  ]
+}

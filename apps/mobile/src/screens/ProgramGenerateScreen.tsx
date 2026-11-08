@@ -24,6 +24,7 @@ import {
 } from "../logic/programGenerator";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, BigButton, Chip, Field, Notice, Screen, SectionTitle } from "../ui";
+import { SwitchRow } from "../components/SettingsRows";
 import { GeneratedProgrammeHero } from "../components/coach/GeneratedProgrammeHero";
 
 const GOALS: GeneratorGoal[] = ["hypertrophy", "strength", "general"];
@@ -38,6 +39,8 @@ export function ProgramGenerateScreen() {
   const { t, lang } = useI18n();
   const p = usePalette();
   const nav = useNavigation<{ goBack: () => void; navigate: (name: string, params?: object) => void }>();
+  const [skipLegs, setSkipLegs] = useState(false);
+  const generation = useRef(0);
   const [goal, setGoal] = useState<GeneratorGoal>("hypertrophy");
   const [experience, setExperience] = useState<GeneratorExperience>("intermediate");
   const [days, setDays] = useState(4);
@@ -78,22 +81,31 @@ export function ProgramGenerateScreen() {
     }, [repos, gyms]),
   );
 
+  function clearPreview() {
+    generation.current++;
+    setPreview(null);
+    setMessage(null);
+  }
+
   function toggleEq(eq: EquipmentType) {
     setEquipment((cur) => (cur.includes(eq) ? cur.filter((x) => x !== eq) : [...cur, eq]));
-    setPreview(null);
+    clearPreview();
   }
 
   async function build() {
+    const request = ++generation.current;
+    setPreview(null);
     setMessage(null);
     const [seedKeys, ceilings, lib] = await Promise.all([programmes.seedKeyMap(), repos.getRepCeilingDefaults(), programmes.listExercises()]);
+    if (request !== generation.current) return;
     setLibrary(lib);
-    const eq = equipment.length > 0 ? equipment : [...GYM_EQUIPMENT];
+    const eq = skipLegs ? equipment : equipment.length > 0 ? equipment : [...GYM_EQUIPMENT];
     const got = generateProgramme(
-      { goal, experience, daysPerWeek: days, sessionMinutes: minutes, equipment: eq, priorities, avoid: splitAvoid(avoidText), lang },
+      { skipLegs, goal, experience, daysPerWeek: days, sessionMinutes: minutes, equipment: eq, priorities, avoid: splitAvoid(avoidText), lang },
       { byKey: seedKeys },
       (key) => ceilingForName(lib.find((e) => e.seedKey === key)?.nameEn ?? key, ceilings),
     );
-    if (!got) return setMessage(t("ob.programme.none", { n: days }));
+    if (!got) return setMessage(t(skipLegs ? "coach.skipLegs.unavailable" : "ob.programme.none", { n: days }));
     setPreview(got);
   }
 
@@ -128,25 +140,26 @@ export function ProgramGenerateScreen() {
       <SectionTitle>{t("coach.goal")}</SectionTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         {GOALS.map((g) => (
-          <Chip key={g} label={t(`coach.goal.${g}` as StringKey)} selected={goal === g} onPress={() => { setGoal(g); setPreview(null); }} />
+          <Chip key={g} label={t(`coach.goal.${g}` as StringKey)} selected={goal === g} onPress={() => { setGoal(g); clearPreview(); }} />
         ))}
       </View>
       <SectionTitle>{t("coach.experience")}</SectionTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         {LEVELS.map((l) => (
-          <Chip key={l} label={t(`coach.experience.${l}` as StringKey)} selected={experience === l} onPress={() => { setExperience(l); setPreview(null); }} />
+          <Chip key={l} label={t(`coach.experience.${l}` as StringKey)} selected={experience === l} onPress={() => { setExperience(l); clearPreview(); }} />
         ))}
       </View>
       <SectionTitle>{t("coach.days")}</SectionTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         {DAYS_OPTIONS.map((d) => (
-          <Chip key={d} label={isolateLtr(String(d))} selected={days === d} onPress={() => { setDays(d); setPreview(null); }} />
+          <Chip key={d} label={isolateLtr(String(d))} selected={days === d} onPress={() => { setDays(d); clearPreview(); }} />
         ))}
       </View>
+      <SwitchRow label={t("coach.skipLegs")} note={t("coach.skipLegs.note")} value={skipLegs} onChange={(value) => { setSkipLegs(value); clearPreview(); }} />
       <SectionTitle>{t("coach.minutes")}</SectionTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
         {MINUTES_OPTIONS.map((m) => (
-          <Chip key={m} label={t("ob.minutesValue", { n: m })} selected={minutes === m} onPress={() => { setMinutes(m); setPreview(null); }} />
+          <Chip key={m} label={t("ob.minutesValue", { n: m })} selected={minutes === m} onPress={() => { setMinutes(m); clearPreview(); }} />
         ))}
       </View>
       <SectionTitle>{t("coach.equipment")}</SectionTitle>
@@ -162,11 +175,11 @@ export function ProgramGenerateScreen() {
         priorities={priorities}
         onSetRank={(g, r) => {
           setPriorities((cur) => ({ ...cur, [g]: r }));
-          setPreview(null);
+          clearPreview();
         }}
       />
 
-      <Field label={t("coach.avoid")} hint={t("coach.avoid.hint")} value={avoidText} onChangeText={(s) => { setAvoidText(s); setPreview(null); }} />
+      <Field label={t("coach.avoid")} hint={t("coach.avoid.hint")} value={avoidText} onChangeText={(s) => { setAvoidText(s); clearPreview(); }} />
       <BigButton label={t("coach.generate")} onPress={() => void build()} />
 
       {preview ? (

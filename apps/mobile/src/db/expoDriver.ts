@@ -1,7 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import { createMutex, type Db, type Param } from "./driver";
 
-/** expo-sqlite implementation of Db. NOT exercised by the Linux unit tests (needs a device/emulator). */
+/** expo-sqlite implementation of Db. Native integration requires a device/simulator; adapter tests mock Expo's connection cache. */
 export async function openExpoDb(name = "gain.db"): Promise<Db> {
   const raw = await SQLite.openDatabaseAsync(name);
   await raw.execAsync("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
@@ -37,7 +37,9 @@ export async function openExpoDb(name = "gain.db"): Promise<Db> {
  * write lock up front instead of failing halfway with SQLITE_BUSY_SNAPSHOT. Not exercised by the Linux unit tests (needs a device).
  */
 export async function openExpoMaintenanceDb(name = "gain.db"): Promise<Db> {
-  const raw = await SQLite.openDatabaseAsync(name);
+  // Expo otherwise returns the primary connection from its native cache. Separate
+  // mutexes cannot isolate transactions or connection pragmas on a shared handle.
+  const raw = await SQLite.openDatabaseAsync(name, { useNewConnection: true });
   await raw.execAsync("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 15000;");
   const serial = createMutex();
   return {

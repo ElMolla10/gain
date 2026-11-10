@@ -13,6 +13,7 @@ interface GeneratedProgrammeHeroProps {
   minutes: number;
   busy: boolean;
   onSave: () => Promise<void> | void;
+  saveLabel?: string;
 }
 
 export function GeneratedProgrammeHero({
@@ -21,6 +22,7 @@ export function GeneratedProgrammeHero({
   minutes,
   busy,
   onSave,
+  saveLabel,
 }: GeneratedProgrammeHeroProps) {
   const { t, lang } = useI18n();
   const p = usePalette();
@@ -130,7 +132,7 @@ export function GeneratedProgrammeHero({
         {/* Save CTA */}
         <BigButton
           hero
-          label={busy ? t("coach.creating") : t("coach.blueprint.launch")}
+          label={busy ? t("coach.creating") : saveLabel ?? t("coach.blueprint.launch")}
           disabled={busy}
           onPress={onSave}
         />

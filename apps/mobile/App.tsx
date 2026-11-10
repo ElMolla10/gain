@@ -64,6 +64,7 @@ import type { Lang, RtlOverride } from "./src/i18n/format";
 import type { Unit } from "./src/logic/units";
 import { ImportScreen } from "./src/screens/ImportScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { FirstInstallScreen } from "./src/screens/FirstInstallScreen";
 import { GoalsScreen } from "./src/screens/GoalsScreen";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { AchievementsScreen } from "./src/screens/AchievementsScreen";
@@ -169,7 +170,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
   if (props.needsOnboarding) {
     return (
       <View style={{ flex: 1, direction, paddingTop: insets.top }}>
-        <OnboardingScreen
+        <FirstInstallScreen
           onDone={(imp) => {
             setOpenImport(imp === true);
             props.onOnboarded();

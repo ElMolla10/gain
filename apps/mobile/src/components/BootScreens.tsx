@@ -14,7 +14,7 @@ const BOOT = {
   brand: "GAIN",
   retry: "Try again · جرّب تاني",
   skip: "Update without a safety copy · حدّث من غير نسخة أمان",
-  T0: 'Could not open your data',
+  T0: "Failed to sync data",
   T1: 'Something went wrong opening your data on this phone. Nothing has been changed or deleted. Try again; if it keeps failing, restart the app.',
   T2: 'حصلت مشكلة وإحنا بنفتح بياناتك على الموبايل. ما اتغيرش ولا اتمسح حاجة. جرّب تاني، ولو لسه بتفشل اقفل التطبيق وافتحه.',
   T3: 'Update paused to protect your data',
@@ -74,12 +74,21 @@ function Details({ text }: { text: string }) {
 }
 
 export function BootError({ onRetry, newer, details }: { onRetry: () => void; newer?: boolean; details?: string }) {
+  if (!newer) {
+    return (
+      <View style={{ flex: 1, backgroundColor: p.bg, alignItems: "center", justifyContent: "center", gap: space.md, padding: space.xl }}>
+        <BrandLogo size={48} />
+        <Text accessibilityRole="alert" style={{ color: p.text, fontFamily: latin("600"), fontSize: 16, lineHeight: 24, textAlign: "center" }}>{BOOT.T0}</Text>
+        <Btn label={BOOT.retry} onPress={onRetry} />
+      </View>
+    );
+  }
   return (
     <Shell>
       <BrandLogo size={48} />
-      <Text accessibilityRole="header" style={{ color: p.text, fontFamily: latin("600"), fontSize: 28, lineHeight: 34 }}>{newer ? BOOT.N0 : BOOT.T0}</Text>
-      <Text style={{ color: p.text, fontFamily: latin(), fontSize: 16, lineHeight: 24 }}>{newer ? BOOT.N1 : BOOT.T1}</Text>
-      <Text style={{ color: p.text, fontFamily: arabic(), fontSize: 17, lineHeight: 27, writingDirection: "rtl" }}>{newer ? BOOT.N2 : BOOT.T2}</Text>
+      <Text accessibilityRole="header" style={{ color: p.text, fontFamily: latin("600"), fontSize: 28, lineHeight: 34 }}>{BOOT.N0}</Text>
+      <Text style={{ color: p.text, fontFamily: latin(), fontSize: 16, lineHeight: 24 }}>{BOOT.N1}</Text>
+      <Text style={{ color: p.text, fontFamily: arabic(), fontSize: 17, lineHeight: 27, writingDirection: "rtl" }}>{BOOT.N2}</Text>
       <Btn primary label={BOOT.retry} onPress={onRetry} />
       {details ? <Details text={details} /> : null}
     </Shell>

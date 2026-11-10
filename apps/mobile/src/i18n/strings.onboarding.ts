@@ -3,6 +3,20 @@
  * ARABIC IS A DRAFT TRANSLATION (Egyptian-leaning): needs review by Egyptian lifters and a trainer.
  */
 export const enOnboarding = {
+  "first.build": "Build my program",
+  "first.welcomeBody": "Answer a few questions, then review your program before using it.",
+  "first.use": "Use this program",
+  "first.review": "Review your program",
+  "first.edit": "Change my answers",
+  "first.preview": "Show my program",
+  "first.options": "Other setup options",
+  "first.optionsNote": "Language, units, import, and custom programming are also available in Settings and Plan after setup.",
+  "first.answers": "Choose your goal, experience, days, session length, and equipment to see a program.",
+  "first.buildError": "We couldn't build a complete program with these choices. Try different equipment, more time, or fewer days.",
+  "first.persistError": "Your setup answers couldn't be saved on this phone. Try again before continuing.",
+  "first.restoreError": "Your setup answers couldn't be loaded. Try again.",
+  "first.avoid": "Exercises to leave out (optional)",
+
   "ob.progress": "Step {i} of {n}",
   "ob.welcome": "Welcome to GAIN",
   "ob.importHint": "Already log workouts in another app? After setup, Settings > Import workouts brings that history in.",
@@ -88,6 +102,20 @@ export const enOnboarding = {
 } as const;
 
 export const arOnboarding: Record<keyof typeof enOnboarding, string> = {
+  "first.build": "ابني برنامجي",
+  "first.welcomeBody": "جاوب على كام سؤال، وبعدين راجع برنامجك قبل ما تستخدمه.",
+  "first.use": "استخدم البرنامج ده",
+  "first.review": "راجع برنامجك",
+  "first.edit": "غيّر إجاباتي",
+  "first.preview": "ورّيني برنامجي",
+  "first.options": "اختيارات إعداد تانية",
+  "first.optionsNote": "اللغة والوحدات والاستيراد وعمل برنامج بنفسك متاحين كمان في الإعدادات والخطة بعد الإعداد.",
+  "first.answers": "اختار هدفك ومستواك وأيام التمرين ومدته والمعدات عشان تشوف برنامج مناسب.",
+  "first.buildError": "معرفناش نبني برنامج كامل بالاختيارات دي. جرّب معدات تانية، أو وقت أطول، أو أيام أقل.",
+  "first.persistError": "معرفناش نحفظ إجابات الإعداد على التليفون. جرّب تاني قبل ما تكمل.",
+  "first.restoreError": "معرفناش نحمّل إجابات الإعداد. جرّب تاني.",
+  "first.avoid": "تمارين مش عايزها في البرنامج (اختياري)",
+
   "ob.progress": "الخطوة {i} من {n}",
   "ob.welcome": "أهلاً بيك في GAIN",
   "ob.importHint": "بتسجّل تمارينك في تطبيق تاني؟ بعد الإعداد، من الإعدادات > استورد تمارينك هتجيب التاريخ ده.", // DRAFT ar

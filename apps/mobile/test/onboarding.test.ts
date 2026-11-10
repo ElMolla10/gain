@@ -324,4 +324,11 @@ describe("goal is optional (P18)", () => {
     const src = readFileSync(new URL("../src/screens/OnboardingScreen.tsx", import.meta.url).pathname, "utf8");
     for (const k of ["ob.skip", "ob.setup", "ob.importFirst"]) expect(src).toContain(`t("${k}")`);
   });
+
+  it("onboarding generator defaults to beginner, not intermediate", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../src/screens/OnboardingScreen.tsx", import.meta.url).pathname, "utf8");
+    expect(src).not.toContain('experience: "intermediate"');
+    expect(src).toContain('experience: "beginner"');
+  });
 });

@@ -39,7 +39,7 @@ type ProgrammeMode = "template" | "own" | "generate" | null;
  * the program (a draft template or the lifter's own) and the real gym. Nothing is prefilled with a guess; every
  * gap is shown as a problem. Finishing saves everything in one step and Today then shows the first session.
  */
-export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void; rerun?: boolean }) {
+export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void; rerun?: boolean; onCancel?: () => void }) {
   const { repos, programmes, onboarding } = useServices();
   const { t, lang, setLang, unit, setUnit, unitText, fmt } = useI18n();
   const p = usePalette();
@@ -304,8 +304,8 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
                   if (!form.days || !form.minutes) return setTouched(true);
                   const r = generateProgramme(
                     {
-                      goal: "hypertrophy",
-                      experience: "intermediate",
+                      goal: form.goalKind === "lift" ? "strength" : "general",
+                      experience: "beginner",
                       daysPerWeek: form.days,
                       sessionMinutes: form.minutes,
                       equipment: [...GYM_EQUIPMENT],
@@ -422,6 +422,7 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
   ) : (
     <>
       {step !== "review" ? <BigButton hero label={t("common.next")} disabled={resources !== "ready"} onPress={next} /> : null}
+      {idx === 0 && props.onCancel ? <BigButton variant="quiet" label={t("common.back")} disabled={saving} onPress={props.onCancel} /> : null}
       {idx > 0 ? <BigButton variant={step === "review" ? "secondary" : "quiet"} label={t("common.back")} onPress={() => goTo(STEPS[idx - 1]!)} /> : null}
     </>
   );

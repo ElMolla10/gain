@@ -13,6 +13,7 @@ import { parseAppearance, setAppearance, space, useIsDark, usePalette } from "./
 import { DeveloperModeProvider, useDeveloperMode } from "./src/DeveloperMode";
 import { ServicesProvider, type AppServices } from "./src/AppContext";
 import { openExpoDb, openExpoMaintenanceDb } from "./src/db/expoDriver";
+import { sqliteOpenDiagnostics } from "./src/db/openDiagnostics";
 import { migrate } from "./src/db/migrations";
 import { backupBeforeMigrate } from "./src/db/preMigrate";
 import { File, Paths } from "expo-file-system";
@@ -350,6 +351,10 @@ export default function App() {
     })().catch((e) => {
       diagnostics.record("error", "boot", e);
       const f = bootFailure(stage, e, { appSchema: LATEST_VERSION, appVersion: Constants.expoConfig?.version, platform: `${Platform.OS} ${String(Platform.Version)}` });
+      if (stage === "open") {
+        const clues = sqliteOpenDiagnostics();
+        if (clues) f.details += `\n${clues}`;
+      }
       // One greppable line in the Xcode / Logcat console: search for "[GAIN boot]".
       console.error(`[GAIN boot] ${f.details.replace(/\n/g, " | ")}`);
       setFailure(f);

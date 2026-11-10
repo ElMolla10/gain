@@ -1,0 +1,169 @@
+diff --git a/node_modules/expo-sqlite/ios/DatabaseFileUtils.swift b/node_modules/expo-sqlite/ios/DatabaseFileUtils.swift
+new file mode 100644
+index 0000000..569082c
+--- /dev/null
++++ b/node_modules/expo-sqlite/ios/DatabaseFileUtils.swift
+@@ -0,0 +1,91 @@
++// Copyright 2015-present 650 Industries. All rights reserved.
++
++import Foundation
++
++internal enum DatabaseFileUtils {
++  /// Files SQLite keeps next to the main database and that must travel with it.
++  static let sidecarSuffixes = ["-journal", "-wal", "-shm"]
++
++  private static let migrationLock = NSLock()
++
++  /**
++   Resolves the database path JavaScript sends into a `URL`. A `file:` URI is percent-encoded before
++   `URL(string:)` so spaces, non-ASCII characters, `#` and `?` survive, and escapes that were already
++   present stay as they are. A plain path goes through `URL(fileURLWithPath:)`, which never parses the
++   string as a URL.
++   */
++  static func fileURL(fromDatabasePath path: String) -> URL? {
++    guard path.hasPrefix("file:") else {
++      return URL(fileURLWithPath: path)
++    }
++    var allowed = CharacterSet.urlPathAllowed
++    allowed.insert(charactersIn: ":/")
++    guard let encoded = path.addingPercentEncoding(withAllowedCharacters: allowed) else {
++      return nil
++    }
++    // `%` is not path-allowed, so an input escape such as `%20` became `%2520`. Restore only escapes
++    // followed by two hex digits; a bare `%` in a file name keeps its new `%25`.
++    let restored = encoded.replacingOccurrences(
++      of: "%25([0-9A-Fa-f]{2})",
++      with: "%$1",
++      options: .regularExpression
++    )
++    return URL(string: restored)
++  }
++
++  /**
++   Returns the path earlier releases passed to SQLite, where `URL(string:)` percent-encoded the input.
++   Returns `nil` when it equals `resolvedPath` or is not just its encoded form, so a name truncated at
++   `#` or `?` is left alone.
++   */
++  static func legacyEncodedPath(forDatabasePath path: String, resolvedPath: String) -> String? {
++    guard let oldPath = URL(string: path)?.toFilePath() else {
++      return nil
++    }
++    let legacyPath = URL(fileURLWithPath: oldPath).standardizedFileURL.path
++    guard legacyPath != resolvedPath, legacyPath.removingPercentEncoding == resolvedPath else {
++      return nil
++    }
++    return legacyPath
++  }
++
++  /**
++   Moves a database left under its legacy percent-encoded name, with its sidecar files, to `path`.
++   Sidecars move first so a crash leaves the database with its journal and the next open retries.
++   Never deletes a database that is already at `path`.
++   */
++  static func migrateLegacyDatabaseFiles(fromPath legacyPath: String, toPath path: String) throws {
++    migrationLock.lock()
++    defer { migrationLock.unlock() }
++
++    let fileManager = FileManager.default
++    let databaseExists = fileManager.fileExists(atPath: path)
++    let legacyDatabaseExists = fileManager.fileExists(atPath: legacyPath)
++    // With both databases present the legacy sidecars belong to the other one.
++    guard databaseExists != legacyDatabaseExists else {
++      return
++    }
++
++    for suffix in ["-journal", "-wal"] {
++      let legacySidecar = legacyPath + suffix
++      guard fileManager.fileExists(atPath: legacySidecar) else {
++        continue
++      }
++      let sidecar = path + suffix
++      if fileManager.fileExists(atPath: sidecar) {
++        if databaseExists {
++          continue
++        }
++        try fileManager.removeItem(atPath: sidecar)
++      }
++      try fileManager.moveItem(atPath: legacySidecar, toPath: sidecar)
++    }
++
++    try? fileManager.removeItem(atPath: legacyPath + "-shm")
++    if databaseExists {
++      return
++    }
++    try? fileManager.removeItem(atPath: path + "-shm")
++    try fileManager.moveItem(atPath: legacyPath, toPath: path)
++  }
++}
+diff --git a/node_modules/expo-sqlite/ios/Exceptions.swift b/node_modules/expo-sqlite/ios/Exceptions.swift
+index 8a2c8ed..899825c 100644
+--- a/node_modules/expo-sqlite/ios/Exceptions.swift
++++ b/node_modules/expo-sqlite/ios/Exceptions.swift
+@@ -10,6 +10,16 @@ internal final class DatabaseException: Exception {
+   }
+ }
+ 
++internal final class OpenDatabaseFailedException: GenericException<String> {
++  override var code: String {
++    "E_SQLITE_OPEN_DATABASE"
++  }
++
++  override var reason: String {
++    "Could not open database: \(param)"
++  }
++}
++
+ internal final class DatabaseInvalidPathException: GenericException<String> {
+   override var code: String {
+     "E_SQLITE_INVALID_PATH"
+diff --git a/node_modules/expo-sqlite/ios/SQLiteModule.swift b/node_modules/expo-sqlite/ios/SQLiteModule.swift
+index 368bb7a..70c3eee 100644
+--- a/node_modules/expo-sqlite/ios/SQLiteModule.swift
++++ b/node_modules/expo-sqlite/ios/SQLiteModule.swift
+@@ -75,7 +75,7 @@ public final class SQLiteModule: Module {
+         fileManager.fileExists(atPath: assetPath) else {
+         throw DatabaseNotFoundException(assetDatabasePath)
+       }
+-      try? fileManager.removeItem(atPath: path.absoluteString)
++      try? fileManager.removeItem(atPath: path.toFilePath())
+       try fileManager.copyItem(atPath: assetPath, toPath: path.toFilePath())
+     }.runOnQueue(moduleQueue)
+ 
+@@ -112,7 +112,14 @@ public final class SQLiteModule: Module {
+ 
+           let path = try ensureDatabasePathExists(path: databasePath)
+           if exsqlite3_open(path.toFilePath(), &db) != SQLITE_OK {
+-            throw DatabaseException()
++            let detail: String
++            if let db {
++              detail = "sqlite \(exsqlite3_extended_errcode(db)): \(String(cString: exsqlite3_errmsg(db)))"
++              exsqlite3_close(db)
++            } else {
++              detail = "sqlite open failed"
++            }
++            throw OpenDatabaseFailedException(detail)
+           }
+         }
+ 
+@@ -311,10 +318,19 @@ public final class SQLiteModule: Module {
+       throw Exceptions.FileSystemModuleNotFound()
+     }
+ 
+-    guard let pathUrl = URL(string: path) else {
++    guard let pathUrl = DatabaseFileUtils.fileURL(fromDatabasePath: path) else {
+       throw DatabaseInvalidPathException(path)
+     }
+-    fileSystem.ensureDirExists(withPath: pathUrl.deletingLastPathComponent().toFilePath())
++    let filePath = pathUrl.toFilePath()
++    let parent = pathUrl.deletingLastPathComponent().toFilePath()
++    guard fileSystem.ensureDirExists(withPath: parent) else {
++      throw OpenDatabaseFailedException("could not create the database directory")
++    }
++    // Installs from before this resolution opened a percent-encoded file name. Move that file
++    // onto the real path. A database already at the real path is left where it is.
++    if let legacyPath = DatabaseFileUtils.legacyEncodedPath(forDatabasePath: path, resolvedPath: filePath) {
++      try DatabaseFileUtils.migrateLegacyDatabaseFiles(fromPath: legacyPath, toPath: filePath)
++    }
+ 
+     return pathUrl
+   }

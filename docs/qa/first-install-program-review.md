@@ -25,7 +25,7 @@ Add a first-install-only entry point using the existing generator, shared UI and
 
 Language, units, avoided exercises, skip-leg preference, import and custom setup are under Other setup options after welcome. Existing Plan/Settings remain accessible after activation. Custom setup retains the old advanced flow, with a cancel action back to the beginner form. No preview generation occurs on welcome, start, restore or answer changes. Draft answers persist in one versioned setting; a restart restores answers, never a silently regenerated preview.
 
-The old hardcoded generation defaults remain in the explicitly requested legacy setup-again/custom flow to preserve its behavior; first-install beginners no longer reach or use them. No progression, library, schema, existing-program or history migration is changed. The selected equipment also shapes the first gym rather than silently assigning full-gym equipment.
+The old hardcoded generation defaults in OnboardingScreen (`experience: "intermediate"`, `goal: "hypertrophy"`) have been corrected to `experience: "beginner"` and `goal: form.goalKind === "lift" ? "strength" : "general"` so legacy/rerun onboarding never silently generates an intermediate prescription for a beginner. First-install beginners enter the new dedicated review flow. No progression, library, schema, existing-program or history migration is changed. The selected equipment also shapes the first gym rather than silently assigning full-gym equipment.
 
 ## Code verification
 

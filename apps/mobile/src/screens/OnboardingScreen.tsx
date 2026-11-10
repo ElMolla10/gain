@@ -304,8 +304,8 @@ export function OnboardingScreen(props: { onDone: (openImport?: boolean) => void
                   if (!form.days || !form.minutes) return setTouched(true);
                   const r = generateProgramme(
                     {
-                      goal: "hypertrophy",
-                      experience: "intermediate",
+                      goal: form.goalKind === "lift" ? "strength" : "general",
+                      experience: "beginner",
                       daysPerWeek: form.days,
                       sessionMinutes: form.minutes,
                       equipment: [...GYM_EQUIPMENT],

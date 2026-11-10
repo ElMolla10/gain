@@ -1,9 +1,10 @@
 import * as SQLite from "expo-sqlite";
 import { createMutex, type Db, type Param } from "./driver";
+import { retrySqliteOpen } from "./openRetry";
 
 /** expo-sqlite implementation of Db. Native integration requires a device/simulator; adapter tests mock Expo's connection cache. */
 export async function openExpoDb(name = "gain.db"): Promise<Db> {
-  const raw = await SQLite.openDatabaseAsync(name);
+  const raw = await retrySqliteOpen(() => SQLite.openDatabaseAsync(name));
   await raw.execAsync("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
   const serial = createMutex();
   return {

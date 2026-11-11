@@ -39,7 +39,7 @@ import { AppText, BigButton, Card, ChoiceSheet, useReducedMotion, EmptyState, Er
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { LOADING, runLoad, type Load } from "../logic/loadState";
-import { RETURN_PLAN_KEY, canProgressReturn, parseReturnPlan, returnSessionKey, type ReturnPlan } from "../logic/returnToTraining";
+import { RETURN_PLAN_KEY, canProgressReturn, comebackSets, parseReturnPlan, returnSessionKey, type ReturnPlan } from "../logic/returnToTraining";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
 interface TodayData {
@@ -99,6 +99,7 @@ export function TodayScreen() {
   const [easeIn, setEaseIn] = useState(false);
   const [returnPlan, setReturnPlan] = useState<ReturnPlan | null>(null);
   const [canAdvanceReturn, setCanAdvanceReturn] = useState(false);
+  const [savingReturn, setSavingReturn] = useState(false);
   const { fontScale, width } = useWindowDimensions();
   const reduced = useReducedMotion();
   const [pathOpen, setPathOpen] = useState(false);
@@ -298,6 +299,10 @@ export function TodayScreen() {
   const letters = { s: t("qty.s"), m: t("qty.m") };
   const action = sessionAction(chosen.id, data.openDayId);
   const openDay = data.openDayId ? data.days.find((d) => d.id === data.openDayId) : undefined;
+  const returnDay = openDay ?? chosen;
+  const returnStage = returnPlan?.active ? returnPlan.stage : 1;
+  const regularSets = returnDay.list.reduce((n, e) => n + e.sets, 0);
+  const easierSets = returnDay.list.reduce((n, e) => n + comebackSets(e.sets, returnStage), 0);
   const label = dayLabel(chosen, data.openDayId);
   const labelText = label === "inProgress" ? t("today.inProgress") : label === "suggested" ? t("today.suggestedToday") : t("today.yourChoice");
   const minutes = estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds);
@@ -305,7 +310,7 @@ export function TodayScreen() {
   const ex = extras && extras.key.startsWith(`${data.loadId}:${chosen.id}:`) ? extras : null;
   const now = Date.now();
   const mode = todayMode({ openDayId: data.openDayId, chosenId: chosen.id, lastFinishedAt: data.lastFinished?.finishedAt ?? null, now });
-  const welcomeBack = mode === "normal" ? ex?.welcomeBackDays ?? null : null;
+  const welcomeBack = ex?.welcomeBackDays ?? null;
   const dayIndex = Math.max(0, data.days.findIndex((d) => d.id === chosen.id));
   pagerRef.current = { ids: data.days.map((d) => d.id), index: dayIndex, rtl: direction === "rtl", width, reduced };
   const lastOf = (r: TodayRow): SessionSummary | null => r.last ?? (r.targetId ? ex?.decisions[r.targetId]?.last ?? null : null);
@@ -341,7 +346,7 @@ export function TodayScreen() {
   const stubLoading = !!lead && !lead.preview && !ex;
 
   async function start() {
-    if (starting) return;
+    if (starting || savingReturn) return;
     setStarting(true);
     // Unrack: the bar lifts 8 dp over 120 ms, then the Medium haptic and the start (navigation never waits on the animation).
     await new Promise<void>((resolve) =>
@@ -389,9 +394,9 @@ export function TodayScreen() {
     mode === "done" && data.lastFinished ? (
       <BigButton variant="quiet" label={t("today.done.see")} onPress={() => navigation.navigate("SessionDetail", { sessionId: data.lastFinished!.id })} />
     ) : mode === "open" && data.openInfo ? (
-      <ResumeFooter {...data.openInfo} total={chosen.sets} disabled={starting} onPress={() => void start()} />
+      <ResumeFooter {...data.openInfo} total={chosen.sets} disabled={starting || savingReturn} onPress={() => void start()} />
     ) : (
-      <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />
+      <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting || savingReturn} loading={starting} onPress={() => void start()} />
     );
   return (
     <Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>
@@ -417,19 +422,38 @@ export function TodayScreen() {
               accessibilityRole="checkbox"
               accessibilityState={{ checked: easeIn }}
               accessibilityHint={t("today.easeIn.note")}
-              onPress={() => {
-                if (easeIn && returnPlan?.active) {
-                  const stopped = { ...returnPlan, active: false };
-                  void repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(stopped)).then(() => { setReturnPlan(null); setEaseIn(false); }).catch(e => diagnostics.record("error", "stop ease in", e));
-                } else setEaseIn((v) => !v);
-              }}
+              disabled={savingReturn}
+              onPress={() => { void (async () => {
+                setSavingReturn(true);
+                try {
+                  if (easeIn) {
+                    if (returnPlan?.active) await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify({ ...returnPlan, active: false }));
+                    setReturnPlan(null);
+                    setEaseIn(false);
+                  } else {
+                    const plan: ReturnPlan = { active: true, versionId: data.versionId, stage: 1, startedAt: Date.now() };
+                    await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(plan));
+                    if (data.openDayId) {
+                      const open = await workout.getOpenSession();
+                      if (open) {
+                        await repos.setSetting(returnSessionKey(open.id), "1");
+                        await workout.setSessionReadiness(open.id, "returning");
+                      }
+                    }
+                    setReturnPlan(plan);
+                    setEaseIn(true);
+                  }
+                } catch (e) { diagnostics.record("error", "ease in toggle", e); }
+                finally { setSavingReturn(false); }
+              })(); }}
               style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, alignSelf: "flex-start", paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: easeIn ? p.text : p.edge, backgroundColor: easeIn ? p.raised : "transparent" }}
             >
               <Icon name={easeIn ? "check" : "plus"} color={p.text} size={18} />
               <AppText style={{ fontSize: ty.label, fontWeight: "600" }}>{t("today.easeIn")}</AppText>
             </Pressable>
           ) : null}
-          {easeIn ? <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t("today.easeIn.note")}</AppText> : null}
+          <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t("today.easeIn.note")}</AppText>
+          {easeIn ? <InlineStatus kind="info" text={t(data.openDayId ? "today.easeIn.previewOpen" : "today.easeIn.preview", { day: returnDay.name, sets: easierSets, normal: regularSets })} /> : null}
           {easeIn && returnPlan?.active ? <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t(returnPlan.stage === 1 ? "today.easeIn.stage1" : "today.easeIn.stage2")}</AppText> : null}
           {returnPlan?.active && canAdvanceReturn ? <QuietAction label={t("today.easeIn.advance")} onPress={() => {
             const advanced: ReturnPlan = { ...returnPlan, stage: 2 };

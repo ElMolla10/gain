@@ -61,10 +61,10 @@ export const enToday = {
   "today.resumeClock": "Resume · {clock} · {n} of {total} sets",
   "today.welcome": "Welcome back. Your numbers are where you left them, {n} days ago.",
   "today.easeIn": "Ease in after break",
-  "today.easeIn.note": "Fewer sets and lighter available weights for your return. Leave about 2–3 reps in reserve; this is a guide, not an effort estimate. Your program stays the same. Tap again to stop for future workouts.",
+  "today.easeIn.note": "Fewer sets, lighter free weights or more machine assistance where available. Aim to stop with 2–3 reps left; GAIN cannot measure that for you. Your program stays the same. Tap again to stop for future workouts.",
   "today.easeIn.advance": "Move toward normal (week 2)",
-  "today.easeIn.stage1": "Return plan · week 1: about two thirds of your sets. Stop each set with 2–3 reps left if you can judge it; GAIN cannot measure that for you.",
-  "today.easeIn.stage2": "Return plan · week 2: closer to normal. Tap Ease in again when you are ready for your usual program.",
+  "today.easeIn.stage1": "Initial return: about two thirds of your usual sets.",
+  "today.easeIn.stage2": "Next stage: closer to normal. Tap Ease in again when you are ready for your usual program.",
   "today.lighter": "Lighter week until {date} · normal loads come back after.",
   "today.lighter.undo": "Undo lighter week",
   "today.first.number": "Your first numbers come from your first session.",
@@ -208,10 +208,10 @@ export const arToday: Record<keyof typeof enToday, string> = {
   // DRAFT ar
   "today.easeIn": "ارجع للتمرين بالتدريج",
   // DRAFT ar
-  "today.easeIn.note": "مجموعات أقل وأوزان أخف متاحة للرجوع. سيب حوالي عدّتين أو ٣ قبل التعب؛ دي إرشادات مش تقدير للمجهود. برنامجك زي ما هو. اضغط تاني لإيقاف التخفيف للتمارين الجاية.",
+  "today.easeIn.note": "مجموعات أقل وأوزان حرة أخف أو مساعدة أكتر في الأجهزة لو متاحة. حاول توقف ولسه تقدر تعمل عدّتين أو ٣؛ GAIN ما يقدرش يقيس ده لك. برنامجك زي ما هو. اضغط تاني لإيقاف التخفيف للتمارين الجاية.",
   "today.easeIn.advance": "قرّب للمستوى الطبيعي (الأسبوع التاني)",
-  "today.easeIn.stage1": "خطة الرجوع · الأسبوع الأول: حوالي تلتين مجموعاتك. وقّف كل مجموعة ولسه تقدر تعمل عدّتين أو ٣ لو تقدر تقدّر ده؛ GAIN ما يقدرش يقيسه لك.",
-  "today.easeIn.stage2": "خطة الرجوع · الأسبوع التاني: أقرب للتمرين العادي. اضغط على خيار الرجوع تاني لما تكون جاهز لبرنامجك المعتاد.",
+  "today.easeIn.stage1": "بداية الرجوع: حوالي تلتين مجموعاتك المعتادة.",
+  "today.easeIn.stage2": "المرحلة الجاية: أقرب للتمرين العادي. اضغط على خيار الرجوع تاني لما تكون جاهز لبرنامجك المعتاد.",
   // DRAFT ar
   "today.lighter": "أسبوع أخف لحد {date} · الأوزان العادية بترجع بعده.",
   // DRAFT ar

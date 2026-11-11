@@ -4,6 +4,7 @@ import type { Repos } from "../db/repos";
 import type { TargetRow } from "../db/finishRepo";
 import type { MilestoneSession } from "./personalProgress";
 import type { Prefill } from "./workoutRows";
+import type { ReturnStage } from "./returnToTraining";
 
 export type DayEx = Awaited<ReturnType<Repos["listDayExercises"]>>[number] & { loadSource?: LoadSource };
 /** What is shown for one program slot today: the program's exercise, or the one swapped in for today. `slot` = the program's exercise id. */
@@ -30,6 +31,7 @@ export interface LoadedWorkout {
   gym: GymFingerprint;
   slots: DayEx[];
   info: Record<string, ExInfo>;
+  comebackStage?: ReturnStage | null;
   /** The day's name ("Upper A"), shown as the logger's title so a glance confirms which session is open. */
   dayName?: string;
 }

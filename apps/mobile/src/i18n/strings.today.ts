@@ -60,8 +60,11 @@ export const enToday = {
   "today.open.started": "Started {time} · {n} of {total} sets saved on this phone",
   "today.resumeClock": "Resume · {clock} · {n} of {total} sets",
   "today.welcome": "Welcome back. Your numbers are where you left them, {n} days ago.",
-  "today.easeIn": "Ease in: back after a break",
-  "today.easeIn.note": "Aims 1–2 fewer reps today. You can change it in the workout.",
+  "today.easeIn": "Ease in after break",
+  "today.easeIn.note": "Fewer sets, lighter free weights or more machine assistance where available. Aim to stop with 2–3 reps left; GAIN cannot measure that for you. Your program stays the same. Tap again to stop for future workouts.",
+  "today.easeIn.advance": "Move toward normal (week 2)",
+  "today.easeIn.stage1": "Initial return: about two thirds of your usual sets.",
+  "today.easeIn.stage2": "Next stage: closer to normal. Tap Ease in again when you are ready for your usual program.",
   "today.lighter": "Lighter week until {date} · normal loads come back after.",
   "today.lighter.undo": "Undo lighter week",
   "today.first.number": "Your first numbers come from your first session.",
@@ -203,9 +206,12 @@ export const arToday: Record<keyof typeof enToday, string> = {
   // DRAFT ar
   "today.welcome": "أهلاً بيك تاني. أرقامك زي ما سبتها، من {n} يوم.",
   // DRAFT ar
-  "today.easeIn": "خفّف البداية: راجع بعد فترة",
+  "today.easeIn": "ارجع للتمرين بالتدريج",
   // DRAFT ar
-  "today.easeIn.note": "هيهدف لعدّة أو اتنين أقل النهارده. تقدر تغيّره في التمرين.",
+  "today.easeIn.note": "مجموعات أقل وأوزان حرة أخف أو مساعدة أكتر في الأجهزة لو متاحة. حاول توقف ولسه تقدر تعمل عدّتين أو ٣؛ GAIN ما يقدرش يقيس ده لك. برنامجك زي ما هو. اضغط تاني لإيقاف التخفيف للتمارين الجاية.",
+  "today.easeIn.advance": "قرّب للمستوى الطبيعي (الأسبوع التاني)",
+  "today.easeIn.stage1": "بداية الرجوع: حوالي تلتين مجموعاتك المعتادة.",
+  "today.easeIn.stage2": "المرحلة الجاية: أقرب للتمرين العادي. اضغط على خيار الرجوع تاني لما تكون جاهز لبرنامجك المعتاد.",
   // DRAFT ar
   "today.lighter": "أسبوع أخف لحد {date} · الأوزان العادية بترجع بعده.",
   // DRAFT ar

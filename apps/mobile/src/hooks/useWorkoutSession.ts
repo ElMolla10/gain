@@ -53,6 +53,7 @@ import { REST_KEYS, REST_NOTIFY_ASKED_KEY, restOffFor, shouldOfferRestNotify, to
 import { pauseClock, resumeClock } from "../logic/workoutClock";
 import { attachLoads, resolveLoads } from "../db/exerciseGrid";
 import type { DayEx, Disp, ExInfo } from "../logic/workoutTypes";
+import { RETURN_PLAN_KEY, comebackPrefill, comebackSets, parseReturnPlan, returnSessionKey, returnStage } from "../logic/returnToTraining";
 
 /** Settings key holding one exercise's own kg / lb choice. */
 const exerciseUnitKey = (exerciseId: string) => `exercise_unit:${exerciseId}`;
@@ -150,8 +151,11 @@ export function useWorkoutSession() {
         gym,
       );
       const personalHistory = await workout.getHistory(line, lineId);
+      const progressionHistory = await workout.getHistory(line, lineId, true);
+      const returnMode = returnStage(await repos.getSetting(returnSessionKey(sessionId)));
+      const adjust = (prefill: ExInfo["prefill"]) => returnMode ? comebackPrefill(prefill, ex.loadSpec ?? findSpec(gym, ex.equipment), ex.setup, ex.measure, returnMode) : prefill;
       const previous = await workout.previousPerformances(ex.exerciseId, dayId);
-      const latest = personalHistory.at(-1);
+      const latest = progressionHistory.at(-1);
       const last = latest ? { performedAt: latest.performedAt, sets: latest.sets.filter(s => !s.warmup && !s.tags?.includes("drop")) } : null;
       const savedTarget = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
       const stored = staleOffGridTarget(savedTarget, proposal) ? null : savedTarget;
@@ -166,7 +170,7 @@ export function useWorkoutSession() {
         last: lastTop ? { load: lastTop.load, reps: setQuantity(lastTop, m) } : null,
       });
       const history = personalHistory.map((h) => ({ performedAt: h.performedAt, sets: h.sets }));
-      if (d.load !== null || isTimed(m)) return { proposal, line, lineId, last, previous, stored, personalHistory: history, prefill: { load: d.load, reps: d.reps } };
+      if (d.load !== null || isTimed(m)) return { proposal, line, lineId, last, previous, stored, personalHistory: history, prefill: adjust({ load: d.load, reps: d.reps }) };
       const bwRaw = await repos.getSetting("bodyweight_kg");
       const bw = bwRaw ? Number(bwRaw) : NaN;
       const est = estimateStartingLoad({
@@ -176,7 +180,7 @@ export function useWorkoutSession() {
         bodyweightKg: Number.isFinite(bw) ? bw : null,
         spec: ex.loadSpec ?? findSpec(gym, ex.equipment),
       });
-      return { proposal, line, lineId, last, previous, stored, personalHistory: history, prefill: est ? { load: est.load, reps: ex.repMin, estimated: true } : { load: d.load, reps: d.reps } };
+      return { proposal, line, lineId, last, previous, stored, personalHistory: history, prefill: adjust(est ? { load: est.load, reps: ex.repMin, estimated: true } : { load: d.load, reps: d.reps }) };
     },
     [workout, finish, repos, dayId],
   );
@@ -202,6 +206,16 @@ export function useWorkoutSession() {
       }
       const { id, resumed } = await workout.startOrResumeSession(dayId, gymId);
       sessionRef.current = id;
+      let stage = returnStage(await repos.getSetting(returnSessionKey(id)));
+      if (!resumed && !stage) {
+        const active = parseReturnPlan(await repos.getSetting(RETURN_PLAN_KEY));
+        const next = await repos.getNextDay();
+        if (active?.active && next?.versionId === active.versionId) {
+          stage = active.stage;
+          await repos.setSetting(returnSessionKey(id), String(stage));
+          await workout.setSessionReadiness(id, "returning");
+        }
+      }
       const programmeSlots = await repos.listDayExercises(dayId);
       libRef.current = await programmes.listExercises();
       setLibrary(libRef.current);
@@ -223,7 +237,11 @@ export function useWorkoutSession() {
         if (st?.removed) continue;
         const ex = makeDisp(slotEx, st);
         info[ex.exerciseId] = await buildInfo(ex, id, gym);
-        initial[ex.exerciseId] = initialRows(all.filter((s) => s.exerciseId === ex.exerciseId).map(toSaved), ex.sets, info[ex.exerciseId]!.prefill, () => Crypto.randomUUID(), (isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info[ex.exerciseId]!.last?.sets)));
+        const prefill = info[ex.exerciseId]!.prefill;
+        const count = stage ? comebackSets(ex.sets, stage) : ex.sets;
+        const backoff = isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info[ex.exerciseId]!.last?.sets);
+        const adjustedBackoff = stage && backoff ? { ...backoff, last: backoff.last.map(p => comebackPrefill(p, ex.loadSpec ?? findSpec(gym, ex.equipment), ex.setup, ex.measure, stage)) } : backoff;
+        initial[ex.exerciseId] = initialRows(all.filter((s) => s.exerciseId === ex.exerciseId).map(toSaved), count, prefill, () => Crypto.randomUUID(), adjustedBackoff);
         const pendingId = await mlEvaluation.pendingTarget(id, ex.exerciseId, LIVE_MODEL_VERSION)
           .catch(e => { diagnostics.record("warn", "ML evaluation resume", e); return null; });
         initial[ex.exerciseId] = resumeEvaluationTarget(initial[ex.exerciseId]!, pendingId);
@@ -231,14 +249,14 @@ export function useWorkoutSession() {
       const session = await workout.getSession(id);
       setPreviousSource(parsePreviousSource(await repos.getSetting(PREVIOUS_SOURCE_KEY)));
       const flag = parseReadiness(session?.readiness);
-      setReadiness(flag === "fatigued" || flag === "returning" ? flag : null);
+      setReadiness(flag === "fatigued" || (flag === "returning" && stage) ? flag : null);
       setExState(states);
       setSets(all);
       // Typed-but-unticked numbers kept when the app went to the background (iOS may have terminated it since).
       const drafts = parseDrafts(await repos.getSetting(draftKey(id)).catch(() => null));
       setRows(drafts.length ? applyDrafts(initial, drafts) : initial);
       const dayRow = await db.get<{ name: string }>("SELECT name FROM programme_day WHERE id = ?", [dayId]).catch(() => null);
-      setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), pausedMs: session?.paused_ms ?? 0, pausedAt: session?.paused_at ?? null, gym, slots, info, dayName: dayRow?.name ?? undefined });
+      setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), pausedMs: session?.paused_ms ?? 0, pausedAt: session?.paused_at ?? null, gym, slots, info, comebackStage: stage, dayName: dayRow?.name ?? undefined });
       if (resumed) setResumeNote(true);
     })().catch((e) => {
       diagnostics.record("error", "open workout", e);
@@ -588,7 +606,9 @@ export function useWorkoutSession() {
     const info = await buildInfo(ex, lo.sessionId, lo.gym);
     const saved = (await workout.listSessionSets(lo.sessionId, ex.exerciseId)).map(toSaved);
     setLoaded((cur) => (cur && cur !== "nogym" ? { ...cur, info: { ...cur.info, [ex.exerciseId]: info } } : cur));
-    setRows((r) => ({ ...r, [ex.exerciseId]: initialRows(saved, ex.sets, info.prefill, () => Crypto.randomUUID(), (isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info.last?.sets))) }));
+    const backoff = isTimed(ex.measure) ? null : backoffPrefill(ex.topSets, info.last?.sets);
+    const adjustedBackoff = lo.comebackStage && backoff ? { ...backoff, last: backoff.last.map(p => comebackPrefill(p, ex.loadSpec ?? findSpec(lo.gym, ex.equipment), ex.setup, ex.measure, lo.comebackStage!)) } : backoff;
+    setRows((r) => ({ ...r, [ex.exerciseId]: initialRows(saved, lo.comebackStage ? comebackSets(ex.sets, lo.comebackStage) : ex.sets, info.prefill, () => Crypto.randomUUID(), adjustedBackoff) }));
   }
 
   async function applyReplace(lo: Loaded, slot: string, cur: Disp, withId: string | null, permanent: boolean) {
@@ -1024,11 +1044,40 @@ export function useWorkoutSession() {
       Alert.alert(t("loads.preset.failed"));
     } finally { setBusy(null); }
   }
+  async function changeReadiness(next: ReadinessFlag | null) {
+    if (!loaded || loaded === "nogym") return;
+    const sessionId = loaded.sessionId;
+    // Keep the returning provenance on the finished session for normal progression,
+    // even when the lifter switches back to normal targets mid-workout.
+    if (!(loaded.comebackStage && next === null)) await workout.setSessionReadiness(sessionId, next);
+    setReadiness(next);
+    if (next !== null || !loaded.comebackStage) return;
+    // Restoring normal mode never removes a logged, typed, or manually added row.
+    await repos.setSetting(returnSessionKey(sessionId), "0");
+    const info = { ...loaded.info };
+    const updates: Record<string, { count: number; prefill: ExInfo["prefill"] }> = {};
+    for (const slot of loaded.slots) {
+      const ex = makeDisp(slot, exState[slot.exerciseId]);
+      info[ex.exerciseId] = await buildInfo(ex, sessionId, loaded.gym);
+      updates[ex.exerciseId] = { count: ex.sets, prefill: info[ex.exerciseId]!.prefill };
+    }
+    setRows(prev => {
+      const out = { ...prev };
+      for (const [id, { count, prefill }] of Object.entries(updates)) {
+        const existing = out[id] ?? [];
+        const working = existing.filter(r => !r.warmup && !isDropRow(r)).length;
+        const extra = initialRows([], Math.max(0, count - working), prefill, () => Crypto.randomUUID());
+        out[id] = [...existing.map(r => r.saved || r.load !== null || r.reps !== null ? r : { ...r, ghostLoad: prefill.load, ghostReps: prefill.reps }), ...extra];
+      }
+      return out;
+    });
+    setLoaded(prev => prev && prev !== "nogym" && prev.sessionId === sessionId ? { ...prev, info, comebackStage: null } : prev);
+  }
   return { phase: "ready",
     timerOpen, timerRunning, restOver, restPermDenied, navigation, setHelpOpen,
     setRestOver, setTimerOpen, timer, finishing, askFinish,
     loaded, status, toggleDurationPause, summary, sets,
-    summaryOpen, setSummaryOpen, readiness, setReadiness, workout,
+    summaryOpen, setSummaryOpen, readiness, setReadiness, changeReadiness, workout,
     source, previousSource, choosePreviousSource, finishFailed, doFinish,
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
     restore, unlogged, restFor, setTimer, reorderOpen,

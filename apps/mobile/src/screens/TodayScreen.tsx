@@ -39,10 +39,12 @@ import { AppText, BigButton, Card, ChoiceSheet, useReducedMotion, EmptyState, Er
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { LOADING, runLoad, type Load } from "../logic/loadState";
+import { RETURN_PLAN_KEY, canProgressReturn, parseReturnPlan, returnSessionKey, type ReturnPlan } from "../logic/returnToTraining";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
 interface TodayData {
   programmeName: string;
+  versionId: string;
   isSample: boolean;
   days: (DayChoice & { list: DayExercises })[];
   suggestedId: string;
@@ -78,7 +80,7 @@ interface DoorExtras {
 }
 
 export function TodayScreen() {
-  const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history, gyms } = useServices();
+  const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history, gyms, db } = useServices();
   const { t, lang, fmt, unit, direction } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why" | "SessionDetail" | "Gyms" | "Settings", params?: { dayId: string } | { targetId: string } | { sessionId: string }) => void }>();
@@ -95,6 +97,8 @@ export function TodayScreen() {
   const [openRow, setOpenRow] = useState<string | null>(null);
   const [xrayRow, setXrayRow] = useState<string | null>(null);
   const [easeIn, setEaseIn] = useState(false);
+  const [returnPlan, setReturnPlan] = useState<ReturnPlan | null>(null);
+  const [canAdvanceReturn, setCanAdvanceReturn] = useState(false);
   const { fontScale, width } = useWindowDimensions();
   const reduced = useReducedMotion();
   const [pathOpen, setPathOpen] = useState(false);
@@ -148,6 +152,17 @@ export function TodayScreen() {
         if (alive) setShort(shortActive);
         const next = await repos.getNextDay();
         if (!next) return null; // no program at all: the genuinely empty state
+        const activeReturn = parseReturnPlan(await repos.getSetting(RETURN_PLAN_KEY));
+        const currentReturn = activeReturn?.active && activeReturn.versionId === next.versionId ? activeReturn : null;
+        if (alive) {
+          setReturnPlan(currentReturn);
+          setEaseIn(!!currentReturn);
+          const finished = currentReturn ? await db.all<{ feel: string | null }>(
+            "SELECT feel FROM session WHERE status = 'finished' AND deleted_at IS NULL AND readiness = 'returning' AND finished_at >= ? ORDER BY finished_at",
+            [currentReturn.startedAt],
+          ) : [];
+          setCanAdvanceReturn(!!currentReturn && canProgressReturn(currentReturn, Date.now(), finished));
+        }
         const dayList = await repos.listDays(next.versionId);
         const lists = await Promise.all(dayList.map((d) => repos.listDayExercises(d.id)));
         const marked = markSuggested(dayList.map((d, i) => ({ id: d.id, name: d.name, exercises: lists[i]!.length, sets: lists[i]!.reduce((n, e) => n + e.sets, 0) })), next.day.id);
@@ -181,7 +196,7 @@ export function TodayScreen() {
         if (alive) setPaceLine(pace.kind === "none" ? "" : describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
         if (alive) setPaceStatus(pace.kind === "none" ? null : (pace as { pace?: { status: PaceStatus } }).pace?.status ?? null);
         if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
-        return { programmeName: next.programmeName, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, activeGymName, loadId, lastFinished, lighterUntil: lighterUntil(deloadState as { status: string; endsAt?: number } | null, Date.now()), openInfo };
+        return { programmeName: next.programmeName, versionId: next.versionId, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, activeGymName, loadId, lastFinished, lighterUntil: lighterUntil(deloadState as { status: string; endsAt?: number } | null, Date.now()), openInfo };
       }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
       return () => {
         alive = false;
@@ -345,15 +360,22 @@ export function TodayScreen() {
       await startDay(action, {
         plan: async (dayId) => {
           const gymId = await repos.getActiveGymId();
+          if (easeIn) {
+            const plan: ReturnPlan = returnPlan?.active && returnPlan.versionId === data.versionId ? returnPlan
+              : { active: true, versionId: data.versionId, stage: 1, startedAt: Date.now() };
+            await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(plan));
+          }
           if (gymId) await finish.planDay(dayId, gymId);
+          if (easeIn) {
+            const plan = parseReturnPlan(await repos.getSetting(RETURN_PLAN_KEY));
+            const ps = await finish.getPlannedSession(dayId);
+            if (ps && plan?.active && plan.versionId === data.versionId) {
+              await repos.setSetting(returnSessionKey(ps.id), String(plan.stage));
+              await workout.setSessionReadiness(ps.id, "returning");
+            }
+          }
         },
         navigate: (dayId) => navigation.navigate("Workout", { dayId }),
-        // Ease in (welcome back): the new session is marked "returning" after navigating, never blocking the start.
-        afterStart: easeIn && welcomeBack !== null ? async (dayId) => {
-          // The planned session becomes the workout: mark it "returning" (the logger aims 1-2 fewer reps).
-          const ps = (await workout.getOpenSession()) ?? (await finish.getPlannedSession(dayId));
-          if (ps) await workout.setSessionReadiness(ps.id, "returning");
-        } : undefined,
         record: (e) => diagnostics.record("error", "today start", e),
       });
     } finally {
@@ -387,15 +409,20 @@ export function TodayScreen() {
           </View>
         </View>
       ) : null}
-      {welcomeBack !== null ? (
+      {welcomeBack !== null || returnPlan?.active ? (
         <View style={{ gap: space.xs }}>
-          <AppText style={{ fontSize: ty.label }}>{t("today.welcome", { n: welcomeBack })}</AppText>
-          {showEaseIn(welcomeBack, true) ? (
+          {welcomeBack !== null ? <AppText style={{ fontSize: ty.label }}>{t("today.welcome", { n: welcomeBack })}</AppText> : null}
+          {showEaseIn(welcomeBack, true) || returnPlan?.active ? (
             <Pressable
               accessibilityRole="checkbox"
               accessibilityState={{ checked: easeIn }}
               accessibilityHint={t("today.easeIn.note")}
-              onPress={() => setEaseIn((v) => !v)}
+              onPress={() => {
+                if (easeIn && returnPlan?.active) {
+                  const stopped = { ...returnPlan, active: false };
+                  void repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(stopped)).then(() => { setReturnPlan(null); setEaseIn(false); }).catch(e => diagnostics.record("error", "stop ease in", e));
+                } else setEaseIn((v) => !v);
+              }}
               style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, alignSelf: "flex-start", paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: easeIn ? p.text : p.edge, backgroundColor: easeIn ? p.raised : "transparent" }}
             >
               <Icon name={easeIn ? "check" : "plus"} color={p.text} size={18} />
@@ -403,6 +430,11 @@ export function TodayScreen() {
             </Pressable>
           ) : null}
           {easeIn ? <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t("today.easeIn.note")}</AppText> : null}
+          {easeIn && returnPlan?.active ? <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t(returnPlan.stage === 1 ? "today.easeIn.stage1" : "today.easeIn.stage2")}</AppText> : null}
+          {returnPlan?.active && canAdvanceReturn ? <QuietAction label={t("today.easeIn.advance")} onPress={() => {
+            const advanced: ReturnPlan = { ...returnPlan, stage: 2 };
+            void repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(advanced)).then(() => { setReturnPlan(advanced); setCanAdvanceReturn(false); }).catch(e => diagnostics.record("error", "ease in stage 2", e));
+          }} /> : null}
         </View>
       ) : null}
       {data.lighterUntil !== null && mode === "normal" ? (

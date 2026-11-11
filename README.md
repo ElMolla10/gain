@@ -9,12 +9,18 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-pre--release%20(v0.22)-yellow?style=flat-square" alt="Status" />
-  <img src="https://img.shields.io/badge/platform-Android%20first-brightgreen?style=flat-square" alt="Platform" />
+  <a href="https://apps.apple.com/eg/app/gain-workout-tracker/id6827498090"><img src="https://img.shields.io/badge/App%20Store-iOS-0D96F6?style=flat-square&logo=apple&logoColor=white" alt="Download on the App Store" /></a>
+  <a href="https://github.com/ElMolla10/gain/releases/download/v1.0.2/gain-v1.0.2-arm64.apk"><img src="https://img.shields.io/badge/Android-Download%20APK%20(v1.0.2)-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Download Android APK" /></a>
   <img src="https://img.shields.io/badge/language-Arabic%20%2B%20English-blue?style=flat-square" alt="Languages" />
   <img src="https://img.shields.io/badge/price-free-success?style=flat-square" alt="Free" />
-  <img src="https://img.shields.io/badge/tests-1440%2B-blueviolet?style=flat-square" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-2800%2B-blueviolet?style=flat-square" alt="Tests" />
   <img src="https://img.shields.io/badge/offline--first-yes-informational?style=flat-square" alt="Offline First" />
+</p>
+
+<p align="center">
+  <strong><a href="https://apps.apple.com/eg/app/gain-workout-tracker/id6827498090">Download on the App Store (iOS)</a></strong>
+  &nbsp;·&nbsp;
+  <strong><a href="https://github.com/ElMolla10/gain/releases/download/v1.0.2/gain-v1.0.2-arm64.apk">Download Android APK (v1.0.2 arm64)</a></strong>
 </p>
 
 <table align="center">
@@ -40,7 +46,14 @@ No dashboards. No invented history. No medical advice. Just the next number, exp
 
 **Built for people who already train.** Your split. Your history. Your gym's plates and racks.
 
+---
 
+## Download
+
+- **iOS (App Store):** [**GAIN: Workout Tracker on the App Store**](https://apps.apple.com/eg/app/gain-workout-tracker/id6827498090)
+- **Android (Direct APK):** [**Download `gain-v1.0.2-arm64.apk`**](https://github.com/ElMolla10/gain/releases/download/v1.0.2/gain-v1.0.2-arm64.apk) ([Release notes & SHA-256 checksum](https://github.com/ElMolla10/gain/releases/tag/v1.0.2))
+
+---
 
 ## Why GAIN
 
@@ -143,11 +156,11 @@ Building a signed APK requires JDK 17 + Android SDK. See [docs/RELEASE-PROCESS.m
 
 ## Status
 
-**Current:** Pre-release (v0.22 preparation). Android-first. Sideloaded APKs only.
+**Current:** Available on the [iOS App Store](https://apps.apple.com/eg/app/gain-workout-tracker/id6827498090) and on Android via [sideloaded APK (`v1.0.2` arm64)](https://github.com/ElMolla10/gain/releases/download/v1.0.2/gain-v1.0.2-arm64.apk) ([release notes](https://github.com/ElMolla10/gain/releases/tag/v1.0.2)).
 
-- 1,440+ tests pass across engine, sync, mobile, and server.
+- 2,800+ tests pass across engine, sync, mobile, and server.
 - Core loop (onboarding → import → log → finish → next target) reported working on a real device by the author.
-- Device verification, update-over-install, and real-world model accuracy are **not yet independently verified** in the repo.
+- Android `v1.0.2` APK device verification, update-over-install, and real-world model accuracy are **not yet independently verified** in the repo.
 - GAIN is free at launch. There are no subscriptions, in-app purchases, paid feature tiers, ads, or donation prompts in the app.
 
 Full honesty, gates, and "what to do now" live in [docs/MASTER-PLAN.md](docs/MASTER-PLAN.md).

@@ -144,6 +144,10 @@ export function WorkoutScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
         <Profiler id="logger" onRender={onLoggerRender}>
+        {loaded.comebackStage ? <View style={{ marginHorizontal: space.lg, marginBottom: space.sm, gap: space.xs }}>
+          <InlineStatus kind="info" text={t("workout.return.active")} />
+          <QuietAction label={t("workout.return.normal")} onPress={() => void changeReadiness(null)} />
+        </View> : null}
         {/* The session line (logger spec §5): duration · Pause · "x of y sets" · save status · Details ▾. A failure or unsaved work takes
             over the middle in warn and never hides Pause. Large text wraps it into two rows. Only the status is a live region. */}
         <View style={{ flexDirection: "row", flexWrap: largeText ? "wrap" : "nowrap", alignItems: "center", columnGap: space.sm, paddingHorizontal: space.lg }}>

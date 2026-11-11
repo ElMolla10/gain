@@ -71,4 +71,27 @@ describe("optional return plan", () => {
     expect((await c.workout.previousPerformances(ex.exerciseId, next.day.id)).any?.sets).toHaveLength(1);
     c.db.close();
   });
+
+  it("lets an already open workout opt in without replacing its session or logged sets", async () => {
+    const c = await freshDb();
+    await c.repos.seedIfNeeded();
+    const next = (await c.repos.getNextDay())!;
+    const gymId = (await c.repos.getActiveGymId())!;
+    const gym = await c.repos.loadGymFingerprint(gymId);
+    const ex = (await c.repos.listDayExercises(next.day.id))[0]!;
+    const open = await c.workout.startOrResumeSession(next.day.id, gymId);
+    await c.workout.logSet({ sessionId: open.id, exerciseId: ex.exerciseId, load: 80, reps: 8 }, { gym, equipment: ex.equipment, setup: ex.setup });
+    await c.repos.setSetting(RETURN_PLAN_KEY, JSON.stringify({ active: true, versionId: next.versionId, stage: 1, startedAt: c.deps.now() }));
+    await c.repos.setSetting(returnSessionKey(open.id), "1");
+    await c.workout.setSessionReadiness(open.id, "returning");
+    const resumed = await c.workout.startOrResumeSession(next.day.id, gymId);
+    expect(resumed).toEqual({ id: open.id, resumed: true });
+    expect(returnStage(await c.repos.getSetting(returnSessionKey(open.id)))).toBe(1);
+    expect((await c.workout.getSession(open.id))?.readiness).toBe("returning");
+    const saved = await c.workout.listSessionSets(open.id);
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({ load: 80, reps: 8 });
+    expect(initialRows(saved.map(s => ({ id: s.id, load: s.load, reps: s.reps, rir: s.rir, warmup: !!s.warmup })), comebackSets(ex.sets, 1), { load: 60, reps: 8 }, () => "blank")[0]).toMatchObject({ load: 80, reps: 8, saved: true });
+    c.db.close();
+  });
 });

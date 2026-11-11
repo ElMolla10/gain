@@ -40,38 +40,7 @@ No dashboards. No invented history. No medical advice. Just the next number, exp
 
 **Built for people who already train.** Your split. Your history. Your gym's plates and racks.
 
----
 
-## Screenshots
-
-<!-- 
-  PLACEHOLDERS — please replace these with real screenshots from the app.
-  Recommended captures (Android, both Arabic and English if possible):
-  1. Today screen (session + one-line pace)
-  2. Active workout logger (target + last performance + large controls)
-  3. Finish screen (next session draft ready to accept/edit)
-  4. Why / decision log (the visible reason for a target)
-  5. Goals + pace
-  6. Arabic RTL layout example
--->
-
-<p align="center">
-  <img src="PLACEHOLDER_TODAY.png" alt="Today screen — session and pace" width="280" />
-  &nbsp;&nbsp;
-  <img src="PLACEHOLDER_LOGGER.png" alt="Workout logger" width="280" />
-  &nbsp;&nbsp;
-  <img src="PLACEHOLDER_FINISH.png" alt="Finish — next session ready" width="280" />
-</p>
-
-<p align="center">
-  <img src="PLACEHOLDER_WHY.png" alt="Decision log / why this target" width="280" />
-  &nbsp;&nbsp;
-  <img src="PLACEHOLDER_GOALS.png" alt="Goals and pace" width="280" />
-  &nbsp;&nbsp;
-  <img src="PLACEHOLDER_ARABIC.png" alt="Arabic RTL layout" width="280" />
-</p>
-
----
 
 ## Why GAIN
 

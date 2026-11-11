@@ -20,7 +20,7 @@
 <p align="center">
   <strong><a href="https://apps.apple.com/eg/app/gain-workout-tracker/id6827498090">Download on the App Store (iOS)</a></strong>
   &nbsp;·&nbsp;
-  <strong><a href="https://github.com/ElMolla10/gain/releases/download/v1.0.2/gain-v1.0.2-arm64.apk">Download Android APK (v1.0.2 arm64)</a></strong>
+  <strong><a href="https://github.com/ElMolla10/gain/releases/download/v1.0.2/gain-v1.0.2-arm64.apk">Download Android APK </a></strong>
 </p>
 
 <table align="center">

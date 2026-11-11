@@ -71,7 +71,8 @@ export function useWorkoutSuggestions({ loaded, rows, setRows, sets, exState, ma
         const performance = livePerformanceKey(sets, ex.exerciseId, zero);
         if (liveDismissed[ex.exerciseId] === performance) continue;
         const fatigue = sessionOrderFatigue(fatigueSlots, ex.exerciseId);
-        const readyPen = readinessPenaltyReps(readiness);
+        // Comeback prefills already account for the initial rep adjustment.
+        const readyPen = loaded.comebackStage ? 0 : readinessPenaltyReps(readiness);
         const combinedPen = expectationPenaltyReps(fatigue?.penaltyReps ?? 0, readyPen);
         const fatigueKey = `${fatigue ? `${fatigue.earlierName}:${fatigue.penaltyReps}` : ""}:${readiness ?? ""}`;
         const reported = reportedSymptoms[ex.exerciseId];
@@ -101,6 +102,9 @@ export function useWorkoutSuggestions({ loaded, rows, setRows, sets, exState, ma
         const workingSetsBefore = list.filter(r => r.saved && !r.warmup && !isDropRow(r)).length;
         const isBackoff = !!ex.topSets && (workingSetsBefore + 1) > ex.topSets;
         const hasBackoffHistory = (info?.last?.sets?.length ?? 0) > (ex.topSets ?? 0);
+        // Back-off slots have their own position-specific comeback ghosts; a top-set
+        // live card must never replace them with the heavier top-set load.
+        if (loaded.comebackStage && isBackoff) continue;
         if (isBackoff && !hasBackoffHistory) {
           continue;
         }
@@ -113,7 +117,7 @@ export function useWorkoutSuggestions({ loaded, rows, setRows, sets, exState, ma
         const context = liveContext({ exerciseId: ex.exerciseId, equipment: ex.equipment, setup: ex.setup, measure: ex.measure, sets, supportedExerciseIds, rows: logged, last: info?.last, targetReps: info?.prefill.reps ?? ex.repMax, sessionFatigueReps: combinedPen });
 
         let decision: Decision | null = null;
-        if (context) {
+        if (context && !loaded.comebackStage) {
           decision = tryLiveRecommendation(context, ex.repMin, ex.repMax, spec, undefined, e => diagnostics.record("warn", "live adaptation", e));
         }
 
@@ -132,6 +136,16 @@ export function useWorkoutSuggestions({ loaded, rows, setRows, sets, exState, ma
               proposedWeightKg: proposed,
             });
           }
+        }
+
+        if (decision && loaded.comebackStage && decision.action !== "stop") {
+          const limit = info?.prefill.load;
+          // Never let a normal progression recommendation undo the easier starting load.
+          const weight = limit === null || limit === undefined ? decision.suggestedWeightKg
+            : ex.setup === "assisted" ? Math.max(decision.suggestedWeightKg, limit) : Math.min(decision.suggestedWeightKg, limit);
+          decision = { ...decision, action: weight === decision.suggestedWeightKg ? decision.action : "maintain",
+            suggestedWeightKg: weight, suggestedReps: Math.min(decision.suggestedReps, info?.prefill.reps ?? decision.suggestedReps),
+            predictionAvailable: false };
         }
 
         if (!decision) {

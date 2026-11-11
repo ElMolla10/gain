@@ -94,7 +94,7 @@ export function WorkoutScreen() {
     timerOpen, timerRunning, restOver, restPermDenied, navigation, setHelpOpen,
     setRestOver, setTimerOpen, timer, finishing, askFinish,
     loaded, status, toggleDurationPause, summary, sets,
-    summaryOpen, setSummaryOpen, readiness, setReadiness, workout,
+    summaryOpen, setSummaryOpen, readiness, changeReadiness, workout,
     source, previousSource, choosePreviousSource, finishFailed, doFinish,
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
     restore, unlogged, restFor, setTimer, dock, dockName, dockLog, dockExpand, dockUnit, busy,
@@ -178,10 +178,7 @@ export function WorkoutScreen() {
         <WorkoutDetailsPanel
           open={detailsOpen}
           readiness={readiness}
-          onReadiness={(next) => {
-            setReadiness(next);
-            void workout.setSessionReadiness(loaded.sessionId, next);
-          }}
+          onReadiness={(next) => { void changeReadiness(next); }}
           previousSource={previousSource}
           onPreviousSource={source => void choosePreviousSource(source)}
           onReorder={shown.length > 1 ? () => setReorderOpen(true) : undefined}

@@ -335,10 +335,11 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   }
 
   /** Finished sessions of one line, oldest first, as engine history. Unconfirmed outliers are kept (the engine ignores them). */
-  async function getHistory(line: LineIdentity, lineId: string): Promise<HistorySession[]> {
+  async function getHistory(line: LineIdentity, lineId: string, forProgression = false): Promise<HistorySession[]> {
     const rows = await db.all<RawSet & { sid: string; finished_at: number }>(
       `SELECT ws.*, s.id AS sid, s.finished_at AS finished_at FROM workout_set ws JOIN session s ON s.id = ws.session_id
        WHERE ws.line_id = ? AND s.status = 'finished' AND ws.deleted_at IS NULL AND s.deleted_at IS NULL
+         ${forProgression ? "AND (s.readiness IS NULL OR s.readiness <> 'returning')" : ""}
        ORDER BY s.finished_at, ws.position`,
       [lineId],
     );
@@ -415,7 +416,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   async function liveProposal(ex: DayExerciseSpec, gym: GymFingerprint): Promise<{ proposal: Proposal; lineId: string; line: LineIdentity }> {
     const line: LineIdentity = { exerciseId: ex.exerciseId, gymId: gym.gymId, setup: ex.setup };
     const lineId = await ensureLine(ex.exerciseId, gym.gymId, ex.setup);
-    const history = await getHistory(line, lineId);
+    const history = await getHistory(line, lineId, true);
     const rejections = await loadRejectionMemory(line, lineId);
     const resolved = await resolveLoads(db, gym, ex.exerciseId, ex.equipment, ex.setup);
     const loadOverride = resolved.source !== "gym" && resolved.spec ? { loadOverride: resolved.spec, loadSource: resolved.source } : {};
@@ -491,7 +492,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
       // Warm-ups and drop sets are lighter on purpose, so they are never compared with the line.
       let outlier: OutlierResult | null = null;
       if (!input.warmup && !input.tags?.includes("drop")) {
-        const history = await getHistory(line, lineId);
+        const history = await getHistory(line, lineId, true);
         const today = (await listSessionSets(input.sessionId, input.exerciseId)).map(toLogged);
         outlier = isTimedMeasure(measure)
           ? checkTimedOutlier({ load: input.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history, today })
@@ -555,7 +556,7 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
     let status: OutlierStatus = "none";
     if (!v.warmup && !v.tags?.includes("drop")) {
       const line: LineIdentity = { exerciseId: row.exercise_id, gymId: row.gym_id, setup: ctx.setup };
-      const history = await getHistory(line, row.line_id);
+      const history = await getHistory(line, row.line_id, true);
       const today = (await listSessionSets(row.session_id, row.exercise_id)).filter((x) => x.id !== setId).map(toLogged);
       outlier = isTimedMeasure(measure)
         ? checkTimedOutlier({ load: v.load, reps: 1, durationS: q.durationS, distanceM: q.distanceM }, measure, { line, history, today })

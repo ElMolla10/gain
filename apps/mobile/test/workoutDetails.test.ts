@@ -62,7 +62,7 @@ describe("Workout details panel", () => {
     radios(tree)[0]!.props.onPress();
     expect(p.onPreviousSource).toHaveBeenLastCalledWith("any");
     // The screen still saves readiness to the session and the source through the persisted chooser.
-    expect(screen).toContain("void workout.setSessionReadiness(loaded.sessionId, next);");
+    expect(screen).toContain("void changeReadiness(next);");
     expect(screen).toContain("onPreviousSource={source => void choosePreviousSource(source)}");
   });
   it("speaks Arabic and has the toggle string in both languages", () => {

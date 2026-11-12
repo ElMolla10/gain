@@ -26,7 +26,8 @@ describe("Settings layout", () => {
     for (const s of ["<RestCard />", "<ReminderCard />", "<WeekStartCard />"]) expect(workout).toContain(s);
     for (const s of ['t("gyms.entry")', "<GymStepsCard />", 't("coach.priority.entry")', 't("goals.entry")', 't("settings.setupAgain")']) expect(program).toContain(s);
     for (const s of ["<CeilingsCard />", 't("settings.direction")', 't("settings.secondName")', "<PeriodizationSettings />"]) expect(advanced).toContain(s);
-    for (const s of ['t("data.entry")', 't("sync.entry")', 't("import.entry")', 't("privacy.entry")', 't("pilot.entry")', "<HealthNote />", "<DeveloperTools"]) expect(src).toContain(s);
+    for (const s of ['t("data.entry")', 't("sync.entry")', 't("privacy.entry")', 't("pilot.entry")', "<HealthNote />", "<DeveloperTools"]) expect(src).toContain(s);
+    expect(src).not.toContain('t("import.entry")');
   });
   it("rest default is five segments on one line; layout direction is three radio rows", () => {
     expect(src).toMatch(/<SelectRow\s+label=\{t\("rest\.default"\)\}/);

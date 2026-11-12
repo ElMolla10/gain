@@ -23,7 +23,7 @@ import { glyphFor, RackGlyph } from "../components/today/RackRow";
 type ProgrammeRouteParams = { activated?: boolean };
 
 type Nav = {
-  navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions" | "ProgrammeShare" | "ProgramGenerate" | "MusclePriority", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void;
+  navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions" | "ProgrammeShare" | "ProgramGenerate" | "MusclePriority" | "Import", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void;
   setParams: (params: Partial<ProgrammeRouteParams>) => void;
 };
 
@@ -117,6 +117,9 @@ export function ProgrammeScreen() {
         <EmptyState icon="plan" title={t("prog.none")} actionLabel={t("prog.switch.entry")} onAction={() => nav.navigate("ProgrammeSwitch")} />
         <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
         <BigButton variant="secondary" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
+        <Card style={{ paddingVertical: space.xs }}>
+          <ListRow title={t("import.entry")} note={t("import.entryNote")} last onPress={() => nav.navigate("Import")} />
+        </Card>
       </Screen>
     );
 
@@ -155,6 +158,9 @@ export function ProgrammeScreen() {
       {/* Primary: Build me a program first, visually distinct; Edit program is secondary */}
       <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
       <BigButton variant="secondary" icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
+      <Card style={{ paddingVertical: space.xs }}>
+        <ListRow title={t("import.entry")} note={t("import.entryNote")} last onPress={() => nav.navigate("Import")} />
+      </Card>
       <PlanDayStrip
         days={data.draft.days.map((d) => ({
           name: d.name,

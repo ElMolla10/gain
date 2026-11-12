@@ -25,7 +25,7 @@ describe("2.1 Plan tab (P-1, P-2, P-6, P-7)", () => {
     expect(src("components/ProgrammeEditorView.tsx")).toContain("setReorderWorkouts(true)");
   });
   it("opens workout import from the bottom of Plan without a subtitle, with and without an active program", () => {
-    expect(f.match(/<ListRow title=\{t\("import.entry"\)\} last onPress=\{\(\) => nav.navigate\("Import"\)\}/g)).toHaveLength(2);
+    expect(f.match(/<BigButton label=\{t\("import.entry"\)\} onPress=\{\(\) => nav.navigate\("Import"\)\}/g)).toHaveLength(2);
     expect(f).not.toContain('t("import.entryNote")');
     expect(f.indexOf('t("import.entry")')).toBeLessThan(f.indexOf('<Screen tab>'));
     const populated = f.slice(f.indexOf('<Screen tab>'));

@@ -117,9 +117,7 @@ export function ProgrammeScreen() {
         <EmptyState icon="plan" title={t("prog.none")} actionLabel={t("prog.switch.entry")} onAction={() => nav.navigate("ProgrammeSwitch")} />
         <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
         <BigButton variant="secondary" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
-        <Card style={{ paddingVertical: space.xs }}>
-          <ListRow title={t("import.entry")} last onPress={() => nav.navigate("Import")} />
-        </Card>
+        <BigButton label={t("import.entry")} onPress={() => nav.navigate("Import")} />
       </Screen>
     );
 
@@ -245,9 +243,7 @@ export function ProgrammeScreen() {
           <ListRow title={t("prog.new")} last onPress={() => nav.navigate("ProgrammeEdit")} />
         </Card>
       </View>
-      <Card style={{ paddingVertical: space.xs }}>
-        <ListRow title={t("import.entry")} last onPress={() => nav.navigate("Import")} />
-      </Card>
+      <BigButton label={t("import.entry")} onPress={() => nav.navigate("Import")} />
       <ArDraftNote />
       <Sheet visible={ruleOpen} title={t("prog.ruleSheetTitle")} onClose={() => setRuleOpen(false)}>
         <View style={{ gap: space.md }}>

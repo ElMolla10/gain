@@ -118,15 +118,18 @@ describe("workout Live Activity v2 layout (PR F)", () => {
     expect(p.change).toContain("كجم");
     expect(p.change).not.toContain("kg");
   });
-  it("keeps the compact island icon-only outside rest while full targets remain in the Lock Screen and expanded island", async () => {
+  it("keeps the exercise, set, and weight prominent without plate badges on both Live Activity cards", async () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const src = readFileSync(join(__dirname, "..", "src", "native", "workoutLiveActivityLayout.tsx"), "utf8");
-    expect(src.match(/\{caps\}\s*\{changeLine\}/g)?.length).toBe(2);
+    expect(src.match(/\{p\.exercise \?\? p\.setLine\}/g)?.length).toBe(2);
+    expect(src.match(/\{target\}\s*\{changeLine\}/g)?.length).toBe(2);
+    expect(src).toMatch(/font\(\{ size: 18, weight: "semibold" \}\).*\{p\.setLine\}/);
+    expect(src).toMatch(/font\(\{ size: 22, weight: "bold" \}\).*\{p\.detail\}/);
+    expect(src).not.toMatch(/\{caps\}|plateCaps/);
     expect(src).toMatch(/compactLeading: <Image systemName="dumbbell\.fill"/);
     expect(src).toMatch(/compactTrailing: restI\s*\? <Text timerInterval=\{restI\} countsDown/);
     expect(src).toMatch(/countsDown modifiers=\{\[timerLocale, monospacedDigit\(\), foregroundStyle\(accent\)\]\} \/>\s*: null,/);
-    expect(src).toMatch(/const second = p\.exercise \? \(p\.detail \?/);
     expect(src).not.toMatch(/#[0-9A-Fa-f]{6}.*plate/i);
   });
 });

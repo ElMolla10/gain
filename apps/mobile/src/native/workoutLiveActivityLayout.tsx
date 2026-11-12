@@ -12,17 +12,13 @@ const WorkoutActivity = (p: WorkoutActivityProps, context: LiveActivityEnvironme
   const elapsed = { lower: new Date(p.timerStart), upper: new Date(p.timerStart + 86_400_000) };
   const pause = p.pausedAt ? new Date(p.pausedAt) : undefined;
   const restI = p.rest ? { lower: new Date(p.rest.startedAt), upper: new Date(p.rest.endsAt) } : null;
-  const second = p.exercise ? (p.detail ? `${p.setLine} · ${p.detail}` : p.setLine) : null;
   const badge = <Image systemName="dumbbell.fill" size={14} color="#000000" modifiers={[frame({ width: 20, height: 20 }), background(accent), cornerRadius(5)]} />; // a11y-ok: black glyph on the adaptive accent badge
   const elapsedText = (size: number) => <Text timerInterval={elapsed} countsDown={false} pauseTime={pause} modifiers={[timerLocale, monospacedDigit(), font({ size, weight: "bold" })]} />;
-  // v2 (logger 10x §PR F): the focused set's plates as capsules (frame + background + printed number; colours arrive in props) and
-  // "Load the change" under them. Older payloads without these fields draw nothing new.
-  const caps = (p.plateCaps ?? []).length > 0 ? (
-    <HStack spacing={3}>
-      {(p.plateCaps ?? []).map((c, i) => (
-        <Text key={i} modifiers={[font({ size: 12, weight: "bold" }), monospacedDigit(), foregroundStyle(c.fg), padding({ horizontal: 5, vertical: 2 }), background(c.bg), cornerRadius(4)]}>{c.t}</Text>
-      ))}
-    </HStack>
+  const target = p.exercise ? (
+    <VStack alignment="leading" spacing={2}>
+      <Text modifiers={[font({ size: 18, weight: "semibold" }), foregroundStyle({ type: "hierarchical", style: "secondary" }), lineLimit(1)]}>{p.setLine}</Text>
+      {p.detail ? <Text modifiers={[font({ size: 22, weight: "bold" }), monospacedDigit(), lineLimit(1)]}>{p.detail}</Text> : null}
+    </VStack>
   ) : null;
   const changeLine = p.change ? <Text modifiers={[font({ size: 14 }), foregroundStyle({ type: "hierarchical", style: "secondary" }), lineLimit(1)]}>{p.change}</Text> : null;
   const restRow = restI && p.rest ? (
@@ -46,8 +42,7 @@ const WorkoutActivity = (p: WorkoutActivityProps, context: LiveActivityEnvironme
           {elapsedText(22)}
         </HStack>
         <Text modifiers={[font({ size: 17, weight: "semibold" }), lineLimit(1)]}>{p.exercise ?? p.setLine}</Text>
-        {second ? <Text modifiers={[font({ size: 15 }), foregroundStyle({ type: "hierarchical", style: "secondary" }), lineLimit(1)]}>{second}</Text> : null}
-        {caps}
+        {target}
         {changeLine}
         {restRow}
       </VStack>
@@ -69,8 +64,7 @@ const WorkoutActivity = (p: WorkoutActivityProps, context: LiveActivityEnvironme
     expandedBottom: (
       <VStack alignment="leading" spacing={4}>
         <Text modifiers={[font({ weight: "semibold" }), lineLimit(1)]}>{p.exercise ?? p.setLine}</Text>
-        {second ? <Text modifiers={[foregroundStyle({ type: "hierarchical", style: "secondary" }), lineLimit(1)]}>{second}</Text> : null}
-        {caps}
+        {target}
         {changeLine}
         {restRow}
       </VStack>

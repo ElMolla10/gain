@@ -24,6 +24,12 @@ describe("2.1 Plan tab (P-1, P-2, P-6, P-7)", () => {
     expect(populated).not.toContain("prog.workouts.reorder");
     expect(src("components/ProgrammeEditorView.tsx")).toContain("setReorderWorkouts(true)");
   });
+  it("opens workout import directly from Plan with and without an active program", () => {
+    expect(f.match(/<ListRow title=\{t\("import.entry"\)\} note=\{t\("import.entryNote"\)\} last onPress=\{\(\) => nav.navigate\("Import"\)\}/g)).toHaveLength(2);
+    expect(f.indexOf('t("import.entry")')).toBeLessThan(f.indexOf('<Screen tab>'));
+    const populated = f.slice(f.indexOf('<Screen tab>'));
+    expect(populated.indexOf('t("import.entry")')).toBeLessThan(populated.indexOf('<PlanDayStrip'));
+  });
   it("removes exposure and versions from the details list while keeping quieter version access", () => {
     const more = f.slice(f.indexOf('SectionTitle>{t("prog.more")}</SectionTitle>'));
     const listCard = more.slice(0, more.indexOf("</Card>"));

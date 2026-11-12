@@ -332,7 +332,7 @@ export function SettingsScreen() {
     catch { setDeveloperError(true); }
   };
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Import" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Setup" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
   return (
     <Screen>
       <SettingsGroupHero
@@ -408,7 +408,6 @@ export function SettingsScreen() {
       <Group title={t("settings.group.data")}>
         <LinkRow label={t("data.entry")} onPress={() => nav.navigate("Data")} />
         <LinkRow label={t("sync.entry")} onPress={() => nav.navigate("Sync")} />
-        <LinkRow label={t("import.entry")} note={t("import.entryNote")} onPress={() => nav.navigate("Import")} />
       </Group>
 
       <Group title={t("settings.group.about")}>

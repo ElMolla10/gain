@@ -6,6 +6,7 @@ import type { ProgrammeRepo } from "./programmeRepo";
 import type { Repos } from "./repos";
 import { syncAchievements } from "./achievementRepo";
 import type { WorkoutRepo } from "./workoutRepo";
+import { MAX_DAYS, MAX_SETS, newExerciseFor, type ProgrammeDraft } from "../logic/programmeDraft";
 
 /** The lifter's decision for one exported title. */
 export type MappingChoice =
@@ -277,6 +278,58 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return { versionId, dayId: day.id };
   }
 
+  /** Rebuild the latest observed rotation from a batch's workout logs. CSV exports do not contain saved programme prescriptions. */
+  async function previousProgrammeDraft(batchId: string): Promise<ProgrammeDraft | null> {
+    const batch = await db.get<{ id: string }>("SELECT id FROM import_batch WHERE id = ? AND deleted_at IS NULL", [batchId]);
+    if (!batch) return null;
+    const sessions = await db.all<{ id: string; import_key: string }>(
+      `SELECT id, import_key FROM session WHERE import_batch_id = ? AND status = 'finished' AND deleted_at IS NULL
+       ORDER BY finished_at DESC, started_at DESC, id DESC`, [batchId],
+    );
+    const latest: { id: string; name: string }[] = [];
+    const seen = new Set<string>();
+    for (const s of sessions) {
+      const first = s.import_key.indexOf("|");
+      const second = s.import_key.indexOf("|", first + 1);
+      if (first < 0 || second < 0) return null;
+      const name = s.import_key.slice(second + 1).trim();
+      if (!name) return null;
+      // A repeated workout name marks the start of the previous rotation.
+      if (seen.has(name)) break;
+      if (latest.length === MAX_DAYS) return null; // do not silently leave days out
+      seen.add(name);
+      latest.push({ id: s.id, name });
+    }
+    if (!latest.length) return null;
+    const days: ProgrammeDraft["days"] = [];
+    for (const s of latest.reverse()) {
+      const rows = await db.all<{ exercise_id: string; measure: Measure; reps: number; duration_s: number | null; distance_m: number | null; is_warmup: number; tags_json: string }>(
+        `SELECT ws.exercise_id, e.measure, ws.reps, ws.duration_s, ws.distance_m, ws.is_warmup, ws.tags_json
+         FROM workout_set ws JOIN exercise e ON e.id = ws.exercise_id
+         WHERE ws.session_id = ? AND ws.deleted_at IS NULL ORDER BY ws.rowid`, [s.id],
+      );
+      const exercises = new Map<string, { measure: Measure; values: number[] }>();
+      for (const r of rows) {
+        if (r.is_warmup || JSON.parse(r.tags_json ?? "[]").includes("drop")) continue;
+        const value = r.measure === "time" ? r.duration_s : r.measure === "distance" ? r.distance_m : r.reps;
+        if (value === null || !Number.isFinite(value) || value < 1) continue;
+        let entry = exercises.get(r.exercise_id);
+        if (!entry) {
+          entry = { measure: r.measure, values: [] };
+          exercises.set(r.exercise_id, entry);
+        }
+        entry.values.push(value);
+      }
+      if (!exercises.size || [...exercises.values()].some(e => e.values.length > MAX_SETS)) return null;
+      days.push({ name: s.name, exercises: [...exercises].map(([id, e]) => newExerciseFor(id, e.measure, {
+        sets: e.values.length,
+        repMin: Math.floor(Math.min(...e.values)),
+        repMax: Math.ceil(Math.max(...e.values)),
+      })) });
+    }
+    return { name: "Previous program", days };
+  }
+
   /**
    * Writes the new workouts as finished sessions at `gymId`, all or nothing. `mappings` must decide every title used by a new workout.
    * Re-running the same file adds nothing. Decisions are remembered for the next file.
@@ -451,6 +504,6 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     return refreshWarning ? { ...r, refreshWarning } : r;
   }
 
-  return { preview, importHistory, listBatches, undoBatch, refreshAfterImport };
+  return { preview, importHistory, listBatches, undoBatch, refreshAfterImport, previousProgrammeDraft };
 }
 export type ImportRepo = ReturnType<typeof createImportRepo>;

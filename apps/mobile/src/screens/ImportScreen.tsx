@@ -1,4 +1,5 @@
 import { File } from "expo-file-system";
+import { useNavigation } from "@react-navigation/native";
 import { checkImportFile, csvHeaders, IMPORT_MIME_TYPES, ImportParseError, parseImport, parseMappedCsv, toKilograms, type CsvMapping, type EquipmentType, type ImportParse, type SetupType, type WeightUnit } from "@gain/engine";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, View } from "react-native";
@@ -8,7 +9,9 @@ import { useServices } from "../AppContext";
 import { ExercisePicker } from "../components/ExercisePicker";
 import type { BatchInfo, ImportPreview, ImportRefreshWarning, ImportResult, TitlePreview } from "../db/importRepo";
 import type { LibraryExercise } from "../db/programmeRepo";
+import type { ProgrammeDraft } from "../logic/programmeDraft";
 import { useI18n } from "../i18n";
+import { exerciseLabels, isolateLtr } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import { PATTERNS } from "../logic/exposure";
 import { GYM_EQUIPMENT } from "../logic/gymInput";
@@ -77,6 +80,7 @@ function TitleCard(props: { row: ReturnType<typeof resolveAll>["rows"][number]; 
 
 export function ImportScreen() {
   const { t, lang, fmt } = useI18n();
+  const nav = useNavigation<{ navigate: (name: string, params?: object) => void }>();
   const p = usePalette();
   const { imports, repos, programmes } = useServices();
   const [parsed, setParsed] = useState<{ name: string; parse: ImportParse } | null>(null);
@@ -89,6 +93,7 @@ export function ImportScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<(ImportResult) | null>(null);
+  const [previousDraft, setPreviousDraft] = useState<ProgrammeDraft | null>(null);
   const [refreshWarning, setRefreshWarning] = useState<ImportRefreshWarning | null>(null);
   const [undone, setUndone] = useState<number | null>(null);
   const [batches, setBatches] = useState<BatchInfo[]>([]);
@@ -128,6 +133,8 @@ export function ImportScreen() {
 
   async function choose() {
     setError(null);
+    setResult(null);
+    setPreviousDraft(null);
     setResult(null);
     setUndone(null);
     try {
@@ -176,6 +183,7 @@ export function ImportScreen() {
     if (!kgParse || !gymId || !canImport) return;
     setBusy(t("import.working"));
     setError(null);
+    setPreviousDraft(null);
     try {
       const r = await imports.importHistory({ parse: kgParse, gymId, mappings: res.mappings, fileName: parsed?.name });
       setResult(r);
@@ -183,9 +191,32 @@ export function ImportScreen() {
       setParsed(null);
       setPreview(null);
       refreshBatches();
+      const [draft, updatedLibrary] = await Promise.all([
+        r.batchId ? imports.previousProgrammeDraft(r.batchId).catch(() => null) : Promise.resolve(null),
+        programmes.listExercises().catch(() => library),
+      ]);
+      setPreviousDraft(draft);
+      setLibrary(updatedLibrary);
     } catch (e) {
       setError(t("import.failed", { detail: e instanceof Error ? e.message : String(e) }));
     } finally {
+      setBusy(null);
+    }
+  }
+  const activating = useRef(false);
+  async function usePreviousProgram() {
+    if (!previousDraft || busy || activating.current) return;
+    activating.current = true;
+    setBusy(t("import.program.working"));
+    setError(null);
+    try {
+      await programmes.createProgramme({ ...previousDraft, name: t("import.program.name") }, { activate: true });
+      nav.navigate("Tabs", { screen: "Programme", params: { activated: true } });
+    } catch (e) {
+      diagnostics.record("error", "activate imported program", e);
+      setError(t("import.program.failed"));
+    } finally {
+      activating.current = false;
       setBusy(null);
     }
   }
@@ -218,6 +249,10 @@ export function ImportScreen() {
         setError(t("import.undo.failed"));
       });
       if (r) {
+        if (result?.batchId === batchId) {
+          setPreviousDraft(null);
+          setResult(null);
+        }
         setUndone(r.workouts);
         setResult(null);
         setRefreshWarning(r.refreshWarning ?? null);
@@ -300,6 +335,23 @@ export function ImportScreen() {
           <InlineStatus kind="success" text={t("import.done.title")} />
           <AppText>{t("import.done.body", { workouts: result.workouts, sets: result.sets, exercises: result.newExercises })}</AppText>
           {result.skippedSets > 0 ? <AppText style={{ color: p.muted }}>{t("import.done.skipped", { n: result.skippedSets })}</AppText> : null}
+          {previousDraft ? (
+            <View style={{ gap: space.sm }}>
+              <AppText style={{ color: p.muted }}>{t("import.program.note")}</AppText>
+              {previousDraft.days.map((day, i) => (
+                <View key={`${day.name}-${i}`}>
+                  <AppText style={{ fontWeight: "700" }}>{day.name}</AppText>
+                  {day.exercises.map((ex) => {
+                    const item = library.find((candidate) => candidate.id === ex.exerciseId);
+                    return <AppText key={ex.exerciseId} style={{ color: p.muted }}>
+                      {item ? exerciseLabels(item, lang).primary : ex.exerciseId} · {isolateLtr(`${ex.sets} × ${ex.repMin}–${ex.repMax}`)}
+                    </AppText>;
+                  })}
+                </View>
+              ))}
+              <BigButton label={t("import.program.use")} disabled={!!busy} onPress={() => void usePreviousProgram()} />
+            </View>
+          ) : null}
           {result.batchId ? <BigButton label={t("import.undo")} variant="secondary" disabled={!!busy} onPress={() => confirmUndo(result.batchId!, result)} /> : null}
         </Card>
       ) : null}

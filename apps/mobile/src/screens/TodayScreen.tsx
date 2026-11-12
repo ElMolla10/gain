@@ -416,45 +416,46 @@ export function TodayScreen() {
       ) : null}
       {welcomeBack !== null || returnPlan?.active ? (
         <View style={{ gap: space.xs }}>
-          {welcomeBack !== null ? <AppText style={{ fontSize: ty.label }}>{t("today.welcome", { n: welcomeBack })}</AppText> : null}
           {showEaseIn(welcomeBack, true) || returnPlan?.active ? (
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: easeIn }}
-              accessibilityHint={t("today.easeIn.note")}
-              disabled={savingReturn}
-              onPress={() => { void (async () => {
-                setSavingReturn(true);
-                try {
-                  if (easeIn) {
-                    if (returnPlan?.active) await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify({ ...returnPlan, active: false }));
-                    setReturnPlan(null);
-                    setEaseIn(false);
-                  } else {
-                    const plan: ReturnPlan = { active: true, versionId: data.versionId, stage: 1, startedAt: Date.now() };
-                    await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(plan));
-                    if (data.openDayId) {
-                      const open = await workout.getOpenSession();
-                      if (open) {
-                        await repos.setSetting(returnSessionKey(open.id), "1");
-                        await workout.setSessionReadiness(open.id, "returning");
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: space.sm, rowGap: space.xs }}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: easeIn }}
+                accessibilityHint={`${t("today.easeIn.sets", { normal: regularSets, sets: easierSets })}. ${t("today.easeIn.note")}`}
+                disabled={savingReturn}
+                onPress={() => { void (async () => {
+                  setSavingReturn(true);
+                  try {
+                    if (easeIn) {
+                      if (returnPlan?.active) await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify({ ...returnPlan, active: false }));
+                      setReturnPlan(null);
+                      setEaseIn(false);
+                    } else {
+                      const plan: ReturnPlan = { active: true, versionId: data.versionId, stage: 1, startedAt: Date.now() };
+                      await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(plan));
+                      if (data.openDayId) {
+                        const open = await workout.getOpenSession();
+                        if (open) {
+                          await repos.setSetting(returnSessionKey(open.id), "1");
+                          await workout.setSessionReadiness(open.id, "returning");
+                        }
                       }
+                      setReturnPlan(plan);
+                      setEaseIn(true);
                     }
-                    setReturnPlan(plan);
-                    setEaseIn(true);
-                  }
-                } catch (e) { diagnostics.record("error", "ease in toggle", e); }
-                finally { setSavingReturn(false); }
-              })(); }}
-              style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, alignSelf: "flex-start", paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: easeIn ? p.text : p.edge, backgroundColor: easeIn ? p.raised : "transparent" }}
-            >
-              <Icon name={easeIn ? "check" : "plus"} color={p.text} size={18} />
-              <AppText style={{ fontSize: ty.label, fontWeight: "600" }}>{t("today.easeIn")}</AppText>
-            </Pressable>
+                  } catch (e) { diagnostics.record("error", "ease in toggle", e); }
+                  finally { setSavingReturn(false); }
+                })(); }}
+                style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, alignSelf: "flex-start", paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: easeIn ? p.text : p.edge, backgroundColor: easeIn ? p.raised : "transparent" }}
+              >
+                <Icon name={easeIn ? "check" : "plus"} color={p.text} size={18} />
+                <AppText style={{ fontSize: ty.label, fontWeight: "600" }}>{t("today.easeIn")}</AppText>
+              </Pressable>
+              {easeIn ? <AppText style={{ fontSize: ty.caption, fontWeight: "700", color: p.accent, fontVariant: ["tabular-nums"], writingDirection: direction }}>
+                {t("today.easeIn.sets", { normal: regularSets, sets: easierSets })}
+              </AppText> : null}
+            </View>
           ) : null}
-          <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t("today.easeIn.note")}</AppText>
-          {easeIn ? <InlineStatus kind="info" text={t(data.openDayId ? "today.easeIn.previewOpen" : "today.easeIn.preview", { day: returnDay.name, sets: easierSets, normal: regularSets })} /> : null}
-          {easeIn && returnPlan?.active ? <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t(returnPlan.stage === 1 ? "today.easeIn.stage1" : "today.easeIn.stage2")}</AppText> : null}
           {returnPlan?.active && canAdvanceReturn ? <QuietAction label={t("today.easeIn.advance")} onPress={() => {
             const advanced: ReturnPlan = { ...returnPlan, stage: 2 };
             void repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(advanced)).then(() => { setReturnPlan(advanced); setCanAdvanceReturn(false); }).catch(e => diagnostics.record("error", "ease in stage 2", e));

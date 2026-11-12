@@ -53,11 +53,11 @@ const WorkoutActivity = (p: WorkoutActivityProps, context: LiveActivityEnvironme
       </VStack>
     ),
     compactLeading: <Image systemName="dumbbell.fill" color={accent} />,
+    // Keep the resting countdown visible; otherwise the icon alone leaves the compact Island small.
+    // The full target and elapsed time remain in the expanded Island and Lock Screen banner.
     compactTrailing: restI
       ? <Text timerInterval={restI} countsDown modifiers={[timerLocale, monospacedDigit(), foregroundStyle(accent)]} />
-      : p.detail
-        ? <Text modifiers={[monospacedDigit(), lineLimit(1)]}>{p.detail}</Text>
-        : <Text timerInterval={elapsed} countsDown={false} pauseTime={pause} modifiers={[timerLocale, monospacedDigit()]} />,
+      : null,
     minimal: <Image systemName={restI ? "timer" : "dumbbell.fill"} color={accent} />,
     expandedLeading: <HStack spacing={6}>{badge}<Text modifiers={[foregroundStyle(accent)]}>{p.title}</Text></HStack>,
     expandedTrailing: (

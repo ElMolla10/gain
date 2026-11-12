@@ -118,7 +118,7 @@ export function ProgrammeScreen() {
         <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
         <BigButton variant="secondary" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
         <Card style={{ paddingVertical: space.xs }}>
-          <ListRow title={t("import.entry")} note={t("import.entryNote")} last onPress={() => nav.navigate("Import")} />
+          <ListRow title={t("import.entry")} last onPress={() => nav.navigate("Import")} />
         </Card>
       </Screen>
     );
@@ -158,9 +158,6 @@ export function ProgrammeScreen() {
       {/* Primary: Build me a program first, visually distinct; Edit program is secondary */}
       <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
       <BigButton variant="secondary" icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
-      <Card style={{ paddingVertical: space.xs }}>
-        <ListRow title={t("import.entry")} note={t("import.entryNote")} last onPress={() => nav.navigate("Import")} />
-      </Card>
       <PlanDayStrip
         days={data.draft.days.map((d) => ({
           name: d.name,
@@ -248,6 +245,9 @@ export function ProgrammeScreen() {
           <ListRow title={t("prog.new")} last onPress={() => nav.navigate("ProgrammeEdit")} />
         </Card>
       </View>
+      <Card style={{ paddingVertical: space.xs }}>
+        <ListRow title={t("import.entry")} last onPress={() => nav.navigate("Import")} />
+      </Card>
       <ArDraftNote />
       <Sheet visible={ruleOpen} title={t("prog.ruleSheetTitle")} onClose={() => setRuleOpen(false)}>
         <View style={{ gap: space.md }}>

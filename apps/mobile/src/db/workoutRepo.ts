@@ -357,28 +357,31 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
 
   /** Display-only history across gyms/days; never used for targets or draft values. */
   async function previousPerformances(exerciseId: string, dayId: string) {
-    const rows = await db.all<RawSet & { sid: string; finished_at: number; programme_day_id: string }>(
-      `SELECT ws.*, s.id AS sid, s.finished_at, s.programme_day_id
+    const rows = await db.all<RawSet & { sid: string; finished_at: number; programme_day_id: string; imported: number }>(
+      `SELECT ws.*, s.id AS sid, s.finished_at, s.programme_day_id,
+              (s.import_key IS NOT NULL OR s.import_batch_id IS NOT NULL) AS imported
        FROM workout_set ws JOIN session s ON s.id = ws.session_id
        WHERE ws.exercise_id = ? AND s.status = 'finished' AND s.finished_at IS NOT NULL
          AND ws.deleted_at IS NULL AND s.deleted_at IS NULL
        ORDER BY s.finished_at DESC, s.id, ws.position`, [exerciseId],
     );
     type Previous = { performedAt: string; sets: LoggedSet[] };
-    const sessions = new Map<string, Previous & { dayId: string }>();
+    const sessions = new Map<string, Previous & { dayId: string; imported: boolean }>();
     for (const r of rows) {
       const set = toLogged(toSetRow(r));
       if (!isTrustedWorkingSet(set)) continue;
       let session = sessions.get(r.sid);
       if (!session) {
-        session = { performedAt: new Date(r.finished_at).toISOString(), sets: [], dayId: r.programme_day_id };
+        session = { performedAt: new Date(r.finished_at).toISOString(), sets: [], dayId: r.programme_day_id, imported: Boolean(r.imported) };
         sessions.set(r.sid, session);
       }
       session.sets.push(set);
     }
     const history = [...sessions.values()];
     const display = (s: typeof history[number] | undefined): Previous | null => s ? { performedAt: s.performedAt, sets: s.sets } : null;
-    return { any: display(history[0]), routine: display(history.find(s => s.dayId === dayId)) };
+    // Imported workouts have a hidden history day, not the current programme day.
+    // Show the latest imported exercise when this routine has no prior GAIN session yet.
+    return { any: display(history[0]), routine: display(history.find(s => s.dayId === dayId) ?? history.find(s => s.imported)) };
   }
 
   /** The last finished session of this line: what the lifter did last time, for display. */

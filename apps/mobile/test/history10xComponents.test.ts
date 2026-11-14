@@ -53,6 +53,7 @@ vi.mock("../src/components/Icon", () => ({
 }));
 
 import { ProgressRhythmSleeve, rhythmDayKey, type RhythmSession } from "../src/components/ProgressRhythmSleeve";
+import { ar, en } from "../src/i18n/strings";
 
 describe("Page 3 History 10x Components", () => {
   describe("rhythmDayKey logical day rollover", () => {
@@ -66,6 +67,11 @@ describe("Page 3 History 10x Components", () => {
 
   describe("ProgressRhythmSleeve", () => {
     const fixedNow = new Date(2026, 9, 28, 12, 0).getTime();
+
+    it("titles the card Workouts in English and التمارين in Arabic", () => {
+      expect(en["history.rhythm.title"]).toBe("Workouts");
+      expect(ar["history.rhythm.title"]).toBe("التمارين");
+    });
 
     it("renders empty rhythm state with zero cadence", () => {
       const tree = ProgressRhythmSleeve({ sessions: [], now: fixedNow });
@@ -99,14 +105,13 @@ describe("Page 3 History 10x Components", () => {
   describe("HistoryScreen Layout Structure", () => {
     const f = readFileSync(join(__dirname, "..", "src", "screens", "HistoryScreen.tsx"), "utf8");
 
-    it("places CabinetEntry first, followed by ProgressRhythmSleeve, then SegmentedTabs", () => {
-      const cabinetIndex = f.indexOf("<CabinetEntry />");
+    it("places ProgressRhythmSleeve first, then SegmentedTabs, with no Cabinet or Ledger entry", () => {
       const rhythmIndex = f.indexOf("<ProgressRhythmSleeve");
       const tabsIndex = f.indexOf("<SegmentedTabs");
-
-      expect(cabinetIndex).toBeGreaterThan(0);
-      expect(rhythmIndex).toBeGreaterThan(cabinetIndex);
+      expect(rhythmIndex).toBeGreaterThan(0);
       expect(tabsIndex).toBeGreaterThan(rhythmIndex);
+      expect(f).not.toContain("CabinetEntry");
+      expect(f).not.toContain('navigate("Ledger"');
     });
 
     it("renders StatTileRow with lifetime engine metrics", () => {

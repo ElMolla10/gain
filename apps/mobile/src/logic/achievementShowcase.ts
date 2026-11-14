@@ -412,6 +412,15 @@ export function almostThere(cabinet: readonly SurfaceBadge[]): SurfaceBadge[] {
     .slice(0, 3);
 }
 
+/** Three closest unique medals with measured progress, including the lifetime tiers formerly represented by the plate. */
+export function nextMedals(cabinet: readonly SurfaceBadge[]): SurfaceBadge[] {
+  return cabinet
+    .filter((r) => r.status === "in_progress" && UNIQUE_BADGE_IDS.has(r.badgeId) && (r.progressTarget ?? 0) > 0)
+    .filter((r) => !r.badgeId.startsWith("quest_"))
+    .sort((a, b) => ratio(b) - ratio(a) || catalogIndex(a.badgeId) - catalogIndex(b.badgeId))
+    .slice(0, 3);
+}
+
 /** Earned uniques, oldest first: the order behind "Medal 10 of 17". */
 const earnedUniques = (cabinet: readonly SurfaceBadge[]) =>
   cabinet

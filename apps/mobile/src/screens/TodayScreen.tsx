@@ -1,19 +1,17 @@
-import { renderReason, type GymFingerprint, type PaceStatus, type SessionSummary } from "@gain/engine";
-import { WeekBlock } from "../components/today/WeekBlock";
+import { renderReason, type GymFingerprint, type SessionSummary } from "@gain/engine";
 import { pagerClaims, pagerCommit, runUnrack, stepDay, TODAY_MOTION } from "../logic/todayMotion";
-import { paceGlyph } from "../logic/todayWeek";
 import { leadTarget } from "../logic/nextTarget";
 import { plannedScheme, targetRowText } from "../logic/bidiText";
 import { formatDay } from "../logic/dateText";
 import { localizeReason } from "../logic/units";
 import { todayHero } from "../logic/todayHero";
 import { todayRows, type TodayRow } from "../logic/todayRows";
-import { deltaChip, doneAround, welcomeBackGap } from "../logic/todayCopy";
+import { deltaChip, welcomeBackGap } from "../logic/todayCopy";
 import { lighterUntil, showEaseIn, todayMode } from "../logic/todayState";
 import { countKey } from "../logic/achievementCopy";
 import { clock } from "../logic/todayStub";
 import { ResumeFooter } from "../components/today/ResumeFooter";
-import { rackA11yLabel, stubLines, timeLine } from "../logic/todayStub";
+import { rackA11yLabel, stubLines } from "../logic/todayStub";
 import { haptics } from "../haptics";
 import { TodayBar } from "../components/today/TodayBar";
 import { TodayHeader } from "../components/today/TodayHeader";
@@ -22,8 +20,6 @@ import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, PanResponder, Pressable, useWindowDimensions, View } from "react-native";
-import { describePace } from "../logic/paceText";
-import type { StringKey } from "../i18n/strings";
 import { useServices } from "../AppContext";
 import { exerciseLabels } from "../i18n/format";
 import { estimateDayMinutes } from "../logic/duration";
@@ -33,14 +29,12 @@ import { MIN_TOUCH, radius, space, type as ty, usePalette } from "../theme";
 import { Icon } from "../components/Icon";
 import { dayLabel, initialSelection, markSuggested, dayNeedingPreview, sessionAction, startDay, type DayChoice } from "../logic/dayChoice";
 import { AppText, BigButton, Card, ChoiceSheet, useReducedMotion, EmptyState, ErrorState, InlineStatus, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
-import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { LOADING, runLoad, type Load } from "../logic/loadState";
 import { RETURN_PLAN_KEY, canProgressReturn, comebackSets, parseReturnPlan, returnSessionKey, type ReturnPlan } from "../logic/returnToTraining";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
 interface TodayData {
-  programmeName: string;
   versionId: string;
   isSample: boolean;
   days: (DayChoice & { list: DayExercises })[];
@@ -77,15 +71,12 @@ interface DoorExtras {
 }
 
 export function TodayScreen() {
-  const { repos, goals, programmes, shortWeek, deload, weeklyPlan, finish, workout, history, gyms, db } = useServices();
-  const { t, lang, fmt, unit, direction } = useI18n();
+  const { repos, programmes, shortWeek, deload, weeklyPlan, finish, workout, history, gyms, db } = useServices();
+  const { t, lang, unit, direction } = useI18n();
   const p = usePalette();
-  const navigation = useNavigation<{ navigate: (name: "Workout" | "Goals" | "ShortWeek" | "Setup" | "Why" | "SessionDetail" | "Gyms" | "Settings", params?: { dayId: string } | { targetId: string } | { sessionId: string }) => void }>();
+  const navigation = useNavigation<{ navigate: (name: "Workout" | "Setup" | "Why" | "SessionDetail" | "Gyms" | "Settings", params?: { dayId: string } | { targetId: string } | { sessionId: string }) => void }>();
   const [state, setState] = useState<Load<TodayData>>(LOADING);
   const [attempt, setAttempt] = useState(0);
-  const [paceLine, setPaceLine] = useState<string>("");
-  const [paceStatus, setPaceStatus] = useState<PaceStatus | null>(null);
-  const [short, setShort] = useState<{ days: number } | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
@@ -144,8 +135,6 @@ export function TodayScreen() {
         await shortWeek.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
         await deload.endIfExpired(Date.now(), -new Date().getTimezoneOffset() * 60_000).catch(() => undefined);
         await weeklyPlan.endIfExpired(Date.now()).catch(() => undefined);
-        const shortActive = await shortWeek.getActive();
-        if (alive) setShort(shortActive);
         const next = await repos.getNextDay();
         if (!next) return null; // no program at all: the genuinely empty state
         const activeReturn = parseReturnPlan(await repos.getSetting(RETURN_PLAN_KEY));
@@ -186,18 +175,13 @@ export function TodayScreen() {
         const activeGymDetail = activeGym ? await gyms.getGym(activeGym).catch(() => null) : null;
         const activeGymName = activeGymDetail?.name ?? null;
         const active = await repos.getLatestProgrammeVersion();
-        const pace = await goals.getPace(Date.now());
-        const lib = pace.kind === "lift" ? await programmes.listExercises() : [];
-        const ex = pace.kind === "lift" ? lib.find((e) => e.id === pace.goal.exerciseId) : undefined;
-        if (alive) setPaceLine(pace.kind === "none" ? "" : describePace(pace, { t, fmt, exerciseName: ex ? exerciseLabels(ex, lang).primary : "", muscleName: (m) => t(`muscle.${m}` as StringKey) }).short);
-        if (alive) setPaceStatus(pace.kind === "none" ? null : (pace as { pace?: { status: PaceStatus } }).pace?.status ?? null);
         if (alive) setPicked((cur) => initialSelection(marked, next.day.id, open?.dayId ?? null, cur));
-        return { programmeName: next.programmeName, versionId: next.versionId, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, activeGymName, loadId, lastFinished, lighterUntil: lighterUntil(deloadState as { status: string; endsAt?: number } | null, Date.now()), openInfo };
+        return { versionId: next.versionId, isSample: active?.isSample ?? false, days: marked.map((d, i) => ({ ...d, list: lists[i]! })), suggestedId: next.day.id, openDayId: open?.dayId ?? null, restSeconds: (await loadRestSettings(repos)).seconds, targets, previews, activeGym, activeGymName, loadId, lastFinished, lighterUntil: lighterUntil(deloadState as { status: string; endsAt?: number } | null, Date.now()), openInfo };
       }, (e) => diagnostics.record("error", "today load", e)).then((r) => alive && setState(r));
       return () => {
         alive = false;
       };
-    }, [repos, goals, programmes, shortWeek, deload, weeklyPlan, workout, finish, history, gyms, t, fmt, lang, attempt]),
+    }, [repos, programmes, shortWeek, deload, weeklyPlan, workout, finish, history, gyms, attempt]),
   );
 
   // The day on screen gets its preview on demand; a late result is cached under its own day id (never shown for another day) and
@@ -516,24 +500,6 @@ export function TodayScreen() {
         </Card>
       </View>
       ) : null}
-
-      {/* The program name on its own line (14 muted), then the time line: no separator left dangling when a line wraps, and no bidi
-          joint between a Latin program name and an Arabic sentence (T-3). */}
-      <View style={{ gap: 2 }}>
-        <AppText style={{ color: p.muted, fontSize: ty.label }}>{data.programmeName}</AppText>
-        <AppText style={{ color: p.muted, fontSize: ty.label }}>{timeLine(chosen.exercises, chosen.sets, minutes, doneAround(now, minutes), lang, t)}</AppText>
-      </View>
-      {data.isSample ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("today.starterNote")}</AppText> : null}
-
-      {/* This week: the week sleeve from the cheap pulse query (never the full achievements load), planned sessions, pace, ONE decision card, and the
-          sets-by-muscle sheet. Hidden while another day's workout is open. */}
-      {mode !== "openElsewhere" ? <WeekBlock pace={paceLine ? `${paceStatus ? `${paceGlyph(paceStatus, lang)} ` : ""}${paceLine}` : ""} onPace={() => navigation.navigate("Goals")} /> : null}
-
-      <View style={{ gap: space.xs }}>
-        {short ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("short.active", { days: short.days })}</AppText> : null}
-        <BigButton variant="quiet" label={t("short.entry")} onPress={() => navigation.navigate("ShortWeek")} />
-      </View>
-      <HealthNote />
 
       <ChoiceSheet
         visible={changeOpen}

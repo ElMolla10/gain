@@ -16,9 +16,11 @@ const lum = (hex: string) => {
 const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x! + 0.05) / (y! + 0.05); };
 
 describe("Today layout (design audit T-3..T-8)", () => {
-  it("T-3: the program name is its own 14 muted line; no dot separator glued to it", () => {
-    expect(today).toContain(`<AppText style={{ color: p.muted, fontSize: ty.label }}>{data.programmeName}</AppText>`);
-    expect(today).not.toContain("{data.programmeName} ·");
+  it("T-3: Today ends after the workout preview, without the lower program and week dashboard", () => {
+    expect(today).not.toContain("{data.programmeName}</AppText>");
+    expect(today).not.toContain("<WeekBlock");
+    expect(today).not.toContain("<HealthNote");
+    expect(today).not.toContain('t("short.entry")');
   });
   it("T-4 (Today 10x): the lead is the hero, not a tinted row; the rack omits it and its targets are text, never lime", () => {
     expect(today).toContain("<TodayBar compact hero={hero}");
@@ -29,14 +31,12 @@ describe("Today layout (design audit T-3..T-8)", () => {
     expect(rack).not.toContain("p.accent");
     expect(rack).toContain("minHeight: RACK_ROW_HEIGHT");
   });
-  it("T-5 (Today 10x): header > compact target > rack > programme line > This week block; Start is the pinned footer", () => {
+  it("T-5 (Today 10x): header > compact target > rack; Start is the pinned footer", () => {
     const header = today.indexOf("<TodayHeader");
     const hero = today.indexOf("<TodayBar");
     const list = today.indexOf('t("today.rack.planned")');
-    const programme = today.indexOf("{data.programmeName}</AppText>");
-    const week = today.indexOf("<WeekBlock");
     expect(header).toBeGreaterThan(0);
-    for (const [a, b] of [[header, hero], [hero, list], [list, programme], [programme, week]] as const) expect(b).toBeGreaterThan(a);
+    for (const [a, b] of [[header, hero], [hero, list]] as const) expect(b).toBeGreaterThan(a);
     expect(today).not.toContain("<DoorStub");
     expect(today).not.toContain("<EngineStrategyCard");
     expect(today).toContain("<Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>");

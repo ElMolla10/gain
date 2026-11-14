@@ -38,7 +38,8 @@ describe("diagnostic surfaces require Developer Mode", () => {
   });
   it("hides diagnostic controls and telemetry prompts from ordinary privacy and progress screens", () => {
     expectDeveloperOnly("src/screens/PrivacyScreen.tsx", ["privacy.crash.title", "privacy.crash.enabled", "diag.clear", "privacy.telemetry.title", "telemetry.enabled", "diag.entry"]);
-    expectDeveloperOnly("src/screens/HistoryScreen.tsx", ["telemetry.optin.title", "telemetry.optin.allow", "telemetry.optin.deny", "dec.entry"]);
+    expectDeveloperOnly("src/screens/HistoryScreen.tsx", ["telemetry.optin.title", "telemetry.optin.allow", "telemetry.optin.deny"]);
+    expect(readFileSync(join(__dirname, "../src/screens/HistoryScreen.tsx"), "utf8")).not.toContain('t("dec.entry")');
   });
   it("keeps ML evaluation off Today", () => {
     expect(readFileSync(join(__dirname, "../src/screens/TodayScreen.tsx"), "utf8")).not.toMatch(/MlAccuracyCard|mlEvaluation/);

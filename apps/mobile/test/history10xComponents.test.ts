@@ -73,6 +73,16 @@ describe("Page 3 History 10x Components", () => {
       expect(ar["history.rhythm.title"]).toBe("التمارين");
     });
 
+    it("the footnote is only the 28-day count, singular or plural, with no adaptation line", () => {
+      expect(en["history.rhythm.subtext.one"]).toBe("{count} session in last 28 days");
+      expect(en["history.rhythm.subtext.few"]).toBe("{count} sessions in last 28 days");
+      expect(ar["history.rhythm.subtext.one"]).toBe("{count} تمرينة في آخر 28 يوم");
+      expect(ar["history.rhythm.subtext.few"]).toBe("{count} تمرينات في آخر 28 يوم");
+      expect("history.rhythm.subtext" in en).toBe(false);
+      expect(en["history.rhythm.subtext.one"]).not.toMatch(/adaptation|Rest fuels/i);
+      expect(ar["history.rhythm.subtext.one"]).not.toContain("الراحة أساس");
+    });
+
     it("renders empty rhythm state with zero cadence", () => {
       const tree = ProgressRhythmSleeve({ sessions: [], now: fixedNow });
       expect(tree).not.toBeNull();
@@ -94,11 +104,18 @@ describe("Page 3 History 10x Components", () => {
       const tree = ProgressRhythmSleeve({ sessions, now: fixedNow });
       const str = JSON.stringify(tree);
       expect(str).toContain("history.rhythm.cadence");
-      expect(str).toContain("history.rhythm.subtext");
+      expect(str).toContain("history.rhythm.subtext.few");
       expect(str).toContain("8");
       expect(str).toContain("history.rhythm.a11y workouts=8");
       expect(str).toContain('"backgroundColor":"fill"'); // PR day has fill
       expect(str).toContain('"backgroundColor":"text"'); // Regular workout has text
+    });
+
+    it("uses the singular footnote for one session in the window", () => {
+      const tree = ProgressRhythmSleeve({ sessions: [{ finishedAt: fixedNow - 86_400_000 }], now: fixedNow });
+      const str = JSON.stringify(tree);
+      expect(str).toContain("history.rhythm.subtext.one");
+      expect(str).not.toContain("history.rhythm.subtext.few");
     });
   });
 

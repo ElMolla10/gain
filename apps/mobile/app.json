@@ -13,7 +13,13 @@
       [
         "expo-localization",
         {
-          "supportsRTL": true
+          "supportsRTL": true,
+          "supportedLocales": {
+            "ios": [
+              "en",
+              "ar"
+            ]
+          }
         }
       ],
       "expo-status-bar",
@@ -154,6 +160,10 @@
             ]
           }
         ]
+      },
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleDevelopmentRegion": "en"
       }
     },
     "android": {
@@ -184,6 +194,10 @@
         "projectId": "fc6b6b6c-020b-49fb-8ee4-e0ec954b290e"
       }
     },
-    "owner": "mo_ehab10"
+    "owner": "mo_ehab10",
+    "locales": {
+      "en": "./locales/en.json",
+      "ar": "./locales/ar.json"
+    }
   }
 }

@@ -72,3 +72,23 @@ describe("iOS privacy manifest matches the optional email sign-in", () => {
     expect(email!.NSPrivacyCollectedDataTypeTracking).toBe(false);
   });
 });
+
+describe("iOS localizations are declared to Apple", () => {
+  it("lists English and Arabic in expo-localization supportedLocales for iOS only", () => {
+    const entry = cfg.plugins.find((p: unknown) => pluginName(p) === "expo-localization") as [string, { supportsRTL: boolean; supportedLocales: { ios?: string[]; android?: string[] } }];
+    expect(entry[1].supportsRTL).toBe(true);
+    expect(entry[1].supportedLocales).toEqual({ ios: ["en", "ar"] });
+    expect(entry[1].supportedLocales.android).toBeUndefined();
+  });
+  it("sets mixed localizations, the development region, and locale files whose display name stays GAIN", () => {
+    expect(cfg.ios.infoPlist.CFBundleAllowMixedLocalizations).toBe(true);
+    expect(cfg.ios.infoPlist.CFBundleDevelopmentRegion).toBe("en");
+    expect(cfg.locales).toEqual({ en: "./locales/en.json", ar: "./locales/ar.json" });
+    for (const file of ["en", "ar"] as const) {
+      const loc = JSON.parse(readFileSync(join(root, cfg.locales[file]), "utf8")) as { ios: Record<string, string>; android?: unknown };
+      expect(loc.ios.CFBundleDisplayName).toBe("GAIN");
+      expect(loc.ios.CFBundleName).toBe("GAIN");
+      expect(loc.android).toBeUndefined();
+    }
+  });
+});

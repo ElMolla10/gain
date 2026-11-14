@@ -1,4 +1,3 @@
-import { EvidenceAchievementsCard } from "../components/EvidenceAchievementsCard";
 import { CabinetEntry } from "../components/achievements/CabinetEntry";
 import { ProgressRhythmSleeve } from "../components/ProgressRhythmSleeve";
 import { StatTileRow } from "../components/achievements/StatTiles";
@@ -139,13 +138,6 @@ export function HistoryScreen() {
           { value: isolateLtr(String(totalPrs)), label: t("history.lifetime.prs") },
         ]}
       />
-
-      {/* This week, recent badges and next-up below the list (H-8), so the list starts right under the tabs. The cabinet entry is at the top. */}
-      <EvidenceAchievementsCard />
-
-      {developerMode ? <Card style={{ paddingVertical: space.xs }}>
-        <ListRow title={t("dec.entry")} last onPress={() => nav.navigate("DecisionLog", {})} />
-      </Card> : null}
     </Screen>
   );
 }

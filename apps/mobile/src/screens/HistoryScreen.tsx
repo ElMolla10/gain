@@ -1,4 +1,3 @@
-import { CabinetEntry } from "../components/achievements/CabinetEntry";
 import { ProgressRhythmSleeve } from "../components/ProgressRhythmSleeve";
 import { StatTileRow } from "../components/achievements/StatTiles";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -43,10 +42,7 @@ export function HistoryScreen() {
   const { sessions, total, lifts } = state.data;
   return (
     <Screen tab title={t("history.title")}>
-      {/* The Trophy Cabinet first, straight under the title: it is what Progress is for, not a footer under the lists. */}
-      <CabinetEntry />
-
-      {/* 28-day training rhythm visualizer */}
+      {/* 28-day workout cadence */}
       <ProgressRhythmSleeve sessions={sessions} />
 
       {/* Real tabs (H-7): a segmented tablist, and the list starts right under it. */}

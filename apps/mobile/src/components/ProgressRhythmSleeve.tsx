@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { useI18n } from "../i18n";
+import { countKey } from "../logic/achievementCopy";
 import { formatNumber } from "../logic/dateText";
 import { isolateLtr } from "../i18n/format";
 import { radius, space, type as ty, usePalette } from "../theme";
@@ -123,7 +124,7 @@ export function ProgressRhythmSleeve({ sessions, now }: ProgressRhythmSleeveProp
       </View>
 
       <AppText style={{ fontSize: ty.caption, color: p.muted }}>
-        {workoutsInWindow === 0 ? t("history.rhythm.empty") : t("history.rhythm.subtext", { count: isolateLtr(String(workoutsInWindow)) })}
+        {workoutsInWindow === 0 ? t("history.rhythm.empty") : t(countKey(workoutsInWindow, lang, "history.rhythm.subtext.one", "history.rhythm.subtext.few"), { count: isolateLtr(String(workoutsInWindow)) })}
       </AppText>
       </View>
     </Card>

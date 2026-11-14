@@ -53,6 +53,7 @@ vi.mock("../src/components/Icon", () => ({
 }));
 
 import { ProgressRhythmSleeve, rhythmDayKey, type RhythmSession } from "../src/components/ProgressRhythmSleeve";
+import { ar, en } from "../src/i18n/strings";
 
 describe("Page 3 History 10x Components", () => {
   describe("rhythmDayKey logical day rollover", () => {
@@ -66,6 +67,21 @@ describe("Page 3 History 10x Components", () => {
 
   describe("ProgressRhythmSleeve", () => {
     const fixedNow = new Date(2026, 9, 28, 12, 0).getTime();
+
+    it("titles the card Workouts in English and التمارين in Arabic", () => {
+      expect(en["history.rhythm.title"]).toBe("Workouts");
+      expect(ar["history.rhythm.title"]).toBe("التمارين");
+    });
+
+    it("the footnote is only the 28-day count, singular or plural, with no adaptation line", () => {
+      expect(en["history.rhythm.subtext.one"]).toBe("{count} session in last 28 days");
+      expect(en["history.rhythm.subtext.few"]).toBe("{count} sessions in last 28 days");
+      expect(ar["history.rhythm.subtext.one"]).toBe("{count} تمرينة في آخر 28 يوم");
+      expect(ar["history.rhythm.subtext.few"]).toBe("{count} تمرينات في آخر 28 يوم");
+      expect("history.rhythm.subtext" in en).toBe(false);
+      expect(en["history.rhythm.subtext.one"]).not.toMatch(/adaptation|Rest fuels/i);
+      expect(ar["history.rhythm.subtext.one"]).not.toContain("الراحة أساس");
+    });
 
     it("renders empty rhythm state with zero cadence", () => {
       const tree = ProgressRhythmSleeve({ sessions: [], now: fixedNow });
@@ -88,25 +104,31 @@ describe("Page 3 History 10x Components", () => {
       const tree = ProgressRhythmSleeve({ sessions, now: fixedNow });
       const str = JSON.stringify(tree);
       expect(str).toContain("history.rhythm.cadence");
-      expect(str).toContain("history.rhythm.subtext");
+      expect(str).toContain("history.rhythm.subtext.few");
       expect(str).toContain("8");
       expect(str).toContain("history.rhythm.a11y workouts=8");
       expect(str).toContain('"backgroundColor":"fill"'); // PR day has fill
       expect(str).toContain('"backgroundColor":"text"'); // Regular workout has text
+    });
+
+    it("uses the singular footnote for one session in the window", () => {
+      const tree = ProgressRhythmSleeve({ sessions: [{ finishedAt: fixedNow - 86_400_000 }], now: fixedNow });
+      const str = JSON.stringify(tree);
+      expect(str).toContain("history.rhythm.subtext.one");
+      expect(str).not.toContain("history.rhythm.subtext.few");
     });
   });
 
   describe("HistoryScreen Layout Structure", () => {
     const f = readFileSync(join(__dirname, "..", "src", "screens", "HistoryScreen.tsx"), "utf8");
 
-    it("places CabinetEntry first, followed by ProgressRhythmSleeve, then SegmentedTabs", () => {
-      const cabinetIndex = f.indexOf("<CabinetEntry />");
+    it("places ProgressRhythmSleeve first, then SegmentedTabs, with no Cabinet or Ledger entry", () => {
       const rhythmIndex = f.indexOf("<ProgressRhythmSleeve");
       const tabsIndex = f.indexOf("<SegmentedTabs");
-
-      expect(cabinetIndex).toBeGreaterThan(0);
-      expect(rhythmIndex).toBeGreaterThan(cabinetIndex);
+      expect(rhythmIndex).toBeGreaterThan(0);
       expect(tabsIndex).toBeGreaterThan(rhythmIndex);
+      expect(f).not.toContain("CabinetEntry");
+      expect(f).not.toContain('navigate("Ledger"');
     });
 
     it("renders StatTileRow with lifetime engine metrics", () => {

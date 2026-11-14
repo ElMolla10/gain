@@ -3,7 +3,7 @@ import { ACHIEVEMENT_CATALOG } from "@gain/engine";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LRI, PDI, translate } from "../src/i18n/format";
 import { medalA11y, medalStateLine } from "../src/logic/achievementCopy";
-import { isPartialCabinet, monthOf, shelfSections, shelves, slotNameKey, slotRow } from "../src/logic/achievementShowcase";
+import { isPartialCabinet, monthOf, nextMedals, shelfSections, shelves, slotNameKey, slotRow } from "../src/logic/achievementShowcase";
 import { MEDAL_MATERIALS, SEAL_COLOUR, achievementArtDark, achievementArtLight } from "../src/palettes";
 import { byType, expand, nodes, texts } from "./achievementRender";
 import { earned, progress, row, sampleCabinet } from "./achievementFixtures";
@@ -37,6 +37,8 @@ import { LedgerTeaser } from "../src/components/achievements/LedgerTeaser";
 import { bossLabel, materialFor, Medal, MEDAL_LOD } from "../src/components/achievements/Medal";
 import { MEDAL_ART } from "../src/components/achievements/medalArt";
 import { MonthSeal, questMonth, sealMode } from "../src/components/achievements/MonthSeal";
+import { CompactShelves, LatestPrCard, NextMedals } from "../src/components/achievements/CompactCabinet";
+import { latestPr } from "../src/logic/achievementShowcase";
 
 const iso = (s: string) => `${LRI}${s}${PDI}`;
 const t = (lang: "en" | "ar") => (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(lang, k, p);
@@ -47,6 +49,34 @@ beforeEach(() => {
   settings.lang = "en";
   settings.fontScale = 1;
   settings.dark = true;
+});
+
+describe("compact Cabinet", () => {
+  it("shows only the three closest measurable medals and includes lifetime tiers", () => {
+    const cabinet = [progress("dedicated_50", 33, 50), progress("hundred_club_100", 76, 100), progress("qualified_weeks_4", 2, 4), progress("full_spectrum_4", 1, 4)];
+    expect(nextMedals(cabinet).map((r) => r.badgeId)).toEqual(["hundred_club_100", "dedicated_50", "qualified_weeks_4"]);
+    const tree = expand(React.createElement(NextMedals, { cabinet, onOpen: () => {} }));
+    expect(byType(tree, "Pressable")).toHaveLength(3);
+    expect(texts(tree)).toContain("Next up");
+    expect(texts(tree)).toContain(`${iso("33")} of ${iso("50")}`);
+  });
+  it.each(["en", "ar"] as const)("%s has four collapsed medal categories and a single Ledger path", (lang) => {
+    settings.lang = lang;
+    const tree = expand(React.createElement(CompactShelves, { groups: shelves(sampleCabinet()), quest: null, onOpen: () => {}, onQuestChanged: () => {} }));
+    const rows = byType(tree, "Pressable");
+    expect(rows).toHaveLength(4);
+    expect(rows.every((r) => r.props.accessibilityState.expanded === false)).toBe(true);
+    expect(texts(tree)).toContain(translate(lang, "achv.compact.medals"));
+  });
+  it("latest PR card opens the Ledger and shows one before/after line", () => {
+    const cabinet = sampleCabinet();
+    const open = vi.fn();
+    const tree = expand(React.createElement(LatestPrCard, { pr: latestPr(cabinet), cabinet, onOpenLedger: open }));
+    expect(texts(tree)).toContain("Latest PR");
+    const card = byType(tree, "Pressable")[0]!;
+    card.props.onPress();
+    expect(open).toHaveBeenCalledOnce();
+  });
 });
 
 describe("medal art", () => {

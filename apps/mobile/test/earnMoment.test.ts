@@ -202,11 +202,11 @@ describe("audits", () => {
 });
 
 describe("achievements screen order", () => {
-  it("the Trophy Cabinet shelves come first, above the plate, stats, PR spotlight, Almost there, month seal and ledger", () => {
+  it("keeps the compact Cabinet summary, next medals, latest PR, shelves and Ledger in order", () => {
     const screen = readFileSync(join(__dirname, "..", "src", "screens", "AchievementsScreen.tsx"), "utf8");
-    const at = screen.indexOf("<CabinetUnveil");
-    expect(at).toBeGreaterThan(screen.indexOf("<Screen scrollRef={scroll}>"));
-    for (const later of ["<LifetimePlate", "<WeekSleeve", "<StatTileRow", "<PrSpotlight", "<AlmostThere", "<MonthSeal", "<LedgerTeaser"]) expect(at, later).toBeLessThan(screen.indexOf(later));
+    const order = ["<Screen tab>", "achv.compact.summary", "<NextMedals", "<LatestPrCard", "<CompactShelves", "achv.r2.ledger.open"];
+    for (let i = 1; i < order.length; i++) expect(screen.indexOf(order[i]!), order[i]).toBeGreaterThan(screen.indexOf(order[i - 1]!));
+    for (const removed of ["<LifetimePlate", "<WeekSleeve", "<StatTileRow", "<PrSpotlight", "<PrPlaques", "<AlmostThere", "<LedgerTeaser"]) expect(screen).not.toContain(removed);
   });
 });
 

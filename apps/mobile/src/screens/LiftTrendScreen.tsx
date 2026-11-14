@@ -3,6 +3,7 @@ import React, { useCallback, useState } from "react";
 import { Alert, View } from "react-native";
 import { findSpec, renderReason, weekStartOf, type EquipmentType, type GymLoadSpec, type HistorySession, type LiftPin, type LiftTrend } from "@gain/engine";
 import { useServices } from "../AppContext";
+import { diagnostics } from "../diagnostics";
 import type { LiftItem } from "../db/historyRepo";
 import { specWithJump } from "../logic/exerciseLoads";
 import { GYM_EQUIPMENT, parseNumber } from "../logic/gymInput";
@@ -17,6 +18,9 @@ import { useI18n } from "../i18n";
 import { space, usePalette } from "../theme";
 import { AppText, BigButton, Card, Chip, EmptyState, Field, InlineStatus, LoadingState } from "../ui";
 import { LiftTrendView } from "./LiftTrendView";
+import { verifiedPrs } from "../logic/achievementShowcase";
+import { prCopy } from "../logic/achievementCopy";
+import type { SurfaceBadge } from "../logic/achievementSurface";
 
 /** One trend per lift: the top set of each workout, drawn as bars, with plain words for the direction. */
 function towardPin(pin: LiftPin, latest: { load: number; reps: number } | undefined, assisted: boolean): number {
@@ -52,6 +56,7 @@ export function LiftTrendScreen() {
   const [rxMin, setRxMin] = useState("");
   const [rxMax, setRxMax] = useState("");
   const [rxSaved, setRxSaved] = useState(false);
+  const [cabinet, setCabinet] = useState<SurfaceBadge[]>([]);
 
   const refreshLoads = useCallback(async (exerciseId: string) => {
     const cur = await repos.getExerciseLoads(exerciseId);
@@ -63,6 +68,8 @@ export function LiftTrendScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      let alive = true;
+      void achievements.listCabinet().then((rows) => { if (alive) setCabinet(rows); }).catch((e) => diagnostics.record("warn", "lift PRs", e));
       history.getLiftTrend(lineId).then((r) => {
         if (!r) {
           setData("none");
@@ -130,6 +137,7 @@ export function LiftTrendScreen() {
           setWhySentence(why);
         })();
       });
+      return () => { alive = false; };
     }, [history, lineId, refreshLoads, goals, programmes, finish, repos, achievements, t, fmt, lang, unit]),
   );
 
@@ -210,6 +218,13 @@ export function LiftTrendScreen() {
       onPickSetup={(id) => nav.navigate("LiftTrend", { lineId: id })}
       extras={
         <>
+          {verifiedPrs(cabinet).filter((row) => row.evidence.identity.exerciseId === data.lift.exerciseId && row.evidence.identity.setup === data.lift.setup).length > 0 ? <Card>
+            <AppText style={{ fontWeight: "600" }}>{t("achv.compact.liftPrs")}</AppText>
+            {verifiedPrs(cabinet).filter((row) => row.evidence.identity.exerciseId === data.lift.exerciseId && row.evidence.identity.setup === data.lift.setup).slice(0, 5).map((row) => {
+              const copy = prCopy(row, cabinet, lang, unit, t);
+              return <AppText key={row.id} style={{ color: p.muted }}>{`${copy.date} · ${t("achv.compact.prLine", { before: copy.before, after: copy.after })}`}</AppText>;
+            })}
+          </Card> : null}
           <Card>
             <AppText style={{ fontWeight: "600" }}>{t("achv.pin.title")}</AppText>
             {pin ? (

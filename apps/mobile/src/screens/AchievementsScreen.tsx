@@ -10,7 +10,7 @@ import type { AchievementHome } from "../db/achievementRepo";
 import { CompactShelves, LatestPrCard, NextMedals } from "../components/achievements/CompactCabinet";
 import { CabinetUnveil } from "../components/achievements/CabinetUnveil";
 import { unveilOrder } from "../logic/earnMoment";
-import { Medal } from "../components/achievements/Medal";
+import { PlateBadge } from "../components/achievements/PlateBadge";
 import { MedalDetailSheet } from "../components/achievements/MedalDetailSheet";
 import { space, type as ty, usePalette } from "../theme";
 import { AppText, ErrorState, LoadingState, Screen } from "../ui";
@@ -75,7 +75,7 @@ export function AchievementsScreen() {
   return (
     <Screen tab>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-        <Medal badgeId="hundred_club_100" state={days.days && days.days >= 100 ? "earned" : "locked"} size={36} />
+        <PlateBadge days={days.days} />
         <AppText accessibilityRole="header" style={{ flex: 1, fontSize: ty.title, fontWeight: "600" }}>{t("achv.cabinet.title")}</AppText>
       </View>
       <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("achv.compact.summary", { earned: medals.earned, total: medals.total, days: days.days ?? 0 })}</AppText>

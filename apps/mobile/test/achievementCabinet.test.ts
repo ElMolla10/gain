@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import React from "react";
 import { ACHIEVEMENT_CATALOG } from "@gain/engine";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,6 +40,8 @@ import { bossLabel, materialFor, Medal, MEDAL_LOD } from "../src/components/achi
 import { MEDAL_ART } from "../src/components/achievements/medalArt";
 import { MonthSeal, questMonth, sealMode } from "../src/components/achievements/MonthSeal";
 import { CompactShelves, LatestPrCard, NextMedals } from "../src/components/achievements/CompactCabinet";
+import { PlateBadge, PLATE_BADGE_SIZE } from "../src/components/achievements/PlateBadge";
+import { PLATE_COLOURS } from "../src/palettes";
 import { latestPr } from "../src/logic/achievementShowcase";
 
 const iso = (s: string) => `${LRI}${s}${PDI}`;
@@ -76,6 +80,51 @@ describe("compact Cabinet", () => {
     const card = byType(tree, "Pressable")[0]!;
     card.props.onPress();
     expect(open).toHaveBeenCalledOnce();
+  });
+});
+
+describe("Cabinet header badge", () => {
+  const badge = (days: number | null) => expand(React.createElement(PlateBadge, { days }));
+  const fills = (tree: unknown) => byType(tree, "Circle").map((n) => String(n.props.fill ?? ""));
+  it("76 training days is the earned steel plate, never a locked medal", () => {
+    const tree = badge(76);
+    const root = nodes(tree)[0]!;
+    expect(root.props.accessible).toBe(false);
+    expect(root.props.importantForAccessibility).toBe("no");
+    expect(root.props.style).toEqual({ width: PLATE_BADGE_SIZE, height: PLATE_BADGE_SIZE });
+    expect(byType(tree, "Svg")[0]!.props.style.direction).toBe("ltr");
+    expect(fills(tree).some((f) => f.includes("url(#pf"))).toBe(true);
+    const stops = byType(tree, "Stop").filter((n) => ["#8A9384", "#5B6356", "#2F342B"].includes(n.props.stopColor));
+    expect(stops.length).toBeGreaterThan(0);
+    // Subtle rim toward the green plate (76 of 100).
+    const arc = byType(tree, "Circle").find((n) => n.props.stroke === PLATE_COLOURS.green.arcDark);
+    expect(arc).toBeDefined();
+    expect(byType(tree, "Circle").some((n) => n.props.strokeDasharray && String(n.props.strokeDasharray).startsWith("6"))).toBe(false);
+    expect(byType(tree, "Medal")).toHaveLength(0);
+    expect(byType(tree, "Icon")).toHaveLength(0);
+  });
+  it("100 days is the green plate; light theme uses the light next-arc colour", () => {
+    expect(fills(badge(100)).some((f) => f.includes("url(#pf"))).toBe(true);
+    expect(byType(badge(100), "Stop").map((n) => n.props.stopColor)).toContain(PLATE_COLOURS.green.face);
+    settings.dark = false;
+    const arc = byType(badge(76), "Circle").find((n) => n.props.stroke === PLATE_COLOURS.green.arcLight);
+    expect(arc).toBeDefined();
+  });
+  it("zero days and an unknown count fall back to the Cabinet trophy, not a dotted plate", () => {
+    for (const days of [0, null]) {
+      const tree = badge(days);
+      const icon = byType(tree, "Icon");
+      expect(icon).toHaveLength(1);
+      expect(icon[0]!.props).toMatchObject({ name: "trophy", color: "accent", size: 24 });
+      expect(byType(tree, "Circle").some((n) => n.props.strokeDasharray)).toBe(false);
+      expect(nodes(tree)[0]!.props.accessible).toBe(false);
+    }
+  });
+  it("the Cabinet header renders PlateBadge and never a locked hundred-club medal", () => {
+    const screen = readFileSync(join(__dirname, "..", "src", "screens", "AchievementsScreen.tsx"), "utf8");
+    expect(screen).toContain("<PlateBadge days={days.days} />");
+    expect(screen).not.toMatch(/<Medal badgeId="hundred_club_100"/);
+    expect(screen).not.toMatch(/state=\{days[^}]*locked/);
   });
 });
 

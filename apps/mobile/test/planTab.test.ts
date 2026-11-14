@@ -38,6 +38,7 @@ describe("2.1 Plan tab (P-1, P-2, P-6, P-7)", () => {
     expect(listCard).not.toContain('t("prog.exposure.title")');
     expect(listCard).not.toContain('t("prog.versions")');
     expect(f).toContain('onPress={() => nav.navigate("ProgrammeVersions")}');
+    expect(listCard).toContain('nav.navigate("ShortWeek")');
   });
   it("no gear in collapsed headers; workout settings is a row inside the open card", () => {
     expect(f).not.toMatch(/icon="settings"/);

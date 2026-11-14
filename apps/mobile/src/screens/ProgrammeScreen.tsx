@@ -23,7 +23,7 @@ import { glyphFor, RackGlyph } from "../components/today/RackRow";
 type ProgrammeRouteParams = { activated?: boolean };
 
 type Nav = {
-  navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions" | "ProgrammeShare" | "ProgramGenerate" | "MusclePriority" | "Import", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void;
+  navigate: (name: "ProgrammeEdit" | "ProgrammeSwitch" | "ProgrammeExposure" | "ProgrammeVersions" | "ProgrammeShare" | "ProgramGenerate" | "MusclePriority" | "Import" | "ShortWeek", params?: { versionId?: string; programmeId?: string; settingsDay?: number; reorderWorkouts?: boolean }) => void;
   setParams: (params: Partial<ProgrammeRouteParams>) => void;
 };
 
@@ -234,6 +234,7 @@ export function ProgrammeScreen() {
         <SectionTitle>{t("prog.more")}</SectionTitle>
         <Card style={{ paddingVertical: space.xs }}>
           <ListRow title={t("coach.priority.entry")} onPress={() => nav.navigate("MusclePriority")} />
+          <ListRow title={t("short.entry")} onPress={() => nav.navigate("ShortWeek")} />
           <ListRow title={t("prog.switch.entry")} onPress={() => nav.navigate("ProgrammeSwitch")} />
           <ListRow title={t("prog.share.entry")} onPress={() => nav.navigate("ProgrammeShare")} />
           <ListRow title={t("prog.new")} last onPress={() => nav.navigate("ProgrammeEdit")} />

@@ -2,7 +2,43 @@
 
 Entered in App Store Connect 2026-10-27 (version 1.0.0, build 7); NOT submitted for review (Mohamed gives the final OK). AI wording intentionally makes no real-workout superiority claim.
 
-## Limits check
+## Proposed for 1.0.2 — not yet in App Store Connect
+
+**PROPOSED for 1.0.2, not yet in App Store Connect.** Source: the GAIN App Store optimization plan (14 Nov 2026). The live listing stays as entered below until Mohamed gives an explicit OK to submit 1.0.2. The home-screen name stays **GAIN**.
+
+| Field | Limit | en-US (US store) | en-GB (Egypt, Saudi, UAE, UK) | Arabic (US, Egypt, Saudi, UAE) |
+| --- | --- | --- | --- | --- |
+| Name | 30 characters | `GAIN: Gym Workout Tracker` (25) | `GAIN: Gym Workout Tracker` (25) | `GAIN: سجل تمارين الجيم` (22) |
+| Subtitle | 30 characters | `Weight Lifting & Strength Log` (29) | `Weight Lifting & Strength Log` (29) | `كمال اجسام - برنامج تمرين حديد` (30) |
+| Keywords | 100 UTF-8 bytes | 100 (15 terms) | 100 (15 terms) | 96 (9 terms) |
+
+en-US keywords:
+
+```
+progressive,overload,planner,program,rest,timer,reps,sets,lift,barbell,bodybuilding,pr,kg,lbs,muscle
+```
+
+en-GB keywords (Egypt-leaning: drops `lbs` and `muscle`, adds `men` and `arabic`):
+
+```
+progressive,overload,planner,program,rest,timer,reps,sets,lift,barbell,bodybuilding,pr,kg,men,arabic
+```
+
+Arabic keywords (no hamza, matching how people type in App Store search):
+
+```
+جيم,عضلات,الاجسام,بناء,تدريب,اوزان,رياضة,قوة,تمرينات
+```
+
+None of those keywords repeat a word from that localization's title or subtitle, or the category words health and fitness, or the brand GAIN. Egypt indexes en-GB and Arabic, not en-US, so en-GB carries the core English terms. The Arabic subtitle should get a native read before submission.
+
+If the current title `GAIN: Workout Tracker` is kept instead, move `gym` into the English keyword field:
+
+```
+gym,progressive,overload,planner,program,rest,timer,reps,sets,lift,barbell,bodybuilding,pr,kg,lbs
+```
+
+## Limits check (1.0.0, as entered 2026-10-27)
 
 | Field | Limit | EN | AR |
 | --- | --- | --- | --- |
@@ -19,7 +55,7 @@ Seller (Individual): Mohamed Ehab. Support email: imody101@gmail.com. Deployed 2
 
 The store name is **GAIN: Workout Tracker** (owner's decision; "GAIN" alone was taken, and the old draft "GAIN: Workout Log & AI" is retired). The home-screen name stays **GAIN**. The listing makes no "AI" claim; in-app experimental suggestions are described plainly.
 
-## English listing (final draft)
+## English listing (1.0.0, as entered)
 
 Name: GAIN: Workout Tracker
 
@@ -51,7 +87,7 @@ GAIN is a training aid, not medical advice. Stop if you feel pain or dizziness a
 
 Brand note: the listing deliberately names no other apps. The in-app import screen is generic too ("Import from any app you previously used"); it accepts CSV files only (Mohamed's decision, Oct 26 2026).
 
-## Arabic listing: DRAFT, needs native review
+## Arabic listing (1.0.0, as entered): DRAFT, needs native review
 
 Name: GAIN: Workout Tracker
 

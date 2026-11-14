@@ -27,6 +27,8 @@ import { SaveStatusLine } from "../components/SaveStatusLine";
 import { HealthNote } from "../components/HealthNote";
 import { diagnostics } from "../diagnostics";
 import { runFinishFlow } from "../logic/finishFlow";
+import { finishYieldsLoadIncrease, maybeRequestStoreReview } from "../logic/storeReviewPrompt";
+import * as StoreReview from "expo-store-review";
 import { FinishHeroPlaque } from "../components/FinishHeroPlaque";
 import { FinishMuscleStrip, type MuscleSetCount } from "../components/FinishMuscleStrip";
 import { FinishRpeCheck, type RpeOption } from "../components/FinishRpeCheck";
@@ -39,7 +41,7 @@ import { haptics } from "../haptics";
 import { radius } from "../theme";
 
 export function FinishScreen() {
-  const { workout, finish, history, goals, programmes, coachLinks, autoSync, achievements } = useServices();
+  const { workout, finish, history, goals, programmes, coachLinks, autoSync, achievements, repos } = useServices();
   const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
   const navigation = useNavigation<{ navigate: (n: string, params?: object) => void; popToTop: () => void }>();
@@ -134,7 +136,9 @@ export function FinishScreen() {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+    let alive = true;
     let finishedMs = Date.now();
+    let heldForecast: SameDayForecast | "none" | null = null;
     void runFinishFlow({
       summarize: async () => {
         const sess = await workout.getSession(sessionId);
@@ -202,16 +206,35 @@ export function FinishScreen() {
           diagnostics.record("warn", "finish hero", e);
         }
       },
-      onForecast: setNext,
+      onForecast: (forecast) => {
+        heldForecast = forecast;
+        setNext(forecast);
+      },
       record: (level, label, e) => diagnostics.record(level, label, e),
     }).then((r) => {
       // The workout itself is already finished and saved; only the summary could not be built. Retry instead of loading forever.
       if (r === "failed") {
         started.current = false;
         setFailed(true);
+        return;
       }
+      if (!alive) return;
+      // Apple's rating dialog only, after Finish has loaded — never mid-workout and never on first launch.
+      const loadIncreased = finishYieldsLoadIncrease(
+        heldForecast && heldForecast !== "none" ? heldForecast.exercises.map((e) => e.proposal.reason.key) : [],
+      );
+      void history.countSessions().then((completedSessionCount) => maybeRequestStoreReview({
+        getSetting: (key) => repos.getSetting(key),
+        setSetting: (key, value) => repos.setSetting(key, value),
+        completedSessionCount,
+        loadIncreased,
+        isAvailable: async () => (await StoreReview.isAvailableAsync()) && (await StoreReview.hasAction()),
+        requestReview: () => StoreReview.requestReview(),
+        onError: (e) => diagnostics.record("warn", "store review", e),
+      })).catch((e) => diagnostics.record("warn", "store review", e));
     });
-  }, [achievements, finish, history, workout, sessionId, autoSync, attempt]);
+    return () => { alive = false; };
+  }, [achievements, finish, history, repos, workout, sessionId, autoSync, attempt]);
 
   if (failed && !summary) {
     return (

@@ -1,6 +1,5 @@
 import { renderReason, type GymFingerprint, type PaceStatus, type SessionSummary } from "@gain/engine";
 import { WeekBlock } from "../components/today/WeekBlock";
-import { LoadPath } from "../components/today/LoadPath";
 import { pagerClaims, pagerCommit, runUnrack, stepDay, TODAY_MOTION } from "../logic/todayMotion";
 import { paceGlyph } from "../logic/todayWeek";
 import { leadTarget } from "../logic/nextTarget";
@@ -14,12 +13,10 @@ import { lighterUntil, showEaseIn, todayMode } from "../logic/todayState";
 import { countKey } from "../logic/achievementCopy";
 import { clock } from "../logic/todayStub";
 import { ResumeFooter } from "../components/today/ResumeFooter";
-import { rackA11yLabel, stubLines, timeLine, writtenAfter } from "../logic/todayStub";
+import { rackA11yLabel, stubLines, timeLine } from "../logic/todayStub";
 import { haptics } from "../haptics";
 import { TodayBar } from "../components/today/TodayBar";
 import { TodayHeader } from "../components/today/TodayHeader";
-import { DoorStub } from "../components/today/DoorStub";
-import { EngineStrategyCard } from "../components/today/EngineStrategyCard";
 import { glyphFor, RackRow } from "../components/today/RackRow";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -102,7 +99,6 @@ export function TodayScreen() {
   const [savingReturn, setSavingReturn] = useState(false);
   const { fontScale, width } = useWindowDimensions();
   const reduced = useReducedMotion();
-  const [pathOpen, setPathOpen] = useState(false);
   const lift = useRef(new Animated.Value(0)).current;
   const dragX = useRef(new Animated.Value(0)).current;
   // The pager reads the latest day list through a ref (PanResponder is created once).
@@ -113,7 +109,6 @@ export function TodayScreen() {
     const next = stepDay(pg.index, step, pg.ids.length);
     if (next !== pg.index) {
       haptics.untick();
-      setPathOpen(false);
       setPicked(pg.ids[next]!);
     }
   }, []);
@@ -329,21 +324,6 @@ export function TodayScreen() {
     })
     : data.isSample && !anyWeight ? todayHero({ target: null, exercise: null, gym: null, isSample: true }) : null;
   const leadName = leadEx ? exerciseLabels(leadEx, lang).primary : "";
-  const stub = lead
-    ? stubLines(
-      {
-        preview: lead.preview,
-        createdAt: lead.targetId ? ex?.decisions[lead.targetId]?.createdAt ?? null : null,
-        afterDay: lead.targetId && ex?.decisions[lead.targetId] ? writtenAfter(ex.decisions[lead.targetId]!.createdAt, ex.sessions) : null,
-        edited: lead.editedLoad !== null ? { load: lead.editedLoad } : null,
-        last: lastOf(lead),
-        chip: lastOf(lead) ? chipOf(lead).text : null,
-        reason: reasonOf(lead),
-      },
-      { lang, unit, t, now },
-    )
-    : null;
-  const stubLoading = !!lead && !lead.preview && !ex;
 
   async function start() {
     if (starting || savingReturn) return;
@@ -479,32 +459,11 @@ export function TodayScreen() {
               <AppText style={{ fontSize: ty.caption, fontWeight: "600" }}>{t("today.open.chip", { day: openDay.name })}</AppText>
             </View>
           ) : null}
-          {/* The hero is the day pager (horizontal drag only, angle-locked, away from the screen edges) and unracks on Start. */}
-          <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dragX }, { translateY: lift }, { scale: pathOpen && !reduced ? TODAY_MOTION.pathHeroScale : 1 }] }}>
-            <TodayBar hero={hero} name={leadName} racked={mode === "done"} dim={mode === "openElsewhere"} lifted={mode === "open" ? 8 : undefined} onOpenPath={mode === "normal" ? () => { haptics.pickup(); setPathOpen((o) => !o); } : undefined} />
+          {/* Keep the target visible without the bar illustration, warm-up runway or strategy copy. */}
+          <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dragX }, { translateY: lift }] }}>
+            <TodayBar compact hero={hero} name={leadName} racked={mode === "done"} dim={mode === "openElsewhere"} />
           </Animated.View>
-          {pathOpen && hero.kind === "barbell" && hero.warmups.length > 0 ? (
-            <LoadPath steps={hero.warmups} work={{ load: hero.calc.load, reps: hero.reps ?? 0, perSide: hero.calc.perSide }} skippedHint={hero.skippedHint} onClose={() => setPathOpen(false)} />
-          ) : null}
-          {lead && mode !== "open" && mode !== "openElsewhere" ? (
-            <>
-              <DoorStub
-                provenance={stub?.provenance ?? null}
-                lastTime={stub?.lastTime ?? null}
-                loading={stubLoading}
-                whyLabel={`${t("workout.whyShort")}: ${leadName}`}
-                onWhy={lead.targetId ? () => navigation.navigate("Why", { targetId: lead.targetId! }) : undefined}
-              />
-              <EngineStrategyCard
-                leadName={leadName}
-                targetLoad={lead.effectiveLoad ?? 0}
-                targetReps={lead.reps ?? 8}
-                unit={unit}
-                reasonText={reasonOf(lead)}
-                isGoal={leadEx?.isGoalLift}
-              />
-            </>
-          ) : null}
+          {lead?.targetId && mode !== "open" && mode !== "openElsewhere" ? <QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${leadName}`} onPress={() => navigation.navigate("Why", { targetId: lead.targetId! })} /> : null}
         </View>
       ) : null}
 

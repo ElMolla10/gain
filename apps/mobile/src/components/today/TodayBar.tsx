@@ -23,6 +23,8 @@ export interface TodayBarProps {
   hero: TodayHero;
   /** The lead lift's display name in the app language (exerciseLabels). */
   name: string;
+  /** A simple target on Today, with no decorative load art or warm-up controls. */
+  compact?: boolean;
   /** Opens the load path (warm-ups). Barbell only; never on assisted. */
   onOpenPath?: () => void;
   /** In progress: the bar lifted (dp). */
@@ -42,7 +44,7 @@ const FIRST_RUN_GHOST = [20];
  * "Today's Bar": eyebrow, the target as the biggest number (48 load, 20 muted unit, 36 "× reps"), the art for the lift's equipment and the
  * plate line. Everything above Warm-ups is ONE accessibility element; the art is hidden from screen readers and never mirrors.
  */
-export function TodayBar({ hero, name, onOpenPath, lifted, racked, dim, eyebrow: eyebrowOverride }: TodayBarProps) {
+export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, racked, dim, eyebrow: eyebrowOverride }: TodayBarProps) {
   const { t, lang, unit } = useI18n();
   const p = usePalette();
   const { fontScale } = useWindowDimensions();
@@ -54,7 +56,7 @@ export function TodayBar({ hero, name, onOpenPath, lifted, racked, dim, eyebrow:
     return (
       <View accessible accessibilityLabel={label} style={{ gap: space.sm }}>
         <AppText style={{ fontSize: ty.section, fontWeight: "600", color: p.text }}>{t("today.first.number")}</AppText>
-        <BarArt perSide={[]} ghost={FIRST_RUN_GHOST} unit={unit} height={h} />
+        {compact ? null : <BarArt perSide={[]} ghost={FIRST_RUN_GHOST} unit={unit} height={h} />}
       </View>
     );
   }
@@ -118,8 +120,8 @@ export function TodayBar({ hero, name, onOpenPath, lifted, racked, dim, eyebrow:
             {parts.times ? <AppText style={{ fontSize: ty.load, fontWeight: "700", color: p.text, fontVariant: ["tabular-nums"] }}>{parts.times}</AppText> : null}
           </AppText>
         )}
-        {art}
-        {captions.map((c, i) =>
+        {compact ? null : art}
+        {compact ? null : captions.map((c, i) =>
           typeof c === "string" ? (
             <AppText key={i} style={{ fontSize: ty.label, color: p.muted }}>
               {c}
@@ -129,12 +131,12 @@ export function TodayBar({ hero, name, onOpenPath, lifted, racked, dim, eyebrow:
           ),
         )}
       </View>
-      {warmups ? (
+      {!compact && warmups ? (
         <View style={{ alignItems: "flex-start" }}>
           <QuietAction label={t("today.warmups")} onPress={warmups} />
         </View>
       ) : null}
-      {hero.kind === "barbell" && hero.warmups.length > 0 && !racked && !dim ? (
+      {!compact && hero.kind === "barbell" && hero.warmups.length > 0 && !racked && !dim ? (
         <BarbellRunway
           warmups={hero.warmups}
           topLoad={hero.load}

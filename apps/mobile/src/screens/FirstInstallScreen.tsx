@@ -57,18 +57,23 @@ export function FirstInstallScreen(props: { onDone: (openImport?: boolean) => vo
     <Screen footerInline={footerMode(fontScale) === "inline"} footer={<BigButton hero label={t("first.preview")} loading={state.busy} disabled={state.loading} onPress={() => void setup.build()} />}>
       <AppText accessibilityRole="header" style={{ fontSize: ty.title, fontWeight: "600" }}>{t("ob.basics")}</AppText>
       {error ? <Notice kind="error">{error}</Notice> : null}
-      <SectionTitle>{t("coach.goal")}</SectionTitle>
-      <View style={rows}>{(["general", "hypertrophy", "strength"] as const).map(goal => <Chip radio key={goal} label={t(`coach.goal.${goal}`)} selected={a.goal === goal} onPress={() => void update({ goal })} />)}</View>
-      <SectionTitle>{t("coach.experience")}</SectionTitle>
-      <View style={rows}>{(["beginner", "intermediate"] as const).map(experience => <Chip radio key={experience} label={t(`coach.experience.${experience}`)} selected={a.experience === experience} onPress={() => void update({ experience })} />)}</View>
       <SectionTitle>{t("coach.days")}</SectionTitle>
       <View style={rows}>{DAYS_OPTIONS.map(days => <Chip radio key={days} label={isolateLtr(String(days))} selected={a.days === days} onPress={() => void update({ days })} />)}</View>
-      <SectionTitle>{t("coach.minutes")}</SectionTitle>
-      <View style={rows}>{MINUTES_OPTIONS.map(minutes => <Chip radio key={minutes} label={t("ob.minutesValue", { n: minutes })} selected={a.minutes === minutes} onPress={() => void update({ minutes })} />)}</View>
-      <SectionTitle>{t("coach.equipment")}</SectionTitle>
-      <View style={rows}>{GYM_EQUIPMENT.map(eq => <Chip key={eq} label={t(`coach.eq.${eq}` as StringKey)} selected={a.equipment.includes(eq)} onPress={() => void update({ equipment: a.equipment.includes(eq) ? a.equipment.filter(e => e !== eq) : [...a.equipment, eq] })} />)}</View>
+      <SectionTitle>{t("first.trainAt")}</SectionTitle>
+      <View style={rows}>
+        <Chip radio label={t("first.fullGym")} selected={a.equipment.length === GYM_EQUIPMENT.length} onPress={() => void update({ equipment: [...GYM_EQUIPMENT] })} />
+        <Chip radio label={t("first.dumbbells")} selected={a.equipment.length === 1 && a.equipment[0] === "dumbbell"} onPress={() => void update({ equipment: ["dumbbell"] })} />
+      </View>
       <QuietAction label={t("first.options")} onPress={() => setOptions(v => !v)} />
       {options ? <>
+        <SectionTitle>{t("coach.goal")}</SectionTitle>
+        <View style={rows}>{(["general", "hypertrophy", "strength"] as const).map(goal => <Chip radio key={goal} label={t(`coach.goal.${goal}`)} selected={a.goal === goal} onPress={() => void update({ goal })} />)}</View>
+        <SectionTitle>{t("coach.experience")}</SectionTitle>
+        <View style={rows}>{(["beginner", "intermediate"] as const).map(experience => <Chip radio key={experience} label={t(`coach.experience.${experience}`)} selected={a.experience === experience} onPress={() => void update({ experience })} />)}</View>
+        <SectionTitle>{t("coach.minutes")}</SectionTitle>
+        <View style={rows}>{MINUTES_OPTIONS.map(minutes => <Chip radio key={minutes} label={t("ob.minutesValue", { n: minutes })} selected={a.minutes === minutes} onPress={() => void update({ minutes })} />)}</View>
+        <SectionTitle>{t("coach.equipment")}</SectionTitle>
+        <View style={rows}>{GYM_EQUIPMENT.map(eq => <Chip key={eq} label={t(`coach.eq.${eq}` as StringKey)} selected={a.equipment.includes(eq)} onPress={() => void update({ equipment: a.equipment.includes(eq) ? a.equipment.filter(e => e !== eq) : [...a.equipment, eq] })} />)}</View>
         <SectionTitle>{t("ob.language")}</SectionTitle>
         <RadioGroup label={t("ob.language")}>{(["en", "ar"] as const).map(language => <RadioRow key={language} label={t(`settings.language.${language}`)} selected={lang === language} onPress={() => { setLang(language); void update({}); }} />)}</RadioGroup>
         <SectionTitle>{t("ob.units")}</SectionTitle>

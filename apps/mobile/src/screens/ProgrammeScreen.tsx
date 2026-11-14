@@ -117,7 +117,7 @@ export function ProgrammeScreen() {
         <EmptyState icon="plan" title={t("prog.none")} actionLabel={t("prog.switch.entry")} onAction={() => nav.navigate("ProgrammeSwitch")} />
         <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
         <BigButton variant="secondary" label={t("prog.new")} onPress={() => nav.navigate("ProgrammeEdit")} />
-        <BigButton label={t("import.entry")} onPress={() => nav.navigate("Import")} />
+        <BigButton variant="secondary" label={t("import.entry")} onPress={() => nav.navigate("Import")} />
       </Screen>
     );
 
@@ -147,15 +147,7 @@ export function ProgrammeScreen() {
             {data.isSample ? ` · ${t("prog.sampleTag")}` : ""}
           </AppText>
         </Pressable>
-        {/* The progression rule, once per screen (P-2); per-exercise overrides behind "?". */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-          <AppText style={{ color: p.muted, fontSize: ty.label, flex: 1 }}>{t("prog.ruleNote")}</AppText>
-          {overrides.length > 0 ? <QuietAction label="?" accessibilityLabel={t("prog.ruleMore")} expanded={ruleOpen} onPress={() => setRuleOpen(true)} /> : null}
-        </View>
       </View>
-      {/* Primary: Build me a program first, visually distinct; Edit program is secondary */}
-      <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
-      <BigButton variant="secondary" icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
       <PlanDayStrip
         days={data.draft.days.map((d) => ({
           name: d.name,
@@ -230,6 +222,10 @@ export function ProgrammeScreen() {
         })}
       </View>
 
+      {/* Keep the active plan first. Editing and analysis are available after its days. */}
+      <BigButton variant="secondary" icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
+      <BigButton variant="secondary" label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
+      <QuietAction label={t("prog.ruleMore")} expanded={ruleOpen} onPress={() => setRuleOpen(true)} />
       {/* Plan 10x: weekly volume radar */}
       <PlanMuscleRadar rows={exposure} onOpenExposure={() => nav.navigate("ProgrammeExposure")} />
 
@@ -247,6 +243,7 @@ export function ProgrammeScreen() {
       <ArDraftNote />
       <Sheet visible={ruleOpen} title={t("prog.ruleSheetTitle")} onClose={() => setRuleOpen(false)}>
         <View style={{ gap: space.md }}>
+          <AppText>{t("prog.ruleNote")}</AppText>
           {overrides.map((o) => (
             <View key={o.key} style={{ gap: 2 }}>
               <AppText style={{ fontWeight: "600" }}>{o.name}</AppText>

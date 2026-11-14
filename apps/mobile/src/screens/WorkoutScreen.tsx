@@ -117,7 +117,6 @@ export function WorkoutScreen() {
         <IconButton icon="chevron" back label={t("workout.collapse")} onPress={() => navigation.goBack()} />
         {/* The day name ("Upper A") confirms at a glance which session is open (L-13); the generic title is the fallback. */}
         <AppText accessibilityRole="header" numberOfLines={1} style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{loaded.dayName || t("workout.header")}</AppText>
-        <IconButton icon="why" label={t("workout.help.button")} onPress={() => setHelpOpen(true)} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("workout.restTimerBtn")}
@@ -187,6 +186,7 @@ export function WorkoutScreen() {
           onPreviousSource={source => void choosePreviousSource(source)}
           onReorder={shown.length > 1 ? () => setReorderOpen(true) : undefined}
         >
+          <View style={{ paddingHorizontal: space.lg }}><QuietAction icon="why" label={t("workout.help.button")} onPress={() => setHelpOpen(true)} /></View>
           <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
             <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
               <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>

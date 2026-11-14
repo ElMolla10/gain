@@ -27,6 +27,8 @@ export interface FirstSetupState extends SavedSetup {
 }
 export const FIRST_SETUP_KEY = "first_program_setup_v1";
 export const emptyFirstSetup = (): SavedSetup => ({ version: 1, started: false, answers: { goal: null, experience: null, days: null, minutes: null, equipment: [], avoidText: "", skipLegs: false } });
+/** Only applied when the person starts setup; persisted answers always win on resume. */
+export const quickStartAnswers = (): FirstAnswers => ({ ...emptyFirstSetup().answers, goal: "general", experience: "beginner", days: 3, minutes: 45, equipment: [...GYM_EQUIPMENT] });
 export function parseFirstSetup(raw: string | null): SavedSetup {
   try {
     const v = JSON.parse(raw ?? "null");
@@ -58,7 +60,7 @@ export function createFirstProgramSetup(
     try { emit({ ...parseFirstSetup(await services.repos.getSetting(FIRST_SETUP_KEY)), loading: false, error: null }); }
     catch { emit({ loading: false, error: "restore" }); }
   }
-  async function start() { emit({ started: true, error: null }); await persist(); }
+  async function start() { emit({ started: true, answers: quickStartAnswers(), error: null }); await persist(); }
   async function update(patch: Partial<FirstAnswers>) {
     if (activating || activated) return;
     request++;

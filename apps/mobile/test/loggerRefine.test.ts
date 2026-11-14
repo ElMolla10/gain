@@ -78,9 +78,10 @@ describe("logger and Today: layout rules (source)", () => {
     expect(today).not.toContain("TargetStrip");
     expect(today).toContain("sessionAction(");
   });
-  it("Today 10x: the lead exercise is the hero (Today's Bar) with a quiet Why on its stub; Start/Resume is the pinned footer", () => {
-    expect(today).toContain("<TodayBar hero={hero}");
-    expect(today).toContain("<DoorStub");
+  it("Today: the lead is a compact target with Why on demand; Start/Resume is the pinned footer", () => {
+    expect(today).toContain("<TodayBar compact hero={hero}");
+    expect(today).not.toContain("<DoorStub");
+    expect(today).not.toContain("<EngineStrategyCard");
     expect(today).toContain('navigate("Why"');
     expect(today.indexOf("<BigButton hero")).toBeGreaterThan(0);
     expect(today).toContain("<Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>");

@@ -8,24 +8,24 @@ const src = (p: string) => readFileSync(join(__dirname, "..", "src", p), "utf8")
 describe("2.1 Plan tab (P-1, P-2, P-6, P-7)", () => {
   const f = src("screens/ProgrammeScreen.tsx");
   const rows = f.slice(f.indexOf("day.exercises.map((e, k)"), f.indexOf("prog.workoutSettings"));
-  it("the rule sentence is not inside the per-exercise map; it is said once under the title", () => {
+  it("the rule sentence is not inside the per-exercise map; it is available in details", () => {
     expect(rows).not.toContain("rangeText(");
     expect(f.match(/t\("prog\.ruleNote"\)/g)).toHaveLength(1);
-    expect(f.indexOf("prog.ruleNote")).toBeLessThan(f.indexOf("day.exercises.map((e, k)"));
+    expect(f.indexOf("prog.ruleNote")).toBeGreaterThan(f.indexOf("day.exercises.map((e, k)"));
   });
   it("the scheme is one isolated run with an en dash", () => {
     expect(rows).toMatch(/isolateLtr\(`\$\{e\.sets\}\$\{NBSP\}×\$\{NBSP\}\$\{range\.min\}\$\{EN_DASH\}\$\{range\.max\}`\)/);
   });
-  it("Build me a program is the primary button on the populated Plan tab; Edit is secondary; Reorder moved to the editor", () => {
+  it("the active plan comes before secondary Edit and Build controls; Reorder stays in the editor", () => {
     const populated = f.slice(f.indexOf("<Screen tab>"));
-    expect(populated).toMatch(/<BigButton hero label=\{t\("coach\.build"\)\}/);
+    expect(populated).toMatch(/<BigButton variant="secondary" label=\{t\("coach\.build"\)\}/);
     expect(populated).toMatch(/<BigButton variant="secondary" icon="edit"/);
-    expect(populated.indexOf('hero label={t("coach.build")}')).toBeLessThan(populated.indexOf('variant="secondary" icon="edit"'));
+    expect(populated.indexOf('<PlanDayStrip')).toBeLessThan(populated.indexOf('variant="secondary" icon="edit"'));
     expect(populated).not.toContain("prog.workouts.reorder");
     expect(src("components/ProgrammeEditorView.tsx")).toContain("setReorderWorkouts(true)");
   });
   it("opens workout import from the bottom of Plan without a subtitle, with and without an active program", () => {
-    expect(f.match(/<BigButton label=\{t\("import.entry"\)\} onPress=\{\(\) => nav.navigate\("Import"\)\}/g)).toHaveLength(2);
+    expect(f.match(/<BigButton(?: variant="secondary")? label=\{t\("import.entry"\)\} onPress=\{\(\) => nav.navigate\("Import"\)\}/g)).toHaveLength(2);
     expect(f).not.toContain('t("import.entryNote")');
     expect(f.indexOf('t("import.entry")')).toBeLessThan(f.indexOf('<Screen tab>'));
     const populated = f.slice(f.indexOf('<Screen tab>'));

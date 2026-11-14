@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOG } from "../src/db/libraryDraft";
-import { createFirstProgramSetup, parseFirstSetup, emptyFirstSetup } from "../src/logic/firstProgramSetup";
+import { createFirstProgramSetup, parseFirstSetup, emptyFirstSetup, quickStartAnswers } from "../src/logic/firstProgramSetup";
 
 const keys = new Map(CATALOG.map(c => [c.key, { exerciseId: c.key, equipment: c.equipment }]));
 const library = CATALOG.map(c => ({ id: c.key, seedKey: c.key, nameEn: c.en, nameAr: c.ar, equipment: c.equipment }));
@@ -16,10 +16,14 @@ function harness(raw: string | null = null, lang: "en" | "ar" = "en") {
 }
 const answers = { goal: "general" as const, experience: "beginner" as const, days: 3, minutes: 45, equipment: ["dumbbell" as const] };
 describe("first-install program setup", () => {
-  it("has no guessed training answers, never generates or saves on load/start", async () => {
+  it("offers editable quick-start defaults without generating or activating on load/start", async () => {
     const { flow, services } = harness(); await flow.load(); expect(flow.state.started).toBe(false); expect(flow.state.answers).toEqual(emptyFirstSetup().answers);
-    await flow.start(); expect(flow.state.started).toBe(true); expect(services.programmes.seedKeyMap).not.toHaveBeenCalled(); expect(services.onboarding.complete).not.toHaveBeenCalled();
-    await flow.build(); expect(flow.state.preview).toBeNull(); expect(flow.state.error).toBe("answers");
+    await flow.start(); expect(flow.state.started).toBe(true); expect(flow.state.answers).toEqual(quickStartAnswers()); expect(services.programmes.seedKeyMap).not.toHaveBeenCalled(); expect(services.onboarding.complete).not.toHaveBeenCalled();
+    await flow.build(); expect(flow.state.preview?.draft.days).toHaveLength(3); expect(services.onboarding.complete).not.toHaveBeenCalled();
+  });
+  it("keeps advanced choices and the gym selection when edited after the defaults", async () => {
+    const { flow } = harness(); await flow.load(); await flow.start(); await flow.update({ days: 4, equipment: ["dumbbell"], experience: "intermediate", minutes: 60 });
+    expect(flow.state.answers).toMatchObject({ days: 4, equipment: ["dumbbell"], experience: "intermediate", minutes: 60 });
   });
   it.each(["en", "ar"] as const)("%s previews the chosen beginner program and saves that exact draft only on Use", async lang => {
     const { flow, services, done } = harness(null, lang); await flow.load(); await flow.start(); await flow.update(answers); await flow.build();

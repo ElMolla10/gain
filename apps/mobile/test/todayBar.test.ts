@@ -106,6 +106,15 @@ describe("number line and engraving bidi", () => {
 });
 
 describe("TodayBar presentation (EN / AR)", () => {
+  it.each(["en", "ar"] as const)("%s compact Today target shows the exercise and target without plates or warm-ups", lang => {
+    settings.lang = lang;
+    const tree = expand(React.createElement(TodayBar, { hero: hero(80), name: lang === "ar" ? "بنش برس" : "Bench Press", compact: true, onOpenPath: vi.fn() }));
+    expect(texts(tree).join(" ")).toContain(lang === "ar" ? "بنش برس" : "Bench Press");
+    expect(texts(tree).join(" ")).toContain("80");
+    expect(byType(tree, "Svg")).toHaveLength(0);
+    expect(byType(tree, "QuietAction")).toHaveLength(0);
+    expect(texts(tree).join(" ")).not.toContain("Each side");
+  });
   it("EN barbell: eyebrow, 48/20/36 number, the plate line; one a11y element with the art hidden", () => {
     const tree = render(hero(102.5));
     const all = texts(tree).map(strip);

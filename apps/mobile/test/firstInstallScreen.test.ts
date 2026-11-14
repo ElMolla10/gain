@@ -28,4 +28,16 @@ describe("beginner welcome and preview", () => {
     runtime.started = true; runtime.preview = { draft: { name: "Reviewed", days: [] }, dropped: [] }; const all = nodes(FirstInstallScreen({ onDone: vi.fn() })); const hero = all.find(n => n.type === "GeneratedProgrammeHero")!;
     expect(hero.props.preview).toBe(runtime.preview); expect(hero.props.saveLabel).toBe(translate(runtime.lang, "first.use"));
   });
+  it.each(["en", "ar"] as const)("%s shows only days and training place until preferences are opened", lang => {
+    runtime.lang = lang; runtime.started = true;
+    const tree = FirstInstallScreen({ onDone: vi.fn() });
+    const all = nodes([tree, (tree as any).props.footer]);
+    const headings = all.filter(n => n.type === "SectionTitle").flatMap(n => n.props.children);
+    const chips = all.filter(n => n.type === "Chip").map(n => n.props.label);
+    expect(headings).toEqual([translate(lang, "coach.days"), translate(lang, "first.trainAt")]);
+    expect(chips).toContain(translate(lang, "first.fullGym"));
+    expect(chips).toContain(translate(lang, "first.dumbbells"));
+    expect(headings).not.toContain(translate(lang, "coach.experience"));
+    expect(headings).not.toContain(translate(lang, "coach.minutes"));
+  });
 });

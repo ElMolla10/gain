@@ -21,7 +21,7 @@ describe("Today layout (design audit T-3..T-8)", () => {
     expect(today).not.toContain("{data.programmeName} ·");
   });
   it("T-4 (Today 10x): the lead is the hero, not a tinted row; the rack omits it and its targets are text, never lime", () => {
-    expect(today).toContain("<TodayBar hero={hero}");
+    expect(today).toContain("<TodayBar compact hero={hero}");
     expect(today).toContain("exercises.filter((e) => !(lead && hero && e.exerciseId === lead.exerciseId))");
     expect(today).not.toMatch(/borderLeftWidth|isLead/);
     const rack = src("components/today/RackRow.tsx");
@@ -29,15 +29,16 @@ describe("Today layout (design audit T-3..T-8)", () => {
     expect(rack).not.toContain("p.accent");
     expect(rack).toContain("minHeight: RACK_ROW_HEIGHT");
   });
-  it("T-5 (Today 10x): header > hero > stub > rack > programme line > This week block; Start is the pinned footer", () => {
+  it("T-5 (Today 10x): header > compact target > rack > programme line > This week block; Start is the pinned footer", () => {
     const header = today.indexOf("<TodayHeader");
     const hero = today.indexOf("<TodayBar");
-    const stub = today.indexOf("<DoorStub");
     const list = today.indexOf('t("today.rack.planned")');
     const programme = today.indexOf("{data.programmeName}</AppText>");
     const week = today.indexOf("<WeekBlock");
     expect(header).toBeGreaterThan(0);
-    for (const [a, b] of [[header, hero], [hero, stub], [stub, list], [list, programme], [programme, week]] as const) expect(b).toBeGreaterThan(a);
+    for (const [a, b] of [[header, hero], [hero, list], [list, programme], [programme, week]] as const) expect(b).toBeGreaterThan(a);
+    expect(today).not.toContain("<DoorStub");
+    expect(today).not.toContain("<EngineStrategyCard");
     expect(today).toContain("<Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>");
     expect(today).toContain("const footer =");
     expect(today).toContain('<BigButton hero icon={action.kind === "start" ? "play" : undefined}');

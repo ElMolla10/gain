@@ -224,7 +224,7 @@ export function ProgrammeScreen() {
 
       {/* Keep the active plan first. Editing and analysis are available after its days. */}
       <BigButton variant="secondary" icon="edit" label={t("prog.edit")} onPress={() => nav.navigate("ProgrammeEdit", { programmeId: data.programmeId })} />
-      <BigButton variant="secondary" label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
+      <BigButton hero label={t("coach.build")} onPress={() => nav.navigate("ProgramGenerate")} />
       <QuietAction label={t("prog.ruleMore")} expanded={ruleOpen} onPress={() => setRuleOpen(true)} />
       {/* Plan 10x: weekly volume radar */}
       <PlanMuscleRadar rows={exposure} onOpenExposure={() => nav.navigate("ProgrammeExposure")} />

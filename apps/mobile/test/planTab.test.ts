@@ -16,9 +16,9 @@ describe("2.1 Plan tab (P-1, P-2, P-6, P-7)", () => {
   it("the scheme is one isolated run with an en dash", () => {
     expect(rows).toMatch(/isolateLtr\(`\$\{e\.sets\}\$\{NBSP\}×\$\{NBSP\}\$\{range\.min\}\$\{EN_DASH\}\$\{range\.max\}`\)/);
   });
-  it("the active plan comes before secondary Edit and Build controls; Reorder stays in the editor", () => {
+  it("the active plan comes before secondary Edit and neon Build controls; Reorder stays in the editor", () => {
     const populated = f.slice(f.indexOf("<Screen tab>"));
-    expect(populated).toMatch(/<BigButton variant="secondary" label=\{t\("coach\.build"\)\}/);
+    expect(populated).toMatch(/<BigButton hero label=\{t\("coach\.build"\)\}/);
     expect(populated).toMatch(/<BigButton variant="secondary" icon="edit"/);
     expect(populated.indexOf('<PlanDayStrip')).toBeLessThan(populated.indexOf('variant="secondary" icon="edit"'));
     expect(populated).not.toContain("prog.workouts.reorder");

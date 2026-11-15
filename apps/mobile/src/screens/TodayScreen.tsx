@@ -443,7 +443,7 @@ export function TodayScreen() {
               <AppText style={{ fontSize: ty.caption, fontWeight: "600" }}>{t("today.open.chip", { day: openDay.name })}</AppText>
             </View>
           ) : null}
-          {/* Keep the target visible without the bar illustration, warm-up runway or strategy copy. */}
+          {/* Keep the lead lift's load art without the warm-up runway or strategy copy. */}
           <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dragX }, { translateY: lift }] }}>
             <TodayBar compact hero={hero} name={leadName} racked={mode === "done"} dim={mode === "openElsewhere"} />
           </Animated.View>

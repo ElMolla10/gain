@@ -23,7 +23,7 @@ export interface TodayBarProps {
   hero: TodayHero;
   /** The lead lift's display name in the app language (exerciseLabels). */
   name: string;
-  /** A simple target on Today, with no decorative load art or warm-up controls. */
+  /** A simple target on Today, retaining the load art without warm-up controls or plate captions. */
   compact?: boolean;
   /** Opens the load path (warm-ups). Barbell only; never on assisted. */
   onOpenPath?: () => void;
@@ -120,7 +120,7 @@ export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, rack
             {parts.times ? <AppText style={{ fontSize: ty.load, fontWeight: "700", color: p.text, fontVariant: ["tabular-nums"] }}>{parts.times}</AppText> : null}
           </AppText>
         )}
-        {compact ? null : art}
+        {art}
         {compact ? null : captions.map((c, i) =>
           typeof c === "string" ? (
             <AppText key={i} style={{ fontSize: ty.label, color: p.muted }}>

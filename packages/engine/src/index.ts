@@ -16,6 +16,7 @@ export * from "./pace";
 export * from "./weekly";
 export * from "./trend";
 export * from "./liftStats";
+export * from "./projection";
 export * from "./sessionFacts";
 export * from "./deload";
 export * from "./startingLoad";

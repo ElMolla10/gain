@@ -20,7 +20,8 @@ describe("one title per screen", () => {
     for (const n of CHANGED) expect(src(`src/screens/${n}.tsx`)).not.toMatch(/<Screen[^>]*title=/);
     expect(src("src/screens/GymEditScreen.tsx")).toContain('nav.setOptions({ title: gymId ? t("gyms.edit") : t("gyms.add") })');
     expect(src("src/screens/SessionDetailScreen.tsx")).toContain("navigation.setOptions({ title: headerTitle })");
-    for (const n of ["ExerciseLoadsScreen", "LiftTrendView"]) expect(src(`src/screens/${n}.tsx`)).toMatch(/<AppText accessibilityRole="header" style=\{\{ fontSize: ty\.section, fontWeight: "600" \}\}>/);
+    expect(src("src/screens/LiftTrendScreen.tsx")).toContain("...(name ? { title: name } : {})");
+    for (const n of ["ExerciseLoadsScreen"]) expect(src(`src/screens/${n}.tsx`)).toMatch(/<AppText accessibilityRole="header" style=\{\{ fontSize: ty\.section, fontWeight: "600" \}\}>/);
   });
   it("Today 10x: the day name is Today's one header (28/34); the hero eyebrow, date and label are not headers", () => {
     const header = src("src/components/today/TodayHeader.tsx");

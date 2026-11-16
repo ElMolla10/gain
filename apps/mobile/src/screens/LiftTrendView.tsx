@@ -1,83 +1,102 @@
-import { loadTargetText } from "../logic/bidiText";
 import React, { useMemo, useState } from "react";
-import { SectionList, View } from "react-native";
+import { FlatList, Pressable, TextInput, View } from "react-native";
 import {
-  bestEstimated1rm,
   bestSessionVolume,
   bestSetVolume,
+  goalEta,
   heaviestSet,
   isTimedMeasure,
   prKindsForSet,
+  projectE1rm,
   repMaxes,
   sortNewestFirst,
-  type EquipmentType,
-  type GymLoadSpec,
+  strengthProjection,
+  type GoalEta,
   type HistorySession,
   type LiftTrend,
   type LoggedSet,
-  type PrKind,
 } from "@gain/engine";
 import type { LiftItem } from "../db/historyRepo";
-import { TrendChart } from "../components/TrendChart";
-import { RepMaxPowerCurve } from "../components/trend/RepMaxPowerCurve";
+import { E1rmChart, type ChartPoint } from "../components/trend/E1rmChart";
+import { PillTabs } from "../components/trend/PillTabs";
+import { RepMaxTable } from "../components/trend/RepMaxTable";
 import { useI18n } from "../i18n";
-import { exerciseLabels, isolateLtr, isolateParam } from "../i18n/format";
+import { numberPadAccessory } from "../numberPad";
+import { isolateLtr } from "../i18n/format";
+import { loadTargetText } from "../logic/bidiText";
 import { formatDay } from "../logic/dateText";
-import { directionKey, filterTrendPoints, groupSessionsByDate, metricTrendPoints, type ChartMetric, type ChartRange } from "../logic/trendChart";
-import { loadsSummaryText, matchingJumpKg, TREND_LOAD_JUMPS_KG } from "../logic/exerciseLoads";
-import { exercisePath } from "../logic/exercisePath";
-import { kgToUnit, weightText } from "../logic/units";
-import { space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, Chip, QuietAction, Screen } from "../ui";
+import {
+  goalLine,
+  isVerifiedPrSet,
+  groupedNumber,
+  monthPart,
+  monthYear,
+  parseGoal,
+  rangeStart,
+  repMaxRows,
+  sessionVolumeKg,
+  setsLabel,
+  signedWhole,
+  wholeInUnit,
+  workingSets,
+  type PrSetRef,
+  type SummaryRange,
+} from "../logic/progressionSummary";
+import { kgToUnit, unitToKg, weightText } from "../logic/units";
+import { radius, space, type as ty, usePalette } from "../theme";
+import { AppText, Screen, useInputFont } from "../ui";
 
-type Tab = "summary" | "powerCurve" | "history";
+export type ProgressionTab = "summary" | "repMax" | "history";
+const DAY_MS = 86_400_000;
+const RECENT = 3;
 
-export interface LiftLoadsProps {
-  equipment: EquipmentType;
-  own: GymLoadSpec | null;
-  gym: GymLoadSpec | null;
-  onPickJump: (kg: number) => void;
-}
+export type { PrSetRef } from "../logic/progressionSummary";
 
 function sessionAt(h: HistorySession): number {
   return Date.parse(h.performedAt);
 }
 
+/**
+ * Exercise progression (Summary / Rep Max / History). The title, back and the setup gear live in the native header (the screen sets
+ * them); everything here is one tab at a time, with rounded numbers and the lifter's unit.
+ */
 export function LiftTrendView({
   lift,
   trend,
   sessions,
-  onOpenLoads,
-  loads,
-  paceHeadline,
-  paceDetails,
   nextTarget,
+  nextParts,
   whySentence,
-  setups,
-  onPickSetup,
-  extras,
+  goalKg,
+  onGoalChange,
+  prSets,
+  now = Date.now(),
 }: {
   lift: LiftItem;
   trend: LiftTrend;
   sessions: HistorySession[];
-  onOpenLoads: () => void;
-  loads?: LiftLoadsProps | null;
-  paceHeadline?: string | null;
-  paceDetails?: string[];
+  /** The deterministic next-workout suggestion as text ("80 kg × 8"), when there is one. */
   nextTarget?: string | null;
+  /** The same suggestion as numbers, for the large hero (reps lines only). */
+  nextParts?: { load: number; reps: number } | null;
+  /** Its one-line reason. */
   whySentence?: string | null;
-  setups?: { lineId: string; label: string; selected: boolean }[];
-  onPickSetup?: (lineId: string) => void;
-  extras?: React.ReactNode;
+  /** Saved Summary goal (kg), per exercise and setup. */
+  goalKg?: number | null;
+  onGoalChange?: (kg: number | null) => void;
+  /** Verified PRs on this lift and setup; drives the PRs tile and the History chips. */
+  prSets?: PrSetRef[];
+  now?: number;
 }) {
-  const { t, lang, unit, unitText, fmt } = useI18n();
+  const { t, lang, unit, unitText } = useI18n();
   const p = usePalette();
-  const [tab, setTab] = useState<Tab>("summary");
-  const [metric, setMetric] = useState<ChartMetric>("weight");
-  const [range, setRange] = useState<ChartRange>("all");
-  const [explainOpen, setExplainOpen] = useState(false);
+  const inputFont = useInputFont("600");
+  const [tab, setTab] = useState<ProgressionTab>("summary");
+  const [range, setRange] = useState<SummaryRange>("all");
+  const [goalText, setGoalText] = useState<string>(goalKg ? String(Math.round(kgToUnit(goalKg, unit))) : "");
   const assisted = lift.setup === "assisted";
   const timed = trend.timed ?? (isTimedMeasure(lift.measure) ? lift.measure : null);
+  const e1rmMode = !timed && !assisted;
   const letters = { s: t("qty.s"), m: t("qty.m") };
   const setText = (pt: { load: number; reps: number; quantity?: number }) =>
     timed && pt.quantity !== undefined
@@ -87,221 +106,247 @@ export function LiftTrendView({
     timed
       ? loadTargetText(s.load, timed === "time" ? (s.durationS ?? 0) : (s.distanceM ?? 0), timed, lang, unit, letters)
       : loadTargetText(s.load, s.reps, "reps", lang, unit, letters);
+  const withUnit = (n: string) => `${isolateLtr(n)}\u00A0${unitText}`;
 
   const records = useMemo(() => {
     const heaviest = heaviestSet(sessions, lift.setup);
     const setVol = bestSetVolume(sessions);
     const sessionVol = bestSessionVolume(sessions);
-    const e1rm = timed ? null : bestEstimated1rm(sessions);
     const reps = timed ? [] : repMaxes(sessions, lift.setup);
-    return { heaviest, setVol, sessionVol, e1rm, reps };
+    return { heaviest, setVol, sessionVol, reps };
   }, [sessions, lift.setup, timed]);
-  const path = useMemo(() => timed ? null : exercisePath(sessions, lift.setup), [sessions, lift.setup, timed]);
+  const proj = useMemo(() => strengthProjection(trend.points, now), [trend.points, now]);
+  const newestFirst = useMemo(() => sortNewestFirst(sessions), [sessions]);
+  const importedAt = useMemo(() => new Set(trend.points.filter((x) => x.imported).map((x) => x.at)), [trend.points]);
 
-  const sections = useMemo(() => groupSessionsByDate(sortNewestFirst(sessions)), [sessions]);
-  const recent = [...trend.points].reverse().slice(0, 10);
-  const chartSource = filterTrendPoints(trend.points, range, Date.now());
-  const chartPoints = metricTrendPoints(chartSource, timed && metric !== "weight" ? "volume" : metric);
+  const isPrSet = (h: HistorySession, s: LoggedSet, index: number): boolean => {
+    const at = sessionAt(h);
+    if (prSets) return isVerifiedPrSet(prSets, at, s);
+    return prKindsForSet({ heaviest: records.heaviest, bestSetVolume: records.setVol, repMaxes: [] }, at, index).length > 0;
+  };
+  const prCount = prSets ? prSets.length : newestFirst.reduce((n, h) => n + workingSets(h).filter(({ set, index }) => isPrSet(h, set, index)).length, 0);
 
-  const badgeLabel = (kind: PrKind) =>
-    kind === "heaviest" ? t("trend.badge.heaviest") : kind === "volume" ? t("trend.badge.volume") : t("trend.badge.rep");
+  // ---- Summary -------------------------------------------------------------------------------------------------------------
+  const goalUnit = parseGoal(goalText);
+  const goalKgTyped = goalUnit === null ? null : unitToKg(goalUnit, unit);
+  const eta: GoalEta | null = e1rmMode && proj.canProject && goalKgTyped !== null ? goalEta(proj, goalKgTyped, now) : null;
+  const horizonAt = proj.currentAt !== null ? Math.max(now, proj.currentAt) + 90 * DAY_MS : now;
+  const projEndAt = eta?.kind === "eta" ? eta.at : horizonAt;
+  const projValue = e1rmMode ? projectE1rm(proj, projEndAt) : null;
+  const shownFrom = rangeStart(range, now);
+  const chartPoints: ChartPoint[] = e1rmMode
+    ? proj.points.filter((x) => x.at >= shownFrom).map((x) => ({ at: x.at, value: kgToUnit(x.e1rm, unit), imported: x.imported }))
+    : trend.points.filter((x) => x.at >= shownFrom).map((x) => ({ at: x.at, value: timed && x.quantity !== undefined ? x.quantity : kgToUnit(x.load, unit), imported: x.imported }));
+  const projection = projValue !== null && chartPoints.length > 0 ? { at: projEndAt, value: kgToUnit(projValue, unit) } : null;
+  const goalMark = eta?.kind === "eta" && goalKgTyped !== null && projection ? { value: kgToUnit(goalKgTyped, unit), at: eta.at } : null;
+  const chartEnd = projection ? projection.at : chartPoints[chartPoints.length - 1]?.at ?? now;
+  const goalInfo = eta ? goalLine(eta, lang, t) : null;
+  const onPaceText =
+    e1rmMode && proj.canProject && !proj.notOnPace && goalKgTyped === null
+      ? t("trend.goal.onPace", { load: withUnit(String(wholeInUnit(projectE1rm(proj, horizonAt) ?? 0, unit))), when: monthPart(horizonAt, lang, t) })
+      : null;
+  const headlineNumber = e1rmMode && proj.current !== null ? String(wholeInUnit(proj.current, unit)) : null;
+  const headlineValue = headlineNumber !== null ? withUnit(headlineNumber) : !e1rmMode && trend.latest ? setText(trend.latest) : null;
+  const perMonth = e1rmMode ? proj.perMonth : timed ? null : trend.loadChangePer30d;
+  const perMonthText = perMonth !== null && perMonth !== undefined ? t("trend.perMonth", { delta: signedWhole(perMonth, unit), unit: unitText }) : null;
+  const perMonthGood = perMonth !== null && perMonth !== undefined && wholeInUnit(perMonth, unit) !== 0 && (assisted ? perMonth < 0 : perMonth > 0);
 
-  const loadsButton = <BigButton variant="secondary" label={t("loads.open")} onPress={onOpenLoads} />;
+  const eyebrow = (text: string) => (
+    <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted, letterSpacing: lang === "ar" ? 0 : 1.2, textTransform: "uppercase" }}>{text}</AppText>
+  );
+
+  const hero = (
+    <View style={{ gap: space.xs }}>
+      {eyebrow(t("trend.nextWorkout"))}
+      {nextParts && !timed ? (
+        <View accessible accessibilityLabel={nextTarget ?? undefined} style={{ flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", columnGap: space.sm }}>
+          <AppText style={{ fontSize: ty.display, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{isolateLtr(weightText(nextParts.load, unit))}</AppText>
+          <AppText style={{ fontSize: ty.section, color: p.muted }}>{unitText}</AppText>
+          <AppText style={{ fontSize: ty.title, color: p.muted }}>×</AppText>
+          <AppText style={{ fontSize: ty.display, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{isolateLtr(String(nextParts.reps))}</AppText>
+        </View>
+      ) : nextTarget ? (
+        <AppText style={{ fontSize: ty.load, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{nextTarget}</AppText>
+      ) : (
+        <AppText style={{ color: p.muted }}>{t("trend.nextNone")}</AppText>
+      )}
+      {whySentence ? <AppText style={{ color: p.muted }}>{whySentence}</AppText> : null}
+    </View>
+  );
+
+  const goalRow = e1rmMode && proj.canProject ? (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: space.md, borderTopWidth: 1, borderColor: p.border, paddingTop: space.md }}>
+      <AppText style={{ color: p.muted }}>{t("trend.goal.label")}</AppText>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, borderWidth: 1.5, borderColor: goalText ? p.accent : p.edge, borderRadius: radius.pill, paddingHorizontal: space.md, minHeight: 40 }}>
+        <TextInput
+          accessibilityLabel={t("trend.goal.a11y", { unit: unitText })}
+          value={goalText}
+          onChangeText={setGoalText}
+          onEndEditing={() => onGoalChange?.(goalKgTyped)}
+          keyboardType="decimal-pad"
+          returnKeyType="done"
+          maxLength={6}
+          {...numberPadAccessory(t)}
+          style={{ ...inputFont, width: 48, color: p.text, fontSize: ty.body, paddingVertical: space.xs, textAlign: "center" }}
+        />
+        <AppText style={{ fontSize: ty.label, color: p.muted }}>{unitText}</AppText>
+      </View>
+      <View style={{ flex: 1, alignItems: "flex-end" }}>
+        <AppText style={{ fontSize: ty.label, fontWeight: goalInfo?.tone === "accent" || (!goalInfo && onPaceText) ? "600" : "400", color: goalInfo ? (goalInfo.tone === "accent" ? p.accent : p.muted) : p.accent }}>
+          {goalInfo?.text ?? onPaceText ?? ""}
+        </AppText>
+      </View>
+    </View>
+  ) : null;
+
+  const chartCard = (
+    <View style={{ borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: p.card, padding: space.lg, gap: space.md }}>
+      <View style={{ gap: space.xs }}>
+        {eyebrow(e1rmMode ? t("trend.e1rm") : t("trend.topSet"))}
+        <View style={{ flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", columnGap: space.sm }}>
+          {headlineNumber !== null ? (
+            <View accessible accessibilityLabel={headlineValue ?? undefined} style={{ flexDirection: "row", alignItems: "baseline", gap: space.xs }}>
+              <AppText style={{ fontSize: ty.title, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{isolateLtr(headlineNumber)}</AppText>
+              <AppText style={{ fontSize: ty.body, color: p.muted }}>{unitText}</AppText>
+            </View>
+          ) : headlineValue ? (
+            <AppText style={{ fontSize: ty.title, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{headlineValue}</AppText>
+          ) : null}
+          {perMonthText ? <AppText style={{ fontSize: ty.label, fontWeight: "600", color: perMonthGood ? p.accent : p.muted }}>{perMonthText}</AppText> : null}
+        </View>
+      </View>
+      {chartPoints.length === 0 ? (
+        <AppText style={{ color: p.muted }}>{t("trend.noPoints")}</AppText>
+      ) : (
+        <E1rmChart
+          points={chartPoints}
+          projection={projection}
+          goal={goalMark}
+          fromLabel={monthYear(chartPoints[0]!.at, lang)}
+          toLabel={monthYear(chartEnd, lang)}
+          summary={t(e1rmMode ? "trend.chart.a11y" : "trend.chart.a11yTopSet", { from: monthYear(chartPoints[0]!.at, lang), to: monthYear(chartPoints[chartPoints.length - 1]!.at, lang), load: headlineValue ?? "" })}
+        />
+      )}
+      <PillTabs
+        compact
+        value={range}
+        onChange={setRange}
+        options={[
+          { value: "3m", label: t("trend.range.3mShort") },
+          { value: "1y", label: t("trend.range.1yShort") },
+          { value: "all", label: t("trend.range.allShort") },
+        ]}
+      />
+      {goalRow}
+    </View>
+  );
+
+  const bestSetText = records.heaviest
+    ? timed
+      ? setText(records.heaviest)
+      : `${isolateLtr(weightText(records.heaviest.load, unit))} × ${isolateLtr(String(records.heaviest.reps))}`
+    : "—";
+  const bestVolumeText = records.sessionVol ? withUnit(groupedNumber(kgToUnit(records.sessionVol.volume, unit), lang)) : "—";
+  const tile = (label: string, value: string) => (
+    <View key={label} style={{ flex: 1, borderRadius: radius.button, borderWidth: 1, borderColor: p.border, backgroundColor: p.card, padding: space.md, gap: 2 }}>
+      <AppText numberOfLines={1} style={{ fontSize: ty.caption, color: p.muted }}>{label}</AppText>
+      <AppText numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: ty.body, fontWeight: "700", fontVariant: ["tabular-nums"] }}>{value}</AppText>
+    </View>
+  );
+
+  const recentSessions = newestFirst.slice(0, RECENT);
+  const topOf = (h: HistorySession) => trend.points.find((x) => x.at === sessionAt(h)) ?? null;
+  const recent = recentSessions.length > 0 ? (
+    <View style={{ gap: space.sm }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <AppText style={{ fontSize: ty.sectionSmall, fontWeight: "700" }}>{t("trend.recentTitle")}</AppText>
+        <Pressable accessibilityRole="button" onPress={() => setTab("history")} style={{ minHeight: 48, justifyContent: "center", paddingHorizontal: space.xs }}>
+          <AppText style={{ color: p.accent, fontWeight: "600" }}>{t("trend.seeAll")}</AppText>
+        </Pressable>
+      </View>
+      <View style={{ borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: p.card, overflow: "hidden" }}>
+        {recentSessions.map((h, i) => {
+          const top = topOf(h);
+          return (
+            <View key={`${h.performedAt}-${i}`} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.lg, minHeight: 52, borderTopWidth: i === 0 ? 0 : 1, borderColor: p.border }}>
+              <AppText style={{ color: p.muted }}>{formatDay(sessionAt(h), lang, now)}</AppText>
+              <AppText style={{ fontWeight: "700", fontVariant: ["tabular-nums"] }}>{top ? setText(top) : "—"}</AppText>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  ) : null;
 
   const summary = (
     <>
-      {/* H-4: the number first (latest top set, start-aligned), then the direction, then the chart. */}
-      <View style={{ gap: space.xs }}>
-        {trend.latest ? <AppText style={{ fontSize: ty.load, fontWeight: "600", fontVariant: ["tabular-nums"], textAlign: "auto" }}>{setText(trend.latest)}</AppText> : null}
-        <AppText style={{ fontWeight: "600", fontSize: ty.section }}>{t(directionKey(trend.direction, assisted))}</AppText>
-        {trend.points.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : null}
+      {hero}
+      {chartCard}
+      <View style={{ flexDirection: "row", gap: space.sm }}>
+        {tile(t("trend.stat.bestSet"), bestSetText)}
+        {tile(t("trend.stat.bestVolume"), bestVolumeText)}
+        {tile(t("trend.stat.prs"), String(prCount))}
       </View>
-      <Card>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          <Chip label={t("trend.metric.weight")} selected={metric === "weight"} onPress={() => setMetric("weight")} />
-          {timed ? null : <Chip label={t("trend.metric.e1rm")} selected={metric === "e1rm"} onPress={() => setMetric("e1rm")} />}
-          <Chip label={t("trend.metric.volume")} selected={metric === "volume"} onPress={() => setMetric("volume")} />
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          <Chip label={t("trend.range.3m")} selected={range === "3m"} onPress={() => setRange("3m")} />
-          <Chip label={t("trend.range.1y")} selected={range === "1y"} onPress={() => setRange("1y")} />
-          <Chip label={t("trend.range.all")} selected={range === "all"} onPress={() => setRange("all")} />
-        </View>
-        {chartPoints.length === 0 ? <AppText>{t("trend.noPoints")}</AppText> : (
-          <TrendChart
-            points={chartPoints}
-            assisted={metric === "weight" && assisted}
-            summary={t("trend.chartLabel", { dir: t(directionKey(trend.direction, assisted)), n: chartPoints.length })}
-            axisText={(from, to) => t("trend.axis", { from, to })}
-            valueText={(v, byQuantity) => isolateLtr(byQuantity ? `${Math.round(v * 10) / 10}${timed === "distance" ? letters.m : letters.s}` : metric === "volume" ? String(Math.round(kgToUnit(v, unit))) : weightText(v, unit))}
-          />
-        )}
-        {chartPoints.length > 0 ? <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("trend.chartHint")}</AppText> : null}
-      </Card>
-      {path ? <Card>
-        <AppText style={{ fontWeight: "600", fontSize: ty.section }}>{t("path.title")}</AppText>
-        <AppText style={{ fontSize: ty.load, fontWeight: "600", color: p.accent }}>
-          {t(`path.tier.${path.tier}`)} · {path.score}
-        </AppText>
-        <AppText>{t("path.from", { start: fmt(path.baseline), best: fmt(path.best) })}</AppText>
-        <AppText style={{ color: p.muted }}>{path.next && path.nextScore !== null ? t("path.next", { tier: t(`path.tier.${path.next}`), score: path.nextScore }) : t("path.top")}</AppText>
-        <View accessible accessibilityRole="progressbar" accessibilityLabel={t("path.progress", { score: path.score })}
-          accessibilityValue={{ min: 0, max: 100, now: Math.round(path.progress * 100) }}
-          style={{ height: 8, borderRadius: 4, backgroundColor: p.border, overflow: "hidden" }}>
-          <View style={{ height: 8, width: `${Math.round(path.progress * 100)}%`, backgroundColor: p.accent }} />
-        </View>
-        <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("path.rule")}</AppText>
-      </Card> : null}
-      {/* "What this shows" on request (48 dp "?", expanded state). */}
-      <View style={{ gap: space.xs }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-          <AppText style={{ flex: 1, color: p.muted, fontSize: ty.label }}>{t("trend.whatShows")}</AppText>
-          <QuietAction label="?" accessibilityLabel={t("trend.whatShows")} expanded={explainOpen} onPress={() => setExplainOpen((o) => !o)} />
-        </View>
-        {explainOpen ? <AppText style={{ color: p.muted }}>{timed ? t("trend.timedMeasure") : assisted ? t("trend.measureAssisted") : t("trend.measure")}</AppText> : null}
-      </View>
-      {paceHeadline ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("trend.pace")}</AppText>
-          <AppText>{paceHeadline}</AppText>
-          {(paceDetails ?? []).map((line) => (
-            <AppText key={line} style={{ color: p.muted }}>{line}</AppText>
-          ))}
-        </Card>
-      ) : null}
-      <Card>
-        <AppText style={{ fontWeight: "600" }}>{nextTarget ? t("trend.next", { target: nextTarget }) : t("trend.nextNone")}</AppText>
-        {whySentence ? <AppText style={{ color: p.muted }}>{whySentence}</AppText> : null}
-      </Card>
-      {setups && setups.length > 1 ? (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-          {setups.map((s) => (
-            <Chip key={s.lineId} label={s.label} selected={s.selected} onPress={() => onPickSetup?.(s.lineId)} />
-          ))}
-        </View>
-      ) : null}
-      <Card>
-        {timed && trend.quantityChangePer30d != null ? (
-          <AppText style={{ color: p.muted }}>
-            {t("trend.changeQuantity", { delta: String(Math.round(Math.abs(trend.quantityChangePer30d) * 10) / 10), unit: timed === "time" ? letters.s : letters.m, n: Math.min(trend.points.length, 10) })}
-          </AppText>
-        ) : null}
-        {(!timed || trend.quantityChangePer30d == null) && trend.loadChangePer30d !== null ? (
-          <AppText style={{ color: p.muted }}>
-            {t("trend.change", {
-              delta: String(Math.round(kgToUnit(Math.abs(trend.loadChangePer30d), unit) * 10) / 10),
-              unit: unitText,
-              n: Math.min(trend.points.length, 10),
-            })}
-          </AppText>
-        ) : null}
-        {trend.latest ? <AppText>{t("trend.latest", { set: setText(trend.latest), date: formatDay(trend.latest.at, lang) })}</AppText> : null}
-        {trend.best ? <AppText>{t("trend.best", { set: setText(trend.best), date: formatDay(trend.best.at, lang) })}</AppText> : null}
-      </Card>
-      {records.heaviest ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("trend.pr.title")}</AppText>
-          <AppText>{t("trend.pr.heaviest", { set: setText(records.heaviest), date: formatDay(records.heaviest.at, lang) })}</AppText>
-          {records.e1rm ? <AppText>{t("trend.pr.e1rm", { load: fmt(records.e1rm.e1rm), set: setText(records.e1rm.set) })}</AppText> : null}
-          {records.setVol ? <AppText>{t("trend.pr.setVolume", { volume: String(Math.round(records.setVol.volume)), set: setText(records.setVol.set) })}</AppText> : null}
-          {records.sessionVol ? <AppText>{t("trend.pr.sessionVolume", { volume: String(Math.round(records.sessionVol.volume)), date: formatDay(records.sessionVol.at, lang) })}</AppText> : null}
-        </Card>
-      ) : null}
-      {recent.length > 0 ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("trend.recent")}</AppText>
-          {recent.map((pt) => (
-            <AppText key={pt.at} style={{ fontVariant: ["tabular-nums"] }}>
-              {isolateParam(formatDay(pt.at, lang))}  {setText(pt)}
-              {pt.imported ? `  (${t("trend.imported")})` : ""}
-            </AppText>
-          ))}
-        </Card>
-      ) : null}
-      {extras}
-      {loads ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("loads.title")}</AppText>
-          <AppText>
-            {loads.own
-              ? t("loads.state.own", { what: loadsSummaryText(loads.own, unit, unitText, t as never) })
-              : t("loads.state.default", { equipment: t(`equipment.${loads.equipment}` as never) })}
-          </AppText>
-          {!loads.own && loads.gym ? (
-            <AppText style={{ color: p.muted }}>{loadsSummaryText(loads.gym, unit, unitText, t as never)}</AppText>
-          ) : null}
-          <AppText style={{ color: p.muted, fontSize: ty.caption }}>{t("loads.pickHint")}</AppText>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-            {TREND_LOAD_JUMPS_KG.map((kg) => (
-              <Chip
-                key={kg}
-                label={t("loads.jump", { step: weightText(kg, unit), unit: unitText })}
-                selected={matchingJumpKg(loads.own ?? loads.gym) === kg}
-                onPress={() => loads.onPickJump(kg)}
-              />
-            ))}
-          </View>
-        </Card>
-      ) : null}
-      {records.reps.length > 0 ? (
-        <Card>
-          <AppText style={{ fontWeight: "600" }}>{t("trend.repMaxes")}</AppText>
-          {records.reps.map((row) => (
-            <AppText key={row.reps}>
-              {t("trend.repMax", { reps: row.reps, load: fmt(row.set.load) })}
-            </AppText>
-          ))}
-        </Card>
-      ) : null}
+      {recent}
     </>
   );
 
+  // ---- History -------------------------------------------------------------------------------------------------------------
+  const historyCard = (h: HistorySession) => {
+    const at = sessionAt(h);
+    const sets = workingSets(h);
+    const volume = sessionVolumeKg(h);
+    return (
+      <View style={{ borderRadius: radius.card, borderWidth: 1, borderColor: p.border, backgroundColor: p.card, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm, marginBottom: space.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+          <AppText style={{ fontWeight: "700" }}>{formatDay(at, lang, now)}</AppText>
+          {importedAt.has(at) ? (
+            <View style={{ borderWidth: 1, borderColor: p.edge, borderRadius: radius.pill, paddingHorizontal: space.sm }}>
+              <AppText style={{ fontSize: ty.caption, color: p.muted }}>{t("trend.imported")}</AppText>
+            </View>
+          ) : null}
+          <View style={{ flex: 1 }} />
+          <AppText style={{ fontSize: ty.label, color: p.muted }}>
+            {timed ? setsLabel(sets.length, lang, t) : `${setsLabel(sets.length, lang, t)} · ${withUnit(groupedNumber(kgToUnit(volume, unit), lang))}`}
+          </AppText>
+        </View>
+        {sets.map(({ set, index }) => (
+          <View key={index} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 28 }}>
+            <AppText style={{ fontWeight: "600", fontVariant: ["tabular-nums"] }}>{loggedText(set)}</AppText>
+            {isPrSet(h, set, index) ? (
+              <View style={{ paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: p.fill }}>
+                <AppText style={{ fontSize: ty.caption, fontWeight: "700", color: p.onFill }}>{t("trend.prChip")}</AppText>
+              </View>
+            ) : null}
+          </View>
+        ))}
+      </View>
+    );
+  };
   const historyList = (
-    <SectionList
+    <FlatList
       style={{ flex: 1 }}
-      sections={sections}
+      data={newestFirst.filter((h) => workingSets(h).length > 0)}
       keyExtractor={(item, index) => `${item.performedAt}-${index}`}
-      ListEmptyComponent={<AppText>{t("trend.history.empty")}</AppText>}
-      renderSectionHeader={({ section }) => (
-        <AppText ltr style={{ fontWeight: "600", paddingTop: space.md }}>{section.date}</AppText>
-      )}
-      renderItem={({ item }) => {
-        const at = sessionAt(item);
-        return (
-          <Card>
-            {item.sets.map((s, i) => {
-              const kinds = prKindsForSet({ heaviest: records.heaviest, bestSetVolume: records.setVol, repMaxes: records.reps }, at, i);
-              return (
-                <View key={`${at}-${i}`} style={{ gap: space.xs, paddingVertical: space.sm, borderTopWidth: i === 0 ? 0 : 1, borderColor: p.border }}>
-                  <AppText style={{ fontWeight: "600", fontVariant: ["tabular-nums"] }}>
-                    {loggedText(s)}
-                    {s.rir != null && !s.warmup ? `  ·  ${t("history.rir", { n: s.rir })}` : ""}
-                  </AppText>
-                  {s.warmup ? <AppText style={{ color: p.muted }}>{t("history.warmup")}</AppText> : null}
-                  {!s.warmup && s.tags?.includes("drop") ? <AppText style={{ color: p.muted }}>{t("history.drop")}</AppText> : null}
-                  {kinds.length > 0 ? (
-                    <AppText style={{ color: p.muted, fontSize: ty.caption }}>{kinds.map(badgeLabel).join(" · ")}</AppText>
-                  ) : null}
-                </View>
-              );
-            })}
-          </Card>
-        );
-      }}
+      ListEmptyComponent={<AppText style={{ color: p.muted }}>{t("trend.history.empty")}</AppText>}
+      renderItem={({ item }) => historyCard(item)}
     />
   );
 
+  const rows = useMemo(() => repMaxRows(records.reps, lift.setup), [records.reps, lift.setup]);
+
   return (
-    <Screen scroll={tab === "summary" || tab === "powerCurve"} footer={loadsButton} contentStyle={tab === "history" ? { flex: 1, paddingBottom: 0 } : undefined}>
-      {/* Short native title ("Exercise progression"); the exercise is a 20/26 heading here (N-2). */}
-      <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{exerciseLabels(lift, lang).primary}</AppText>
-      <AppText style={{ color: p.muted }}>{t("trend.setupLine", { setup: t(`setup.${lift.setup}` as never) })}</AppText>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-        <Chip label={t("trend.tab.summary")} selected={tab === "summary"} onPress={() => setTab("summary")} />
-        <Chip label={t("trend.powerCurve.title")} selected={tab === "powerCurve"} onPress={() => setTab("powerCurve")} />
-        <Chip label={t("trend.tab.history")} selected={tab === "history"} onPress={() => setTab("history")} />
-      </View>
-      {tab === "summary" ? summary : tab === "powerCurve" ? <RepMaxPowerCurve repMaxes={records.reps} unit={unit} /> : historyList}
+    <Screen scroll={tab !== "history"} contentStyle={tab === "history" ? { flex: 1, paddingBottom: 0 } : undefined}>
+      <PillTabs
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: "summary", label: t("trend.tab.summary") },
+          ...(timed ? [] : [{ value: "repMax" as const, label: t("trend.tab.repMax") }]),
+          { value: "history", label: t("trend.tab.history") },
+        ]}
+      />
+      {tab === "summary" ? summary : tab === "repMax" ? <RepMaxTable rows={rows} /> : historyList}
     </Screen>
   );
 }

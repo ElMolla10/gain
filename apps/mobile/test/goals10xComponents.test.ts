@@ -1,7 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { GoalHeroIronCard } from "../src/components/goals/GoalHeroIronCard";
-import { RepMaxPowerCurve } from "../src/components/trend/RepMaxPowerCurve";
 import { byType, expand, nodes, texts } from "./achievementRender";
 
 vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig()));
@@ -46,13 +45,7 @@ vi.mock("../src/i18n", () => ({
       if (k === "goals.pace.onPace") return "On Pace";
       if (k === "goals.pace.behind") return "Needs Focus";
       if (k === "goals.pace.maintaining") return "Maintaining";
-      if (k === "trend.powerCurve.title") return "REP MAX POWER CURVE";
-      if (k === "trend.powerCurve.subtitle") return "Strength Profile by Rep Range";
-      if (k === "trend.peakE1rm") return "Peak e1RM";
-      if (k === "trend.calcE1rm") return `e1RM: ${p?.load}`;
-      if (k === "trend.powerCurve.rm") return `${p?.reps}RM: ${p?.load}`;
       if (k === "goals.bar.currentE1rm") return `${p?.load} e1RM`;
-      if (k === "trend.powerCurve.insight") return `Your strongest potential was unlocked at ${p?.reps} reps (${p?.load} e1RM).`;
       return k;
     },
   }),
@@ -123,46 +116,6 @@ describe("Page 6: Goals & Lift Trend 10x Components", () => {
       const allTexts = strip(texts(tree).join(" "));
       expect(allTexts).toContain("Milestone Reached! Outstanding work.");
       expect(allTexts).toContain("100% of milestone");
-    });
-  });
-
-  describe("RepMaxPowerCurve", () => {
-    it("returns null when repMaxes array is empty", () => {
-      const tree = expand(
-        React.createElement(RepMaxPowerCurve, {
-          repMaxes: [],
-          unit: "kg",
-        })
-      );
-      expect(tree).toBeNull();
-    });
-
-    it("renders rep max bars, calculates Brzycki e1RMs, and highlights peak potential", () => {
-      const repMaxes = [
-        { reps: 1, set: { load: 100, reps: 1, at: 1000 } }, // e1rm = 100
-        { reps: 3, set: { load: 95, reps: 3, at: 2000 } },  // e1rm = 95 * 36 / 34 = 100.6
-        { reps: 5, set: { load: 92.5, reps: 5, at: 3000 } }, // e1rm = 92.5 * 36 / 32 = 104.1 (Peak!)
-        { reps: 8, set: { load: 80, reps: 8, at: 4000 } },  // e1rm = 80 * 36 / 29 = 99.3
-      ];
-
-      const tree = expand(
-        React.createElement(RepMaxPowerCurve, {
-          repMaxes,
-          unit: "kg",
-        })
-      );
-
-      const allTexts = strip(texts(tree).join(" "));
-      expect(allTexts).toContain("REP MAX POWER CURVE");
-      expect(allTexts).toContain("Strength Profile by Rep Range");
-      expect(allTexts).toContain("Peak e1RM");
-      expect(allTexts).toContain("1RM: 100 kg");
-      expect(allTexts).toContain("3RM: 95 kg");
-      expect(allTexts).toContain("5RM: 92.5 kg");
-      expect(allTexts).toContain("8RM: 80 kg");
-      // Untapped potential callout highlighting 5 reps peak
-      expect(allTexts).toContain("Your strongest potential was unlocked at 5 reps");
-      expect(allTexts).toContain("104.1 kg e1RM");
     });
   });
 });

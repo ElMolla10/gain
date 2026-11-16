@@ -28,14 +28,13 @@ describe("one date format with Western digits (plan 1.2)", () => {
     expect(formatDay(new Date(2025, 8, 16, 12).getTime(), "en", NOW, true)).toBe("16 Sep 2025");
   });
   it("the remaining UI dates use the formatter, never the ISO helper, and are never forced LTR", () => {
-    for (const f of ["screens/SessionDetailScreen.tsx", "screens/DecisionLogScreen.tsx", "screens/SyncScreen.tsx", "screens/LiftTrendView.tsx", "components/TrendChart.tsx", "components/WeeklyReviewCard.tsx"]) {
+    for (const f of ["screens/SessionDetailScreen.tsx", "screens/DecisionLogScreen.tsx", "screens/SyncScreen.tsx", "screens/LiftTrendView.tsx", "components/WeeklyReviewCard.tsx"]) {
       const src = readFileSync(join(__dirname, "../src", f), "utf8");
       expect(src, f).not.toContain("localDateText");
       expect(src, f).toContain("formatDay(");
       expect(src, f).not.toMatch(/<AppText ltr[^>]*>\{formatDay/);
       expect(src, f).not.toContain("isolateLtr(formatDay");
     }
-    expect(readFileSync(join(__dirname, "../src/components/TrendChart.tsx"), "utf8")).toContain("formatDay(ms, lang, Date.now(), true)");
   });
   it("maps Eastern Arabic-Indic digits to 0–9", () => {
     expect(toWesternDigits("١٦")).toBe("16");

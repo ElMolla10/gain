@@ -22,3 +22,10 @@ AuthKey_*.p8
 
 # App Store screenshot captures (scripts/ios-screenshots.sh)
 /screenshots/
+
+# Android signing and Play artifacts. Never commit these.
+*.jks
+*.keystore
+*.aab
+*.idsig
+pepk.jar

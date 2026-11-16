@@ -170,3 +170,28 @@ describe("email sign-in switch (GAIN_EMAIL_SIGNIN)", () => {
     expect(rd("screens/PrivacyScreen.tsx")).toContain('buildFlags.emailSignIn ? "privacy.leaves.sync" : "privacy.leaves.syncNoEmail"');
   });
 });
+
+describe("eas.json play profile and Play version", () => {
+  const eas = JSON.parse(readFileSync(join(root, "eas.json"), "utf8")) as {
+    build: Record<string, { extends?: string; distribution?: string; env?: Record<string, string>; android?: { buildType?: string } }>;
+  };
+  it("the play profile builds an AAB with GAIN_DISTRIBUTION=play; sideload profiles stay sideload", () => {
+    const play = eas.build.play;
+    const base = eas.build.base;
+    const production = eas.build.production;
+    expect(play).toBeDefined();
+    expect(base).toBeDefined();
+    expect(production).toBeDefined();
+    expect(play!.extends).toBe("production");
+    expect(play!.env?.GAIN_DISTRIBUTION).toBe("play");
+    expect(play!.android?.buildType).toBe("app-bundle");
+    expect(base!.env?.GAIN_DISTRIBUTION).toBe("sideload");
+    expect(production!.env?.GAIN_DISTRIBUTION).toBeUndefined();
+    expect(production!.distribution).toBe("store");
+  });
+  it("the first Play version is 1.0.3 / versionCode 23, higher than the 1.0.2 sideload APK", () => {
+    expect(appJson.expo.version).toBe("1.0.3");
+    expect(appJson.expo.android.versionCode).toBe(23);
+    expect(appJson.expo.android.package).toBe("app.gain.mobile");
+  });
+});

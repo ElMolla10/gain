@@ -41,7 +41,7 @@ describe("10x cards show loads in the lifter's unit (batch item 20)", () => {
     expect(en["goals.bar.currentE1rm"]).toBe("{load} e1RM");
     expect(ar["goals.bar.currentE1rm"]).toContain("{load}");
     expect(ar["goals.bar.currentE1rm"]).not.toContain("e1RM");
-    const curve = readFileSync(join(__dirname, "../src/components/trend/RepMaxPowerCurve.tsx"), "utf8");
+    const curve = readFileSync(join(__dirname, "../src/components/trend/RepMaxTable.tsx"), "utf8");
     expect(curve).not.toMatch(/\}RM/);
     expect(readFileSync(join(__dirname, "../src/components/goals/GoalHeroIronCard.tsx"), "utf8")).not.toContain(" e1RM`");
   });

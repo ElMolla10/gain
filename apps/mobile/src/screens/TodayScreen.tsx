@@ -19,7 +19,7 @@ import { glyphFor, RackRow } from "../components/today/RackRow";
 import type { DayLoadPreview, TargetRow } from "../db/finishRepo";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, PanResponder, Pressable, useWindowDimensions, View } from "react-native";
+import { Animated, LayoutAnimation, PanResponder, Pressable, useWindowDimensions, View } from "react-native";
 import { useServices } from "../AppContext";
 import { exerciseLabels } from "../i18n/format";
 import { estimateDayMinutes } from "../logic/duration";
@@ -359,9 +359,9 @@ export function TodayScreen() {
     mode === "done" && data.lastFinished ? (
       <BigButton variant="quiet" label={t("today.done.see")} onPress={() => navigation.navigate("SessionDetail", { sessionId: data.lastFinished!.id })} />
     ) : mode === "open" && data.openInfo ? (
-      <ResumeFooter {...data.openInfo} total={chosen.sets} disabled={starting || savingReturn} onPress={() => void start()} />
+      <ResumeFooter {...data.openInfo} total={chosen.sets} disabled={starting} onPress={() => void start()} />
     ) : (
-      <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting || savingReturn} loading={starting} onPress={() => void start()} />
+      <BigButton hero icon={action.kind === "start" ? "play" : undefined} label={buttonText} disabled={starting} loading={starting} onPress={() => void start()} />
     );
   return (
     <Screen tab footer={footer} footerInline={stack} scrollEnabled={!scrollLocked}>
@@ -388,16 +388,21 @@ export function TodayScreen() {
                 accessibilityState={{ checked: easeIn }}
                 accessibilityHint={`${t("today.easeIn.sets", { normal: regularSets, sets: easierSets })}. ${t("today.easeIn.note")}`}
                 disabled={savingReturn}
-                onPress={() => { void (async () => {
+                onPress={() => { if (savingReturn) return; void (async () => {
+                  const wasEnabled = easeIn;
+                  const previousPlan = returnPlan;
+                  const nextPlan: ReturnPlan | null = wasEnabled
+                    ? null
+                    : { active: true, versionId: data.versionId, stage: 1, startedAt: Date.now() };
+                  if (!reduced) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setEaseIn(!wasEnabled);
+                  setReturnPlan(nextPlan);
                   setSavingReturn(true);
                   try {
-                    if (easeIn) {
-                      if (returnPlan?.active) await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify({ ...returnPlan, active: false }));
-                      setReturnPlan(null);
-                      setEaseIn(false);
+                    if (wasEnabled) {
+                      if (previousPlan?.active) await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify({ ...previousPlan, active: false }));
                     } else {
-                      const plan: ReturnPlan = { active: true, versionId: data.versionId, stage: 1, startedAt: Date.now() };
-                      await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(plan));
+                      await repos.setSetting(RETURN_PLAN_KEY, JSON.stringify(nextPlan));
                       if (data.openDayId) {
                         const open = await workout.getOpenSession();
                         if (open) {
@@ -405,10 +410,13 @@ export function TodayScreen() {
                           await workout.setSessionReadiness(open.id, "returning");
                         }
                       }
-                      setReturnPlan(plan);
-                      setEaseIn(true);
                     }
-                  } catch (e) { diagnostics.record("error", "ease in toggle", e); }
+                  } catch (e) {
+                    if (!reduced) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setEaseIn(wasEnabled);
+                    setReturnPlan(previousPlan);
+                    diagnostics.record("error", "ease in toggle", e);
+                  }
                   finally { setSavingReturn(false); }
                 })(); }}
                 style={{ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: space.sm, alignSelf: "flex-start", paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: easeIn ? p.text : p.edge, backgroundColor: easeIn ? p.raised : "transparent" }}

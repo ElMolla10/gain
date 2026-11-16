@@ -63,13 +63,14 @@ export function WorkoutScreen() {
   // Measure the actual scroll viewport: the dock and keyboard both consume space.
   const [keyboardUp, setKeyboardUpLocal] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const contentRef = useRef<View>(null!);
   const viewportHeight = useRef(0);
   const scrollY = useRef(0);
   const keyboardVisible = useRef(false);
   const revealInput = useCallback(() => {
     if (!keyboardVisible.current) return;
     const input = TextInput.State.currentlyFocusedInput();
-    const content = scrollRef.current?.getInnerViewRef();
+    const content = contentRef.current;
     if (!input || !content) return;
     // measureLayout ignores inputs in another native sheet, which are not descendants of this content.
     input.measureLayout(content, (_x, top, _width, height) => {
@@ -179,7 +180,7 @@ export function WorkoutScreen() {
 
         </View>
       {warns ? <InlineStatus kind="warn" text={statusShort} /> : null}
-      <ScrollView ref={scrollRef} onLayout={event => { viewportHeight.current = event.nativeEvent.layout.height; requestAnimationFrame(revealInput); }} onScroll={event => { scrollY.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={false}>
+      <ScrollView ref={scrollRef} innerViewRef={contentRef} onLayout={event => { viewportHeight.current = event.nativeEvent.layout.height; requestAnimationFrame(revealInput); }} onScroll={event => { scrollY.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={false}>
         <Profiler id="logger" onRender={onLoggerRender}>
 
 

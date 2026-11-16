@@ -1,10 +1,9 @@
 import React from "react";
 import { Pressable, View } from "react-native";
-import type { GymLoadSpec, LoggedSet } from "@gain/engine";
+import type { LoggedSet } from "@gain/engine";
 import type { Disp } from "../logic/workoutTypes";
 import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
-import { stepLoadOnGrid } from "../logic/stepLoad";
 import { unitLabel, weightText, type Unit } from "../logic/units";
 import { isTimed, parseQuantityInput, setQuantity } from "../logic/quantity";
 import { beatLast } from "../logic/beatLast";
@@ -16,7 +15,7 @@ import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText } from "../ui";
 import { Icon } from "./Icon";
 import { CellInput, SwipeRow } from "./LogParts";
-import { SetMicroSteppers } from "./workout/SetMicroSteppers";
+import { SetEffortChips } from "./workout/SetEffortChips";
 import { haptics } from "../haptics";
 
 export interface WorkoutSetRowProps {
@@ -39,12 +38,10 @@ export interface WorkoutSetRowProps {
   strengthPr?: boolean;
   /** This exercise's own kg / lb choice; absent = the app-wide unit. The row always stores kilograms. */
   unit?: Unit;
-  /** This exercise's available loads (its own list or the gym's grid for its equipment); the ± steps snap to them. */
-  loadSpec?: GymLoadSpec | null;
 }
 
 /** Inputs and actions for one set. Persistence and draft state belong to the logger. */
-export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce, strengthPr = false, unit: unitOverride, loadSpec = null }: WorkoutSetRowProps) {
+export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce, strengthPr = false, unit: unitOverride }: WorkoutSetRowProps) {
   const { t, lang, unit: appUnit } = useI18n();
   const unit = unitOverride ?? appUnit;
   const unitText = unitLabel(unit, lang);
@@ -184,23 +181,9 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         </View>
       )}
       {current && !done ? (
-        <SetMicroSteppers
-          load={row.load ?? row.ghostLoad}
-          reps={row.reps ?? row.ghostReps}
-          unit={unit}
+        <SetEffortChips
           rir={row.rir}
           trackEffort={ex.trackEffort}
-          onAdjustLoad={(delta) => {
-            // The step (±2.5 kg or ±5 lb) is in the unit on screen; the row keeps kilograms.
-            // With available loads known, snap in the step's direction to one the gym has (a lb step in a kg gym stays on its grid).
-            const next = stepLoadOnGrid(row.load ?? row.ghostLoad ?? 0, delta, unit, loadSpec);
-            onPatch(row.key, { load: next, invalidLoad: false });
-          }}
-          onAdjustReps={(delta) => {
-            const base = row.reps ?? row.ghostReps ?? 0;
-            const next = Math.max(0, base + delta);
-            onPatch(row.key, { reps: next, invalidReps: false });
-          }}
           onSetRir={(r) => {
             onPatch(row.key, { rir: r, invalidRir: false });
           }}

@@ -2,7 +2,7 @@ import { canEditLoadsFor } from "../logic/setRowState";
 import { loadTargetText } from "../logic/bidiText";
 import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, Image, Pressable, View, useWindowDimensions } from "react-native";
 import { allowsZero, findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
 import type { Disp, ExInfo } from "../logic/workoutTypes";
 import type { ExerciseState, SetRow } from "../db/workoutRepo";
@@ -15,12 +15,13 @@ import { isTimed, quantityText, setQuantity } from "../logic/quantity";
 import { workingIndexes } from "../logic/liveSummary";
 import { focusedRowKey } from "../logic/workoutFocus";
 import { rowLabels, type SetRowDraft } from "../logic/workoutRows";
+import { exerciseDemoImage, exerciseDemoImageId } from "../logic/exerciseDemos";
 import { LIVE_MISSING_FEATURES, nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
 import { nextSetState } from "../logic/nextSetCard";
 import { describeWhyWeight, sessionPosition } from "../logic/why";
 import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, IconButton, InlineStatus, Notice, QuietAction, useReducedMotion } from "../ui";
+import { AppText, BigButton, IconButton, InlineStatus, Notice, QuietAction, Sheet, useReducedMotion } from "../ui";
 import { RACK_MOTION } from "../logic/rackMotion";
 import { RestToggle, TargetLine, UnitToggle } from "./LogParts";
 import { Icon } from "./Icon";
@@ -65,6 +66,34 @@ export interface ExerciseSectionProps extends Pick<WorkoutSetRowProps, "onPatch"
   unitOverride?: Unit | null; onToggleUnit?: () => void;
 }
 
+function ExerciseDemoButton({ seedKey, title, buttonLabel, buttonA11y, imageA11y }: { seedKey: string; title: string; buttonLabel: string; buttonA11y: string; imageA11y: string }) {
+  const [visible, setVisible] = useState(false);
+  const p = useLogPalette();
+  const image = exerciseDemoImage(seedKey);
+  if (!image) return null;
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={buttonA11y}
+        onPress={() => setVisible(true)}
+        style={({ pressed }) => ({ alignSelf: "flex-start", minHeight: 48, minWidth: 48, flexDirection: "row", alignItems: "center", gap: space.xs, marginStart: space.lg, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
+      >
+        <AppText style={{ color: p.accent, fontSize: ty.caption, fontWeight: "600" }}>{buttonLabel}</AppText>
+      </Pressable>
+      <Sheet visible={visible} title={title} onClose={() => setVisible(false)}>
+        <Image
+          source={image}
+          resizeMode="contain"
+          accessibilityRole="image"
+          accessibilityLabel={imageA11y}
+          style={{ width: "100%", height: 400, borderRadius: radius.card, backgroundColor: p.card }}
+        />
+      </Sheet>
+    </>
+  );
+}
+
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
 export function WorkoutExerciseSection({ restGlobal = true, active = true, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId, unitOverride, onToggleUnit }: ExerciseSectionProps) {
   const { t, lang, unit: appUnit } = useI18n();
@@ -75,6 +104,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
   const { fontScale } = useWindowDimensions();
 
   const labels = exerciseLabels(ex, lang);
+  const demoImageId = exerciseDemoImageId(ex.seedKey);
   const pr = info.proposal;
   const spec = ex.loadSpec ?? findSpec(gym, ex.equipment);
   const numbering = rowLabels(list);
@@ -171,6 +201,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
         {restGlobal ? <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} /> : null}
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
       </View>
+      {demoImageId ? <ExerciseDemoButton seedKey={ex.seedKey!} title={labels.primary} buttonLabel={t("workout.demo")} buttonA11y={t("workout.demo.a11y", { exercise: labels.primary })} imageA11y={t("workout.demo.imageA11y", { exercise: labels.primary })} /> : null}
       {canEditLoads && loadsOpen ? (
         <View style={{ gap: space.xs }}>
           <LoadSettings unit={unit} loadSpec={spec} busy={busy} onPickJump={onPickJump!} listText={listText} onListChange={onListChange} onSaveList={onSaveList} />

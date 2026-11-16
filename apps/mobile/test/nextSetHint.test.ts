@@ -135,3 +135,6 @@ describe("unconfirmed set without a comparable baseline", () => {
     expect(buttons.map(n => n.props.label)).toEqual(["It is right", "Not right, remove it"]);
   });
 });
+
+// Native image/SVG drawing is covered separately; these tests exercise workout wiring.
+vi.mock("../src/components/ExerciseDemoIllustration", () => ({ ExerciseDemoIllustration: "ExerciseDemoIllustration" }));

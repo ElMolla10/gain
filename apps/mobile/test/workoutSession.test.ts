@@ -611,3 +611,6 @@ describe("a keystroke re-renders only one row (logger 10x render count)", () => 
     }
   });
 });
+
+// Native image/SVG drawing is covered separately; these tests exercise workout wiring.
+vi.mock("../src/components/ExerciseDemoIllustration", () => ({ ExerciseDemoIllustration: "ExerciseDemoIllustration" }));

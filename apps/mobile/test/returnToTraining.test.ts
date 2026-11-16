@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { RETURN_PLAN_KEY, canProgressReturn, comebackLoad, comebackPrefill, comebackSets, parseReturnPlan, returnSessionKey, returnStage } from "../src/logic/returnToTraining";
+import { RETURN_PLAN_KEY, canProgressReturn, comebackLoad, comebackPrefill, comebackSets, effectiveWorkoutSetCount, parseReturnPlan, returnSessionKey, returnStage } from "../src/logic/returnToTraining";
+import { estimateDayMinutes } from "../src/logic/duration";
 import { freshDb } from "./helpers";
 import { initialRows, editRow } from "../src/logic/workoutRows";
 import { applyLiveTarget } from "../src/logic/liveAdaptation";
@@ -21,6 +22,18 @@ describe("optional return plan", () => {
     expect(parseReturnPlan("{bad")).toBeNull();
     expect(returnStage("0")).toBeNull();
     expect(returnStage("2")).toBe(2);
+  });
+
+  it("updates Today’s duration estimate for eased sets and restores normal duration when Ease In is off", () => {
+    const perExercise = [3, 3, 3, 3];
+    const normalSets = 12;
+    const easedSets = effectiveWorkoutSetCount(normalSets, perExercise, true, 1);
+    const restoredSets = effectiveWorkoutSetCount(normalSets, perExercise, false, 1);
+
+    expect(easedSets).toBe(8);
+    expect(estimateDayMinutes({ exercises: 4, sets: easedSets }, 90)).toBe(29);
+    expect(restoredSets).toBe(12);
+    expect(estimateDayMinutes({ exercises: 4, sets: restoredSets }, 90)).toBe(38);
   });
 
   it("rounds down to gym loads, handles assistance and bodyweight, and does not invent an unknown weight or effort", () => {

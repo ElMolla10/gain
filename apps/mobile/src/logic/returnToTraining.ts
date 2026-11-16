@@ -24,6 +24,11 @@ export function comebackSets(normalSets: number, stage: ReturnStage): number {
   return Math.max(1, Math.min(Math.round(normalSets), Math.round(normalSets * (stage === 1 ? 0.67 : 0.85))));
 }
 
+/** The displayed plan total: use the per-exercise comeback counts only while Ease In is active. */
+export function effectiveWorkoutSetCount(normalSets: number, exerciseSets: readonly number[], active: boolean, stage: ReturnStage): number {
+  return active ? exerciseSets.reduce((total, sets) => total + comebackSets(sets, stage), 0) : normalSets;
+}
+
 /** Never fabricate an equipment increment. An unknown grid leaves the load blank. */
 export function comebackLoad(load: number | null, spec: GymLoadSpec | null, setup: SetupType, stage: ReturnStage): number | null {
   if (load === null || !Number.isFinite(load) || load < 0) return null;

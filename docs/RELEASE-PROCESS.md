@@ -29,7 +29,7 @@ Output: `android/app/build/outputs/apk/release/app-release.apk` (about 2.5 minut
 
 **Build variants (v0.20.0).** The default build above is the sideload APK. A pilot variant (`GAIN_PILOT_TEMPLATES=1`) and a Google Play variant (`GAIN_DISTRIBUTION=play`) are described in [PLAY-BUILD.md](PLAY-BUILD.md); the pilot APK is published as an extra asset named `gain-pilot-vX.Y.Z-arm64.apk` (the updater ignores that name). Always `expo prebuild --clean` again when switching variants.
 
-## 3. Sign with the release key (the SAME key as every earlier release)
+## 3. Sign with the release key (the v1.0.2 Windows key from 1.0.2 onwards)
 ```
 BT=~/tools/android-sdk/build-tools/36.0.0
 $BT/zipalign -f -p 4 app-release.apk aligned.apk
@@ -38,7 +38,7 @@ $BT/apksigner sign --ks ~/keystores/gain-release.jks --ks-key-alias gain \
 $BT/apksigner verify --print-certs gain-vX.Y.Z-arm64.apk | grep "SHA-256"
 sha256sum gain-vX.Y.Z-arm64.apk
 ```
-- The signer certificate SHA-256 **must** be `571bc5a8ce699054ae7bffe0fc912fd1faf9de7dfd3d3eb962b1b8578315c5b2`. If it differs, STOP: Android will refuse the install as an update and users would have to uninstall (losing local data).
+- From **v1.0.2** onwards, the sideload and Play signer certificate SHA-256 **must** be `9bb983dd9766e52b8f2f363da38a07057da1fc5309a0f1719ad2a7c96eea2a4b` (the Windows v1.0.2 key). If it differs, STOP. The older box key `571bc5a8ce699054ae7bffe0fc912fd1faf9de7dfd3d3eb962b1b8578315c5b2` signed v0.1.0–v0.21.0 only; it cannot update those users to 1.0.2 or later, and it must not be enrolled in Play App Signing. See [PLAY-BUILD.md](PLAY-BUILD.md) and [PLAY-STORE-LISTING.md](PLAY-STORE-LISTING.md).
 - The asset name must match `gain-vX.Y.Z...-arm64.apk` (the updater looks for that pattern).
 - Never commit the keystore, the password file, `*.idsig` or any APK.
 
@@ -47,7 +47,7 @@ Template (first line is free text; **keep the SHA-256 line exactly in this shape
 ```
 GAIN vX.Y.Z (pre-release, Android arm64). Built from main after PR #N (commit) with JDK 17 + Gradle assembleRelease. versionName X.Y.Z, versionCode C.
 
-Signed with the same keystore as v0.1.0-vPREV (signer certificate SHA-256 571bc5a8ce699054ae7bffe0fc912fd1faf9de7dfd3d3eb962b1b8578315c5b2), so it installs over vPREV as an update and keeps your data. arm64-v8a only.
+Signed with the v1.0.2+ key (signer certificate SHA-256 9bb983dd9766e52b8f2f363da38a07057da1fc5309a0f1719ad2a7c96eea2a4b), so it installs over v1.0.2 or later as an update and keeps your data. arm64-v8a only. It cannot install over v0.21.0 or earlier (different key).
 
 SHA-256 of the APK (gain-vX.Y.Z-arm64.apk): <64 hex characters>
 
@@ -67,7 +67,7 @@ gh release view vX.Y.Z --json assets,body   # check the asset's digest equals th
 On a phone that has the previous version: Settings > Check for updates > Download and install; then confirm the version number changed, the history is still there and one workout can be started. **Not yet done by anyone for any release**; it needs a phone. Second check on a phone from a different maker (battery savers and the "install unknown apps" flow differ).
 
 ## 7. Keystore custody (Mohamed)
-`~/keystores/gain-release.jks` + `.pw` live on the build box only. **Whether a backup exists elsewhere is unknown.** Losing the key means sideloaded users cannot update (they must uninstall and lose data unless they exported a backup) and, depending on the Play App Signing choice, blocks Play uploads. Action for Mohamed: copy both files to an offline place he controls, separately from each other, and write down who holds them.
+The box path `~/keystores/gain-release.jks` + `.pw` holds the **v0.1.0–v0.21.0** key only (`571bc5a8…`). The current v1.0.2+ / Play key (`9bb983dd…`) was created on Windows and is not on this box. Losing that Windows keystore would mean 1.0.2 sideload users and Play users cannot take an in-place update. Keep it in an offline place Mohamed controls, separately from its password, and never commit it. Play App Signing will also hold a copy of that key once it is enrolled (see [PLAY-BUILD.md](PLAY-BUILD.md)).
 
 ## 8. Clean-clone check
 Run on 2026-10-03 on the build box (same SDK, JDK and keystore as the real releases), from a fresh `git clone` of `main` at v0.13.0 (`1e867e0`): `npm ci` (11 s), `npm run typecheck` (clean in all 4 workspaces), `npm test` (engine 354, sync 19, mobile 565, server 83, all pass), `npm run export:android -w @gain/mobile` (1122 modules, 3.3 MB Hermes bundle), `expo prebuild`, `gradlew assembleRelease` (BUILD SUCCESSFUL in 2m 24s), zipalign + apksigner: signer certificate SHA-256 matched `571bc5a8...c5b2`, `aapt2 dump badging` showed `app.gain.mobile` versionCode 13, versionName 0.13.0. The test APK was deleted and not published.

@@ -33,6 +33,15 @@
         "resourceClass": "default"
       }
     },
+    "play": {
+      "extends": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "GAIN_DISTRIBUTION": "play"
+      }
+    },
     "testflight-live": {
       "extends": "production",
       "env": {

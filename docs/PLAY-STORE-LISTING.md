@@ -1,6 +1,6 @@
 # Google Play listing and closed-test plan (DRAFT)
 
-**DRAFT for Mohamed's review. Nothing in this file has been submitted. This is not a store upload, a build, or a merge of app-code changes.** Written 16 Nov 2026 from `main` at `4b6d6bf`, against the live iOS listing (GAIN: Workout Tracker 1.0.2), [IOS-STORE-METADATA.md](IOS-STORE-METADATA.md), the October 2026 Play prep, and the current Play Console rules for a new personal account.
+**DRAFT for Mohamed's review. Nothing in this file has been submitted. This is not a store upload, a build, or a merge of app-code changes.** Written 16 Nov 2026 from `main` at `4b6d6bf`, and updated the same day after Mohamed's decisions: Play App Signing will enrol the Windows v1.0.2 key (`9bb983dd…`) so Play updates over the sideloaded 1.0.2 APK; the Play title is **GAIN: Gym Workout Tracker**; the first Play versionName is **1.0.3**. Against the live iOS listing (GAIN: Workout Tracker 1.0.2), [IOS-STORE-METADATA.md](IOS-STORE-METADATA.md), the October 2026 Play prep, and the current Play Console rules for a new personal account.
 
 Spelling in store copy is **program**. Kilograms are the default unit; pounds are supported. Do not call GAIN "AI coaching". Do not invent features. Do not put build numbers in store copy. Live Activities are iOS-only and must not appear in the Play listing.
 
@@ -15,49 +15,67 @@ Related older drafts, kept as history and cross-checks: [PLAY-LISTING-DRAFT.md](
 | Package name | `app.gain.mobile` | From `apps/mobile/app.json`. Permanent once the app is created in Play Console. |
 | Home-screen name | `GAIN` | `expo.name`. The store title is separate (section 4). |
 | versionName | `1.0.3` | Bumped on 16 Nov 2026 for iOS TestFlight (#361). Live iOS App Store is still **1.0.2**. |
-| versionCode | `22` | Same as the GitHub sideload APK `gain-v1.0.2-arm64.apk`. Android will not install an update over that APK unless the versionCode is **23 or higher** and the **app-signing certificate matches**. |
+| versionCode | `23` | Bumped in this PR so a Play install can update over the GitHub sideload APK `gain-v1.0.2-arm64.apk` (`versionCode` 22), as long as the app-signing certificate is the v1.0.2 Windows key (`9bb983dd…`). |
 | EAS project | `@mo_ehab10/gain` (`fc6b6b6c-020b-49fb-8ee4-e0ec954b290e`) | Authenticated as `mo_ehab10`. |
 | EAS Android builds | **None.** `eas build:list --platform android --limit 5` returned zero builds. | |
 | EAS Android keystore | **None.** No Android app credentials exist on the Expo project for `app.gain.mobile` (current or legacy). The keystore is **not** EAS-managed. | |
-| `eas.json` Android / AAB profile | **No Play-specific profile.** `production` has `distribution: store` (EAS would emit an AAB) but it **extends `base`**, which sets `GAIN_DISTRIBUTION=sideload`. A production Android build from EAS today would keep `REQUEST_INSTALL_PACKAGES` and the in-app updater, which Play rejects. `submit.production` is iOS-only (`ascAppId`). `appVersionSource` is `remote` (only matters for EAS-managed version codes). | |
+| `eas.json` Android / AAB profile | **`play`** extends `production`, sets `android.buildType` to `app-bundle`, and sets `GAIN_DISTRIBUTION=play` (overrides `base`'s `sideload`). Sideload profiles are unchanged. Do not use the `production` profile for a Play AAB: it would still inherit `sideload` and keep `REQUEST_INSTALL_PACKAGES`. `submit.production` is iOS-only (`ascAppId`). Local Gradle builds read `versionCode` 23 from `app.json`. | |
 | Expo SDK | 57. Default `compileSdkVersion` / `targetSdkVersion` **36**, `minSdkVersion` 24. | The October Play-variant measurement also reported target 36. That meets Play's rule from 31 Aug 2026: new apps must target API 36. |
 | Expo cloud builds | Free-plan iOS cloud credits are used up until 1 Dec 2026. Do not use EAS cloud for the Play AAB. | |
 
-### Signing (no secret values)
+### Signing (decided 16 Nov 2026; no secret values)
 
-Sideload APKs through **v0.21.0** were signed with the release keystore that lives on the build box at `~/keystores/gain-release.jks` (certificate SHA-256 `571bc5a8ce699054ae7bffe0fc912fd1faf9de7dfd3d3eb962b1b8578315c5b2`). [RELEASE-PROCESS.md](RELEASE-PROCESS.md) and [PLAY-BUILD.md](PLAY-BUILD.md) still describe this key as current. That is stale.
+**Decision:** enrol the Windows **v1.0.2** keystore as the Play **app signing key** (and, for the first uploads, as the upload key). Play will sign device APKs with certificate SHA-256 `9bb983dd9766e52b8f2f363da38a07057da1fc5309a0f1719ad2a7c96eea2a4b`, so the Play build can update over the sideloaded 1.0.2 APK when `versionCode` is 23 or higher. This choice is hard to undo; do not let Google generate a new app signing key.
 
-The published **v1.0.2** GitHub APK (`versionCode 22`, 11 Nov 2026) was signed on Windows with a **new** dedicated release keystore. Its certificate SHA-256 is `9bb983dd9766e52b8f2f363da38a07057da1fc5309a0f1719ad2a7c96eea2a4b`. That keystore is **not** on this build box. Existing v0.21.0 users already cannot update in place; the v1.0.2 release notes tell them to export, uninstall, and restore.
+The keystore is **not** in this repository and is **not** on the build box. It stays with Mohamed and will be provided later through a private channel, never in git or in a chat message. Never commit a `.jks`, `.keystore`, password, PEPK output, or upload certificate.
 
-Mohamed must decide Play App Signing before the first AAB upload (the choice is hard to undo):
+Two other keys exist only as history:
 
-- **Option A — let Google generate the app signing key.** The Play install uses a different signer than the 1.0.2 sideload APK. Lifters on 1.0.2 cannot update from Play in place; they export a backup, uninstall, and reinstall. This is the simpler path if the 1.0.2 Windows keystore is not available, or if sideload and Play should stay separate.
-- **Option B — enrol the 1.0.2 key (`9bb983dd…`) as the Play app signing key.** Play can then install over the 1.0.2 sideload APK, if the Play AAB has versionCode ≥ 23. Mohamed has to provide that keystore (it is not on the build box). Do **not** enrol the old `571bc5a8…` key; current 1.0.2 users are not on it.
+- Sideload APKs through **v0.21.0** used the build-box keystore at `~/keystores/gain-release.jks`, certificate SHA-256 `571bc5a8ce699054ae7bffe0fc912fd1faf9de7dfd3d3eb962b1b8578315c5b2`. That key is **not** current. Do not enrol it in Play App Signing. v0.21.0 users already cannot update in place to 1.0.2; the 1.0.2 release notes tell them to export, uninstall, and restore.
+- The published **v1.0.2** GitHub APK (`versionCode` 22, 11 Nov 2026) was signed on Windows with the new key above (`9bb983dd…`). That is the key Play must use.
 
-In both cases keep a separate **upload key**. The old box keystore can stay the sideload key for any last v0.21-line rebuilds, but it must not be used as the Play app signing key.
+#### Enrol the existing key in Play App Signing
+
+GAIN is a **new** Play app, but it must use this existing key rather than the default Google-generated one. Official help: [Use Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756).
+
+1. Create the app in Play Console with package name `app.gain.mobile`. Open the Play App Signing page (**Protected with Play > Play Store protection > Manage Play app signing**, or **Release > Setup > App signing**, depending on the Console layout).
+2. Do **not** accept the default of letting Google generate the app signing key. For a new app that default is applied when the first bundle is uploaded, and it can only be changed **before** a release is rolled out to open testing or production. Change the key first: on that page, **Change key** (or the equivalent “use a different key” / “export and upload a key from a Java keystore” option) and choose **provide a copy of your app signing key**.
+3. The Console then offers the **PEPK** (Play Encrypt Private Key) tool and shows the exact command, including Google's encryption public key for this enrolment. Download PEPK from the Console (or its [open-source counterpart](https://developer.android.com/studio/publish/app-signing)). Run the command **on the private machine that holds the Windows v1.0.2 keystore**, of the form:
+
+```
+java -jar pepk.jar --keystore=PATH_TO_JKS --alias=KEY_ALIAS --output=encrypted-private-key.zip --encryptionkey=KEY_FROM_THE_CONSOLE
+```
+
+   Use the command the Console prints; the `--encryptionkey` value comes from Google and can change. Enter the keystore and key passwords when PEPK asks. The output is an encrypted copy of the key, not the raw keystore. Do not commit `pepk.jar`, the keystore, or the encrypted output.
+4. Upload the encrypted file in Play Console and enrol. Then open the **App signing key certificate** section and confirm the SHA-256 is `9bb983dd9766e52b8f2f363da38a07057da1fc5309a0f1719ad2a7c96eea2a4b`. If it is any other fingerprint, **stop** and do not roll out a release.
+5. Optional, recommended later: register a **separate upload key**. Generate a new keystore privately, export its public certificate, and upload the PEM in Play Console:
+
+```
+keytool -export -rfc -keystore PATH_TO_UPLOAD_KEYSTORE -alias UPLOAD_ALIAS -file upload_certificate.pem
+```
+
+   Until that is registered, the first AABs can be signed with the same v1.0.2 key (it then acts as the upload key as well). After a separate upload key is registered, sign AABs with the upload key; Play re-signs what users install with the v1.0.2 app signing key. A lost upload key can be reset; the app signing key cannot.
 
 ### How to get a signed Play AAB without Expo cloud quota
 
-The unmerged workflow `.github/workflows/android-apk.yml` (only on `feat/workout-reordering`) uploads a **debug-signed PR APK**. It is not a Play path. GitHub Releases are manual sideload APKs, not AABs. There is no Android equivalent of [IOS-GITHUB-BUILD.md](IOS-GITHUB-BUILD.md) yet.
+The unmerged workflow `.github/workflows/android-apk.yml` (only on `feat/workout-reordering`) uploads a **debug-signed PR APK**. It is not a Play path. GitHub Releases are manual sideload APKs, not AABs. There is no Android equivalent of [IOS-GITHUB-BUILD.md](IOS-GITHUB-BUILD.md) yet. Expo free-plan cloud credits are used up until 1 Dec 2026; do not use `eas build` on Expo's servers for this AAB.
 
-**Recommended path (no Expo cloud credits, no EAS credentials required):**
-
-1. A later, small code change (not in this PR): add an EAS/`gradle` **play** profile that sets `GAIN_DISTRIBUTION=play`, and bump `android.versionCode` to **23** (and decide whether `versionName` stays `1.0.3` to match current `main`, or is held at `1.0.2` to match live iOS). Recommendation: ship **1.0.3 / 23** from current `main`.
-2. On Ubuntu (this box, or a future GitHub Actions `ubuntu-latest` job, like the iOS `eas build --local` workflow):
+**Recommended path:** `scripts/android-play-aab.sh` on Ubuntu. It sets `GAIN_DISTRIBUTION=play`, runs `expo prebuild --platform android --clean`, checks that the generated manifest does **not grant** `REQUEST_INSTALL_PACKAGES` (Expo writes it with `tools:node="remove"`, which is the block, not a grant), runs `gradlew bundleRelease`, and signs the AAB with `jarsigner`. The keystore path, alias, and passwords are read from environment variables only (`GAIN_PLAY_KEYSTORE`, `GAIN_PLAY_STORE_PASSWORD`, `GAIN_PLAY_KEY_ALIAS`, and optional `GAIN_PLAY_KEY_PASSWORD`). The script refuses to sign if the keystore certificate SHA-256 is not the v1.0.2 Windows key, so the old v0.21.0 box key cannot be used by mistake. It never prints secret values, never prompts, and never uploads the AAB.
 
 ```
-cd apps/mobile
-GAIN_DISTRIBUTION=play CI=1 npx expo prebuild --platform android --clean --no-install
-git checkout package.json
-cd android
-./gradlew bundleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+# Generate the Play Android project and check the manifest (no keystore needed):
+scripts/android-play-aab.sh --prebuild-only
+
+# After the v1.0.2 keystore is available privately, build and sign:
+# (export the four GAIN_PLAY_* variables in that shell only; do not write them to a file in git)
+scripts/android-play-aab.sh
 ```
 
-3. Sign the AAB with the chosen **upload** keystore (`jarsigner` / Play's App Signing upload-key process). Then upload that AAB to the Play closed-testing track. Re-measure the bundle before upload: `bundletool dump manifest` / permissions must **not** include `REQUEST_INSTALL_PACKAGES`, and `extra.distribution` must be `play`.
+The default output is `gain-play-1.0.3.aab` at the repo root (`*.aab` is gitignored). Re-measure the signed bundle before upload: permissions must not include `REQUEST_INSTALL_PACKAGES`, `extra.distribution` must be `play`, `versionName` 1.0.3, `versionCode` 23, and the signer SHA-256 must be `9bb983dd…`.
 
-**Later alternative, still no cloud quota:** after Mohamed provides or creates an upload key, store it as EAS Android credentials (or as GitHub `app-store` environment secrets) and run `eas build --platform android --profile play --local` on Ubuntu. `eas build --local` does not spend Expo cloud credits. Do not create those credentials or trigger a workflow in this phase.
+**Later alternative, still no cloud quota:** store the upload key as EAS Android credentials (or as GitHub `app-store` environment secrets) and run `eas build --platform android --profile play --local` on Ubuntu. `eas build --local` does not spend Expo cloud credits. Do not create those credentials or trigger a workflow in this phase.
 
-The October 2026 Play variant already built an AAB this way (`bundleRelease` in 2 m 51 s on the build box, targetSdk 36, no install-packages permission). That measurement was of v0.19.0 sources. Rebuild from current `main` and measure again before upload.
+The October 2026 Play variant already built an unsigned/debug-signed AAB this way (`bundleRelease` in 2 m 51 s on the build box, targetSdk 36, no install-packages permission). That measurement was of v0.19.0 sources. Rebuild from current `main` and measure again before upload.
 
 ---
 
@@ -101,13 +119,11 @@ The October 2026 Play variant already built an AAB this way (`bundleRelease` in 
 
 Play limits: title ≤ 30 characters, short description ≤ 80, full description ≤ 4000. There is no keyword field and no subtitle, so the title and short description carry the search words that iOS puts in those extra fields.
 
-**Title recommendation:** use the November 2026 iOS ASO name, because Play has no subtitle or keyword field. Alternative, if Mohamed wants the stores to match exactly: the live iOS name.
+**Title (decided 16 Nov 2026):** `GAIN: Gym Workout Tracker`. Play has no subtitle or keyword field, so this is the November 2026 iOS ASO name. The live iOS name `GAIN: Workout Tracker` is not used on Play.
 
 ### English (en-US)
 
-**App name (max 30), recommended:** `GAIN: Gym Workout Tracker` (25)
-
-Alternative (exact live iOS name): `GAIN: Workout Tracker` (21)
+**App name (max 30):** `GAIN: Gym Workout Tracker` (25)
 
 **Short description (max 80):** `Log sets offline. See your next weight, and why, in English and Arabic.` (71)
 
@@ -136,9 +152,7 @@ Alternative (exact live iOS name): `GAIN: Workout Tracker` (21)
 
 ### Arabic (ar) — builder's draft, needs a native Egyptian read before it goes public
 
-**اسم التطبيق (حد أقصى 30)، المقترح:** `GAIN: سجل تمارين الجيم` (22)
-
-البديل (نفس الاسم الحي على iOS): `GAIN: Workout Tracker` (21)
+**اسم التطبيق (حد أقصى 30):** `GAIN: سجل تمارين الجيم` (22)
 
 **وصف قصير (حد أقصى 80):** `سجّل تمرينك من غير نت، واعرف الوزن الجاي وسببه. مجاني ومن غير إعلانات.` (70)
 
@@ -272,7 +286,7 @@ Review of the production-access application usually takes **up to 7 days**. Goog
 1. Finish Play Console account verification (identity, non-trader declaration, Play Console app on the spare Android phone, phone number once identity is approved).
 2. Create the app with package name **`app.gain.mobile`**. Double-check this before the first save; it cannot change later.
 3. Complete app setup so closed testing can start: store listing (section 4), privacy policy URL, categories, target audience, content rating (section 6), Data safety (section 5), Ads = No, news/COVID declarations as applicable, contact email, account deletion URL.
-4. Choose Play App Signing (section 1, Mohamed's decision).
+4. Enrol the v1.0.2 Windows key in Play App Signing (section 1) and confirm the app-signing SHA-256 before any rollout.
 5. Optional but useful: upload the same Play AAB to the **internal** testing track first, install it on Mohamed's spare phone, and smoke-test onboarding, a workout, Finish, export, and (if wanted) sync + delete.
 6. Create a **closed** testing release on the default closed track, upload the signed Play AAB (`GAIN_DISTRIBUTION=play`, versionCode 23+), and add testers.
 7. Testers: a **Google Group** is easier to maintain than a pasted email list. Collect 14–16 Google accounts (not 12 exactly — people drop out). Each tester must open the opt-in link, accept, and install from Play. Tell them clearly: stay opted in for 14 days even if they only open the app a few times; uninstalling is not the same as opting out, but they should keep the app installed and actually use it, because Google looks at engagement.
@@ -324,18 +338,17 @@ The live form has three sections. Engagement and "what changed" must be rewritte
 
 1. Finish Play Console verification: identity (already in review), non-trader declaration, Play Console app on the spare Android phone, phone number after identity is approved.
 2. Start lining up **14–16** Android testers with Google accounts now (the Instagram story is a reasonable place to ask). Tell them they must stay opted in for 14 days.
-3. Decide Play App Signing (section 1, Option A or B). If Option B, provide the **1.0.2 Windows keystore** (certificate `9bb983dd…`) through a private channel, not in git or chat. If that key is lost, use Option A and tell 1.0.2 sideload users they will need to export, uninstall, and reinstall.
-4. Decide the Play title (`GAIN: Gym Workout Tracker` vs `GAIN: Workout Tracker`) and whether the first Play versionName is 1.0.3 (recommended, matches current `main`) or 1.0.2 (matches live iOS).
-5. Capture or approve real Android screenshots from the Play build, in English and Arabic, once a signed Play build is on a phone. Native-read the Arabic listing and the Arabic feature graphic.
-6. After the 14-day closed test, apply for production access (using the filled-in form) and, when that is approved, give an explicit OK before any production store submission.
+3. When ready, provide the v1.0.2 Windows keystore through a private channel (not git, not a chat message) so the AAB can be signed and the key can be enrolled with PEPK. Enrolment steps are in section 1. Confirm the Play app-signing certificate SHA-256 is `9bb983dd…` before any rollout.
+4. Capture or approve real Android screenshots from the Play build, in English and Arabic, once a signed Play build is on a phone. Native-read the Arabic listing and the Arabic feature graphic.
+5. After the 14-day closed test, apply for production access (using the filled-in form) and, when that is approved, give an explicit OK before any production store submission.
 
-### What I will do next (after this draft is accepted; still no store submission)
+### What I will do next (still no store submission)
 
-1. Small code/docs follow-up: add a `play` EAS/Gradle profile with `GAIN_DISTRIBUTION=play`, and bump `versionCode` to 23 (plus the agreed versionName).
-2. Build and sign a Play AAB locally on Ubuntu, re-measure permissions and `extra.distribution`, and hand Mohamed the file to upload (or, later, a GitHub Actions `eas build --local` workflow modelled on the iOS TestFlight job — not triggered without his OK).
-3. Help paste listing text, Data safety, content rating, and the deletion/privacy URLs into Play Console once he is signed in (he clicks submit).
-4. Help run the internal then closed tracks, the tester instructions, and the 14-day tally.
-5. Update and redeploy the public site so it no longer says the Android app is only sideloaded, and so the privacy page does not still say "Android build (v0.22.0)".
-6. Recapture or frame Android screenshots with him if he wants help on a device or emulator.
+The `play` profile, `versionCode` 23, listing decisions, and local AAB script are in this PR. Remaining:
+1. Once the v1.0.2 keystore is available privately, build and sign the Play AAB with `scripts/android-play-aab.sh`, re-measure permissions and `extra.distribution`, and hand Mohamed the file to upload (or, later, a GitHub Actions `eas build --local` workflow modelled on the iOS TestFlight job — not triggered without his OK).
+2. Help paste listing text, Data safety, content rating, and the deletion/privacy URLs into Play Console once he is signed in (he clicks submit).
+3. Help run the internal then closed tracks, the tester instructions, and the 14-day tally.
+4. Update and redeploy the public site so it no longer says the Android app is only sideloaded, and so the privacy page does not still say "Android build (v0.22.0)".
+5. Recapture or frame Android screenshots with him if he wants help on a device or emulator.
 
 Nothing in this document authorises a Play upload, a credentials change, a workflow run, or a merge of app code.

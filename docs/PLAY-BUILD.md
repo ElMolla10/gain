@@ -1,6 +1,7 @@
 # Build variants: sideload, pilot, Google Play (Step 25 / G4) (v0.20.0)
 
-Status: **the Play variant builds and its manifest was measured on a build box (2026-10-04); nothing was run on a phone and nothing was submitted** (no Play Console account). The default build is unchanged.
+Status: **the Play variant builds and its manifest was measured on a build box (2026-10-04); nothing was run on a phone and nothing was submitted to Play at that time.** The default sideload build is unchanged. A Play Console account now exists (identity still in review as of 16 Nov 2026). Listing copy, the `play` EAS profile, version 1.0.3 / versionCode 23, and the local AAB script are in [PLAY-STORE-LISTING.md](PLAY-STORE-LISTING.md).
+
 
 ## 1. The switches (build time only)
 Set as environment variables when running `expo prebuild` / `expo export` / Gradle. They are applied by `apps/mobile/app.config.js` (which extends `app.json`) through `apps/mobile/build-flags.js` and are written into the app's own config (`expo.extra`), where `src/buildConfig.ts` reads them. A wrong value (`GAIN_DISTRIBUTION=Play`, `GAIN_PILOT_TEMPLATES=true`) stops the build with an error instead of making a different app. Empty means "not set".
@@ -23,12 +24,12 @@ cd apps/mobile
 CI=1 npx expo prebuild --platform android --clean --no-install
 # pilot build (sideload + six programs)
 GAIN_PILOT_TEMPLATES=1 CI=1 npx expo prebuild --platform android --clean --no-install
-# Play build
+# Play build (or use scripts/android-play-aab.sh; --prebuild-only checks the manifest without signing)
 GAIN_DISTRIBUTION=play CI=1 npx expo prebuild --platform android --clean --no-install
 git checkout package.json
 cd android
 ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon -Dorg.gradle.jvmargs=-Xmx2g   # APK (sideload or pilot)
-./gradlew bundleRelease   -PreactNativeArchitectures=arm64-v8a --no-daemon -Dorg.gradle.jvmargs=-Xmx2g   # AAB (Play)
+./gradlew bundleRelease   -PreactNativeArchitectures=arm64-v8a --no-daemon -Dorg.gradle.jvmargs=-Xmx2g   # AAB (Play; sign with the v1.0.2 key, see PLAY-STORE-LISTING.md)
 ```
 Run `prebuild --clean` again whenever the variables change; the generated `android/` folder is git-ignored and keeps the old manifest otherwise. Check what you built: `expo config --json` shows `extra`; `aapt2 dump permissions app-release.apk`; `unzip -p app-release.apk assets/app.config` shows the embedded `extra` (a `null` list is stored as `{}`, which the app treats as "all templates").
 
@@ -43,8 +44,17 @@ Built from a clean checkout with `GAIN_DISTRIBUTION=play`: `assembleRelease` and
 - NOT checked: install on a phone, that Settings really omits the card (the wiring is tested by source checks only), the AAB with Play's bundletool/pre-launch report, signing with an upload key, whether Play's policy scanner still flags something else (for example the install-referrer permission a library declares: GAIN reads no referrer).
 
 ## 5. What a Play submission still needs (none done; all outside the repo's reach)
-1. **Developer account** (personal or organisation, identity checks, fee) and **app signing choice**. Option A: let Google generate the app signing key; the Play build then has a *different signer* than the sideload APKs, so a lifter cannot update from one to the other in place (uninstall and reinstall; export a backup first). Option B: enrol the existing key `571bc5a8...c5b2` in Play App Signing so both share one signature (the key is then held by Google as well, and the step cannot be undone). Either way keep a separate **upload key**. Mohamed decides; nothing here chooses.
-2. **Testing tracks** before production: Google's current requirements for new personal accounts (a closed test with a minimum number of testers for a minimum number of days) change; **unknown here, check at the time** (MASTER-PLAN Step 25).
+1. **Developer account and app signing (updated 16 Nov 2026).** A personal Play Console account exists; identity verification was still in review when this was written. **Do not enrol the old sideload key** `571bc5a8ce699054ae7bffe0fc912fd1faf9de7dfd3d3eb962b1b8578315c5b2` (that key signed v0.1.0–v0.21.0 only, and lives on the build box). The current key is the **Windows v1.0.2** keystore, certificate SHA-256 `9bb983dd9766e52b8f2f363da38a07057da1fc5309a0f1719ad2a7c96eea2a4b`, which signed the published `gain-v1.0.2-arm64.apk`. Mohamed decided to enrol that v1.0.2 key as the Play **app signing key** so a Play install can update over the sideloaded 1.0.2 APK (`versionCode` 23 or higher). The keystore is not in git and is not on the build box; it will be used privately, never committed.
+
+   For a new Play app, Google otherwise generates an app signing key when the first bundle is uploaded. That default would break in-place updates from the 1.0.2 sideload APK, and it can only be changed **before** a release is rolled out to open testing or production. Enrol the existing key first, on the Play App Signing page (**Protected with Play > Play Store protection > Manage Play app signing**, or **Release > Setup > App signing**): **Change key** / “export and upload a key from a Java keystore”, then provide a copy of the v1.0.2 key via the **PEPK** tool. The Console shows the exact command and Google's encryption key. On the private machine that holds the keystore, run a command of the form:
+
+   ```
+   java -jar pepk.jar --keystore=PATH_TO_JKS --alias=KEY_ALIAS --output=encrypted-private-key.zip --encryptionkey=KEY_FROM_THE_CONSOLE
+   ```
+
+   Upload the encrypted file (not the raw keystore), enrol, and confirm the **App signing key certificate** SHA-256 is `9bb983dd…`. If it is not, stop. Optionally register a separate **upload key** later with `keytool -export -rfc -keystore PATH_TO_UPLOAD_KEYSTORE -alias UPLOAD_ALIAS -file upload_certificate.pem` and upload that PEM; until then the first AABs can be signed with the same v1.0.2 key. A lost upload key can be reset; the app signing key cannot. See [PLAY-STORE-LISTING.md](PLAY-STORE-LISTING.md) section 1 and `scripts/android-play-aab.sh`.
+
+2. **Testing tracks** before production: a new personal account must run a **closed** test with at least 12 testers opted in continuously for 14 days, then apply for production access ([Play testing requirements](https://support.google.com/googleplay/android-developer/answer/14151465)). The plan is in [PLAY-STORE-LISTING.md](PLAY-STORE-LISTING.md) section 8.
 3. **Policy forms**: Data safety ([DATA-SAFETY-DRAFT.md](DATA-SAFETY-DRAFT.md), re-check against the Play manifest above), content rating, target audience (adults), Health apps declaration if the Console asks, Ads = No, Account deletion URL ([ACCOUNT-DELETION-SPEC.md](ACCOUNT-DELETION-SPEC.md)).
 4. **Privacy policy at a public URL that a lawyer has reviewed**, with an operator and a support email ([site/README.md](site/README.md)). The draft is hosted (see its hosting record) but is not the final policy.
 5. **Listing assets**: real phone screenshots in Arabic and English ([PLAY-ASSETS.md](PLAY-ASSETS.md)), feature graphic, native-reviewed Arabic.

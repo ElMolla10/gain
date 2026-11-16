@@ -168,7 +168,7 @@
     },
     "android": {
       "package": "app.gain.mobile",
-      "versionCode": 22,
+      "versionCode": 23,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "REQUEST_INSTALL_PACKAGES"

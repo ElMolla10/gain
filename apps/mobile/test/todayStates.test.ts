@@ -117,4 +117,10 @@ describe("TodayScreen wiring (source)", () => {
     const strings = readFileSync(join(__dirname, "..", "src", "i18n", "strings.today.ts"), "utf8").toLowerCase();
     for (const w of ["missed", "streak", "best"]) expect(strings).not.toContain(w);
   });
+  it("animates Ease in changes and keeps the start action visually steady while saving", () => {
+    expect(today).toContain('import { Animated, LayoutAnimation, PanResponder, Pressable, useWindowDimensions, View } from "react-native";');
+    expect(today).toContain("LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)");
+    expect(today).toContain('disabled={starting} loading={starting} onPress={() => void start()}');
+    expect(today).toContain("if (starting || savingReturn) return;");
+  });
 });

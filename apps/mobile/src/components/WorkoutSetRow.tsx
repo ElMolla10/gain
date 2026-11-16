@@ -8,14 +8,13 @@ import { unitLabel, weightText, type Unit } from "../logic/units";
 import { isTimed, parseQuantityInput, setQuantity } from "../logic/quantity";
 import { beatLast } from "../logic/beatLast";
 import { previousCellText } from "../logic/bidiText";
-import { parseLoadInput, parseRepsInput, parseRirInput } from "../logic/setInput";
+import { parseLoadInput, parseRepsInput } from "../logic/setInput";
 import { kindOf, rowCanLog, type SetRowDraft, type editRow } from "../logic/workoutRows";
 import { pendingInputs, tickState } from "../logic/setRowState";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText } from "../ui";
 import { Icon } from "./Icon";
 import { CellInput, SwipeRow } from "./LogParts";
-import { SetEffortChips } from "./workout/SetEffortChips";
 import { haptics } from "../haptics";
 
 export interface WorkoutSetRowProps {
@@ -27,6 +26,7 @@ export interface WorkoutSetRowProps {
   current: boolean;
   stacked: boolean;
   busy: boolean;
+  onSelect?: (key: string) => void;
   onPatch: (key: string, change: Parameters<typeof editRow>[2]) => void;
   onKind: (row: SetRowDraft) => void;
   onAskDelete: (row: SetRowDraft) => void;
@@ -41,7 +41,7 @@ export interface WorkoutSetRowProps {
 }
 
 /** Inputs and actions for one set. Persistence and draft state belong to the logger. */
-export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce, strengthPr = false, unit: unitOverride }: WorkoutSetRowProps) {
+export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current, stacked, busy, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, autoFocus, focusNonce, strengthPr = false, onSelect, unit: unitOverride }: WorkoutSetRowProps) {
   const { t, lang, unit: appUnit } = useI18n();
   const unit = unitOverride ?? appUnit;
   const unitText = unitLabel(unit, lang);
@@ -65,7 +65,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
     <View style={colSet}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${t("workout.kind.title")}: ${t(`workout.kind.${kindOf(row)}` as never)}. ${ctx}`}
+        accessibilityLabel={`${t(ex.trackEffort ? "workout.setOptions" : "workout.kind.title")}: ${t(`workout.kind.${kindOf(row)}` as never)}. ${ctx}`}
         accessibilityState={{ selected: kindOf(row) !== "normal" }}
         onPress={() => onKind(row)}
         onLongPress={() => onAskDelete(row)}
@@ -102,6 +102,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       decimal
       done={done}
       current={current}
+      onFocus={() => onSelect?.(row.key)}
       autoFocus={autoFocus}
       focusNonce={focusNonce}
     />
@@ -118,13 +119,11 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       pending={pending.reps}
       done={done}
       current={current}
+      onFocus={() => onSelect?.(row.key)}
     />
   );
-  const rirCell = ex.trackEffort ? (
-    <CellInput<number> a11y={`${t("workout.rir")}. ${ctx}`} style={{ flex: 0, width: stacked ? 64 : 52 }} value={row.rir} format={(v) => String(v)} parse={(txt) => parseRirInput(txt)} onValue={(v, invalid = false) => onPatch(row.key, { rir: v, invalidRir: invalid })} done={done} current={current} />
-  ) : null;
   // The current set: a 6 dp accent bar on the start edge (right in Arabic; check on device, react-native-web draws it left) (L-6).
-  const bar = current ? <View pointerEvents="none" style={{ position: "absolute", start: 0, top: 4, bottom: 4, width: 6, borderRadius: 3, backgroundColor: p.accent }} /> : null;
+  const bar = current ? <View pointerEvents="none" style={{ position: "absolute", start: 0, top: 4, bottom: 4, width: 3, borderRadius: 2, backgroundColor: p.accent }} /> : null;
   // Tick states (L-2): hollow = not ready, field = ready, SOLID = done (inverted check), accent ring + pencil = edited after save.
   const tickFill = state === "done" ? p.doneSolid : state === "notReady" ? "transparent" : p.field;
   const tickBorderWidth = state === "done" ? 0 : state === "edited" || (state === "ready" && current) ? 2 : 1.5;
@@ -157,14 +156,12 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
             <View style={{ width: 48 }} />
             <View style={{ flex: 1 }}><AppText ltr accessibilityLabel={previousA11y} style={{ color: beat ? p.text : p.muted, fontWeight: beat ? "600" : undefined, fontSize: ty.caption, textAlign: "center" }}>{previousValue}</AppText></View>
             <View style={{ flex: 1 }} />
-            {rirCell ? <View style={{ width: 64 }} /> : null}
             <View style={{ width: 48 }} />
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
             {setButton}
             {loadCell}
             {repsCell}
-            {rirCell}
             {tick}
           </View>
         </View>
@@ -176,19 +173,9 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
           {previous}
           {loadCell}
           {repsCell}
-          {rirCell}
           {tick}
         </View>
       )}
-      {current && !done ? (
-        <SetEffortChips
-          rir={row.rir}
-          trackEffort={ex.trackEffort}
-          onSetRir={(r) => {
-            onPatch(row.key, { rir: r, invalidRir: false });
-          }}
-        />
-      ) : null}
       {done && strengthPr ? <AppText accessibilityLiveRegion="polite" style={{ color: p.accent, fontSize: 13, paddingHorizontal: space.md, paddingBottom: space.xs }}>{t("achv.strengthPr")}</AppText> : null}
     </SwipeRow>
   );

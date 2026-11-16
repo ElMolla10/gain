@@ -30,12 +30,14 @@ describe("dockModel", () => {
     expect(m.canLog).toBe(false);
     expect(m.reason).toBe("fixWeight");
   });
-  it("typing in the focused row does not change the model (committed values only)", () => {
+  it("typing in the focused row updates the effective values immediately", () => {
     const r = row();
     const a = dockModel([bench], { bench: [{ ...r, load: 1 }] }, null, off, { editing: r.key });
     const b = dockModel([bench], { bench: [{ ...r, load: 12 }] }, null, off, { editing: r.key });
-    expect(dockKey(a)).toBe(dockKey(b));
-    expect(a.mode).toBe("hidden");
+    expect(dockKey(a)).not.toBe(dockKey(b));
+    expect(a.load).toBe(1);
+    expect(b.load).toBe(12);
+    expect(a.mode).toBe("compact");
   });
   it("all logged is done", () => {
     expect(dockModel([bench], { bench: [row({ saved: true, load: 80, reps: 8 })] }, null, off).mode).toBe("done");

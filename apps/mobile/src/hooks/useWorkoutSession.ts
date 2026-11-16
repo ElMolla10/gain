@@ -99,7 +99,8 @@ export function useWorkoutSession() {
   const [warmOpen, setWarmOpen] = useState<string | null>(null);
   const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
   const [preferredExercise, setPreferredExercise] = useState<string | null>(null);
-  // The number pad is up (a CellInput is focused): the dock hides and reads the focused row as not committed yet.
+  const [selectedRow, setSelectedRow] = useState<{ exId: string; key: string } | null>(null);
+  // Keyboard visibility is presentation state; parsed edits always remain in the row draft.
   const [keyboardUp, setKeyboardUp] = useState(false);
   const [liveDetails, setLiveDetails] = useState<string | null>(null);
   /** The Next-set card and the load settings stay closed until the lifter opens them (per exercise). */
@@ -132,7 +133,7 @@ export function useWorkoutSession() {
   const noteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const notesPending = useRef<Record<string, string>>({});
   const sessionRef = useRef<string | null>(null);
-  const rowHandlers = useRef(createHandlerMap<Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick">>());
+  const rowHandlers = useRef(createHandlerMap<Pick<WorkoutSetRowProps, "onSelect" | "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick">>());
 
   /** The exercise shown for a program slot today. */
   const makeDisp = useCallback((slotEx: DayEx, st?: ExerciseState): Disp => {
@@ -384,11 +385,15 @@ export function useWorkoutSession() {
     [workout],
   );
 
+  const selectRow = (exId: string, key: string) => {
+    if (preferredExercise !== exId) setPreferredExercise(exId);
+    if (selectedRow?.exId !== exId || selectedRow.key !== key) setSelectedRow({ exId, key });
+  };
   const patch = (exId: string, key: string, change: Parameters<typeof editRow>[2]) => {
     // Typing calls this on every keystroke: only touch state that actually changes (the preview counter still cancels a pending PR).
     if (strengthPr) clearStrengthPr();
     else prPreviewVersion.current++;
-    if (preferredExercise !== exId) setPreferredExercise(exId);
+    selectRow(exId, key);
     setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
   };
 
@@ -848,11 +853,12 @@ export function useWorkoutSession() {
     ]);
   }
 
-  const focus = focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise, supersetGroups(shown, exState));
+  const selectedExercise = selectedRow && shown.some(ex => ex.exerciseId === selectedRow.exId) && (rows[selectedRow.exId] ?? []).some(row => row.key === selectedRow.key && (!row.saved || row.dirty)) ? selectedRow.exId : null;
+  const focus = selectedExercise ?? focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise, supersetGroups(shown, exState));
 
   // The Rack Dock (logger spec §2): primitives only; Log set goes through the same logRow as the row tick.
   const dockEx = focus ? shown.find(ex => ex.exerciseId === focus) ?? null : null;
-  const dock = dockModel(shown, rows, preferredExercise, { on: timerOpen || timerRunning || restOver, open: timerOpen, endsAt: timer.endsAt, over: restOver, now: Date.now() }, { groups: supersetGroups(shown, exState), editing: keyboardUp && focus ? focusedRowKey(rows[focus] ?? []) : null });
+  const dock = dockModel(shown, rows, preferredExercise, { on: timerOpen || timerRunning || restOver, open: timerOpen, endsAt: timer.endsAt, over: restOver, now: Date.now() }, { groups: supersetGroups(shown, exState), editing: selectedRow?.exId === focus ? selectedRow.key : null });
   const dockName = dockEx ? exerciseLabels(dockEx, lang).primary : "";
   const dockLog = () => {
     const ex = shown.find(e => e.exerciseId === dock.exId);
@@ -888,6 +894,7 @@ export function useWorkoutSession() {
     const detailKey = card ? `${ex.exerciseId}:${card.performance}:${card.key}` : null;
     return {
       active: ex.exerciseId === focus,
+      selectedRowKey: selectedRow?.exId === ex.exerciseId && list.some(r => r.key === selectedRow.key && (!r.saved || r.dirty)) ? selectedRow.key : null,
       unitOverride: exerciseUnits[ex.exerciseId] ?? null,
       onToggleUnit: () => toggleExerciseUnit(ex.exerciseId),
       previousSource: previousSource,
@@ -925,6 +932,7 @@ export function useWorkoutSession() {
       onWhyLong: () => setWhyOpen(w => ({ ...w, [ex.exerciseId]: !whyOpen[ex.exerciseId] })),
       // Set-row handlers are stable per exercise (they call the latest closures), so memoised rows skip unrelated keystrokes.
       ...rowHandlers.current(ex.exerciseId, {
+        onSelect: (key: string) => selectRow(ex.exerciseId, key),
         onPatch: (key: string, change: Parameters<typeof editRow>[2]) => patch(ex.exerciseId, key, change),
         onKind: (row: SetRowDraft) => setKindFor({ exId: ex.exerciseId, key: row.key }),
         onAskDelete: (row: SetRowDraft) => askDrop(ex, row),

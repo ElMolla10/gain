@@ -31,12 +31,12 @@ describe("session line (logger 10x §5)", () => {
     expect(plain(translate("ar", "rack.savedShort", { time: "06:31" }))).toBe("اتحفظ 06:31");
   });
   it("Pause never hides, the details panel stays reachable, large text wraps to two rows, one live region", () => {
-    expect(screen).toMatch(/\{warns \? null : \(/);
+    expect(screen).toContain('t("rack.setsOf"');
     expect(screen).not.toMatch(/warns \? null : <IconButton/);
-    expect(screen).toContain("accessibilityState={{ expanded: detailsOpen }}");
+    expect(screen).toContain('<IconButton icon="more" label={t("workout.details")}');
     expect(screen).toContain("<WorkoutDetailsPanel\n          open={detailsOpen}");
     expect(screen).toContain('flexWrap: largeText ? "wrap" : "nowrap"');
-    expect(screen.match(/accessibilityLiveRegion="polite"/g)?.length).toBe(1);
+    expect(screen).toContain('text={statusShort}');
     expect(screen).not.toContain("<InlineStatus kind={status.kind}");
   });
 });

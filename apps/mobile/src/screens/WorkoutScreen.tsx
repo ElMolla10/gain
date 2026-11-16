@@ -1,9 +1,9 @@
+import { useSheetAction } from "../hooks/useSheetAction";
 import { RackDock, type DockActions } from "../components/RackDock";
 import { Profiler, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import { perfMark, perfMarks, perfNow } from "../perfMarks";
-import { Keyboard, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { adjustKeyboardInsets } from "../numberPad";
 import { Icon } from "../components/Icon";
 import { ExerciseBlock } from "../components/WorkoutExerciseSection";
 import { WorkoutDetailsPanel } from "../components/WorkoutDetailsPanel";
@@ -13,8 +13,8 @@ import { useI18n } from "../i18n";
 import { volumeText } from "../logic/liveSummary";
 import { plannedWorkRows, sessionLineWarns } from "../logic/sessionLine";
 import { adjustTimer, startTimer, stopTimer } from "../logic/restTimer";
-import { MIN_TOUCH, radius, space, type as ty, useLogPalette } from "../theme";
-import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice } from "../ui";
+import { radius, space, type as ty, useLogPalette } from "../theme";
+import { AppText, BigButton, QuietAction, ErrorState, IconButton, InlineStatus, LoadingState, Notice, Sheet } from "../ui";
 import { useWorkoutSession } from "../hooks/useWorkoutSession";
 import { useIsFocused } from "@react-navigation/native";
 import { useServices } from "../AppContext";
@@ -31,7 +31,7 @@ const onLoggerRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) =
 /** Presentation only; timer ticks stay in their leaf components. */
 export function WorkoutScreen() {
   const session = useWorkoutSession();
-  const { t, lang, unit, unitText, fmt, direction } = useI18n();
+  const { t, lang, unit, unitText } = useI18n();
   // Keep the screen on while this logger is focused and a session is open (setting on by default). Re-read on every
   // focus, so a change made in Settings mid-workout applies on return. Released on blur, unmount, finish and discard.
   const { repos } = useServices();
@@ -55,6 +55,7 @@ export function WorkoutScreen() {
   const largeText = useWindowDimensions().fontScale > 1.3;
   // Session-only: the Workout details panel always starts closed and is not persisted.
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsAction = useSheetAction(detailsOpen, () => setDetailsOpen(false));
   // Developer Mode timings: mount → session ready, once.
   const openT0 = useRef(perfNow());
   const openMarked = useRef(false);
@@ -93,9 +94,9 @@ export function WorkoutScreen() {
   const {
     timerOpen, timerRunning, restOver, restPermDenied, navigation, setHelpOpen,
     setRestOver, setTimerOpen, timer, finishing, askFinish,
-    loaded, status, toggleDurationPause, summary, sets,
-    summaryOpen, setSummaryOpen, readiness, changeReadiness, workout,
-    source, previousSource, choosePreviousSource, finishFailed, doFinish,
+    loaded, toggleDurationPause, summary, sets,
+    summaryOpen, setSummaryOpen, readiness, changeReadiness,
+    previousSource, choosePreviousSource, finishFailed, doFinish,
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
     restore, unlogged, restFor, setTimer, dock, dockName, dockLog, dockExpand, dockUnit, busy,
     statusKind, statusShort, rows,
@@ -111,12 +112,13 @@ export function WorkoutScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: p.bg }}>
-      {/* Compact header: back, title, rest timer, Finish. The numbers live in the stats row below, in the scroll. */}
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: p.bg }}>
+      {/* Compact header with the session identity, menu, running rest clock and Finish. */}
       <View style={{ paddingTop: insets.top + space.xs, paddingBottom: space.xs, paddingHorizontal: space.xs, flexDirection: "row", alignItems: "center", gap: space.sm /* 8 dp between 48 dp header targets (L-14) */, backgroundColor: p.bg }}>
         <IconButton icon="chevron" back label={t("workout.collapse")} onPress={() => navigation.goBack()} />
         {/* The day name ("Upper A") confirms at a glance which session is open (L-13); the generic title is the fallback. */}
         <AppText accessibilityRole="header" numberOfLines={1} style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{loaded.dayName || t("workout.header")}</AppText>
+        <IconButton icon="more" label={t("workout.details")} onPress={() => setDetailsOpen(true)} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("workout.restTimerBtn")}
@@ -135,63 +137,32 @@ export function WorkoutScreen() {
           accessibilityLabel={t("workout.finishBtn")}
           disabled={finishing}
           onPress={() => askFinish(loaded)}
-          style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: space.lg, marginStart: space.xs, borderRadius: radius.button, backgroundColor: finishing ? p.line : pressed ? p.fillPressed : p.fill, alignItems: "center", justifyContent: "center" })}
+          style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: space.sm, marginStart: space.xs, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent", alignItems: "center", justifyContent: "center" })}
         >
-          <AppText style={{ color: p.onFill, fontWeight: "600", fontSize: 16, textAlign: "center" }}>{t("workout.finishBtn")}</AppText>
+          <AppText style={{ color: p.text, fontWeight: "600", fontSize: 16, textAlign: "center" }}>{t("workout.finishBtn")}</AppText>
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={adjustKeyboardInsets}>
-        <Profiler id="logger" onRender={onLoggerRender}>
-        {/* The session line (logger spec §5): duration · Pause · "x of y sets" · save status · Details ▾. A failure or unsaved work takes
-            over the middle in warn and never hides Pause. Large text wraps it into two rows. Only the status is a live region. */}
+      {/* Elapsed time, pause/resume and set progress stay visible above the table. */}
         <View style={{ flexDirection: "row", flexWrap: largeText ? "wrap" : "nowrap", alignItems: "center", columnGap: space.sm, paddingHorizontal: space.lg }}>
           <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} />
           {/* Pause / resume the whole workout: the duration freezes and Finish records active time only. The rest timer is separate. */}
           <IconButton icon={loaded.pausedAt != null ? "play" : "pause"} label={loaded.pausedAt != null ? t("workout.resume") : t("workout.pause")} onPress={() => void toggleDurationPause()} />
           {largeText ? <View style={{ flexBasis: "100%", height: 0 }} /> : null}
           <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: space.xs }}>
-            {warns ? null : (
+            {(
               <AppText numberOfLines={1} style={{ fontSize: ty.label, color: p.muted, fontVariant: ["tabular-nums"] }}>
                 {t("rack.setsOf", { x: summary.sets, y: Math.max(summary.sets, plannedWorkRows(rows, shown.map((e) => e.exerciseId))) })}
               </AppText>
             )}
-            {warns ? null : <AppText style={{ fontSize: ty.label, color: p.muted }}>·</AppText>}
-            <View accessibilityLiveRegion="polite" style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: space.xs }}>
-              <Icon name={status.icon} color={warns ? p.warn : p.muted} size={16} />
-              <AppText numberOfLines={largeText ? 2 : 1} style={{ flex: 1, fontSize: ty.label, color: warns ? p.warn : p.muted }}>{statusShort}</AppText>
-            </View>
+
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: detailsOpen }}
-            onPress={() => setDetailsOpen(open => !open)}
-            style={({ pressed }) => ({ minHeight: MIN_TOUCH, flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: space.xs, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
-          >
-            <AppText style={{ fontSize: ty.label, fontWeight: "600", color: p.accent }}>{t("workout.details")}</AppText>
-            <View style={{ transform: [{ rotate: detailsOpen ? (direction === "rtl" ? "-90deg" : "90deg") : "0deg" }] }}>
-              <Icon name="chevron" color={p.accent} size={20} mirror />
-            </View>
-          </Pressable>
+
         </View>
-        <WorkoutDetailsPanel
-          open={detailsOpen}
-          readiness={readiness}
-          onReadiness={(next) => { void changeReadiness(next); }}
-          previousSource={previousSource}
-          onPreviousSource={source => void choosePreviousSource(source)}
-          onReorder={shown.length > 1 ? () => setReorderOpen(true) : undefined}
-        >
-          <View style={{ paddingHorizontal: space.lg }}><QuietAction icon="why" label={t("workout.help.button")} onPress={() => setHelpOpen(true)} /></View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
-            <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
-              <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
-            </Pressable>
-            {summaryOpen ? <Stat label={t("workout.stat.volume")}>
-              <AppText style={{ fontSize: 20, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(volumeText(summary.volumeKg, unit))} {unitText}</AppText>
-            </Stat> : null}
-          </View>
-        </WorkoutDetailsPanel>
+      {warns ? <InlineStatus kind="warn" text={statusShort} /> : null}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={false}>
+        <Profiler id="logger" onRender={onLoggerRender}>
+
 
         {finishFailed ? (
           <View accessibilityLiveRegion="assertive" style={{ marginHorizontal: space.md, marginBottom: space.sm }}>
@@ -226,10 +197,38 @@ export function WorkoutScreen() {
       </ScrollView>
 
       {restPermDenied ? <View style={{ paddingHorizontal: space.lg }}><InlineStatus kind="warn" text={t("rest.perm.denied")} /></View> : null}
-      {/* The Rack Dock (logger spec §2) replaces the rest bar and absorbs it (rest mode). */}
+      {/* The Rack Dock (logger spec §2) shows the same effective draft that the log action saves. */}
       <RackDock model={dock} name={dockName} logged={sets.length} timer={timer} restFor={restFor} saving={busy !== null && busy === dock.rowKey} unit={dockUnit} actions={dockActions} />
 
+      <Sheet visible={detailsOpen} title={t("workout.details")} onClose={() => setDetailsOpen(false)} onDismiss={detailsAction.onDismiss}>
+        <WorkoutDetailsPanel
+          open={detailsOpen}
+          readiness={readiness}
+          onReadiness={(next) => { void changeReadiness(next); }}
+          previousSource={previousSource}
+          onPreviousSource={source => void choosePreviousSource(source)}
+          onReorder={shown.length > 1 ? () => detailsAction.dismissThen(() => setReorderOpen(true)) : undefined}
+        >
+          <View style={{ paddingHorizontal: space.lg }}><QuietAction icon="why" label={t("workout.help.button")} onPress={() => detailsAction.dismissThen(() => setHelpOpen(true))} /></View>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
+            <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
+              <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
+            </Pressable>
+            {summaryOpen ? <Stat label={t("workout.stat.volume")}>
+              <AppText style={{ fontSize: 20, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(volumeText(summary.volumeKg, unit))} {unitText}</AppText>
+            </Stat> : null}
+          </View>
+        </WorkoutDetailsPanel>
+        <InlineStatus kind={warns ? "warn" : "success"} text={statusShort} />
+      </Sheet>
+      <Sheet visible={timerOpen} title={t("workout.restTimerBtn")} onClose={() => setTimerOpen(false)}>
+        <RestClock timer={timer} style={{ color: p.accent, fontSize: 28, fontWeight: "600" }} />
+        <View style={{ flexDirection: "row", gap: space.sm }}>
+          {[-15, 15].map(seconds => <QuietAction key={seconds} label={`${seconds > 0 ? "+" : "−"}${Math.abs(seconds)} ${t("qty.s")}`} onPress={() => dockActions.current.adjustRest(seconds)} />)}
+          <QuietAction label={timerRunning ? t("workout.rest.stop") : t("workout.rest.start")} onPress={() => dockActions.current.toggleRest()} />
+        </View>
+      </Sheet>
       <WorkoutSessionSheets session={session} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }

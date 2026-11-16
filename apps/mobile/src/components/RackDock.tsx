@@ -16,7 +16,6 @@ import { dockStep, drainFraction, RACK_MOTION, stepHaptics } from "../logic/rack
 import { Icon } from "./Icon";
 import { RackDockExpanded, type ExpandInfo } from "./RackDockExpanded";
 import { ART_HIDDEN, BarArt } from "./today/BarArt";
-import { RestClock } from "./WorkoutStats";
 
 /** Spinner on Log set only when a save takes longer than this (spec §2.3). */
 export const DOCK_SPINNER_MS = 300;
@@ -25,7 +24,7 @@ export const DOCK_SHORT_SCREEN = 667;
 /** Above this font scale: no mini, full-width Log set (k15). */
 export const DOCK_LARGE_TEXT = 1.3;
 export const LOG_MIN_W = 152;
-export const LOG_H = 60;
+export const LOG_H = 48;
 export const MINI_W = 96;
 export const MINI_H = 32;
 
@@ -167,19 +166,13 @@ function LogButton({ label, a11y, disabled, saving, onPress, full }: { label: st
   );
 }
 
-/**
- * The Rack Dock (logger spec §2): the focused set as an object, its number, "Load the change", and Log set. It replaces the rest bar
- * and absorbs it (rest mode). Memoised on the model's primitives (`dockKey`), so a keystroke in a row never re-renders it; handlers come
- * through a ref. Log set stays on the PHYSICAL right in both languages (Mohamed, 2026-10-18): the action row is laid out LTR, the text
- * inside it keeps the language's direction.
- */
+/** Slim logger action bar. Its effective values come from the same draft as logRow. */
 function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actions }: RackDockProps) {
   const { t, lang } = useI18n();
   const lp = useLogPalette();
-  const { fontScale, height } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const k15 = fontScale > DOCK_LARGE_TEXT;
-  const short = !k15 && height <= DOCK_SHORT_SCREEN;
   const [open, setOpen] = useState<ExpandInfo | null>(null);
   const pending = useRef<DockModel | null>(null);
   const ctx = { lang, unit, t };
@@ -208,7 +201,6 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
     ]).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model.rowKey, model.exId, model.mode]);
-  const miniLand = reduced ? { opacity: land } : { opacity: land, transform: [{ scale: land.interpolate({ inputRange: [0, 1], outputRange: [RACK_MOTION.unrackMiniFrom, 1] }) }] };
   const numberLand = reduced ? { opacity: land } : { transform: [{ scale: land.interpolate({ inputRange: [0, 1], outputRange: [RACK_MOTION.unrackNumberFrom, 1] }) }] };
   useEffect(() => {
     const prev = pending.current;
@@ -221,11 +213,10 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
   if (model.mode === "hidden") return null;
 
   const over = model.mode === "over";
-  const resting = model.mode === "rest";
   const textDir = { direction: lang === "ar" ? ("rtl" as const) : ("ltr" as const) };
   const shell = (children: React.ReactNode) => (
     <View
-      style={{ backgroundColor: over ? lp.activeBg : lp.card, borderTopWidth: over ? 4 : 1, borderColor: over ? lp.accent : lp.line, paddingHorizontal: space.lg, paddingTop: short ? space.md : space.sm, paddingBottom: insets.bottom + space.md, gap: space.sm }}
+      style={{ backgroundColor: over ? lp.activeBg : lp.card, borderTopWidth: over ? 4 : 1, borderColor: over ? lp.accent : lp.line, paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, gap: space.sm }}
     >
       <Animated.View style={{ gap: space.sm, transform: [{ translateY: dip }] }}>{children}</Animated.View>
     </View>
@@ -251,16 +242,15 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
     haptics.pickup();
     setOpen(info);
   };
-  const caption = `${name} · ${set}`;
   const number = (
     <Animated.View nativeID="rack-dock-number" style={[{ opacity: fade, alignSelf: "flex-start", maxWidth: "100%" }, numberLand]}>
-      <AppText numberOfLines={k15 ? 2 : 1} style={{ fontSize: short ? 20 : 28, fontWeight: "600", fontVariant: ["tabular-nums"] }}>
+      <AppText numberOfLines={k15 ? 2 : 1} style={{ fontSize: 20, fontWeight: "600", fontVariant: ["tabular-nums"] }}>
         {dockNumberText(model, ctx)}
       </AppText>
     </Animated.View>
   );
-  const lineText = line ? (
-    <AppText numberOfLines={short ? 1 : 2} style={{ fontSize: short ? 13 : 14, color: line.warn ? lp.warn : lp.muted }}>
+  const lineText = line?.warn ? (
+    <AppText numberOfLines={2} style={{ fontSize: 13, color: line.warn ? lp.warn : lp.muted }}>
       {line.text}
     </AppText>
   ) : null;
@@ -276,29 +266,9 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
       hitSlop={{ top: 8, bottom: 8 }}
       style={[{ flex: 1, minWidth: 0, minHeight: 48, justifyContent: "center", gap: 2 }, textDir]}
     >
-      {!short && !k15 ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, minHeight: MINI_H }}>
-          <Animated.View style={[{ opacity: resting ? 0.6 : 1, direction: "ltr" }, miniLand]}>
-            <DockMini model={model} unit={unit} />
-          </Animated.View>
-          <AppText numberOfLines={1} style={{ flex: 1, fontSize: 13, color: lp.muted, textTransform: lang === "ar" ? "none" : "uppercase" }}>{caption}</AppText>
-        </View>
-      ) : k15 ? (
-        <AppText numberOfLines={2} style={{ fontSize: 13, color: lp.muted }}>{caption}</AppText>
-      ) : null}
-      {short ? (
-        // A 375 pt phone has ~180 pt beside Log set: the number and its change line take all of it, so the mini is left out here
-        // (the expanded sheet still draws the bar). A mini beside them clipped "120 kg × 8".
-        <View style={{ minWidth: 0 }}>
-          {number}
-          {lineText}
-        </View>
-      ) : (
-        <>
-          {number}
-          {lineText}
-        </>
-      )}
+      <AppText numberOfLines={k15 ? 2 : 1} style={{ fontSize: 13, color: lp.muted }}>{set}</AppText>
+      {number}
+      {lineText}
     </Pressable>
   );
   const button = (
@@ -319,34 +289,7 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
     <>
       {shell(
         <>
-          {resting || over ? (
-            <View style={{ gap: space.xs }}>
-              {resting && timer.endsAt !== null ? <RestDrain endsAt={timer.endsAt} durationMs={timer.durationMs} reduced={reduced} rtl={lang === "ar"} color={lp.accent} /> : null}
-              {restFor && !over ? <AppText numberOfLines={1} style={{ color: lp.muted, fontSize: 13 }}>{restFor}</AppText> : null}
-              <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: space.sm, rowGap: space.sm }}>
-                {over ? (
-                  <View accessibilityLiveRegion="polite" accessible accessibilityLabel={t("workout.rest.done")} style={{ flexDirection: "row", alignItems: "center", gap: space.sm, minHeight: 48 }}>
-                    <Icon name="check" color={lp.accent} size={28} />
-                    <AppText style={{ fontSize: ty.title, fontWeight: "600" }}>{t("workout.rest.done")}</AppText>
-                  </View>
-                ) : (
-                  <>
-                    <RestClock timer={timer} style={{ fontSize: 36, fontWeight: "600", minWidth: 110, color: lp.text }} />
-                    <View style={{ flexDirection: "row", gap: space.sm, flexGrow: 1, flexBasis: 200 }}>
-                      {[-15, 15].map((d) => (
-                        <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${d > 0 ? "+" : "−"}${Math.abs(d)} ${t("qty.s")}`} onPress={() => actions.current.adjustRest(d)} style={({ pressed }) => ({ flex: 1, minHeight: 48, borderRadius: radius.button, borderWidth: 1.5, borderColor: lp.edge, backgroundColor: pressed ? lp.line : lp.field, alignItems: "center", justifyContent: "center" })}>
-                          <AppText ltr style={{ fontWeight: "600", fontSize: 16 }}>{isolateLtr(d > 0 ? `+${d}` : `−${-d}`)}</AppText>
-                        </Pressable>
-                      ))}
-                      <Pressable accessibilityRole="button" accessibilityState={{ busy: timer.endsAt !== null }} onPress={() => actions.current.toggleRest()} style={({ pressed }) => ({ flex: 1.4, minHeight: 48, borderRadius: radius.button, borderWidth: 1.5, borderColor: lp.edge, backgroundColor: pressed ? lp.line : lp.field, alignItems: "center", justifyContent: "center", paddingHorizontal: space.sm })}>
-                        <AppText style={{ fontWeight: "600", fontSize: 16, textAlign: "center" }}>{timer.endsAt !== null ? t("workout.rest.stop") : t("workout.rest.start")}</AppText>
-                      </Pressable>
-                    </View>
-                  </>
-                )}
-              </View>
-            </View>
-          ) : null}
+          {over ? <AppText accessibilityLiveRegion="polite" style={{ fontSize: 13, color: lp.accent }}>{t("workout.rest.done")}</AppText> : null}
           {k15 ? (
             <>
               {info}

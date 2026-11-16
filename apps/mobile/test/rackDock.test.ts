@@ -67,16 +67,41 @@ beforeEach(() => {
   hap.calls = [];
 });
 
+describe("live edited set in the compact logger", () => {
+  it("uses the exact effective draft while the keyboard is open", () => {
+    const draft = row({ key: "edit", load: 67.5, reps: 8, ghostLoad: 80, ghostReps: 9 });
+    const model = dockModel([bench], { bench: [draft] }, null, off, { editing: "edit" });
+    expect(model).toMatchObject({ load: 67.5, reps: 8, canLog: true, mode: "compact" });
+    expect(strip(dockNumberText(model, { lang: "en", unit: "kg", t: t("en") }))).toBe("67.5 kg × 8");
+    const invalid = dockModel([bench], { bench: [{ ...draft, load: null, invalidLoad: true }] }, null, off, { editing: "edit" });
+    expect(invalid.canLog).toBe(false);
+    expect(invalid.load).toBeNull();
+  });
+  it("keeps an explicitly selected superset row focused before typing", () => {
+    const first = row({ key: "saved", saved: true, load: 60, reps: 8 });
+    const selected = row({ key: "selected", ghostLoad: 67.5, ghostReps: 8 });
+    const other = { ...bench, exerciseId: "other" };
+    const model = dockModel([bench, other], { bench: [first, selected], other: [row()] }, "bench", off, { editing: "selected", groups: { bench: "A", other: "A" } });
+    expect(model).toMatchObject({ exId: "bench", rowKey: "selected", load: 67.5, reps: 8 });
+  });
+  it("shows the current set number and omits equipment art and the plate breakdown", () => {
+    const tree = render(props(compact()));
+    expect(texts(tree).map(strip)).toContain("Set 2 of 2");
+    expect(texts(tree).map(strip)).not.toContain("+5 each side");
+    expect(byType(tree, "Svg")).toHaveLength(0);
+  });
+});
+
 describe("RackDock render", () => {
-  it.each([["en", true], ["ar", true], ["en", false]] as const)("compact %s (dark %s): mini, number, change, Log set", (lang, dark) => {
+  it.each([["en", true], ["ar", true], ["en", false]] as const)("compact %s (dark %s): set, effective number and Log set", (lang, dark) => {
     settings.lang = lang;
     settings.dark = dark;
     const tree = render(props(compact()));
     const all = texts(tree).map(strip);
     expect(all).toContain(lang === "en" ? "80 kg × 8" : "80 كجم × 8");
-    expect(all).toContain(lang === "en" ? "+5 each side" : "حمّل 5 في كل ناحية");
+    expect(all).not.toContain(lang === "en" ? "+5 each side" : "حمّل 5 في كل ناحية");
     expect(all).toContain(lang === "en" ? "Log set" : "سجّل المجموعة");
-    expect(byType(tree, "Svg").length).toBe(1);
+    expect(byType(tree, "Svg")).toHaveLength(0);
     expect(byType(tree, "RestClock")).toHaveLength(0);
   });
   it("Log set stays on the physical right in both languages (the action row is LTR, the button last)", () => {
@@ -86,18 +111,16 @@ describe("RackDock render", () => {
       const rowEl = nodes(tree).find((x) => x.type === "View" && x.props.style?.direction === "ltr" && x.props.style?.flexDirection === "row")!;
       const kids = (Array.isArray(rowEl.props.children) ? rowEl.props.children : [rowEl.props.children]).flat().filter(Boolean);
       expect(kids.at(-1).props.nativeID).toBe("rack-dock-log");
-      expect(kids.at(-1).props.style({ pressed: false }).minHeight).toBeGreaterThanOrEqual(60);
+      expect(kids.at(-1).props.style({ pressed: false }).minHeight).toBeGreaterThanOrEqual(48);
       expect(kids.at(-1).props.style({ pressed: false }).minWidth).toBeGreaterThanOrEqual(152);
     }
   });
-  it("rest mode shows the clock and ±15 / Stop; rest off renders no time text", () => {
+  it("keeps rest mode slim; rest controls are in the header sheet", () => {
     const resting = dockModel([bench], { bench: [row({ saved: true, load: 70, reps: 8 }), row()] }, null, { on: true, endsAt: 60_000, over: false, now: 1000 });
     const tree = render(props(resting, { timer: { endsAt: 60_000, durationMs: 90_000 } }));
-    expect(byType(tree, "RestClock")).toHaveLength(1);
-    expect(texts(tree).map(strip)).toEqual(expect.arrayContaining(["−15", "+15", "Stop", "Log set"]));
-    const offTree = render(props(compact()));
-    expect(byType(offTree, "RestClock")).toHaveLength(0);
-    expect(texts(offTree).some((s) => /\d:\d\d/.test(s))).toBe(false);
+    expect(byType(tree, "RestClock")).toHaveLength(0);
+    expect(texts(tree).map(strip)).toContain("Log set");
+    expect(texts(tree).map(strip)).not.toContain("+15");
   });
   it("over: tint, 4 dp accent edge, 'Rest is over' with a check", () => {
     const over = dockModel([bench], { bench: [row({ saved: true, load: 70, reps: 8 }), row()] }, null, { on: true, endsAt: null, over: true, now: 1000 });
@@ -126,7 +149,7 @@ describe("RackDock render", () => {
     expect(texts(tree).some((s) => s.includes("Bench press ·"))).toBe(false);
     const shell = nodes(tree).find((x) => x.props.style?.borderTopWidth !== undefined)!;
     // padding 12 + Log set 60 + 12 = 84 above the bottom inset.
-    expect(shell.props.style.paddingTop + 60 + (shell.props.style.paddingBottom - 20)).toBe(84);
+    expect(shell.props.style.paddingTop + 48 + (shell.props.style.paddingBottom - 20)).toBe(64);
     // No mini on a short screen: the number gets the whole width beside Log set and may not grow past it.
     expect(byType(tree, "Svg")).toHaveLength(0);
     const num = nodes(tree).find((x) => x.props.nativeID === "rack-dock-number")!;
@@ -141,15 +164,12 @@ describe("RackDock render", () => {
     settings.lang = "ar";
     expect(texts(render(props(bad)))).toContain("صلّح العدّات عشان تسجّل");
   });
-  it("hidden while typing renders nothing", () => {
-    const r = row();
-    expect(render(props(dockModel([bench], { bench: [r] }, null, off, { editing: r.key })))).toBeNull();
-  });
-  it("art is hidden from the screen reader and never mirrors", () => {
+  it("keeps the edited value visible while typing in Arabic", () => {
     settings.lang = "ar";
-    const svg = byType(render(props(compact())), "Svg")[0]!;
-    expect(svg.props.accessibilityElementsHidden).toBe(true);
-    expect(svg.props.style.direction).toBe("ltr");
+    const r = row({ load: 67.5, reps: 8 });
+    const tree = render(props(dockModel([bench], { bench: [r] }, null, off, { editing: r.key })));
+    expect(texts(tree).map(strip)).toContain("67.5 كجم × 8");
+    expect(byType(tree, "Svg")).toHaveLength(0);
   });
 });
 
@@ -197,11 +217,11 @@ describe("logger motion (PR E)", () => {
     const ex2 = twoEx({ bench: [row({ saved: true, load: 80, reps: 8 })], db: [row({ ghostLoad: 22 })] });
     expect(stepHaptics(dockStep(ex1, ex2))).toEqual(["selection"]);
   });
-  it("typing never animates: a hidden model steps nothing", () => {
-    const r = row();
-    const hidden = dockModel([bench], { bench: [r] }, null, off, { editing: r.key });
-    expect(dockStep(hidden, compact())).toEqual({ rack: false, platesAdded: false, nextObject: false });
-    expect(dockStep(compact(), hidden)).toEqual({ rack: false, platesAdded: false, nextObject: false });
+  it("typing on the same set does not animate a rack transition", () => {
+    const r = row({ key: "edit", load: 60, reps: 8 });
+    const a = dockModel([bench], { bench: [r] }, null, off, { editing: r.key });
+    const b = dockModel([bench], { bench: [{ ...r, load: 67.5 }] }, null, off, { editing: r.key });
+    expect(dockStep(a, b)).toEqual({ rack: false, platesAdded: false, nextObject: false });
   });
   it("rest drain: one native scaleX timing; Reduce Motion is a static hairline with a fill ratio", () => {
     expect(drainFraction(61_000, 90_000, 16_000)).toBeCloseTo(0.5);

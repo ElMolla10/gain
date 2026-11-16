@@ -32,9 +32,8 @@ beforeEach(() => { settings.lang = "en"; });
 describe("Workout details panel", () => {
   it("is closed by default for the session: no readiness chips or Previous toggle", () => {
     expect(screen).toContain("const [detailsOpen, setDetailsOpen] = useState(false);");
-    // L-7: a full-width 48 dp disclosure row with a turning chevron.
-    expect(screen).toContain("accessibilityState={{ expanded: detailsOpen }}");
-    expect(screen).toMatch(/minHeight: MIN_TOUCH[^\n]*\n[^\n]*\n\s*<AppText[^\n]*\{t\("workout\.details"\)\}/);
+    expect(screen).toContain('<IconButton icon="more" label={t("workout.details")}');
+    expect(screen).toContain('<Sheet visible={detailsOpen}');
     expect(screen).toContain("open={detailsOpen}");
     // Nothing session-level is rendered outside the panel any more.
     expect(screen).not.toContain("PreviousSourceToggle");

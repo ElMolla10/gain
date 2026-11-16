@@ -1,3 +1,4 @@
+import { useSheetAction } from "../hooks/useSheetAction";
 import { canEditLoadsFor } from "../logic/setRowState";
 import { loadTargetText } from "../logic/bidiText";
 import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
@@ -9,7 +10,6 @@ import type { ExerciseState, SetRow } from "../db/workoutRepo";
 import { useI18n } from "../i18n";
 import { exerciseLabels, formatLoad, isolateLtr } from "../i18n/format";
 import { localizeReason, unitLabel, type Unit } from "../logic/units";
-import { isIsolationPattern, warmupOffer, warmupsUsuallySkipped } from "../logic/warmups";
 import { foldedSummary } from "../logic/foldedSummary";
 import { isTimed, quantityText, setQuantity } from "../logic/quantity";
 import { workingIndexes } from "../logic/liveSummary";
@@ -19,11 +19,10 @@ import { exerciseDemoImage, exerciseDemoImageId } from "../logic/exerciseDemos";
 import { LIVE_MISSING_FEATURES, nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
 import { nextSetState } from "../logic/nextSetCard";
 import { describeWhyWeight, sessionPosition } from "../logic/why";
-import { formatClock } from "../logic/restTimer";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText, BigButton, IconButton, InlineStatus, Notice, QuietAction, Sheet, useReducedMotion } from "../ui";
 import { RACK_MOTION } from "../logic/rackMotion";
-import { RestToggle, TargetLine, UnitToggle } from "./LogParts";
+import { TargetLine } from "./LogParts";
 import { Icon } from "./Icon";
 import { LiveSuggestion, LoadSettings } from "./LiveSuggestion";
 import { MemoWorkoutSetRow, type WorkoutSetRowProps } from "./WorkoutSetRow";
@@ -36,8 +35,8 @@ export const shouldFold = (list: readonly SetRowDraft[], unconfirmed: number, ac
   !active && unconfirmed === 0 && list.some((r) => r.saved && !r.warmup) && list.every((r) => r.saved && !r.dirty);
 
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string; starting?: boolean }
-export interface ExerciseSectionProps extends Pick<WorkoutSetRowProps, "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
-  active?: boolean; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
+export interface ExerciseSectionProps extends Pick<WorkoutSetRowProps, "onSelect" | "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
+  active?: boolean; selectedRowKey?: string | null; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
   /** Rest is on in general (rest.auto); without it the rest chip moves into the ⋮ menu. */
   restGlobal?: boolean;
   /** The Next-set card is closed by default (a stop warning always shows); the row still carries the suggestion as ghost values. */
@@ -77,7 +76,7 @@ function ExerciseDemoButton({ seedKey, title, buttonLabel, buttonA11y, imageA11y
         accessibilityRole="button"
         accessibilityLabel={buttonA11y}
         onPress={() => setVisible(true)}
-        style={({ pressed }) => ({ alignSelf: "flex-start", minHeight: 48, minWidth: 48, flexDirection: "row", alignItems: "center", gap: space.xs, marginStart: space.lg, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
+        style={({ pressed }) => ({ alignSelf: "flex-start", minHeight: 48, minWidth: 48, flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
       >
         <AppText style={{ color: p.accent, fontSize: ty.caption, fontWeight: "600" }}>{buttonLabel}</AppText>
       </Pressable>
@@ -95,7 +94,7 @@ function ExerciseDemoButton({ seedKey, title, buttonLabel, buttonA11y, imageA11y
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ restGlobal = true, active = true, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId, unitOverride, onToggleUnit }: ExerciseSectionProps) {
+export function WorkoutExerciseSection({ restGlobal = true, active = true, selectedRowKey, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onSelect, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId, unitOverride, onToggleUnit }: ExerciseSectionProps) {
   const { t, lang, unit: appUnit } = useI18n();
   const unit = unitOverride ?? appUnit;
   const unitText = unitLabel(unit, lang);
@@ -108,12 +107,10 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
   const pr = info.proposal;
   const spec = ex.loadSpec ?? findSpec(gym, ex.equipment);
   const numbering = rowLabels(list);
-  const currentKey = focusedRowKey(list);
+  const currentKey = selectedRowKey ?? focusedRowKey(list);
   const widx = workingIndexes(list);
-  const workingLoad = info.stored ? (info.stored.status === "rejected" ? null : info.stored.effectiveLoad) : pr.status === "proposed" ? pr.load : null;
   const timed = isTimed(ex.measure);
   const qUnits = { s: t("qty.s"), m: t("qty.m") };
-  const offer = timed ? ({ kind: "none", reason: "already_started" } as unknown as ReturnType<typeof warmupOffer>) : warmupOffer({ workingLoad, spec, setup: ex.setup, loggedToday: exSets.length, isolation: isIsolationPattern(ex.pattern) });
   const pending = exSets.filter((s) => s.outlierStatus === "unconfirmed");
   // "Maintain" is an actual recommendation too: show its current load, not a blank.
   // If inference is unavailable or tells the lifter to stop, do not fake a weight.
@@ -141,7 +138,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
     : null;
   const whySentence = why ? [why.sentence, ...why.details].join(" ") : null;
 
-  // GAIN's target for today and its reason, kept to one line until tapped.
+  // Historical target and explanations are available only inside exercise details.
   const storedQ = info.stored ? (ex.measure === "time" ? info.stored.durationS : ex.measure === "distance" ? info.stored.distanceM : info.stored.reps) : null;
   const proposedQ = ex.measure === "time" ? pr.durationS ?? null : ex.measure === "distance" ? pr.distanceM ?? null : pr.reps;
   const targetNone = info.stored ? info.stored.status === "rejected" || info.stored.effectiveLoad === null || storedQ === null : !(pr.status === "proposed" && pr.load !== null && proposedQ !== null);
@@ -170,13 +167,21 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
   const stacked = fontScale > 1.3;
 
   // Only a stop warning opens on its own; any other suggestion is one tap away ("Next set details").
-  const showCard = !!card && (card.decision.action === "stop" || suggestionOpen);
+  const showCard = !!card && (card.decision.action === "stop" || suggestionOpen || expanded);
   const canEditLoads = !!onPickJump && canEditLoadsFor(ex);
+  const detailsVisible = expanded || suggestionOpen || loadsOpen;
+  const closeDetails = () => {
+    if (expanded) onWhyLong();
+    if (suggestionOpen) onToggleSuggestion?.();
+    if (loadsOpen) onToggleLoads?.();
+  };
+  const detailsAction = useSheetAction(detailsVisible, closeDetails);
+  const leaveDetails = (action: () => void) => detailsVisible ? detailsAction.dismissThen(action) : action();
   const live = card && showCard ? <LiveSuggestion unit={unit} decision={card.decision} state={nextSetState({ decision: card.decision, starting: card.starting, spec })}
     basis={basis} repMin={ex.repMin} repMax={ex.repMax} equipment={ex.equipment} loadSpec={spec}
     detailsOpen={liveDetailsOpen} onToggleDetails={onLiveDetails}
     manualLoad={nextAdaptiveRow(list)?.load !== null || nextAdaptiveRow(list)?.reps !== null} busy={busy}
-    onApply={onLiveApply} onOwn={onLiveOwn} onKeep={onLiveKeep} whySentence={whySentence} /> : null;
+    onApply={() => leaveDetails(onLiveApply)} onOwn={() => leaveDetails(onLiveOwn)} onKeep={() => leaveDetails(onLiveKeep)} whySentence={whySentence} /> : null;
 
   return (
     <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
@@ -195,53 +200,9 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
           )}
           {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
         </Pressable>
-        {/* Rest control stays one tap away, in the exercise header: the length (or Off) beside the options menu, not a row of its own. */}
-        {/* The rest chip only when rest is on in general; otherwise the ⋮ menu offers "Rest after this exercise" (logger spec §4). */}
-        {onToggleUnit ? <UnitToggle unit={unit} kgText={unitLabel("kg", lang)} lbText={unitLabel("lb", lang)} a11y={t("workout.unitToggle.a11y", { exercise: labels.primary, unit: unitLabel(unit, lang), other: unitLabel(unit === "kg" ? "lb" : "kg", lang) })} onPress={onToggleUnit} /> : null}
-        {restGlobal ? <RestToggle off={st.restOff} text={st.restOff ? t("workout.restOffShort") : formatClock(restDurationMs)} a11y={`${st.restOff ? t("workout.restLineOff") : t("workout.restLine", { time: formatClock(restDurationMs) })}: ${labels.primary}`} onPress={() => onToggleRest()} /> : null}
+        {demoImageId ? <ExerciseDemoButton seedKey={ex.seedKey!} title={labels.primary} buttonLabel={t("workout.demo")} buttonA11y={t("workout.demo.a11y", { exercise: labels.primary })} imageA11y={t("workout.demo.imageA11y", { exercise: labels.primary })} /> : null}
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
       </View>
-      {demoImageId ? <ExerciseDemoButton seedKey={ex.seedKey!} title={labels.primary} buttonLabel={t("workout.demo")} buttonA11y={t("workout.demo.a11y", { exercise: labels.primary })} imageA11y={t("workout.demo.imageA11y", { exercise: labels.primary })} /> : null}
-      {canEditLoads && loadsOpen ? (
-        <View style={{ gap: space.xs }}>
-          <LoadSettings unit={unit} loadSpec={spec} busy={busy} onPickJump={onPickJump!} listText={listText} onListChange={onListChange} onSaveList={onSaveList} />
-          <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
-            <QuietAction label={t("common.close")} accessibilityLabel={`${t("common.close")}: ${t("workout.loads")}, ${labels.primary}`} expanded onPress={() => onToggleLoads?.()} />
-          </View>
-        </View>
-      ) : null}
-
-      {/* Tight vertical rhythm (spacing tokens): exercise block starts space.md below the previous one; heading, target line and set table sit directly on each other (the 48 dp controls already carry the breathing room), with space.xs above the column heads. */}
-      {/* Compact target line: "Target 55 kg × 9 · Why". It wraps onto a second line when it is long and is never cut off. */}
-      <View style={{ paddingHorizontal: space.lg }}>
-        {targetNone && showNextHint ? (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-            <QuietAction label={t("workout.nextSetDetails")} expanded={suggestionOpen} onPress={() => onToggleSuggestion?.()} />
-            <QuietAction label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${labels.primary}`} expanded={suggestionOpen} onPress={() => onToggleSuggestion?.()} onLongPress={() => onToggleSuggestion?.()} />
-          </View>
-        ) : <TargetLine
-          label={t("workout.nextTarget")}
-          value={targetText}
-          whyLabel={t("workout.whyShort")}
-          whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
-          expanded={info.stored ? undefined : expanded}
-          reason={reasonText}
-          onWhy={() => onWhy()}
-          onWhyLong={() => onWhyLong()}
-          moreLabel={card && card.decision.action !== "stop" && onToggleSuggestion ? t("workout.nextSetDetails") : undefined}
-          moreA11y={`${t("workout.nextSetDetails")}: ${labels.primary}`}
-          moreExpanded={suggestionOpen}
-          onMore={() => onToggleSuggestion?.()}
-        />}
-        {!why && afterExercise ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("why.weight.afterExercise", { exercise: afterExercise })}</AppText> : null}
-        {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}
-        {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
-        {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
-        <PersonalMilestoneLine unit={unit} onOpen={onOpenProgress} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
-        {ex.topSets && !timed ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("workout.topset.note", { n: ex.topSets })}</AppText> : null}
-      </View>
-
-
       {/* Column heads, once per exercise. At large text Previous is a caption inside each row, so it has no column here (L-8).
           A head never runs past its column (AR "مجموعة" at 1.5x): one line, shrinks to fit (C-R2). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, marginTop: space.xs }}>
@@ -249,7 +210,6 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
         {stacked ? null : <View style={{ flex: 1.1 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>}
         <View style={{ flex: 1 }}><AppText style={head}>{unitText.toUpperCase()}</AppText></View>
         <View style={{ flex: 1 }}><AppText style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
-        {ex.trackEffort ? <View style={{ width: stacked ? 64 : 52 }}><AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={head}>{t("workout.col.rir").toUpperCase()}</AppText></View> : null}
         <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
       </View>
 
@@ -257,20 +217,12 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
       <View>
         {list.map((row, i) => (
           <React.Fragment key={row.key}>
-            {showNextHint && card?.key === row.key ? (
-              <View testID="next-set-hint" accessibilityLiveRegion="polite" style={{ marginHorizontal: space.md, marginVertical: space.xs, padding: space.sm, gap: space.xs, borderStartWidth: 2, borderStartColor: p.accent }}>
-                <AppText style={{ fontWeight: "600", color: p.accent }}>{t("live.compact.next")}: {loadTargetText(card.decision.suggestedWeightKg, card.decision.suggestedReps, ex.measure, lang, unit, qUnits)}</AppText>
-                <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("live.basis", { load: formatLoad(basis!.load, lang, unit), reps: basis!.reps })}</AppText>
-                <AppText style={{ fontSize: ty.label, color: p.muted }}>{shortReason}</AppText>
-              </View>
-            ) : null}
-            {card?.decision.action !== "stop" && card?.key === row.key ? live : null}
             <MemoWorkoutSetRow key={row.key} ex={ex} unit={unit} row={row} label={numbering[i] ?? i + 1}
               workingIndex={widx[i] ?? null} lastSets={(info.previous ? info.previous[previousSource] : info.last)?.sets ?? null}
               strengthPr={strengthPrSetId === row.key}
               current={active && currentKey === row.key} stacked={stacked} busy={busy}
               autoFocus={focusRow?.key === row.key} focusNonce={focusRow?.nonce}
-              onPatch={onPatch} onKind={onKind} onAskDelete={onAskDelete}
+              onSelect={onSelect} onPatch={onPatch} onKind={onKind} onAskDelete={onAskDelete}
               onDelete={onDelete} onLog={onLog} onUntick={onUntick} />
           </React.Fragment>
         ))}
@@ -307,40 +259,61 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, liveD
         );
       })}
 
-      {offer.kind === "offer" ? (
-        warmOpen ? (
-          <View style={{ marginHorizontal: space.md, padding: space.md, gap: space.sm, borderRadius: radius.card, backgroundColor: p.card, borderWidth: 1, borderColor: p.line }}>
-            <AppText style={{ fontWeight: "600" }}>{t("warm.title", { load: fmt(offer.workingLoad) })}</AppText>
-            {offer.sets.map((w, i) => (
-              <AppText key={i} style={{ fontSize: 16, fontVariant: ["tabular-nums"] }}>{`${fmt(w.load)} × ${isolateLtr(String(w.reps))}`}</AppText>
-            ))}
-            <AppText style={{ color: p.muted, fontSize: 13 }}>{t("warm.note")}</AppText>
-            <View style={{ flexDirection: "row", gap: space.sm, flexWrap: "wrap" }}>
-              <View style={{ flexGrow: 1, flexBasis: 140 }}>
-                <BigButton
-                  label={t("warm.confirm")}
-                  disabled={busy}
-                  onPress={() => onWarmConfirm(offer.sets)}
-                />
-              </View>
-              <View style={{ flexGrow: 1, flexBasis: 140 }}>
-                <BigButton variant="secondary" label={t("warm.cancel")} onPress={() => onWarmClose()} />
-              </View>
-            </View>
-          </View>
-        ) : (
-          <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
-            <BigButton variant="quiet" icon="plus" label={warmupsUsuallySkipped(position, ex.pattern) ? t("warm.addAnyway") : t("warm.add")} onPress={() => onWarmOpen()} />
-          </View>
-        )
-      ) : null}
-      {warmDone ? <InlineStatus kind="success" text={t("warm.added")} /> : null}
-      {!spec ? <AppText style={{ color: p.muted, fontSize: 13, paddingHorizontal: space.lg }}>{t("workout.stepFallback")}</AppText> : null}
-
       {/* "+ Set" is a quiet 48 dp text action (logger spec §4); the dock carries the primary action. */}
       <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
         <QuietAction icon="plus" label={t("workout.addSet")} accessibilityLabel={`${t("workout.addSet")}: ${labels.primary}`} onPress={() => onAddSet()} />
       </View>
+      <Sheet visible={detailsVisible} title={labels.primary} onClose={closeDetails} onDismiss={detailsAction.onDismiss}>
+      {detailsVisible ? <>
+
+      {canEditLoads && loadsOpen ? (
+        <View style={{ gap: space.xs }}>
+          <LoadSettings unit={unit} loadSpec={spec} busy={busy} onPickJump={onPickJump!} listText={listText} onListChange={onListChange} onSaveList={onSaveList} />
+          <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
+            <QuietAction label={t("common.close")} accessibilityLabel={`${t("common.close")}: ${t("workout.loads")}, ${labels.primary}`} expanded onPress={() => onToggleLoads?.()} />
+          </View>
+        </View>
+      ) : null}
+
+      {/* Secondary explanations stay behind the exercise menu. */}
+      <View style={{ paddingHorizontal: space.lg }}>
+        {targetNone && showNextHint ? (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
+            <QuietAction label={t("workout.nextSetDetails")} expanded={suggestionOpen} onPress={() => onToggleSuggestion?.()} />
+            <QuietAction label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${labels.primary}`} expanded={suggestionOpen} onPress={() => onToggleSuggestion?.()} onLongPress={() => onToggleSuggestion?.()} />
+          </View>
+        ) : <TargetLine
+          label={t("workout.nextTarget")}
+          value={targetText}
+          whyLabel={t("workout.whyShort")}
+          whyA11y={`${t("workout.whyShort")}: ${labels.primary}`}
+          expanded={info.stored ? undefined : expanded}
+          reason={reasonText}
+          onWhy={() => info.stored ? leaveDetails(onWhy) : onWhy()}
+          onWhyLong={() => onWhyLong()}
+          moreLabel={card && card.decision.action !== "stop" && onToggleSuggestion ? t("workout.nextSetDetails") : undefined}
+          moreA11y={`${t("workout.nextSetDetails")}: ${labels.primary}`}
+          moreExpanded={suggestionOpen}
+          onMore={() => onToggleSuggestion?.()}
+        />}
+        {!why && afterExercise ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("why.weight.afterExercise", { exercise: afterExercise })}</AppText> : null}
+        {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}
+        {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
+        {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
+        <PersonalMilestoneLine unit={unit} onOpen={() => leaveDetails(onOpenProgress)} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
+        {ex.topSets && !timed ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("workout.topset.note", { n: ex.topSets })}</AppText> : null}
+      </View>
+
+
+
+        {card?.decision.action !== "stop" ? live : null}
+        {showNextHint && basis && card ? <View testID="next-set-hint" style={{ gap: space.xs }}>
+          <AppText>{t("live.basis", { load: formatLoad(basis.load, lang, unit), reps: basis.reps })}</AppText>
+          <AppText>{shortReason}</AppText>
+        </View> : null}
+      </> : null}
+      </Sheet>
+
     </View>
   );
 }

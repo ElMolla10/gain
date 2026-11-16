@@ -2,7 +2,6 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { BarbellRunway } from "../src/components/today/BarbellRunway";
 import { EngineStrategyCard } from "../src/components/today/EngineStrategyCard";
-import { SetEffortChips } from "../src/components/workout/SetEffortChips";
 import { byType, expand, nodes, texts } from "./achievementRender";
 
 vi.mock("../src/haptics", () => ({ haptics: { tick: () => {}, untick: () => {}, selection: () => {}, unrack: () => {} } }));
@@ -162,34 +161,4 @@ describe("Page 5: Today Screen & Active Workout Logger 10x Components", () => {
     });
   });
 
-  describe("SetEffortChips", () => {
-    it("keeps the four effort choices without weight or rep adjustment buttons", () => {
-      const onSetRir = vi.fn();
-
-      const tree = expand(
-        React.createElement(SetEffortChips, {
-          rir: 2,
-          trackEffort: true,
-          onSetRir,
-        })
-      );
-
-      const buttons = nodes(tree).filter((n) => n.props.accessibilityRole === "button");
-      expect(buttons.map(b => b.props.accessibilityLabel)).toEqual(["RIR 0", "RIR 1", "RIR 2", "RIR 3+"]);
-      buttons[1]!.props.onPress();
-      expect(onSetRir).toHaveBeenCalledWith(1);
-    });
-
-    it("leaves no empty adjustment row when effort is not tracked", () => {
-      const tree = expand(
-        React.createElement(SetEffortChips, {
-          rir: null,
-          trackEffort: false,
-          onSetRir: vi.fn(),
-        })
-      );
-
-      expect(tree).toBeNull();
-    });
-  });
 });

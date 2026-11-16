@@ -43,7 +43,7 @@ vi.mock("react", async original => {
   };
 });
 const native = vi.hoisted(() => ({ appState: [] as ((s: string) => void)[], alert: vi.fn(), sync: vi.fn(async (_p?: any) => {}), stop: vi.fn(async () => {}), reconcile: vi.fn(async (_open?: () => Promise<boolean>) => {}) }));
-vi.mock("react-native", () => ({ AppState: { addEventListener: (_e: string, fn: (s: string) => void) => { native.appState.push(fn); return { remove: () => { native.appState.splice(native.appState.indexOf(fn), 1); } }; } }, Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
+vi.mock("react-native", () => ({ Platform: { OS: "ios" }, AppState: { addEventListener: (_e: string, fn: (s: string) => void) => { native.appState.push(fn); return { remove: () => { native.appState.splice(native.appState.indexOf(fn), 1); } }; } }, Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
 vi.mock("expo-keep-awake", () => ({ activateKeepAwakeAsync: async () => undefined, deactivateKeepAwake: () => undefined }));
 vi.mock("../src/native/appleHealth", () => ({ appleHealth: { isAvailable: () => false, saveWorkout: async () => "", requestWrite: async () => false, deleteWorkout: async () => undefined } }));
@@ -61,7 +61,7 @@ vi.mock("../src/logic/liveAdaptation", async (orig) => {
 vi.mock("../src/diagnostics", () => ({ diagnostics: { record: vi.fn() } }));
 vi.mock("../src/native/workoutLiveActivity", () => ({ workoutLiveActivity: { sync: native.sync, stop: native.stop, reconcile: native.reconcile } }));
 vi.mock("../src/theme", () => ({ radius: { button: 8 }, space: { xs: 4, sm: 8, md: 12 }, type: { section: 20, label: 13 }, useLogPalette: () => ({}) }));
-vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", QuietAction: "QuietAction" }));
+vi.mock("../src/ui", () => ({ Sheet: "Sheet", AppText: "AppText", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", QuietAction: "QuietAction" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
 vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", UnitToggle: "UnitToggle", TargetLine: "TargetLine" }));
 
@@ -381,7 +381,7 @@ describe("typing into set 2 after set 1 is ticked (Android scroll twitch)", () =
     expect(before.props.suggestionOpen).toBe(false);
     // Logger 10x §4: no "Suggested weight" line any more (the dock carries the number); the details toggle stays.
     expect(before.suggested[0]).toBeUndefined();
-    expect(before.suggested[2]).toBe("Next set details");
+    expect(before.suggested[2]).toBeUndefined();
     return { ex, before };
   }
 
@@ -550,6 +550,35 @@ describe("Finish with typed but unticked rows (data-loss item 5)", () => {
   });
 });
 
+describe("compact logger direct entry", () => {
+  it("selects a later edited row and logs that row while leaving set 1 untouched", async () => {
+    const c = await fixture();
+    let s = ready(); const ex = s.shown[0]!; const key = s.rows[ex.exerciseId]![1]!.key;
+    const firstKey = s.rows[ex.exerciseId]![0]!.key;
+    s.exerciseProps(ex, 0)!.onSelect?.(key);
+    s = ready();
+    s.patch(ex.exerciseId, key, { load: 67.5, reps: 8 });
+    s = ready();
+    expect(s.exerciseProps(ex, 0)!.selectedRowKey).toBe(key);
+    expect(s.dock).toMatchObject({ rowKey: key, x: 2, load: 67.5, reps: 8, canLog: true });
+    s.dockLog();
+    await vi.waitFor(async () => expect((await c.workout.listSessionSets(s.loaded.sessionId)).map(x => [x.id, x.load, x.reps])).toEqual([[key, 67.5, 8]]));
+    s = ready();
+    expect(s.rows[ex.exerciseId]!.find(row => row.key === firstKey)!.saved).toBe(false);
+    expect(s.dock.rowKey).toBe(firstKey);
+  });
+  it("logs exactly the displayed effective values while the keyboard is open", async () => {
+    const c = await fixture();
+    let s = ready(); const ex = s.shown[0]!; const key = s.rows[ex.exerciseId]![0]!.key;
+    s.setKeyboardUp(true);
+    s.patch(ex.exerciseId, key, { load: 67.5, reps: 8 });
+    s = ready();
+    expect(s.dock).toMatchObject({ load: 67.5, reps: 8, canLog: true, mode: "compact" });
+    s.dockLog();
+    await vi.waitFor(async () => expect((await c.workout.listSessionSets(s.loaded.sessionId)).map(x => [x.load, x.reps])).toEqual([[67.5, 8]]));
+  });
+});
+
 describe("a keystroke re-renders only one row (logger 10x render count)", () => {
   // Every memoised set row on screen, with the props React.memo compares; and the dock's memo inputs.
   const rowProps = (s: WorkoutSession) => s.shown.flatMap((ex, i) => {
@@ -559,7 +588,7 @@ describe("a keystroke re-renders only one row (logger 10x render count)", () => 
   const dockInputs = (s: WorkoutSession) => [dockKey(s.dock), s.dockName, s.sets.length, s.timer.endsAt, s.timer.durationMs, s.restFor, s.busy].join("|");
   const rerendered = (a: WorkoutSetRowProps[], b: WorkoutSetRowProps[]) => a.filter((p, i) => !b[i] || !sameRowProps(p, b[i]!)).length;
 
-  it.each([0, 1])("typing into row %i of the first exercise: one row re-renders, the dock does not", async (rowIndex) => {
+  it.each([0, 1])("typing into row %i of the first exercise: one row re-renders, the dock reads the current draft", async (rowIndex) => {
     await fixture();
     ready().setKeyboardUp(true);
     let s = ready();
@@ -577,7 +606,8 @@ describe("a keystroke re-renders only one row (logger 10x render count)", () => 
       expect(rowsAfter.length).toBe(rowsBefore.length);
       expect(rowsBefore.length).toBeGreaterThan(2);
       expect(rerendered(rowsBefore, rowsAfter)).toBe(1);
-      expect(dockInputs(s)).toBe(dockBefore);
+      expect(s.dock.rowKey).toBe(key);
+      expect(s.dock.load).toBe(load);
     }
   });
 });

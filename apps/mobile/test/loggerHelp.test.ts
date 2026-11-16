@@ -23,7 +23,7 @@ describe("P10 logger: instructions behind a help button, compact wrapping target
     expect(section).toContain("<TargetLine");
     expect(section).toContain('t("workout.nextTarget")');
     expect(section).toContain('t("workout.whyShort")');
-    expect(screen).not.toContain("fontSize: 28"); // the big target card is gone
+    expect(section.indexOf("<TargetLine")).toBeGreaterThan(section.indexOf("<Sheet visible title={labels.primary}")); // the big target card is gone
     expect(block).toContain('flexWrap: "wrap"');
     expect(block).not.toContain("numberOfLines");
     expect(block).toContain("<QuietAction"); // quiet, and QuietAction keeps the 48 dp touch area (see logger refinement tests)

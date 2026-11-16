@@ -1,8 +1,9 @@
 import { useSheetAction } from "../hooks/useSheetAction";
+import { inputScrollOffset } from "../logic/workoutKeyboard";
 import { RackDock, type DockActions } from "../components/RackDock";
-import { Profiler, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
+import { Profiler, useCallback, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import { perfMark, perfMarks, perfNow } from "../perfMarks";
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "../components/Icon";
 import { ExerciseBlock } from "../components/WorkoutExerciseSection";
@@ -59,13 +60,31 @@ export function WorkoutScreen() {
   // Developer Mode timings: mount → session ready, once.
   const openT0 = useRef(perfNow());
   const openMarked = useRef(false);
-  // The dock hides while the number pad is up and comes back on blur (spec §2.1); it never hides on scroll.
+  // Measure the actual scroll viewport: the dock and keyboard both consume space.
   const [keyboardUp, setKeyboardUpLocal] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const viewportHeight = useRef(0);
+  const scrollY = useRef(0);
+  const keyboardVisible = useRef(false);
+  const revealInput = useCallback(() => {
+    if (!keyboardVisible.current) return;
+    const input = TextInput.State.currentlyFocusedInput();
+    const content = scrollRef.current?.getInnerViewRef();
+    if (!input || !content) return;
+    // measureLayout ignores inputs in another native sheet, which are not descendants of this content.
+    input.measureLayout(content, (_x, top, _width, height) => {
+      if (TextInput.State.currentlyFocusedInput() !== input) return;
+      const next = inputScrollOffset(top, height, scrollY.current, viewportHeight.current);
+      if (Math.abs(next - scrollY.current) > 1) scrollRef.current?.scrollTo({ y: next, animated: false });
+    }, () => undefined);
+  }, []);
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardUpLocal(true));
-    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardUpLocal(false));
+    const show = Keyboard.addListener("keyboardDidShow", () => { keyboardVisible.current = true; setKeyboardUpLocal(true); requestAnimationFrame(revealInput); });
+    const hide = Keyboard.addListener("keyboardDidHide", () => { keyboardVisible.current = false; setKeyboardUpLocal(false); });
     return () => { show.remove(); hide.remove(); };
   }, []);
+  const selectedInputRow = session.phase === "ready" ? session.dock.rowKey : null;
+  useEffect(() => { if (keyboardUp) requestAnimationFrame(revealInput); }, [keyboardUp, selectedInputRow, revealInput]);
   const syncKeyboard = session.phase === "ready" ? session.setKeyboardUp : null;
   useEffect(() => { syncKeyboard?.(keyboardUp); }, [keyboardUp, syncKeyboard]);
   // Handlers reach the memoised dock through a ref, so a new closure each render never re-renders it.
@@ -144,11 +163,11 @@ export function WorkoutScreen() {
       </View>
 
       {/* Elapsed time, pause/resume and set progress stay visible above the table. */}
-        <View style={{ flexDirection: "row", flexWrap: largeText ? "wrap" : "nowrap", alignItems: "center", columnGap: space.sm, paddingHorizontal: space.lg }}>
+        <View style={{ flexDirection: "row", flexWrap: largeText && !keyboardUp ? "wrap" : "nowrap", alignItems: "center", columnGap: space.sm, paddingHorizontal: space.lg }}>
           <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} />
           {/* Pause / resume the whole workout: the duration freezes and Finish records active time only. The rest timer is separate. */}
           <IconButton icon={loaded.pausedAt != null ? "play" : "pause"} label={loaded.pausedAt != null ? t("workout.resume") : t("workout.pause")} onPress={() => void toggleDurationPause()} />
-          {largeText ? <View style={{ flexBasis: "100%", height: 0 }} /> : null}
+          {largeText && !keyboardUp ? <View style={{ flexBasis: "100%", height: 0 }} /> : null}
           <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: space.xs }}>
             {(
               <AppText numberOfLines={1} style={{ fontSize: ty.label, color: p.muted, fontVariant: ["tabular-nums"] }}>
@@ -160,7 +179,7 @@ export function WorkoutScreen() {
 
         </View>
       {warns ? <InlineStatus kind="warn" text={statusShort} /> : null}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={false}>
+      <ScrollView ref={scrollRef} onLayout={event => { viewportHeight.current = event.nativeEvent.layout.height; requestAnimationFrame(revealInput); }} onScroll={event => { scrollY.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={false}>
         <Profiler id="logger" onRender={onLoggerRender}>
 
 

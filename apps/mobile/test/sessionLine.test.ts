@@ -35,7 +35,7 @@ describe("session line (logger 10x §5)", () => {
     expect(screen).not.toMatch(/warns \? null : <IconButton/);
     expect(screen).toContain('<IconButton icon="more" label={t("workout.details")}');
     expect(screen).toContain("<WorkoutDetailsPanel\n          open={detailsOpen}");
-    expect(screen).toContain('flexWrap: largeText ? "wrap" : "nowrap"');
+    expect(screen).toContain('flexWrap: largeText && !keyboardUp ? "wrap" : "nowrap"');
     expect(screen).toContain('text={statusShort}');
     expect(screen).not.toContain("<InlineStatus kind={status.kind}");
   });

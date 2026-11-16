@@ -31,7 +31,7 @@ import { dayLabel, initialSelection, markSuggested, dayNeedingPreview, sessionAc
 import { AppText, BigButton, Card, ChoiceSheet, useReducedMotion, EmptyState, ErrorState, InlineStatus, LoadingState, QuietAction, Screen, SectionTitle } from "../ui";
 import { diagnostics } from "../diagnostics";
 import { LOADING, runLoad, type Load } from "../logic/loadState";
-import { RETURN_PLAN_KEY, canProgressReturn, comebackSets, parseReturnPlan, returnSessionKey, type ReturnPlan } from "../logic/returnToTraining";
+import { RETURN_PLAN_KEY, canProgressReturn, comebackSets, effectiveWorkoutSetCount, parseReturnPlan, returnSessionKey, type ReturnPlan } from "../logic/returnToTraining";
 
 type DayExercises = Awaited<ReturnType<ReturnType<typeof useServices>["repos"]["listDayExercises"]>>;
 interface TodayData {
@@ -281,10 +281,11 @@ export function TodayScreen() {
   const returnDay = openDay ?? chosen;
   const returnStage = returnPlan?.active ? returnPlan.stage : 1;
   const regularSets = returnDay.list.reduce((n, e) => n + e.sets, 0);
-  const easierSets = returnDay.list.reduce((n, e) => n + comebackSets(e.sets, returnStage), 0);
+  const easierSets = effectiveWorkoutSetCount(returnDay.sets, returnDay.list.map((e) => e.sets), true, returnStage);
   const label = dayLabel(chosen, data.openDayId);
   const labelText = label === "inProgress" ? t("today.inProgress") : label === "suggested" ? t("today.suggestedToday") : t("today.yourChoice");
-  const minutes = estimateDayMinutes({ exercises: chosen.exercises, sets: chosen.sets }, data.restSeconds);
+  const estimatedSets = effectiveWorkoutSetCount(chosen.sets, chosen.list.map((e) => e.sets), easeIn, returnStage);
+  const minutes = estimateDayMinutes({ exercises: chosen.exercises, sets: estimatedSets }, data.restSeconds);
   const buttonText = action.kind === "start" ? `${t("today.startDay", { day: chosen.name })} · ${t("today.footerMin", { min: minutes })}` : action.elsewhere && openDay ? t("today.resumeDay", { day: openDay.name }) : t("today.resume");
   const ex = extras && extras.key.startsWith(`${data.loadId}:${chosen.id}:`) ? extras : null;
   const now = Date.now();

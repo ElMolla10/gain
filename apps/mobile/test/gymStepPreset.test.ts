@@ -4,6 +4,7 @@ import { defaultGymLoads } from "../src/logic/defaultGym";
 import { gridFor } from "../src/db/exerciseGrid";
 import { dumbbellPairs, presetForExercise } from "../src/logic/gymStepPreset";
 import { freshDb } from "./helpers";
+import { newExercise } from "../src/logic/programmeDraft";
 
 describe("gym weight setup", () => {
   it("uses two-kilo dumbbells, skips 26, and distinguishes plate machines from pin stacks and weighted pull-ups", () => {
@@ -53,8 +54,13 @@ describe("gym weight setup", () => {
     const namedPlate = (await s.db.get<{ id: string }>("SELECT id FROM exercise WHERE name_en = 'Shoulder Press (Machine Plates)'"))!;
     await s.programmes.setMachineLoadKind(generic.id, "plate");
     expect((await s.programmes.listExercises()).find(e => e.id === generic.id)?.machineLoadKind).toBe("plate");
+    expect((await s.repos.adHocDayExercise(generic.id))?.machineLoadKind).toBe("plate");
+    const version = await s.programmes.createProgramme({ name: "Machine art", days: [{ name: "Upper", exercises: [newExercise(generic.id)] }] }, { activate: true });
+    const [day] = await s.repos.listDays(version.versionId);
+    expect((await s.repos.listDayExercises(day!.id))[0]?.machineLoadKind).toBe("plate");
     expect(nextLoadAbove((await gridFor(s.db, gym, generic.id, "machine"))!, 50)).toBe(60);
     await s.programmes.setMachineLoadKind(generic.id, "pin");
+    expect((await s.repos.listDayExercises(day!.id))[0]?.machineLoadKind).toBe("pin");
     expect(nextLoadAbove((await gridFor(s.db, gym, generic.id, "machine"))!, 50)).toBe(55);
     expect((await s.repos.getExerciseLoads(generic.id))?.spec?.increment).toBe(5);
     await s.programmes.setMachineLoadKind(generic.id, "pin", 2.5);

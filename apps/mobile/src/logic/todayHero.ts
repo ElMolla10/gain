@@ -26,9 +26,10 @@ interface HeroBase {
 
 export type TodayHero =
   | (HeroBase & { kind: "barbell"; load: number; calc: PlateCalc; ghost: number[] | null; normalLoad: number | null; warmups: HeroWarmupStep[]; skippedHint: boolean })
-  | (HeroBase & { kind: "dumbbell"; load: number })
-  | (HeroBase & { kind: "stack"; load: number; pinIndex: number | null })
-  | (HeroBase & { kind: "assisted"; load: number; pinIndex: number | null })
+  | (HeroBase & { kind: "dumbbell"; load: number; count?: 1 | 2 })
+  | (HeroBase & { kind: "unloaded"; object: "dumbbell" | "stack"; count: 1 | 2; assisted: boolean })
+  | (HeroBase & { kind: "stack"; load: number; pinIndex: number | null; rowCount?: number | null })
+  | (HeroBase & { kind: "assisted"; load: number; pinIndex: number | null; rowCount?: number | null })
   /** Plate-loaded machine: the load is the TOTAL on the machine, drawn half per horn (Mohamed, 2026-10-18). */
   | (HeroBase & { kind: "horn"; load: number; perSide: number[] })
   | (HeroBase & { kind: "belt"; added: number; plates: number[] })
@@ -56,6 +57,10 @@ export interface HeroExercise {
   pattern?: string;
   loadSpec?: GymLoadSpec | null;
   isGoalLift: boolean;
+  machineLoadKind?: "pin" | "plate" | null;
+  dumbbellCount?: 1 | 2;
+  /** Per-machine/gym rungs, not a shared default equipment grid. */
+  stackSpec?: GymLoadSpec | null;
 }
 
 export interface HeroInput {
@@ -74,7 +79,7 @@ const EPS = 1e-6;
 
 /** 1-based position of `load` on the spec's grid (a `loads` list or min + n·increment); null when the grid is unknown or the load is off it. */
 export function pinIndex(spec: GymLoadSpec | null, load: number): number | null {
-  if (!spec) return null;
+  if (!spec || !Number.isFinite(load) || (spec.max != null && load > spec.max + 1e-3)) return null;
   if (spec.loads && spec.loads.length > 0) {
     const sorted = [...spec.loads].sort((a, b) => a - b);
     const i = sorted.findIndex((l) => Math.abs(l - load) < 1e-3);
@@ -88,24 +93,41 @@ export function pinIndex(spec: GymLoadSpec | null, load: number): number | null 
 
 export function todayHero(input: HeroInput): TodayHero | null {
   const { target, exercise } = input;
-  if (!target || target.load === null || !exercise) return input.isSample ? { kind: "firstRun" } : null;
-  const load = target.load;
+  if (!exercise) return input.isSample ? { kind: "firstRun" } : null;
+  const load = target?.load ?? null;
   const base: HeroBase = {
     exerciseId: exercise.exerciseId,
     nameEn: exercise.nameEn,
     nameAr: exercise.nameAr,
     isGoal: exercise.isGoalLift,
-    measure: target.measure,
-    reps: target.reps,
-    durationS: target.durationS ?? null,
-    distanceM: target.distanceM ?? null,
+    measure: target?.measure ?? exercise.measure,
+    reps: target?.reps ?? null,
+    durationS: target?.durationS ?? null,
+    distanceM: target?.distanceM ?? null,
   };
+  const paired = exercise.dumbbellCount ?? 2;
+  const assisted = exercise.setup === "assisted" || exercise.equipment === "assisted";
+  const plateLoaded = exercise.machineLoadKind === "plate";
+  const dumbbell = exercise.equipment === "dumbbell";
+  const stack = assisted || exercise.equipment === "cable" || (exercise.equipment === "machine" && !plateLoaded);
+  if (load === null || !Number.isFinite(load)) {
+    if (dumbbell || stack) return { ...base, kind: "unloaded", object: dumbbell ? "dumbbell" : "stack", count: base.measure !== "reps" ? 1 : paired, assisted };
+    return input.isSample ? { kind: "firstRun" } : null;
+  }
+  // Object artwork does not wait for the lazy gym query. Only bar/plate math needs it.
+  if (dumbbell) return base.measure === "reps" ? { ...base, kind: "dumbbell", load, count: paired } : { ...base, kind: "hold", load, object: "dumbbell" };
+  if (stack) {
+    const knownSpec = exercise.stackSpec ?? exercise.loadSpec ?? null;
+    const index = pinIndex(knownSpec, load);
+    const rowCount = knownSpec?.loads?.length ?? (knownSpec?.min != null && knownSpec.max != null && knownSpec.increment ? Math.floor((knownSpec.max-knownSpec.min)/knownSpec.increment)+1 : null);
+    return { ...base, kind: assisted ? "assisted" : "stack", load, pinIndex: index, rowCount };
+  }
   if (!input.gym) return { ...base, kind: "noGym", load, reason: "no_gym" };
   const spec = specForExercise(input.gym, { equipment: exercise.equipment, loadOverride: exercise.loadSpec ?? null });
   if (!spec) return { ...base, kind: "noGym", load, reason: "no_spec" };
   const numberOnly = { ...base, kind: "noGym" as const, load, reason: "not_loadable" as const };
 
-  if (target.measure !== "reps") {
+  if (base.measure !== "reps") {
     return { ...base, kind: "hold", load, object: exercise.equipment === "dumbbell" ? "dumbbell" : exercise.equipment === "barbell" ? "bar" : "none" };
   }
   if (exercise.setup === "bodyweight_plus_added") {
@@ -127,7 +149,7 @@ export function todayHero(input: HeroInput): TodayHero | null {
         : [];
     return { ...base, kind: "barbell", load, calc, ghost, normalLoad: normal, warmups, skippedHint: warmupsUsuallySkipped(input.position ?? 0, exercise.pattern) };
   }
-  if (exercise.equipment === "plate") {
+  if (exercise.equipment === "plate" || plateLoaded) {
     // The machine's load is the total; calculatePlates on a zero "bar" splits it half per horn.
     const calc = calculatePlates(load, 0, platesOf(spec));
     return calc && calc.exact && calc.perSide.length > 0 ? { ...base, kind: "horn", load, perSide: calc.perSide } : numberOnly;

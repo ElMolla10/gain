@@ -1,4 +1,4 @@
-import { renderReason, type GymFingerprint, type SessionSummary } from "@gain/engine";
+import { renderReason, type GymFingerprint, type GymLoadSpec, type SessionSummary } from "@gain/engine";
 import { pagerClaims, pagerCommit, runUnrack, stepDay, TODAY_MOTION } from "../logic/todayMotion";
 import { leadTarget } from "../logic/nextTarget";
 import { plannedScheme, targetRowText } from "../logic/bidiText";
@@ -61,6 +61,7 @@ interface TodayData {
 
 /** The hero extras for the day on screen, fetched lazily (never in the focus load) and cached per load + day (spec §10). */
 interface DoorExtras {
+  stackSpecs?: Record<string, GymLoadSpec | null>;
   key: string;
   gym: GymFingerprint | null;
   /** Stored decision per target id: when it was written and the newest comparable session it used. */
@@ -217,18 +218,20 @@ export function TodayScreen() {
     const ids = viewTargets.map((x) => x.id);
     const gymId = ready.activeGym;
     void (async () => {
-      const [gym, decs, sessions, days] = await Promise.all([
+      const dayExercises = ready.days.find(d => d.id === viewId)?.list ?? [];
+      const [gym, decs, sessions, days, lineSpecs] = await Promise.all([
         gymId ? repos.loadGymFingerprint(gymId).catch(() => null) : Promise.resolve(null),
         Promise.all(ids.map((id) => finish.getDecision(id).catch(() => null))),
         ids.length > 0 ? history.listSessions(10).catch(() => []) : Promise.resolve([]),
         history.getAchievementDays().catch(() => [] as number[]),
+        Promise.all(dayExercises.map(e => gymId && repos.getLineLoads ? repos.getLineLoads(e.exerciseId,gymId,e.setup).catch(() => null) : Promise.resolve(null))),
       ]);
       const decisions: DoorExtras["decisions"] = {};
       ids.forEach((id, i) => {
         const d = decs[i];
         if (d) decisions[id] = { createdAt: d.createdAt, last: d.payload.inputs?.sessions?.[0] ?? null };
       });
-      return { key: extrasKey, gym, decisions, sessions: sessions.map((x) => ({ dayName: x.dayName, finishedAt: x.finishedAt })), welcomeBackDays: welcomeBackGap(days, Date.now()) };
+      return { key: extrasKey, gym, stackSpecs: Object.fromEntries(dayExercises.map((e,i) => [e.exerciseId,lineSpecs[i] ?? null])), decisions, sessions: sessions.map((x) => ({ dayName: x.dayName, finishedAt: x.finishedAt })), welcomeBackDays: welcomeBackGap(days, Date.now()) };
     })()
       .catch((e) => {
         diagnostics.record("warn", "today extras", e);
@@ -274,7 +277,7 @@ export function TodayScreen() {
   const anyWeight = rows.some((r) => r.status !== "rejected" && r.currency !== "none" && r.effectiveLoad !== null);
   const isPreview = rows.length > 0 && rows.every((r) => r.preview);
   const lead = leadTarget(rows, goalIds);
-  const leadEx = lead ? exercises.find((e) => e.exerciseId === lead.exerciseId) ?? null : null;
+  const leadEx = lead ? exercises.find((e) => e.exerciseId === lead.exerciseId) ?? null : exercises[0] ?? null;
   const letters = { s: t("qty.s"), m: t("qty.m") };
   const action = sessionAction(chosen.id, data.openDayId);
   const openDay = data.openDayId ? data.days.find((d) => d.id === data.openDayId) : undefined;
@@ -299,13 +302,14 @@ export function TodayScreen() {
   const targetOf = (r: TodayRow | undefined) => (r && r.status !== "rejected" && r.currency !== "none" && r.effectiveLoad !== null ? targetRowText(r, lang, unit, letters) : null);
 
   // The hero: the lead lift drawn as the loaded object. Its plates need the gym (lazy): until then the number shows alone.
-  const hero = lead && leadEx
+  const hero = leadEx
     ? todayHero({
-      target: { exerciseId: lead.exerciseId, load: lead.effectiveLoad, reps: lead.reps, measure: lead.measure, durationS: lead.durationS, distanceM: lead.distanceM },
-      exercise: { exerciseId: leadEx.exerciseId, nameEn: leadEx.nameEn, nameAr: leadEx.nameAr, equipment: leadEx.equipment, setup: leadEx.setup, measure: leadEx.measure, pattern: leadEx.pattern, loadSpec: leadEx.loadSpec, isGoalLift: leadEx.isGoalLift },
+      target: lead ? { exerciseId: lead.exerciseId, load: lead.effectiveLoad, reps: lead.reps, measure: lead.measure, durationS: lead.durationS, distanceM: lead.distanceM } : null,
+      exercise: { exerciseId: leadEx.exerciseId, nameEn: leadEx.nameEn, nameAr: leadEx.nameAr, equipment: leadEx.equipment, setup: leadEx.setup, measure: leadEx.measure, pattern: leadEx.pattern, loadSpec: leadEx.loadSpec, isGoalLift: leadEx.isGoalLift, machineLoadKind: leadEx.machineLoadKind, stackSpec: ex?.stackSpecs?.[leadEx.exerciseId] },
       gym: ex?.gym ?? null,
-      normalLoad: lead.normalLoad,
-      position: exercises.findIndex((e) => e.exerciseId === lead.exerciseId),
+      normalLoad: lead?.normalLoad,
+      position: exercises.findIndex((e) => e.exerciseId === leadEx.exerciseId),
+      isSample: data.isSample && !anyWeight,
     })
     : data.isSample && !anyWeight ? todayHero({ target: null, exercise: null, gym: null, isSample: true }) : null;
   const leadName = leadEx ? exerciseLabels(leadEx, lang).primary : "";

@@ -5,7 +5,7 @@ import { normTopSets } from "../logic/programmeDraft";
 import { parseStoredLoads, serializeLoads } from "../logic/exerciseLoads";
 import { parseLoadsJson, validateGym } from "../logic/gymInput";
 import { lineOwnLoads } from "./exerciseGrid";
-import { loadsJsonWithKind, machineLoads } from "../logic/machineLoadKind";
+import { loadsJsonWithKind, machineLoads, machineKind } from "../logic/machineLoadKind";
 import { hasLoggedSets } from "./sessionSql";
 import { DRAFT_LIBRARY, LIBRARY_VERSION } from "./libraryDraft";
 import { DEFAULT_TIMED_RANGE, measureOfKey } from "./library/measures";
@@ -361,6 +361,7 @@ export function createRepos(db: Db, deps: Deps) {
           gainCeiling: r.rep_max,
           topSets: null as number | null,
           loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
+          machineLoadKind: r.equipment === "machine" ? machineKind(r.load_spec_json, r.name_en) : null,
           isGoalLift: r.is_goal_lift === 1,
           trackEffort: false,
         };
@@ -400,6 +401,7 @@ export function createRepos(db: Db, deps: Deps) {
       topSets: normTopSets(r.sets, r.top_sets),
       /** Weights the lifter set for this exercise (null = the gym's grid). */
       loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
+      machineLoadKind: r.equipment === "machine" ? machineKind(r.load_spec_json, r.name_en) : null,
       isGoalLift: r.is_goal_lift === 1,
       trackEffort: r.track_effort === 1,
       };
@@ -420,7 +422,8 @@ export function createRepos(db: Db, deps: Deps) {
       const d = DEFAULT_TIMED_RANGE[r.measure];
       return {
         id: `added:${r.id}`, exerciseId: r.id, nameEn: r.name_en, nameAr: r.name_ar, aliasesAr: JSON.parse(r.aliases_ar_json) as string[], equipment: r.equipment, setup: r.setup,
-        measure: r.measure, pattern: r.pattern, seedKey: r.seed_key, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, topSets: null as number | null, loadSpec: parseStoredLoads(r.load_spec_json, r.equipment), isGoalLift: false, trackEffort: false,
+        measure: r.measure, pattern: r.pattern, seedKey: r.seed_key, sets: d.sets, repMin: d.min, repMax: d.max, programmeRepMin: d.min, programmeRepMax: d.max as number | null, repCeiling: d.max, repCeilingIsCustom: false, repTopBasis: "program" as RepTopBasis, gainCeiling: d.max, topSets: null as number | null, loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
+          machineLoadKind: r.equipment === "machine" ? machineKind(r.load_spec_json, r.name_en) : null, isGoalLift: false, trackEffort: false,
       };
     }
     const policy = resolveProgression(classifyLift(r.name_en).bodyRegion, {}, { name: r.name_en, ceilings: await getRepCeilingDefaults() });
@@ -447,6 +450,7 @@ export function createRepos(db: Db, deps: Deps) {
       gainCeiling: policy.repCeiling,
       topSets: null as number | null,
       loadSpec: parseStoredLoads(r.load_spec_json, r.equipment),
+      machineLoadKind: r.equipment === "machine" ? machineKind(r.load_spec_json, r.name_en) : null,
       isGoalLift: false,
       trackEffort: false,
     };

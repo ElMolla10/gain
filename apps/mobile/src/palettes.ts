@@ -400,3 +400,26 @@ export const TODAY_OBJECTS: { dark: TodayObjects; light: TodayObjects } = {
   dark: { rubber: "#2A2F2B", rubberEdge: "#5A625C", rubberInk: "#C9D0C6", frame: "#2B302A", stackPlate: "#30362F", stackPlateEdge: "#4A524A", stackLifted: "#475048", ghost: "#8A9580", strong: "#F5F6EF", shadow: "#000000" },
   light: { rubber: "#30362F", rubberEdge: "#1A1E19", rubberInk: "#E6EAE0", frame: "#2B302A", stackPlate: "#3B4239", stackPlateEdge: "#252A23", stackLifted: "#5A6358", ghost: "#7A876E", strong: "#171C12", shadow: "#000000" },
 };
+
+/** Physical finishes shared by the locally bundled Today equipment in both themes. */
+export const TODAY_EQUIPMENT = {
+  stamp: "#d8dbd2",
+  stampEdge: "#171b15",
+  pinEdge: "#4b610c",
+  tether: "#10130f",
+  coil: "#70756b",
+  eyelet: "#151914",
+  eyeletEdge: "#a5aaa1",
+  steelLo: "#343b3c",
+  steelHi: "#eef0ec",
+  steelMid: "#9aa19d",
+  steelShine: "#f0f1ed",
+  steelEdge: "#515958",
+  limeHi: "#e1fc68",
+  lime: "#b7eb20",
+  limeLo: "#83ae12",
+  collarEdge: "#313a37",
+  hole: "#080b08",
+  holeEdge: "#71766b",
+  stackStamp: "#e8ebe2",
+} as const;

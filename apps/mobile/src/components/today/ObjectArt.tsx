@@ -11,68 +11,8 @@ import { barLayout } from "../../logic/barArt";
 const VB = `0 0 ${HERO_W} ${HERO_H}`;
 const NUM_FONT = FONT_FAMILIES.latin.bold;
 
-function hex(cx: number, cy: number, r: number): string {
-  return [0, 1, 2, 3, 4, 5].map((i) => `${cx + r * Math.cos((Math.PI / 3) * i + Math.PI / 6)},${cy + r * Math.sin((Math.PI / 3) * i + Math.PI / 6)}`).join(" ");
-}
-
-/** One hex dumbbell, side-on: handle + two rubber heads, the load printed on the front head (Latin digits, LTR). */
-function Dumbbell({ cx, cy, label, dark }: { cx: number; cy: number; label: string | null; dark: boolean }) {
-  const o = dark ? TODAY_OBJECTS.dark : TODAY_OBJECTS.light;
-  const steel = dark ? BAR_STEEL.dark : BAR_STEEL.light;
-  return (
-    <G>
-      <Rect x={cx - 40} y={cy - 4} width={80} height={8} rx={3} fill={steel.base} />
-      <Polygon points={hex(cx - 52, cy, 26)} fill={o.rubber} stroke={o.rubberEdge} strokeWidth={1.5} />
-      <Polygon points={hex(cx + 52, cy, 26)} fill={o.rubber} stroke={o.rubberEdge} strokeWidth={1.5} />
-      {label ? (
-        <SvgText x={cx + 52} y={cy + 6} fontSize={17} fontFamily={NUM_FONT} fontWeight="700" fill={o.rubberInk} textAnchor="middle">
-          {label}
-        </SvgText>
-      ) : null}
-    </G>
-  );
-}
-
-/** A pair of dumbbells, one offset behind the other. */
-export function DumbbellPairArt({ load, unit, height }: { load: number; unit: Unit; height: number }) {
-  const dark = useIsDark();
-  return (
-    <Svg width="100%" height={height} viewBox={VB} {...ART_HIDDEN}>
-      <G opacity={0.55}>
-        <Dumbbell cx={HERO_W / 2 - 34} cy={HERO_H / 2 - 18} label={null} dark={dark} />
-      </G>
-      <Dumbbell cx={HERO_W / 2 + 18} cy={HERO_H / 2 + 16} label={weightText(load, unit)} dark={dark} />
-    </Svg>
-  );
-}
-
-const STACK_VISIBLE = 12;
-/** Where the pin sits in the 12-plate window: its own plate up to the 10th, then held at the 10th (the window scrolls with the pin). */
-export function stackPinRow(pinIndex: number | null): number {
-  return Math.max(1, Math.min(pinIndex ?? 10, 10));
-}
-
-/** The weight stack: 12 plates around the pin, the plates above it (the ones that lift) lighter, a steel pin with a red knob. No numbers. */
-export function StackArt({ pinIndex, height }: { pinIndex: number | null; height: number }) {
-  const dark = useIsDark();
-  const o = dark ? TODAY_OBJECTS.dark : TODAY_OBJECTS.light;
-  const steel = dark ? BAR_STEEL.dark : BAR_STEEL.light;
-  const row = stackPinRow(pinIndex);
-  const x = HERO_W / 2 - 60;
-  const h = 8;
-  const top = 12;
-  return (
-    <Svg width="100%" height={height} viewBox={VB} {...ART_HIDDEN}>
-      <Rect x={x - 10} y={4} width={140} height={HERO_H - 8} rx={4} fill="none" stroke={o.frame} strokeWidth={3} />
-      <Line x1={HERO_W / 2} y1={4} x2={HERO_W / 2} y2={top + row * (h + 1)} stroke={steel.base} strokeWidth={3} />
-      {Array.from({ length: STACK_VISIBLE }, (_, i) => (
-        <Rect key={i} x={x} y={top + i * (h + 1)} width={120} height={h} rx={1.5} fill={i < row ? o.stackLifted : o.stackPlate} stroke={o.stackPlateEdge} strokeWidth={0.8} />
-      ))}
-      <Line x1={x + 120} y1={top + (row - 1) * (h + 1) + h / 2} x2={x + 150} y2={top + (row - 1) * (h + 1) + h / 2} stroke={steel.base} strokeWidth={3} />
-      <Circle cx={x + 154} cy={top + (row - 1) * (h + 1) + h / 2} r={6} fill={TODAY_PLATES.red.face} stroke={TODAY_PLATES.red.lip} strokeWidth={1} />
-    </Svg>
-  );
-}
+export { DumbbellPairArt, StackArt, stackPinRow } from "./EquipmentArt";
+import { DumbbellObject } from "./EquipmentArt";
 
 /** Plate-loaded machine: the frame arm, the horn sleeve, and one side's plates from the frame outward (the load is the total). */
 export function HornArt({ perSide, unit, height }: { perSide: readonly number[]; unit: Unit; height: number }) {
@@ -144,7 +84,7 @@ export function HoldArt({ object, load, unit, height }: { object: "dumbbell" | "
   const dialX = object === "none" ? HERO_W / 2 : HERO_W - 70;
   return (
     <Svg width="100%" height={height} viewBox={VB} {...ART_HIDDEN}>
-      {object === "dumbbell" ? <Dumbbell cx={140} cy={HERO_H / 2} label={load > 0 ? weightText(load, unit) : null} dark={dark} /> : null}
+      {object === "dumbbell" ? <DumbbellObject x={40} y={25} width={200} label={load > 0 ? weightText(load, unit) : null} /> : null}
       {object === "bar" ? (
         <G transform="translate(0 0) scale(0.72)">
           <BarBody layout={barLayout([], { unit })} dark={dark} />

@@ -550,3 +550,6 @@ describe("first-workout suggestion hook scheduling and draft safety", () => {
     expect(f.next()).toMatchObject({ ghostLoad: load, ghostReps: 8, load: null, reps: null, saved: false });
   });
 });
+
+// Native image/SVG drawing is covered separately; these tests exercise workout wiring.
+vi.mock("../src/components/ExerciseDemoIllustration", () => ({ ExerciseDemoIllustration: "ExerciseDemoIllustration" }));

@@ -3,7 +3,7 @@ import { canEditLoadsFor } from "../logic/setRowState";
 import { loadTargetText } from "../logic/bidiText";
 import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Pressable, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, Pressable, View, useWindowDimensions } from "react-native";
 import { allowsZero, findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
 import type { Disp, ExInfo } from "../logic/workoutTypes";
 import type { ExerciseState, SetRow } from "../db/workoutRepo";
@@ -16,6 +16,7 @@ import { workingIndexes } from "../logic/liveSummary";
 import { focusedRowKey } from "../logic/workoutFocus";
 import { rowLabels, type SetRowDraft } from "../logic/workoutRows";
 import { exerciseDemoImage, exerciseDemoImageId } from "../logic/exerciseDemos";
+import { ExerciseDemoIllustration } from "./ExerciseDemoIllustration";
 import { LIVE_MISSING_FEATURES, nextAdaptiveRow, suggestedNextLoad, trustedWorkingSet, type ReportedSymptom } from "../logic/liveAdaptation";
 import { nextSetState } from "../logic/nextSetCard";
 import { describeWhyWeight, sessionPosition } from "../logic/why";
@@ -81,13 +82,7 @@ function ExerciseDemoButton({ seedKey, title, buttonLabel, buttonA11y, imageA11y
         <AppText style={{ color: p.accent, fontSize: ty.caption, fontWeight: "600" }}>{buttonLabel}</AppText>
       </Pressable>
       <Sheet visible={visible} title={title} onClose={() => setVisible(false)}>
-        <Image
-          source={image}
-          resizeMode="contain"
-          accessibilityRole="image"
-          accessibilityLabel={imageA11y}
-          style={{ width: "100%", height: 400, borderRadius: radius.card, backgroundColor: p.card }}
-        />
+        <ExerciseDemoIllustration source={image} seedKey={seedKey} accessibilityLabel={imageA11y} backgroundColor={p.card} />
       </Sheet>
     </>
   );

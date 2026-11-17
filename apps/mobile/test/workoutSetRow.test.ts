@@ -532,3 +532,6 @@ describe("logger 10x table trims (PR C)", () => {
     expect(onUnfold).toHaveBeenCalledOnce();
   });
 });
+
+// Native image/SVG drawing is covered separately; these tests exercise workout wiring.
+vi.mock("../src/components/ExerciseDemoIllustration", () => ({ ExerciseDemoIllustration: "ExerciseDemoIllustration" }));

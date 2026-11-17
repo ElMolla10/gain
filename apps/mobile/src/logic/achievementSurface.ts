@@ -238,6 +238,7 @@ export function evidenceSheetContent(args: {
   if (args.badgeId === "strength_pr_v2") return { ruleKey: "collection.rule.first_pr", ruleParams: {}, supportingSessionId: args.primarySessionId, nextTier: null };
   const def = collectionDefinition(args.badgeId);
   if (def) return { ruleKey: def.requirementKey, ruleParams: { n: def.tier }, supportingSessionId: args.primarySessionId, nextTier: null };
+  if (!LEGACY_ACHIEVEMENT_CATALOG.some(d => d.id === args.badgeId)) return { ruleKey: "collection.rule.unknown", ruleParams: {}, supportingSessionId: args.primarySessionId, nextTier: null };
   const ruleKey: EvidenceSheetContent["ruleKey"] =
     args.badgeId === "first_session"
       ? "achv.rule.firstSession"

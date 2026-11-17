@@ -30,6 +30,6 @@ Regenerate SVGs: `npm exec -w @gain/mobile -- vite-node scripts/render-collectio
 - SQLite tests cover v20 migration retries, legacy retention, silent migration/imports, immutable goal versions, missing-date retention, restart/retry idempotency and incremental/replay evidence equality.
 - Cabinet tests exercise every canonical ID at 32px and detail size, both language labels, empty/current plate states, 15/6/21 denominators, legacy artwork and unknown-ID behavior.
 - Local typecheck and Android/iOS production JavaScript exports passed. The full local Windows run also exercised all workspaces; platform-specific shell/path tests fail on Windows. Required GitHub Linux CI is the merge gate.
-- **Native simulator screenshots and on-device EN/Arabic RTL/theme QA could not be performed on this Windows host: there is no configured Android emulator or iOS Simulator.** No browser preview or artwork export is presented as native evidence. Native typography, SVG behavior, accessibility and RTL therefore remain unverified.
+- **Native simulator captures were omitted at the user's request.** No browser preview or artwork export is presented as native evidence. Native typography, SVG behavior, accessibility and RTL remain unverified.
 
 No TestFlight, App Store, EAS, or distribution build is triggered by this work.

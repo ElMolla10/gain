@@ -34,7 +34,8 @@ export const enCollection = {
   "collection.evidence.dedicated": "{exercise} \u00b7 {n} distinct training dates",
   "achv.r2.shelf.legacy": "Legacy awards",
   "achv.r2.plate.black": "1K Club",
-  "achv.r2.plate.to.black": "1K Club"
+  "achv.r2.plate.to.black": "1K Club",
+  "collection.rule.unknown": "This saved award has no available earning rule."
 } as const;
 export const arCollection: Record<keyof typeof enCollection, string> = {
   "collection.first_workout": "\u0623\u0648\u0644 \u062a\u0645\u0631\u064a\u0646",
@@ -72,5 +73,6 @@ export const arCollection: Record<keyof typeof enCollection, string> = {
   "collection.lifetime_plate_100": "\u0646\u0627\u062f\u064a \u0627\u0644\u0645\u064a\u0629",
   "collection.lifetime_plate_250": "250 \u064a\u0648\u0645 \u062a\u0645\u0631\u064a\u0646",
   "collection.lifetime_plate_500": "500 \u064a\u0648\u0645 \u062a\u0645\u0631\u064a\u0646",
-  "collection.lifetime_plate_1000": "\u0646\u0627\u062f\u064a \u0627\u0644\u0623\u0644\u0641"
+  "collection.lifetime_plate_1000": "\u0646\u0627\u062f\u064a \u0627\u0644\u0623\u0644\u0641",
+  "collection.rule.unknown": "\u0627\u0644\u0625\u0646\u062c\u0627\u0632 \u0645\u062d\u0641\u0648\u0638\u060c \u0644\u0643\u0646 \u0642\u0627\u0639\u062f\u0629 \u0627\u0643\u062a\u0633\u0627\u0628\u0647 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d\u0629."
 };

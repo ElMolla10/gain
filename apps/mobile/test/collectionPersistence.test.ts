@@ -1,5 +1,6 @@
+import { translate } from "../src/i18n/format";
 import { describe, expect, it } from "vitest";
-import { COLLECTION_IDS } from "@gain/engine";
+import { COLLECTION_IDS, COLLECTION_CATALOG, type ImportParse } from "@gain/engine";
 import { freshDb } from "./helpers";
 import { copyAtVersion } from "./realData";
 import { migrate } from "../src/db/migrations";
@@ -39,6 +40,23 @@ describe("collection persistence and migration",()=>{
   const {id}=await c.workout.startOrResumeSession(c.day.id,c.gymId);c.deps.tick();await c.achievements.setPin({exerciseId:c.ex.exerciseId,equipment:c.ex.equipment,setup:c.ex.setup,load:80,reps:8});
   await c.workout.logSet({sessionId:id,exerciseId:c.ex.exerciseId,load:65,reps:8},{gym:c.gym,equipment:c.ex.equipment,setup:c.ex.setup});c.deps.tick();await c.workout.finishSession(id);await c.achievements.sync();
   const award=(await c.achievements.listEarned()).find(r=>r.badgeId==="called_it");expect(award?.evidence).toMatchObject({targetVersionId:oldTarget!.id,target:{load:65,reps:8}});
+ });
+ it("credits ambiguous imported dates but not fabricated identities, silently and once",async()=>{
+  const c=await setup();const parse:ImportParse={source:"hevy",unit:"kg",warnings:[],rowCount:10,workouts:Array.from({length:10},(_,i)=>{
+   const date=`2026-01-${String(i+1).padStart(2,"0")}T12:00:00`;
+   return {source:"hevy",title:"History",startTime:date,endTime:null,key:`hevy|${date}|History`,exercises:[{title:"Press",skippedRows:0,sets:[{load:70,reps:8}]}]};
+  })};
+  const input={parse,gymId:c.gymId,mappings:{Press:{kind:"new" as const,nameEn:"Press",pattern:"horizontal_push",equipment:"barbell" as const,setup:"free" as const}}};
+  await c.imports.importHistory(input);const earned=await c.achievements.listEarned();expect(earned.some(r=>r.badgeId==="lifetime_plate_10")).toBe(true);expect(earned.some(r=>r.badgeId==="dedicated_days_10" || r.badgeId==="strength_pr_v2")).toBe(false);expect(earned.every(r=>r.isBackfilled)).toBe(true);
+  await c.imports.importHistory(input);expect((await c.achievements.getHome()).stats.qualifyingDays).toBe(10);expect(await c.achievements.listEarned()).toHaveLength(earned.length);
+  const old=await copyAtVersion(c.db,20);await migrate(old);expect((await old.all<{identity_reliable:number}>("SELECT identity_reliable FROM workout_set")).every(r=>r.identity_reliable===0)).toBe(true);
+ });
+ it("has localized names and exact requirements for all 21 IDs",()=>{
+  for(const d of COLLECTION_CATALOG)for(const lang of ["en","ar"] as const){
+   const name=translate(lang,d.i18nKey as Parameters<typeof translate>[1]);const rule=translate(lang,d.requirementKey as Parameters<typeof translate>[1],{n:d.tier});
+   expect(name).not.toBe(d.i18nKey);expect(rule).not.toBe(d.requirementKey);
+   if(lang==="ar"){expect(name).toMatch(/[\u0600-\u06ff]/);expect(rule).toMatch(/[\u0600-\u06ff]/);}
+  }
  });
  it("preserves undated history without inventing a training date",async()=>{
   const c=await setup();const id=await c.train();await c.db.run("UPDATE session SET local_calendar_date=NULL,updated_at=? WHERE id=?",[c.deps.now(),id]);await c.achievements.ensureBackfill();

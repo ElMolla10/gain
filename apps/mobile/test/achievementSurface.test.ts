@@ -184,3 +184,9 @@ describe("Arabic plurals and isolates", () => {
     expect(line).toMatch(/[\u0600-\u06FF]/);
   });
 });
+
+describe("unknown achievement IDs",()=>{
+ it("does not claim the PR rule for an unknown award",()=>{
+  expect(evidenceSheetContent({badgeId:"unknown",primarySessionId:null,qualifiedWeeksLifetime:0,weeks12Earned:false}).ruleKey).toBe("collection.rule.unknown");
+ });
+});

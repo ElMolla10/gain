@@ -1,7 +1,6 @@
 /**
  * The Rack Dock's model (logger spec §2), pure. Everything the dock draws is a primitive here (perSide is compared by `dockKey`), so the
- * dock can be memoised on it and a keystroke in a row never re-renders the dock. It reads COMMITTED values: while a row is being edited
- * (`editing` = that row's key) its typed load/reps are ignored and the dock is hidden; it comes back on blur with the typed values.
+ * dock can be memoised on it. It reads the same effective draft as logRow, including edits while the keyboard is open.
  */
 import { barbellPlates, calculatePlates, platesOf, type EquipmentType, type GymLoadSpec, type Measure, type SetupType } from "@gain/engine";
 import { focusedExercise, focusedRowKey } from "./workoutFocus";
@@ -73,24 +72,27 @@ export function dockModel(
   timer: DockTimer,
   opts: { groups?: Readonly<Record<string, string | null | undefined>>; editing?: string | null } = {},
 ): DockModel {
-  const exId = focusedExercise(shown.map((e) => e.exerciseId), rows as Record<string, SetRowDraft[]>, preferred, opts.groups);
+  const selectedExercise = shown.find(ex => (rows[ex.exerciseId] ?? []).some(row => row.key === opts.editing && (!row.saved || row.dirty)));
+  const exId = selectedExercise?.exerciseId ?? focusedExercise(shown.map((e) => e.exerciseId), rows as Record<string, SetRowDraft[]>, preferred, opts.groups);
   const ex = exId ? shown.find((e) => e.exerciseId === exId) ?? null : null;
   const empty: DockModel = { exId: null, rowKey: null, label: null, x: 0, y: 0, load: null, reps: null, measure: "reps", canLog: false, reason: null, update: false, change: null, mode: "done", objKind: null, perSide: [], restEndsAt: null };
   if (!ex) return empty;
   const list = rows[ex.exerciseId] ?? [];
-  const rowKey = focusedRowKey(list);
+  const selected = list.find(r => r.key === opts.editing && (!r.saved || r.dirty));
+  const rowKey = selected?.key ?? focusedRowKey(list);
   const index = list.findIndex((r) => r.key === rowKey);
   const raw = list[index];
   if (!raw) return empty;
-  const editing = opts.editing === raw.key;
-  // Committed view: while editing, the typed text is not committed yet.
-  const row: SetRowDraft = editing ? { ...raw, load: null, reps: null, invalidLoad: false, invalidReps: false, invalidRir: false } : raw;
+  // CellInput patches parsed values on every keystroke; the dock and logRow share this draft.
+  const row = raw;
   const labels = rowLabels(list);
   const work = (l: string) => l !== "W" && l !== "D";
   const label = labels[index] ?? null;
   const x = labels.slice(0, index + 1).filter(work).length;
   const y = labels.filter(work).length;
-  const { load, reps } = effectiveOf(row);
+  const effective = effectiveOf(row);
+  const load = row.invalidLoad ? null : effective.load;
+  const reps = row.invalidReps ? null : effective.reps;
   const measure: Measure = ex.measure ?? "reps";
   const objKind = objKindOf(ex);
   const prev = [...list.slice(0, index)].reverse().find((r) => r.saved);
@@ -103,7 +105,7 @@ export function dockModel(
     else if (objKind === "horn") perSide = calculatePlates(load, 0, platesOf(spec))?.perSide ?? [];
   }
   const resting = timer.on && timer.endsAt !== null && timer.endsAt > timer.now;
-  const mode: DockMode = editing ? "hidden" : resting || (timer.on && timer.open && !timer.over) ? "rest" : timer.on && timer.over ? "over" : "compact";
+  const mode: DockMode = resting || (timer.on && timer.open && !timer.over) ? "rest" : timer.on && timer.over ? "over" : "compact";
   return {
     exId: ex.exerciseId,
     rowKey: raw.key,
@@ -113,8 +115,8 @@ export function dockModel(
     load,
     reps,
     measure,
-    canLog: !editing && !hasInvalidInput(row) && rowReady({ load, reps }),
-    reason: editing ? null : reasonOf(row),
+    canLog: !hasInvalidInput(row) && rowReady({ load, reps }),
+    reason: reasonOf(row),
     update: raw.saved && raw.dirty,
     change,
     mode,

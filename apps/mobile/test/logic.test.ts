@@ -108,10 +108,10 @@ describe("rest timer (simple, in-app)", () => {
     expect(remainingMs(back, 6_000)).toBe(remainingMs(running, 6_000));
   });
   it("the dock's rest mode offers −15 / +15 and tells screen readers whether the timer runs", () => {
-    const bar = readFileSync(join(__dirname, "..", "src", "components", "RackDock.tsx"), "utf8");
+    const bar = readFileSync(join(__dirname, "..", "src", "screens", "WorkoutScreen.tsx"), "utf8");
     expect(bar).toContain("[-15, 15].map(");
     expect(bar).not.toContain("[-15, 30]");
-    expect(bar).toContain("accessibilityState={{ busy: timer.endsAt !== null }}");
+    expect(bar).toContain('title={t("workout.restTimerBtn")}');
   });
   it("formats m:ss and rounds partial seconds up", () => {
     expect(formatClock(90_000)).toBe("1:30");

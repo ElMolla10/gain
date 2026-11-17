@@ -503,7 +503,7 @@ export function ErrorState({ title, body, retryLabel, onRetry }: { title: string
 /** Drag-to-dismiss threshold for a sheet: past 30% of the card's height, or a fast downward flick. */
 export const sheetShouldDismiss = (dy: number, vy: number, cardHeight: number): boolean => dy > cardHeight * 0.3 || vy > 1.0;
 
-export function Sheet({ visible, title, onClose, children, footer }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
+export function Sheet({ visible, title, onClose, onDismiss, children, footer }: { visible: boolean; title: string; onClose: () => void; onDismiss?: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   const p = usePalette();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
@@ -557,7 +557,7 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
     onPanResponderTerminate: () => Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start(),
   }), [translateY, close]);
   return (
-    <Modal visible={visible} transparent animationType={reduced ? "none" : "fade"} onRequestClose={close} statusBarTranslucent navigationBarTranslucent>
+    <Modal visible={visible} transparent animationType={reduced ? "none" : "fade"} onRequestClose={close} onDismiss={onDismiss} statusBarTranslucent navigationBarTranslucent>
       <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" }}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("common.close")} onPress={close} style={{ flex: 1 }} />
         <Animated.View accessibilityViewIsModal onLayout={(e) => { cardHeight.current = e.nativeEvent.layout.height; }} style={{ transform: [{ translateY }], maxHeight: sheetMaxHeight(height, expanded), backgroundColor: p.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, borderWidth: 1, borderBottomWidth: 0, borderColor: p.border, paddingBottom: insets.bottom + space.md }}>

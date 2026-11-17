@@ -33,12 +33,14 @@ export function LiveDuration({
   pausedAt = null,
   color,
   onToggle,
+  compact = false,
 }: {
   startedAt: number;
   pausedMs?: number;
   pausedAt?: number | null;
   color: string;
   onToggle?: () => void;
+  compact?: boolean;
 }) {
   const { t } = useI18n();
   const paused = pausedAt != null;
@@ -65,7 +67,7 @@ export function LiveDuration({
       style={{ minHeight: MIN_TOUCH, justifyContent: "center" }}
     >
       {/* "12 د 30 ث" holds Arabic unit letters: language direction (the formatter isolates the numbers), tabular figures. */}
-      <AppText style={{ fontSize: 20, fontWeight: "600", color, fontVariant: ["tabular-nums"] }}>
+      <AppText style={{ fontSize: compact ? 14 : 20, fontWeight: "600", color, fontVariant: ["tabular-nums"] }}>
         {text}
       </AppText>
       {paused ? <AppText style={{ fontSize: 13, color }}>{t("workout.stat.paused")}</AppText> : null}

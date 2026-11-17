@@ -39,7 +39,7 @@ vi.mock("react", async original => {
   };
 });
 const native = vi.hoisted(() => ({ appState: [] as ((s: string) => void)[], alert: vi.fn(), sync: vi.fn(async (_p?: any) => {}), stop: vi.fn(async () => {}), reconcile: vi.fn(async (_open?: () => Promise<boolean>) => {}) }));
-vi.mock("react-native", () => ({ AppState: { addEventListener: (_e: string, fn: (s: string) => void) => { native.appState.push(fn); return { remove: () => { native.appState.splice(native.appState.indexOf(fn), 1); } }; } }, Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
+vi.mock("react-native", () => ({ Platform: { OS: "ios" }, AppState: { addEventListener: (_e: string, fn: (s: string) => void) => { native.appState.push(fn); return { remove: () => { native.appState.splice(native.appState.indexOf(fn), 1); } }; } }, Alert: { alert: native.alert }, Vibration: { vibrate: vi.fn() }, TextInput: "TextInput", Pressable: "Pressable", View: "View", useWindowDimensions: () => ({ fontScale: 1 }) }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
 vi.mock("expo-keep-awake", () => ({ activateKeepAwakeAsync: async () => undefined, deactivateKeepAwake: () => undefined }));
 vi.mock("../src/native/appleHealth", () => ({ appleHealth: { isAvailable: () => false, saveWorkout: async () => "", requestWrite: async () => false, deleteWorkout: async () => undefined } }));
@@ -61,7 +61,7 @@ vi.mock("../src/logic/liveAdaptation", async (orig) => {
 vi.mock("../src/diagnostics", () => ({ diagnostics: { record: vi.fn() } }));
 vi.mock("../src/native/workoutLiveActivity", () => ({ workoutLiveActivity: { sync: native.sync, stop: native.stop, reconcile: native.reconcile } }));
 vi.mock("../src/theme", () => ({ radius: { button: 8 }, space: { xs: 4, sm: 8, md: 12 }, type: { section: 20, label: 13 }, useLogPalette: () => ({}) }));
-vi.mock("../src/ui", () => ({ AppText: "AppText", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", QuietAction: "QuietAction" }));
+vi.mock("../src/ui", () => ({ Sheet: "Sheet", AppText: "AppText", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", QuietAction: "QuietAction" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
 vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", UnitToggle: "UnitToggle", TargetLine: "TargetLine" }));
 
@@ -151,8 +151,8 @@ describe("next-set weight suggestions during the very first workout", () => {
 
     // A real next-set hint replaces the empty target headline; details remain one tap away.
     const tree = nodes(WorkoutExerciseSection(props));
-    expect(tree.some(n => n.props.testID === "next-set-hint")).toBe(true);
-    expect(tree.find(n => n.type as unknown === "QuietAction" && n.props.label === "Next set details")).toBeDefined();
+    expect(tree.some(n => n.props.testID === "next-set-hint")).toBe(false);
+    expect(nodes(WorkoutExerciseSection({ ...props, suggestionOpen: true })).some(n => n.props.testID === "next-set-hint")).toBe(true);
   });
 
   it("editing set 1 re-evaluates set 2 suggestion immediately", async () => {

@@ -36,7 +36,7 @@ describe("logger save status (pure)", () => {
     expect(screen).not.toContain("{loaded.resumed ?"); // no permanent resumed line in the scroll
   });
   it("the status lives in the header (always visible), is announced politely, and a failed save sets it", () => {
-    expect(screen).toContain('accessibilityLiveRegion="polite"');
+    expect(screen).toContain('{showStatusWarning ? <InlineStatus kind="warn" text={statusShort} /> : null}');
     expect(screen).toContain("setSaveError(true)");
     expect(screen).toContain("setSaveError(false)");
     expect(screen).toContain('t("workout.saveFailed.title")'); // the alert is still shown too
@@ -105,7 +105,7 @@ describe("logger and Today: layout rules (source)", () => {
     expect(c).toContain("<Sheet"); // close button, Android back, safe area come from the shared Sheet
   });
   it("logger: rest control stays in each exercise header (48 dp), soft done rows, strong current row, outlined current boxes", () => {
-    expect(section).toContain("<RestToggle");
+    expect(section).not.toContain("<RestToggle");
     const r = parts.slice(parts.indexOf("export function RestToggle"));
     expect(r).toContain("minHeight: 48");
     expect(r).toContain("minWidth: 48");

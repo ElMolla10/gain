@@ -57,8 +57,4 @@ describe("± load steps stay on the exercise's available loads (batch item 24b)"
     expect(stepLoadOnGrid(100, 5, "lb", null)).toBe(stepLoadKg(100, 5, "lb"));
   });
 
-  it("the set row uses it with the section's spec", () => {
-    expect(readFileSync(join(__dirname, "../src/components/WorkoutSetRow.tsx"), "utf8")).toContain("stepLoadOnGrid(row.load ?? row.ghostLoad ?? 0, delta, unit, loadSpec)");
-    expect(readFileSync(join(__dirname, "../src/components/WorkoutExerciseSection.tsx"), "utf8")).toContain("loadSpec={spec}");
-  });
 });

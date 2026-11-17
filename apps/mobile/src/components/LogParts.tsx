@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, PanResponder, Pressable, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { useSheetAction } from "../hooks/useSheetAction";
 import { useI18n } from "../i18n";
 import { numberPadAccessory } from "../numberPad";
 import { Icon } from "./Icon";
@@ -31,6 +32,7 @@ export function CellInput<T extends number>(props: {
   /** A typed value that is not saved yet (the row is not ticked): a 2 dp warn underline, because unticked rows are dropped at Finish. */
   pending?: boolean;
   style?: StyleProp<ViewStyle>;
+  onFocus?: () => void;
   autoFocus?: boolean;
   focusNonce?: number;
 }) {
@@ -71,7 +73,7 @@ export function CellInput<T extends number>(props: {
         selectTextOnFocus
         placeholder={props.placeholder ?? "—"}
         placeholderTextColor={p.edge /* ghost targets are hints: quieter than a typed value (L-4) */}
-        onFocus={() => setFocused(true)}
+        onFocus={() => { setFocused(true); props.onFocus?.(); }}
         onBlur={() => { setFocused(false); if (bad) AccessibilityInfo.announceForAccessibility(t("workout.input.invalid")); }}
         style={{
           ...font,
@@ -149,16 +151,16 @@ export function SwipeRow(props: { children: React.ReactNode; deleteLabel: string
  * An action sheet built on the shared Sheet: heading, explicit close button, Android back dismisses. Ordinary choices are rows in the
  * body; destructive ones (danger) are set apart in the footer.
  */
-export function MenuSheet(props: { visible: boolean; title: string; /** Kept for callers: sheet headings always wrap. */ wrapTitle?: boolean; onClose: () => void; items: { label: string; danger?: boolean; selected?: boolean; onPress: () => void }[] }) {
+export function MenuSheet(props: { visible: boolean; title: string; /** Kept for callers: sheet headings always wrap. */ wrapTitle?: boolean; onClose: () => void; children?: React.ReactNode; items: { label: string; danger?: boolean; selected?: boolean; onPress: () => void }[] }) {
   const p = useLogPalette();
+  const action = useSheetAction(props.visible, props.onClose);
   const row = (it: { label: string; danger?: boolean; selected?: boolean; onPress: () => void }, i: number) => (
     <Pressable
       key={`${i}:${it.label}`}
       accessibilityRole="button"
       accessibilityState={{ selected: !!it.selected }}
       onPress={() => {
-        props.onClose();
-        it.onPress();
+        action.dismissThen(it.onPress);
       }}
       style={({ pressed }) => ({ minHeight: 56, flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
     >
@@ -169,8 +171,8 @@ export function MenuSheet(props: { visible: boolean; title: string; /** Kept for
   const normal = props.items.filter((x) => !x.danger);
   const danger = props.items.filter((x) => x.danger);
   return (
-    <Sheet visible={props.visible} title={props.title} onClose={props.onClose} footer={danger.length > 0 ? <>{danger.map((d, i) => row(d, i))}</> : undefined}>
-      <View style={{ gap: 2 }}>{normal.map((it, i) => row(it, i))}</View>
+    <Sheet visible={props.visible} title={props.title} onClose={props.onClose} onDismiss={action.onDismiss} footer={danger.length > 0 ? <>{danger.map((d, i) => row(d, i))}</> : undefined}>
+      <View style={{ gap: 2 }}>{props.children}{normal.map((it, i) => row(it, i))}</View>
     </Sheet>
   );
 }

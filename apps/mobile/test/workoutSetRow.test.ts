@@ -13,10 +13,11 @@ import { PreviousSourceToggle, parsePreviousSource, PREVIOUS_SOURCE_KEY } from "
 // Inspect the presentation tree and invoke its callbacks. Native keyboard/gesture delivery needs a phone.
 const settings = vi.hoisted(() => ({ unit: "kg" as "kg" | "lb", lang: "en" as "en" | "ar", fontScale: 1 }));
 vi.mock("../src/haptics", () => ({ haptics: { tick: () => {}, untick: () => {}, restOver: () => {}, celebrate: () => {} } }));
-vi.mock("react-native", () => ({ View: "View", Alert: { alert: vi.fn() }, Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale }) }));
+vi.mock("react", async orig => (await import("./achievementRender")).mockReactHooks(await orig()));
+vi.mock("react-native", () => ({ Platform: { OS: "ios" }, View: "View", Alert: { alert: vi.fn() }, Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale }) }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ ...settings, unitText: settings.unit, fmt: (kg: number) => `${kg} kg`, t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(settings.lang, key, params) }) }));
 vi.mock("../src/theme", () => ({ radius: { button: 8, card: 12, pill: 24 }, space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 13, load: 36, caption: 13 }, useLogPalette: () => ({ doneBg: "done", activeBg: "active", bg: "page", card: "card", line: "line", fill: "fill", accent: "accent", muted: "muted", danger: "danger", text: "text" }), usePalette: () => ({ muted: "muted", border: "border", text: "text", fill: "fill", onFill: "onFill", edge: "edge", danger: "danger" }) }));
-vi.mock("../src/ui", () => ({ AppText: "AppText", QuietAction: "QuietAction", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", Chip: "Chip", Field: "Field" }));
+vi.mock("../src/ui", () => ({ Sheet: "Sheet", AppText: "AppText", QuietAction: "QuietAction", BigButton: "BigButton", IconButton: "IconButton", InlineStatus: "InlineStatus", Notice: "Notice", Chip: "Chip", Field: "Field" }));
 vi.mock("../src/components/Icon", () => ({ Icon: "Icon" }));
 vi.mock("../src/components/LogParts", () => ({ CellInput: "CellInput", SwipeRow: "SwipeRow", RestToggle: "RestToggle", UnitToggle: "UnitToggle", TargetLine: "TargetLine" }));
 
@@ -95,8 +96,8 @@ describe("extracted workout row wiring", () => {
     const p = props(); const cells = inputs(p);
     const kg = cells[0]!.props.parse("132.3", null);
     expect(kg).toBeCloseTo(60, 1);
-    cells[0]!.props.onValue(kg); cells[1]!.props.onValue(9); cells[2]!.props.onValue(2);
-    expect(vi.mocked(p.onPatch).mock.calls).toEqual([[p.row.key, { load: kg, invalidLoad: false }], [p.row.key, { reps: 9, invalidReps: false }], [p.row.key, { rir: 2, invalidRir: false }]]);
+    cells[0]!.props.onValue(kg); cells[1]!.props.onValue(9);
+    expect(vi.mocked(p.onPatch).mock.calls).toEqual([[p.row.key, { load: kg, invalidLoad: false }], [p.row.key, { reps: 9, invalidReps: false }]]);
     for (const cell of cells) { expect(cell.props.a11y).toContain("Bench Press"); expect(cell.props.a11y).toContain("2"); }
   });
   it("large text (L-8): set | kg | reps | tick on one line, Previous as a caption above, one copy of every control, no per-row unit captions", () => {
@@ -104,10 +105,10 @@ describe("extracted workout row wiring", () => {
     const tree = nodes(WorkoutSetRow(p));
     expect(tree.filter(n => n.props.accessibilityRole === "checkbox")).toHaveLength(1);
     const cells = inputs(p);
-    expect(cells).toHaveLength(3);
+    expect(cells).toHaveLength(2);
     expect(cells.every(n => !n.props.unitLabel)).toBe(true);
     const direct = (n: Node) => (Array.isArray(n.props.children) ? n.props.children : [n.props.children]).filter(React.isValidElement) as Node[];
-    const line = tree.find(n => n.type as unknown === "View" && direct(n).filter(c => c.type as unknown === "CellInput").length === 3 && direct(n).some(c => nodes(c).some(x => x.props.accessibilityRole === "checkbox")))!;
+    const line = tree.find(n => n.type as unknown === "View" && direct(n).filter(c => c.type as unknown === "CellInput").length === 2 && direct(n).some(c => nodes(c).some(x => x.props.accessibilityRole === "checkbox")))!;
     expect(line).toBeTruthy();
     expect(line.props.style.flexDirection).toBe("row");
     expect(tree.filter(n => n.type as unknown === "AppText").map(n => String(n.props.children)).join(" ")).toContain("\u206660\u00A0×\u00A07\u2069");
@@ -189,7 +190,7 @@ describe("extracted exercise section wiring", () => {
       expect(previousText).toContain("\u206660\u00A0×\u00A08\u2069");
       expect(nodes(WorkoutSetRow(nextRow.props as WorkoutSetRowProps)).filter(n => n.type as unknown === "CellInput").map(n => [n.props.value, n.props.placeholder])).toEqual(fields);
       expect(nextRow.props.row).toBe(row.props.row);
-      expect(after.find(n => n.type === LiveSuggestion)!.props).toEqual(before.find(n => n.type === LiveSuggestion)!.props);
+      expect(after.find(n => n.type === LiveSuggestion)!.props.decision).toEqual(before.find(n => n.type === LiveSuggestion)!.props.decision);
       p.previousSource = "any";
     }
   });
@@ -206,14 +207,27 @@ describe("extracted exercise section wiring", () => {
   it("keeps header rest/menu, target reasons, and Add set connected to screen handlers", async () => {
     const p = await sectionProps();
     const tree = nodes(WorkoutExerciseSection(p));
-    tree.find(n => (n.type as unknown) === "RestToggle")!.props.onPress();
+    expect(tree.some(n => n.type as unknown === "RestToggle")).toBe(false);
     tree.find(n => (n.type as unknown) === "IconButton")!.props.onPress();
-    const target = tree.find(n => (n.type as unknown) === "TargetLine")!;
+    const target = nodes(WorkoutExerciseSection({ ...p, expanded: true })).find(n => (n.type as unknown) === "TargetLine")!;
     target.props.onWhy(); target.props.onWhyLong();
     // "+ Set" is a quiet text action now (logger 10x §4), labelled with the exercise.
     tree.find(n => (n.type as unknown) === "QuietAction" && String(n.props.accessibilityLabel ?? "").startsWith("Add Set:"))!.props.onPress();
-    for (const handler of [p.onToggleRest, p.onMenu, p.onWhy, p.onWhyLong, p.onAddSet]) expect(handler).toHaveBeenCalledOnce();
+    for (const handler of [p.onMenu, p.onWhy, p.onWhyLong, p.onAddSet]) expect(handler).toHaveBeenCalledOnce();
     expect(tree.filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ")).toContain("A");
+  });
+  it("dismisses exercise details before applying a suggestion or focusing a custom set", async () => {
+    const p = await sectionProps();
+    const card = { key: p.list[0]!.key, performance: "observed", snapshot: "draft", decision: { action: "increase" as const, reason: "above_range" as const, predictedReps: 8, suggestedWeightKg: 62.5, suggestedReps: 8 } };
+    const onToggleSuggestion = vi.fn();
+    for (const [callback, handler] of [["onApply", p.onLiveApply], ["onOwn", p.onLiveOwn]] as const) {
+      const tree = nodes(WorkoutExerciseSection({ ...p, card, suggestionOpen: true, onToggleSuggestion }));
+      tree.find(n => n.type === LiveSuggestion)!.props[callback]();
+      expect(handler).not.toHaveBeenCalled();
+      expect(onToggleSuggestion).toHaveBeenCalled();
+      tree.find(n => n.type as unknown === "Sheet")!.props.onDismiss();
+      expect(handler).toHaveBeenCalledOnce();
+    }
   });
   it("opens exercise history and the personal record when the exercise name is pressed", async () => {
     const p = await sectionProps();
@@ -238,7 +252,7 @@ describe("extracted exercise section wiring", () => {
     const suggestion = tree.findIndex(n => n.type === LiveSuggestion);
     const target = tree.findIndex(n => n.type === MemoWorkoutSetRow && n.props.row.key === card.key);
     expect(suggestion).toBeGreaterThan(0);
-    expect(suggestion).toBeLessThan(target);
+    expect(suggestion).toBeGreaterThan(target);
     expect(tree.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
   });
   it("the Next-set card is absent by default; the row keeps the ghost and a compact toggle opens the card", async () => {
@@ -257,7 +271,8 @@ describe("extracted exercise section wiring", () => {
       const row = tree.find(n => n.type === MemoWorkoutSetRow && n.props.row.key === card.key)!;
       expect([row.props.row.ghostLoad, row.props.row.ghostReps]).toEqual([62.5, 8]);
       expect(row.props.onLog).toBe(p.onLog); // one-tap confirm is unchanged
-      const target = tree.find(n => (n.type as unknown) === "TargetLine")!;
+      expect(tree.some(n => n.type as unknown === "TargetLine")).toBe(false);
+      const target = nodes(WorkoutExerciseSection({ ...p, card, onToggleSuggestion, expanded: true })).find(n => n.type as unknown === "TargetLine")!;
       expect(target.props.moreLabel).toBe(translate(lang, "workout.nextSetDetails"));
       expect(target.props.moreExpanded).toBe(false);
       target.props.onMore();
@@ -272,7 +287,7 @@ describe("extracted exercise section wiring", () => {
     const card = { key: p.list[0]!.key, performance: "observed", snapshot: "draft", decision: { action: "stop" as const, reason: "performance_stop" as const, predictedReps: 0, suggestedWeightKg: 60, suggestedReps: 8 } };
     const tree = nodes(WorkoutExerciseSection({ ...p, card, onToggleSuggestion: vi.fn() }));
     expect(tree.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
-    expect(tree.find(n => (n.type as unknown) === "TargetLine")!.props.moreLabel).toBeUndefined();
+    expect(tree.find(n => n.type as unknown === "TargetLine")).toBeUndefined();
   });
   it("load settings are closed by default; the header has no Loads control any more (L-12: it lives in the ⋮ menu) and an open panel has a Close", async () => {
     const p = await sectionProps();
@@ -480,14 +495,14 @@ describe("logger 10x table trims (PR C)", () => {
     const text = nodes(WorkoutExerciseSection(p)).filter(n => (n.type as unknown) === "AppText").map(n => String(n.props.children)).join(" ");
     expect(text).not.toContain("Suggested weight");
     expect(text).not.toContain("Each side");
-    const target = nodes(WorkoutExerciseSection(p)).find(n => (n.type as unknown) === "TargetLine")!;
+    const target = nodes(WorkoutExerciseSection({ ...p, expanded: true })).find(n => (n.type as unknown) === "TargetLine")!;
     expect(target.props.suggestedLabel).toBeUndefined();
   });
   it("the rest chip shows only when rest is on in general; the ⋮ menu carries it otherwise", async () => {
     const p = await sectionProps();
-    expect(nodes(WorkoutExerciseSection({ ...p, restGlobal: true })).some(n => (n.type as unknown) === "RestToggle")).toBe(true);
+    expect(nodes(WorkoutExerciseSection({ ...p, restGlobal: true })).some(n => (n.type as unknown) === "RestToggle")).toBe(false);
     expect(nodes(WorkoutExerciseSection({ ...p, restGlobal: false })).some(n => (n.type as unknown) === "RestToggle")).toBe(false);
-    expect(src("components/WorkoutSessionSheets.tsx")).toMatch(/!menuProps\.restGlobal \? \[\{ label: t\("rack\.menu\.rest"/);
+    expect(src("components/WorkoutSessionSheets.tsx")).toContain('label: t("rack.menu.rest"');
   });
   it("↑ beat last time on the Previous cell of a logged row (text 600, spoken)", () => {
     const p = props({ lastSets: [{ load: 55, reps: 9 }, { load: 60, reps: 7 }] as never });

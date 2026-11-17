@@ -1,11 +1,15 @@
 import { Alert } from "react-native";
-import { MenuSheet } from "../components/LogParts";
+import { parseRirInput } from "../logic/setInput";
+import { AppText } from "../ui";
+import { View } from "react-native";
+import { CellInput, MenuSheet } from "../components/LogParts";
 import { formatClock } from "../logic/restTimer";
 import { ExercisePicker } from "../components/ExercisePicker";
 import { ExerciseReorderModal } from "../components/ExerciseReorderModal";
 import { WorkoutHelp } from "../components/WorkoutHelp";
 import { exerciseLabels } from "../i18n/format";
 import { joinSuperset, leaveSuperset } from "../logic/superset";
+import { unitLabel } from "../logic/units";
 import { kindOf, kindPatch, SET_KINDS, type SetKind } from "../logic/workoutRows";
 import { canEditLoadsFor } from "../logic/setRowState";
 import type { WorkoutSession } from "../hooks/useWorkoutSession";
@@ -24,6 +28,8 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
     addExerciseToday, programmes, libRef, setLibrary, pickFor,
     alternatives, setLoadsOpen, exerciseProps,
   } = session;
+  const kindEx = kindFor ? shown.find(ex => ex.exerciseId === kindFor.exId) : undefined;
+  const kindRow = kindFor ? rows[kindFor.exId]?.find(row => row.key === kindFor.key) : undefined;
   // The ⋮ menu's extra items (logger spec §4): pain / dizziness reporting (moved out of the live card, C10) and the rest switch when
   // rest is off in general. Both call the same handlers as before.
   const menuProps = menuEx ? exerciseProps(menuEx, shown.indexOf(menuEx)) : null;
@@ -49,8 +55,14 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
         items={
           menuEx
             ? [
+                ...(menuProps ? [
+                  { label: t("workout.whyShort"), onPress: () => menuProps.onWhyLong() },
+                  { label: t("workout.nextSetDetails"), onPress: () => menuProps.onToggleSuggestion?.() },
+                  { label: t("workout.exerciseDetails"), onPress: () => menuProps.onWhyLong() },
+                  { label: t("workout.unitToggle.a11y", { exercise: exerciseLabels(menuEx, lang).primary, unit: unitLabel(menuProps.unitOverride ?? session.unit, lang), other: unitLabel((menuProps.unitOverride ?? session.unit) === "kg" ? "lb" : "kg", lang) }), onPress: () => menuProps.onToggleUnit?.() },
+                ] : []),
                 ...(reportPain ? [{ label: t("rack.menu.pain"), onPress: reportPain }] : []),
-                ...(menuProps && !menuProps.restGlobal ? [{ label: t("rack.menu.rest", { time: menuProps.st.restOff ? t("workout.restOffShort") : formatClock(menuProps.restDurationMs) }), onPress: () => menuProps.onToggleRest() }] : []),
+                ...(menuProps ? [{ label: t("rack.menu.rest", { time: menuProps.st.restOff ? t("workout.restOffShort") : formatClock(menuProps.restDurationMs) }), onPress: () => menuProps.onToggleRest() }] : []),
                 { label: t("workout.menu.notes"), onPress: () => setTimeout(() => noteInputs.current[menuEx.slot]?.focus(), 150) },
                 ...(menuEx.equipment === "machine" ? [{ label: t("workout.menu.machineSteps"), onPress: () => setMachineFor(menuEx.slot) }] : []),
                 // Available weights moved here from the exercise header, so a long name keeps the header to one line (L-12).
@@ -79,7 +91,7 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
       />
       <MenuSheet
         visible={kindFor !== null}
-        title={t("workout.kind.title")}
+        title={t(kindEx?.trackEffort ? "workout.setOptions" : "workout.kind.title")}
         onClose={() => setKindFor(null)}
         items={SET_KINDS.map((k: SetKind) => {
           const cur = kindFor ? (rows[kindFor.exId] ?? []).find((r) => r.key === kindFor.key) : undefined;
@@ -93,7 +105,13 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
             },
           };
         })}
-      />
+      >
+        {kindEx?.trackEffort && kindRow && kindFor ? <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12 }}>
+          <AppText style={{ flex: 1 }}>{t("workout.rir")}</AppText>
+          <CellInput a11y={t("workout.rir")} value={kindRow.rir} format={String} parse={parseRirInput}
+            onValue={(rir, invalidRir) => patch(kindFor.exId, kindFor.key, { rir, invalidRir })} style={{ flex: 0, width: 80 }} />
+        </View> : null}
+      </MenuSheet>
       <MenuSheet
         visible={ssFor !== null}
         title={t("workout.superset.pick")}

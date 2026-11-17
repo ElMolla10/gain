@@ -2,7 +2,6 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { BarbellRunway } from "../src/components/today/BarbellRunway";
 import { EngineStrategyCard } from "../src/components/today/EngineStrategyCard";
-import { SetMicroSteppers } from "../src/components/workout/SetMicroSteppers";
 import { byType, expand, nodes, texts } from "./achievementRender";
 
 vi.mock("../src/haptics", () => ({ haptics: { tick: () => {}, untick: () => {}, selection: () => {}, unrack: () => {} } }));
@@ -27,10 +26,6 @@ vi.mock("../src/i18n", () => ({
       if (k === "today.strategy.unlock") return `Target: ${p?.target} to progress`;
       if (k === "workout.whyShort") return "Why";
       if (k === "workout.help.button") return "Why this weight";
-      if (k === "workout.stepper.loadDown") return `-${p?.n} ${p?.unit}`;
-      if (k === "workout.stepper.loadUp") return `+${p?.n} ${p?.unit}`;
-      if (k === "workout.stepper.repsDown") return "-1 rep";
-      if (k === "workout.stepper.repsUp") return "+1 rep";
       if (k === "workout.rir.label") return "RIR";
       return k;
     },
@@ -166,70 +161,4 @@ describe("Page 5: Today Screen & Active Workout Logger 10x Components", () => {
     });
   });
 
-  describe("SetMicroSteppers", () => {
-    it("renders load and rep steppers and triggers adjustment callbacks", () => {
-      const onAdjustLoad = vi.fn();
-      const onAdjustReps = vi.fn();
-      const onSetRir = vi.fn();
-
-      const tree = expand(
-        React.createElement(SetMicroSteppers, {
-          load: 100,
-          reps: 8,
-          unit: "kg",
-          rir: 2,
-          trackEffort: true,
-          onAdjustLoad,
-          onAdjustReps,
-          onSetRir,
-        })
-      );
-
-      const buttons = nodes(tree).filter((n) => n.props.accessibilityRole === "button");
-      // 2 load steppers + 2 rep steppers + 4 RIR chips = 8 buttons
-      expect(buttons.length).toBe(8);
-
-      // Test load down (-2.5)
-      buttons[0]!.props.onPress();
-      expect(onAdjustLoad).toHaveBeenCalledWith(-2.5);
-
-      // Test load up (+2.5)
-      buttons[1]!.props.onPress();
-      expect(onAdjustLoad).toHaveBeenCalledWith(2.5);
-
-      // Test reps down (-1)
-      buttons[2]!.props.onPress();
-      expect(onAdjustReps).toHaveBeenCalledWith(-1);
-
-      // Test reps up (+1)
-      buttons[3]!.props.onPress();
-      expect(onAdjustReps).toHaveBeenCalledWith(1);
-
-      // Test RIR selection: tap RIR 1
-      buttons[5]!.props.onPress();
-      expect(onSetRir).toHaveBeenCalledWith(1);
-    });
-
-    it("uses 5 lb step when unit is lb", () => {
-      const onAdjustLoad = vi.fn();
-      const tree = expand(
-        React.createElement(SetMicroSteppers, {
-          load: 225,
-          reps: 5,
-          unit: "lb",
-          rir: null,
-          trackEffort: false,
-          onAdjustLoad,
-          onAdjustReps: vi.fn(),
-          onSetRir: vi.fn(),
-        })
-      );
-
-      const buttons = nodes(tree).filter((n) => n.props.accessibilityRole === "button");
-      buttons[0]!.props.onPress();
-      expect(onAdjustLoad).toHaveBeenCalledWith(-5);
-      buttons[1]!.props.onPress();
-      expect(onAdjustLoad).toHaveBeenCalledWith(5);
-    });
-  });
 });

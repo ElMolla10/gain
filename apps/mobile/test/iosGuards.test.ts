@@ -88,6 +88,7 @@ describe("iPhone keyboard", () => {
     expect(raw.length).toBeGreaterThanOrEqual(2); // was 3 including the removed, unused NumField.tsx (12)
   });
   it("the Done bar is the per-input native toolbar, iOS only, with no shared InputAccessoryView left", () => {
+    expect(read("src/screens/WorkoutScreen.tsx")).toContain('<KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}');
     expect(read("src/numberPad.ts")).toMatch(/Platform\.OS === "ios" \? \{ inputAccessoryViewButtonLabel: t\("common\.done"\) \} : \{\}/);
     expect(existsSync(join(root, "src/components/NumberPadDone.tsx"))).toBe(false);
     expect(read("App.tsx")).not.toMatch(/NumberPadDone|InputAccessoryView/);
@@ -96,7 +97,8 @@ describe("iPhone keyboard", () => {
     expect(ar["common.done"]).toBeTruthy();
   });
   it("sheets, the exercise picker and the logger make room for the keyboard on iOS only", () => {
+    expect(read("src/screens/WorkoutScreen.tsx")).toContain('<KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}');
     expect(read("src/numberPad.ts")).toMatch(/adjustKeyboardInsets = Platform\.OS === "ios"/);
-    for (const f of ["src/ui.tsx", "src/components/ExercisePicker.tsx", "src/screens/WorkoutScreen.tsx"]) expect(read(f), f).toMatch(/automaticallyAdjustKeyboardInsets=\{adjustKeyboardInsets\}/);
+    for (const f of ["src/ui.tsx", "src/components/ExercisePicker.tsx"]) expect(read(f), f).toMatch(/automaticallyAdjustKeyboardInsets=\{adjustKeyboardInsets\}/);
   });
 });

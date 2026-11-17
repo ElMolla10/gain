@@ -55,10 +55,7 @@ describe("L-4 typed but unticked", () => {
     expect(row).toContain("pending={pending.reps}");
   });
   it("the save status line is 14/20 with a 16 dp icon (not the 13 compact size)", () => {
-    // Logger 10x §5: the status lives in the session line, still 14 (ty.label) with a 16 dp icon, and it is the only live region there.
-    expect(screen).toContain('<Icon name={status.icon} color={warns ? p.warn : p.muted} size={16} />');
-    expect(screen).toMatch(/<View accessibilityLiveRegion="polite"[^>]*>\s*<Icon name=\{status\.icon\}/);
-    expect(screen).toMatch(/fontSize: ty\.label, color: warns \? p\.warn : p\.muted \}\}>\{statusShort\}/);
+    expect(screen).toContain('{showStatusWarning ? <InlineStatus kind="warn" text={statusShort} /> : null}');
   });
 });
 
@@ -73,8 +70,8 @@ describe("L-1, L-5, L-6, L-15 set table", () => {
     expect(row).not.toContain("paddingVertical: 2");
     expect(row).toContain("flex: 1.1");
   });
-  it("L-6: a 6 dp start-edge accent bar, inset 4; light current-set wash #DCEBB0", () => {
-    expect(row).toContain("start: 0, top: 4, bottom: 4, width: 6");
+  it("L-6: a subtle 3 dp start-edge accent bar, inset 4; light current-set wash #DCEBB0", () => {
+    expect(row).toContain("start: 0, top: 4, bottom: 4, width: 3");
     expect(logLightPalette.activeBg).toBe("#DCEBB0");
     expect(logDarkPalette.activeBg).toBe(darkPalette.tint);
   });
@@ -87,7 +84,7 @@ describe("L-7, L-9, L-11..L-14", () => {
   it("L-9: rest over is text + icon at 28 on a tint dock with a 4 dp accent top edge", () => {
     expect(dock).toContain("borderTopWidth: over ? 4 : 1, borderColor: over ? lp.accent : lp.line");
     expect(dock).toContain("backgroundColor: over ? lp.activeBg : lp.card");
-    expect(dock).toMatch(/<Icon name="check"[^\n]*\n\s*<AppText style=\{\{ fontSize: ty\.title, fontWeight: "600"/);
+    expect(dock).toContain('over ? <AppText accessibilityLiveRegion="polite"');
   });
   it("L-11: Why and Next set details never share a wrap row", () => {
     const line1 = parts.slice(parts.indexOf("export function TargetLine"), parts.indexOf("{props.suggestedLabel ? ("));

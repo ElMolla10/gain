@@ -1,6 +1,8 @@
-import { Alert } from "react-native";
+import { useLogPalette } from "../theme";
+import { useState } from "react";
+import { Alert, TextInput } from "react-native";
 import { parseRirInput } from "../logic/setInput";
-import { AppText } from "../ui";
+import { AppText, Sheet } from "../ui";
 import { View } from "react-native";
 import { CellInput, MenuSheet } from "../components/LogParts";
 import { formatClock } from "../logic/restTimer";
@@ -19,7 +21,7 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
   const {
     reorderOpen, t, busy, reorderSaving, reorderGroups,
     namesBySlot, setReorderOpen, commitReorder, helpOpen, setHelpOpen,
-    lang, patch, menuEx, setMenuFor, noteInputs,
+    lang, patch, menuEx, setMenuFor,
     focus, setMachineFor, exState, startReplace, shown,
     setSsFor, ssLabel, applySuperset, askRemove, machineEx,
     machineChoice, chooseMachineStep, kindFor, setKindFor, rows,
@@ -28,7 +30,10 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
     addExerciseToday, programmes, libRef, setLibrary, pickFor,
     alternatives, setLoadsOpen, exerciseProps,
   } = session;
+  const p = useLogPalette();
+  const [noteSlot, setNoteSlot] = useState<string | null>(null);
   const kindEx = kindFor ? shown.find(ex => ex.exerciseId === kindFor.exId) : undefined;
+  const kindProps = kindEx ? exerciseProps(kindEx, shown.indexOf(kindEx)) : null;
   const kindRow = kindFor ? rows[kindFor.exId]?.find(row => row.key === kindFor.key) : undefined;
   // The ⋮ menu's extra items (logger spec §4): pain / dizziness reporting (moved out of the live card, C10) and the rest switch when
   // rest is off in general. Both call the same handlers as before.
@@ -39,6 +44,11 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
     { text: t("common.cancel"), style: "cancel" },
   ]), 150) : null;
   return <>
+      <Sheet visible={noteSlot !== null} title={t("workout.menu.notes")} onClose={() => setNoteSlot(null)}>
+        <TextInput accessibilityLabel={t("workout.menu.notes")} placeholder={t("workout.notes.placeholder")} multiline
+          value={noteSlot ? exState[noteSlot]?.note ?? "" : ""} onChangeText={text => { if (noteSlot) session.saveNote(noteSlot, text); }}
+          style={{ minHeight: 120, padding: 16, color: p.text, textAlign: lang === "ar" ? "right" : "left" }} />
+      </Sheet>
       <ExerciseReorderModal
         visible={reorderOpen}
         title={t("workout.reorder.title")}
@@ -63,7 +73,7 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
                 ] : []),
                 ...(reportPain ? [{ label: t("rack.menu.pain"), onPress: reportPain }] : []),
                 ...(menuProps ? [{ label: t("rack.menu.rest", { time: menuProps.st.restOff ? t("workout.restOffShort") : formatClock(menuProps.restDurationMs) }), onPress: () => menuProps.onToggleRest() }] : []),
-                { label: t("workout.menu.notes"), onPress: () => setTimeout(() => noteInputs.current[menuEx.slot]?.focus(), 150) },
+                { label: t("workout.menu.notes"), onPress: () => setTimeout(() => setNoteSlot(menuEx.slot), 150) },
                 ...(menuEx.equipment === "machine" ? [{ label: t("workout.menu.machineSteps"), onPress: () => setMachineFor(menuEx.slot) }] : []),
                 // Available weights moved here from the exercise header, so a long name keeps the header to one line (L-12).
                 ...(canEditLoadsFor(menuEx) ? [{ label: t("workout.loads"), onPress: () => setLoadsOpen(o => ({ ...o, [menuEx.exerciseId]: true })) }] : []),
@@ -93,7 +103,7 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
         visible={kindFor !== null}
         title={t(kindEx?.trackEffort ? "workout.setOptions" : "workout.kind.title")}
         onClose={() => setKindFor(null)}
-        items={SET_KINDS.map((k: SetKind) => {
+        items={[...SET_KINDS.map((k: SetKind) => {
           const cur = kindFor ? (rows[kindFor.exId] ?? []).find((r) => r.key === kindFor.key) : undefined;
           const on = cur ? kindOf(cur) === k : false;
           return {
@@ -104,11 +114,14 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
               patch(kindFor.exId, kindFor.key, kindPatch(k, cur.tags));
             },
           };
-        })}
+        }), ...(kindRow && kindProps ? [
+          ...(kindRow.saved ? [{ label: t("workout.untick"), onPress: () => { void kindProps.onUntick(kindRow); } }] : []),
+          { label: t("workout.deleteSet"), danger: true, onPress: () => kindProps.onAskDelete(kindRow) },
+        ] : [])]}
       >
         {kindEx?.trackEffort && kindRow && kindFor ? <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12 }}>
           <AppText style={{ flex: 1 }}>{t("workout.rir")}</AppText>
-          <CellInput a11y={t("workout.rir")} value={kindRow.rir} format={String} parse={parseRirInput}
+          <CellInput a11y={t("workout.rir")} invalid={kindRow.invalidRir} value={kindRow.rir} format={String} parse={parseRirInput}
             onValue={(rir, invalidRir) => patch(kindFor.exId, kindFor.key, { rir, invalidRir })} style={{ flex: 0, width: 80 }} />
         </View> : null}
       </MenuSheet>

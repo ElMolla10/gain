@@ -356,14 +356,15 @@ export function createWorkoutRepo(db: Db, deps: Deps) {
   }
 
   /** Display-only history across gyms/days; never used for targets or draft values. */
-  async function previousPerformances(exerciseId: string, dayId: string) {
+  async function previousPerformances(exerciseId: string, dayId: string, comparable?: { setup: string; gymId: string }) {
     const rows = await db.all<RawSet & { sid: string; finished_at: number; programme_day_id: string; imported: number }>(
       `SELECT ws.*, s.id AS sid, s.finished_at, s.programme_day_id,
               (s.import_key IS NOT NULL OR s.import_batch_id IS NOT NULL) AS imported
-       FROM workout_set ws JOIN session s ON s.id = ws.session_id
+       FROM workout_set ws JOIN session s ON s.id = ws.session_id JOIN exercise_line el ON el.id = ws.line_id
        WHERE ws.exercise_id = ? AND s.status = 'finished' AND s.finished_at IS NOT NULL
          AND ws.deleted_at IS NULL AND s.deleted_at IS NULL
-       ORDER BY s.finished_at DESC, s.id, ws.position`, [exerciseId],
+         ${comparable ? "AND el.setup = ? AND (el.gym_id = ? OR s.import_key IS NOT NULL OR s.import_batch_id IS NOT NULL)" : ""}
+       ORDER BY s.finished_at DESC, s.id, ws.position`, comparable ? [exerciseId, comparable.setup, comparable.gymId] : [exerciseId],
     );
     type Previous = { performedAt: string; sets: LoggedSet[] };
     const sessions = new Map<string, Previous & { dayId: string; imported: boolean }>();

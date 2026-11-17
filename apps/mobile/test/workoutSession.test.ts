@@ -489,7 +489,7 @@ describe("Finish with typed but unticked rows (data-loss item 5)", () => {
   it("is never routed into 'Discard empty workout': three choices, the count only includes rows that will be saved", async () => {
     const { title, body, buttons } = await typedNothingTicked();
     expect(title).toBe(translate("en", "workout.finish.title"));
-    expect(plain(body)).toBe("You have 2 sets with numbers that aren't ticked. Log them before you finish?\n\n1 can't be logged (missing or invalid numbers) and will be left out.");
+    expect(plain(body)).toBe("You have 2 sets with numbers that aren't logged. Log them before you finish?\n\n1 can't be logged (missing or invalid numbers) and will be left out.");
     expect(buttons.map(b => [plain(b.text), b.style])).toEqual([["Cancel", "cancel"], ["Don't log them", "destructive"], ["Log 2 and finish", undefined]]);
     expect(buttons.some(b => b.text === translate("en", "workout.discard.go"))).toBe(false);
   });
@@ -614,3 +614,79 @@ describe("a keystroke re-renders only one row (logger 10x render count)", () => 
 
 // Native image/SVG drawing is covered separately; these tests exercise workout wiring.
 vi.mock("../src/components/ExerciseDemoIllustration", () => ({ ExerciseDemoIllustration: "ExerciseDemoIllustration" }));
+
+describe("focused logger session navigation", () => {
+  it("switches exercises mid-exercise, restores the cursor and edited values after restart", async () => {
+    const c = await fixture(); let s = ready(); const a = s.shown[0]!, b = s.shown[1]!;
+    const key = s.rows[a.exerciseId]![0]!.key;
+    s.patch(a.exerciseId, key, { load: 72.5, reps: 7 });
+    s = ready(); s.jumpExercise(b.exerciseId); s = ready();
+    expect(s.current?.exId).toBe(b.exerciseId);
+    expect(s.rows[a.exerciseId]![0]).toMatchObject({ load: 72.5, reps: 7 });
+    for (const callback of [...native.appState]) callback("background");
+    await vi.waitFor(async () => expect(await c.repos.getSetting(`workout_drafts:${s.loaded.sessionId}`)).toContain('"version":2'));
+    host.values = []; host.effects = []; native.appState = [];
+    await vi.waitFor(() => expect(render().phase).toBe("ready")); s = ready();
+    expect(s.current?.exId).toBe(b.exerciseId);
+    expect(s.rows[a.exerciseId]!.find(row => row.key === key)).toMatchObject({ load: 72.5, reps: 7 });
+  });
+  it("revisits a completed set, updates it once, and advances without finishing", async () => {
+    const c = await fixture(); let s = ready(); const ex = s.shown[0]!;
+    const key = s.rows[ex.exerciseId]![0]!.key;
+    s.patch(ex.exerciseId, key, { load: 65, reps: 8 }); s = ready(); s.activeLog();
+    await vi.waitFor(() => expect(ready().sets).toHaveLength(1)); s = ready();
+    s.exerciseProps(ex, 0)!.onSelect?.(key); s = ready();
+    expect(s.current?.key).toBe(key); expect(s.activeCanLog).toBe(false);
+    s.patch(ex.exerciseId, key, { load: 67.5, reps: 9 }); s = ready();
+    await vi.advanceTimersByTimeAsync(500); s.activeLog();
+    await vi.waitFor(async () => expect((await c.workout.listSessionSets(s.loaded.sessionId))[0]).toMatchObject({ id: key, load: 67.5, reps: 9 }));
+    expect((await c.workout.getSession(s.loaded.sessionId))!.status).toBe("in_progress");
+  });
+  it("ignores a rapid double tap even when the first save completes before the second press", async () => {
+    const c = await fixture(); let s = ready(); const ex = s.shown[0]!;
+    const key = s.rows[ex.exerciseId]![0]!.key; s.patch(ex.exerciseId, key, { load: 62.5, reps: 8 }); s = ready();
+    s.activeLog(); s.activeLog();
+    await vi.waitFor(() => expect(ready().sets).toHaveLength(1)); ready().activeLog();
+    await vi.advanceTimersByTimeAsync(50);
+    expect(await c.workout.listSessionSets(s.loaded.sessionId)).toHaveLength(1);
+  });
+  it("keeps add/reorder/remove session-only and preserves logged sets when reordered", async () => {
+    const c = await fixture(); let s = ready();
+    const programmeBefore = await c.repos.listDayExercises(host.dayId);
+    const first = s.shown[0]!; await s.logRow(first, s.rows[first.exerciseId]![0]!); s = ready();
+    const originalSets = await c.workout.listSessionSets(s.loaded.sessionId);
+    const extra = (await c.programmes.listExercises()).find(ex => !s.shown.some(item => item.exerciseId === ex.id))!;
+    await s.addExerciseToday(extra.id); s = ready();
+    expect(s.shown.some(ex => ex.exerciseId === extra.id)).toBe(true);
+    await s.commitReorder(s.reorderGroups.map(group => group.id).reverse()); s = ready();
+    expect(await c.workout.listSessionSets(s.loaded.sessionId)).toEqual(originalSets);
+    expect(await c.repos.listDayExercises(host.dayId)).toEqual(programmeBefore);
+    const expectedOrder = s.shown.map(ex => ex.exerciseId);
+    for (const callback of [...native.appState]) callback("background");
+    await vi.waitFor(async () => expect(await c.repos.getSetting(`workout_drafts:${s.loaded.sessionId}`)).toContain(extra.id));
+    host.values = []; host.effects = []; native.appState = [];
+    await vi.waitFor(() => expect(render().phase).toBe("ready")); s = ready();
+    expect(s.shown.map(ex => ex.exerciseId)).toEqual(expectedOrder);
+    expect(s.current?.exId).toBe(extra.id);
+    expect(s.sets).toHaveLength(originalSets.length);
+    const added = s.shown.find(ex => ex.exerciseId === extra.id)!;
+    s.askRemove(added, added.nameEn); const buttons = native.alert.mock.calls.at(-1)![2];
+    await buttons.find((button: { style?: string }) => button.style === "destructive").onPress(); s = ready();
+    expect(s.shown.some(ex => ex.exerciseId === extra.id)).toBe(false);
+    expect(await c.workout.listSessionSets(s.loaded.sessionId)).toEqual(originalSets);
+    s.askRemove(s.shown.find(ex => ex.exerciseId === first.exerciseId)!, first.nameEn);
+    expect(native.alert.mock.calls.at(-1)![1]).toContain(translate("en", "workout.remove.body"));
+    expect(await c.workout.listSessionSets(s.loaded.sessionId)).toEqual(originalSets);
+    await native.alert.mock.calls.at(-1)![2].find((button: { style?: string }) => button.style === "destructive").onPress();
+    expect(await c.workout.listSessionSets(s.loaded.sessionId)).toHaveLength(0);
+    expect(await c.repos.listDayExercises(host.dayId)).toEqual(programmeBefore);
+    for (const callback of [...native.appState]) callback("background");
+    await vi.advanceTimersByTimeAsync(250);
+    host.values = []; host.effects = []; native.appState = [];
+    await vi.waitFor(() => expect(render().phase).toBe("ready")); s = ready();
+    expect(s.shown.some(ex => [first.exerciseId, extra.id].includes(ex.exerciseId))).toBe(false);
+    expect(s.shown.some(ex => ex.exerciseId === s.current?.exId)).toBe(true);
+    expect(s.sets).toHaveLength(0);
+
+  });
+});

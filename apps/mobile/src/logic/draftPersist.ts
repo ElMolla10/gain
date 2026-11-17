@@ -16,10 +16,10 @@ const validIndex = (index: number) => Number.isInteger(index) && index >= 0 && i
 const typed = (r: SetRowDraft) => r.load !== null || r.reps !== null || r.rir !== null;
 
 /** Keep an exercise's unsaved row structure when any row has input, plus dirty saved rows. `index` is the unsaved position. */
-export function collectDrafts(rows: Record<string, SetRowDraft[]>): SavedDraft[] {
+export function collectDrafts(rows: Record<string, SetRowDraft[]>, keepStructure = false): SavedDraft[] {
   const out: SavedDraft[] = [];
   for (const [exerciseId, list] of Object.entries(rows)) {
-    const keepUnsaved = list.some((r) => !r.saved && (typed(r) || r.warmup || r.tags.length > 0 || hasInvalidInput(r)));
+    const keepUnsaved = keepStructure || list.some((r) => !r.saved && (typed(r) || r.warmup || r.tags.length > 0 || hasInvalidInput(r)));
     let unsaved = -1;
     for (const r of list) {
       if (!r.saved) unsaved++;
@@ -96,4 +96,37 @@ export function applyDrafts(rows: Record<string, SetRowDraft[]>, drafts: readonl
     if (updated !== out[d.exerciseId]) out = { ...out, [d.exerciseId]: updated };
   }
   return out;
+}
+
+
+/** One atomic session setting: complete pending structure, edited saved sets and the active cursor. */
+export function serializeSessionDrafts(rows: Record<string, SetRowDraft[]>, cursor: import("./currentSet").SetCursor | null): string {
+  const current = cursor?.key ? rows[cursor.exId]?.find(row => row.key === cursor.key) : null;
+  return JSON.stringify({ version: 2, exercises: Object.keys(rows), drafts: collectDrafts(rows, true), cursor, cursorSaved: current?.saved ?? false });
+}
+export function restoreSessionDrafts(initial: Record<string, SetRowDraft[]>, raw: string | null): { rows: Record<string, SetRowDraft[]>; cursor: import("./currentSet").SetCursor | null } {
+  let value;
+  try { value = raw ? JSON.parse(raw) : null; } catch { return { rows: initial, cursor: null }; }
+  if (!value || value.version !== 2) return { rows: applyDrafts(initial, parseDrafts(raw)), cursor: null };
+  if (!Array.isArray(value.exercises) || !Array.isArray(value.drafts)) return { rows: initial, cursor: null };
+  const drafts = parseDrafts(JSON.stringify(value.drafts));
+  const rows = { ...initial };
+  const used = new Set(Object.values(initial).flat().filter(row => row.saved).map(row => row.key));
+  for (const exId of Object.keys(initial)) {
+    if (!value.exercises.includes(exId)) continue;
+    const saved = initial[exId]!.filter(row => row.saved);
+    const edited = applyDrafts({ [exId]: saved }, drafts.filter(d => d.exerciseId === exId && d.saved))[exId]!;
+    const pending: SetRowDraft[] = [];
+    for (const d of drafts.filter(d => d.exerciseId === exId && !d.saved && validIndex(d.index)).sort((a, b) => a.index - b.index)) {
+      if (used.has(d.key) || pending.length >= MAX_DRAFT_ROWS) continue;
+      used.add(d.key);
+      pending.push({ key: d.key, load: d.load, reps: d.reps, rir: d.rir, saved: false, dirty: false, warmup: d.warmup ?? false, tags: d.tags ?? [], ghostLoad: d.ghostLoad ?? null, ghostReps: d.ghostReps ?? null, invalidLoad: d.invalidLoad, invalidReps: d.invalidReps, invalidRir: d.invalidRir });
+    }
+    rows[exId] = [...edited, ...pending];
+  }
+  const c = value.cursor;
+  const valid = c && typeof c.exId === "string" && Object.prototype.hasOwnProperty.call(rows, c.exId) && Array.isArray(rows[c.exId]);
+  const row = valid && typeof c.key === "string" ? rows[c.exId]!.find(row => row.key === c.key) : null;
+  const cursor = valid && (c.key === null || row) ? { exId: c.exId as string, key: row && (!row.saved || value.cursorSaved === true) ? row.key : null } : null;
+  return { rows, cursor };
 }

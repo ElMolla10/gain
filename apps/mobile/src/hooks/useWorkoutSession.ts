@@ -13,7 +13,7 @@ import { allowsZero, estimateStartingLoad, findSpec, parseReadiness, sessionOrde
 import * as Crypto from "expo-crypto";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, TextInput } from "react-native";
-import { applyDrafts, draftKey, parseDrafts, serializeDrafts } from "../logic/draftPersist";
+import { draftKey, restoreSessionDrafts, serializeSessionDrafts } from "../logic/draftPersist";
 import { useServices } from "../AppContext";
 import { diagnostics } from "../diagnostics";
 import { setKeepAwake } from "../keepAwake";
@@ -38,6 +38,7 @@ import { isTimed, quantityFields, setQuantity } from "../logic/quantity";
 import { replacementDisplay } from "../logic/replacement";
 import { substitutionCandidates } from "../logic/substitutions";
 import { focusedExercise, focusedRowKey, supersetGroups, livePromptVisible } from "../logic/workoutFocus";
+import { resolveCurrentSet } from "../logic/currentSet";
 import { dockModel } from "../logic/dockModel";
 import { dockExpandInfo } from "../logic/dockExpand";
 import { liveSummary } from "../logic/liveSummary";
@@ -99,6 +100,8 @@ export function useWorkoutSession() {
   const [warmOpen, setWarmOpen] = useState<string | null>(null);
   const [warmDone, setWarmDone] = useState<Record<string, boolean>>({});
   const [preferredExercise, setPreferredExercise] = useState<string | null>(null);
+  const saveLock = useRef(false);
+  const lastActivePress = useRef(-Infinity);
   const [selectedRow, setSelectedRow] = useState<{ exId: string; key: string } | null>(null);
   // Keyboard visibility is presentation state; parsed edits always remain in the row draft.
   const [keyboardUp, setKeyboardUp] = useState(false);
@@ -155,7 +158,7 @@ export function useWorkoutSession() {
       const progressionHistory = await workout.getHistory(line, lineId, true);
       const returnMode = returnStage(await repos.getSetting(returnSessionKey(sessionId)));
       const adjust = (prefill: ExInfo["prefill"]) => returnMode ? comebackPrefill(prefill, ex.loadSpec ?? findSpec(gym, ex.equipment), ex.setup, ex.measure, returnMode) : prefill;
-      const previous = await workout.previousPerformances(ex.exerciseId, dayId);
+      const previous = await workout.previousPerformances(ex.exerciseId, dayId, { setup: ex.setup, gymId: gym.gymId });
       const latest = progressionHistory.at(-1);
       const last = latest ? { performedAt: latest.performedAt, sets: latest.sets.filter(s => !s.warmup && !s.tags?.includes("drop")) } : null;
       const savedTarget = ex.exerciseId === ex.slot ? await finish.getTargetForExercise(sessionId, ex.exerciseId) : null;
@@ -254,8 +257,12 @@ export function useWorkoutSession() {
       setExState(states);
       setSets(all);
       // Typed-but-unticked numbers kept when the app went to the background (iOS may have terminated it since).
-      const drafts = parseDrafts(await repos.getSetting(draftKey(id)).catch(() => null));
-      setRows(drafts.length ? applyDrafts(initial, drafts) : initial);
+      const restored = restoreSessionDrafts(initial, await repos.getSetting(draftKey(id)).catch(() => null));
+      setRows(restored.rows);
+      if (restored.cursor) {
+        setPreferredExercise(restored.cursor.exId);
+        if (restored.cursor.key) setSelectedRow({ exId: restored.cursor.exId, key: restored.cursor.key });
+      }
       const dayRow = await db.get<{ name: string }>("SELECT name FROM programme_day WHERE id = ?", [dayId]).catch(() => null);
       setLoaded({ sessionId: id, resumed, startedAt: session?.started_at ?? Date.now(), pausedMs: session?.paused_ms ?? 0, pausedAt: session?.paused_at ?? null, gym, slots, info, comebackStage: stage, dayName: dayRow?.name ?? undefined });
       if (resumed) setResumeNote(true);
@@ -339,28 +346,35 @@ export function useWorkoutSession() {
   // Leaving the logger saves pending notes.
   useEffect(() => () => flushNotes(), [flushNotes]);
 
-  // iOS may terminate a backgrounded app without running JS: on background, save pending notes and ONE draft snapshot (never per keystroke).
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
-  const draftSessionRef = useRef(openSessionId);
-  draftSessionRef.current = openSessionId;
+  // Draft writes are ordered snapshots, not independent field writes. Background/close flush the latest snapshot.
+  const rowsRef = useRef(rows); rowsRef.current = rows;
+  const stateRef = useRef(exState); stateRef.current = exState;
+  const loadedRef = useRef(loaded); loadedRef.current = loaded;
+  const selectedRef = useRef(selectedRow); selectedRef.current = selectedRow;
+  const preferredRef = useRef(preferredExercise); preferredRef.current = preferredExercise;
   const ended = useRef(false);
+  const draftWrites = useRef(Promise.resolve());
+  const saveDrafts = useCallback(() => {
+    const lo = loadedRef.current;
+    if (!lo || lo === "nogym" || ended.current) return;
+    flushNotes();
+    const { shown: list } = shownExercises(lo.slots, stateRef.current, makeDisp);
+    const cursor = resolveCurrentSet(list.map(ex => ex.exerciseId), rowsRef.current, selectedRef.current, preferredRef.current, supersetGroups(list, stateRef.current));
+    const snapshot = serializeSessionDrafts(rowsRef.current, cursor);
+    draftWrites.current = draftWrites.current.then(() => repos.setSetting(draftKey(lo.sessionId), snapshot)).catch(e => diagnostics.record("warn", "save drafts", e));
+  }, [repos, flushNotes, makeDisp]);
   useEffect(() => {
-    const saveDrafts = () => {
-      const sid = sessionRef.current;
-      if (!sid || draftSessionRef.current !== sid || ended.current) return;
-      flushNotes();
-      void repos.setSetting(draftKey(sid), serializeDrafts(rowsRef.current)).catch((e) => diagnostics.record("warn", "save drafts", e));
-    };
-    const sub = AppState.addEventListener("change", (s) => {
-      if (s === "background" || s === "inactive") saveDrafts();
-    });
-    // Collapse leaves the app active: it still needs a snapshot before reopening.
+    if (!openSessionId) return;
+    const timeout = setTimeout(saveDrafts, 200);
+    return () => clearTimeout(timeout);
+  }, [openSessionId, rows, selectedRow, preferredExercise, exState, saveDrafts]);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", state => { if (state === "background" || state === "inactive") saveDrafts(); });
     return () => { sub.remove(); saveDrafts(); };
-  }, [repos, flushNotes]);
+  }, [saveDrafts]);
   const clearDrafts = (sid: string) => {
     ended.current = true;
-    void repos.setSetting(draftKey(sid), "").catch(() => undefined);
+    draftWrites.current = draftWrites.current.then(() => repos.setSetting(draftKey(sid), "")).catch(() => undefined);
   };
 
   const setsByEx = useMemo(() => {
@@ -393,6 +407,7 @@ export function useWorkoutSession() {
     // Typing calls this on every keystroke: only touch state that actually changes (the preview counter still cancels a pending PR).
     if (strengthPr) clearStrengthPr();
     else prPreviewVersion.current++;
+    lastActivePress.current = -Infinity;
     selectRow(exId, key);
     setRows((r) => ({ ...r, [exId]: editRow(r[exId] ?? [], key, change) }));
   };
@@ -425,7 +440,9 @@ export function useWorkoutSession() {
 
   async function logRow(ex: Disp, row: SetRowDraft) {
     setRestPermDenied(false);
-    if (!loaded || loaded === "nogym" || busy || !rowCanLog(row)) return;
+    row = rowsRef.current[ex.exerciseId]?.find(item => item.key === row.key) ?? row;
+    if (!loaded || loaded === "nogym" || busy || saveLock.current || !rowCanLog(row)) return;
+    saveLock.current = true;
     const tickT0 = perfNow();
     // Ticking logs the boxes as they are (target or typed): no big-jump confirmation.
     setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
@@ -443,6 +460,8 @@ export function useWorkoutSession() {
       }
       perfMark("tickSaved", perfNow() - tickT0);
       await reload(loaded.sessionId);
+      setSelectedRow(null);
+      setPreferredExercise(ex.exerciseId);
       setSavedAt(Date.now());
       setSaveError(false);
       // The save and next-set flow never wait for achievement evaluation.
@@ -455,6 +474,7 @@ export function useWorkoutSession() {
       setSaveError(true);
       Alert.alert(t("workout.saveFailed.title"), t("workout.saveFailed.body"));
     } finally {
+      saveLock.current = false;
       setBusy(null);
     }
   }
@@ -514,6 +534,7 @@ export function useWorkoutSession() {
     ]);
 
   function saveNote(slot: string, text: string, now2 = false) {
+    setState(slot, { note: text });
     const sid = sessionRef.current;
     if (!sid) return;
     notesPending.current[slot] = text;
@@ -690,6 +711,8 @@ export function useWorkoutSession() {
       setState(exerciseId, mine);
       await showSlot(lo, exerciseId, mine);
       if (r.restored) await reload(loaded.sessionId);
+      setSelectedRow(null);
+      setPreferredExercise(exerciseId);
     } catch {
       Alert.alert(t("workout.add.blocked"));
     }
@@ -710,9 +733,9 @@ export function useWorkoutSession() {
   const activityProps = useMemo(() => {
     if (!loaded || loaded === "nogym" || !restRestored) return null;
     const { shown: list } = shownExercises(loaded.slots, exState, makeDisp);
-    const focusId = focusedExercise(list.map((ex) => ex.exerciseId), rows, preferredExercise, supersetGroups(list, exState));
+    const focusId = resolveCurrentSet(list.map(ex => ex.exerciseId), rows, selectedRow, preferredExercise, supersetGroups(list, exState))?.exId ?? null;
     return workoutActivityProps({ startedAt: loaded.startedAt, pausedMs: loaded.pausedMs, pausedAt: loaded.pausedAt, shown: list, rows, focus: focusId, timer, now: Date.now(), lang, unit, t });
-  }, [loaded, restRestored, exState, makeDisp, rows, preferredExercise, timer, lang, unit, t]);
+  }, [loaded, restRestored, exState, makeDisp, rows, selectedRow, preferredExercise, timer, lang, unit, t]);
   useWorkoutLiveActivity(activityProps, () => workout.getOpenSession().then(Boolean));
 
   if (loaded === null && loadError) return { phase: "error", retry: () => { setLoadError(false); setAttempt(n => n + 1); }, navigation } as const;
@@ -853,8 +876,25 @@ export function useWorkoutSession() {
     ]);
   }
 
-  const selectedExercise = selectedRow && shown.some(ex => ex.exerciseId === selectedRow.exId) && (rows[selectedRow.exId] ?? []).some(row => row.key === selectedRow.key && (!row.saved || row.dirty)) ? selectedRow.exId : null;
-  const focus = selectedExercise ?? focusedExercise(shown.map(ex => ex.exerciseId), rows, preferredExercise, supersetGroups(shown, exState));
+  const current = resolveCurrentSet(shown.map(ex => ex.exerciseId), rows, selectedRow, preferredExercise, supersetGroups(shown, exState));
+  const focus = current?.exId ?? null;
+  const activeRow = current?.key ? rows[current.exId]?.find(row => row.key === current.key) : null;
+  const activeCanLog = !!activeRow && rowCanLog(activeRow) && (!activeRow.saved || activeRow.dirty) && busy === null;
+  const jumpExercise = (exId: string) => {
+    if (!shown.some(ex => ex.exerciseId === exId)) return;
+    const list = rowsRef.current[exId] ?? [];
+    const key = focusedRowKey(list) ?? list[0]?.key;
+    setPreferredExercise(exId);
+    setSelectedRow(key ? { exId, key } : null);
+  };
+  const activeLog = () => {
+    if (!current?.key || !activeCanLog || saveLock.current || Date.now() - lastActivePress.current < 450) return;
+    const ex = shown.find(ex => ex.exerciseId === current.exId);
+    const row = rowsRef.current[current.exId]?.find(row => row.key === current.key);
+    if (!ex || !row || !rowCanLog(row) || (row.saved && !row.dirty)) return;
+    lastActivePress.current = Date.now();
+    void logRow(ex, row);
+  };
 
   // The Rack Dock (logger spec §2): primitives only; Log set goes through the same logRow as the row tick.
   const dockEx = focus ? shown.find(ex => ex.exerciseId === focus) ?? null : null;
@@ -894,7 +934,7 @@ export function useWorkoutSession() {
     const detailKey = card ? `${ex.exerciseId}:${card.performance}:${card.key}` : null;
     return {
       active: ex.exerciseId === focus,
-      selectedRowKey: selectedRow?.exId === ex.exerciseId && list.some(r => r.key === selectedRow.key && (!r.saved || r.dirty)) ? selectedRow.key : null,
+      selectedRowKey: selectedRow?.exId === ex.exerciseId && list.some(r => r.key === selectedRow.key) ? selectedRow.key : null,
       unitOverride: exerciseUnits[ex.exerciseId] ?? null,
       onToggleUnit: () => toggleExerciseUnit(ex.exerciseId),
       previousSource: previousSource,
@@ -945,6 +985,7 @@ export function useWorkoutSession() {
           setLiveManual(m => { const { [ex.exerciseId]: _own, ...rest } = m; return rest; });
           setRows(r => ({ ...r, [ex.exerciseId]: takeLiveTarget(r[ex.exerciseId] ?? [], card.key, card.decision.suggestedWeightKg, card.decision.suggestedReps, zero) }));
           setPreferredExercise(ex.exerciseId);
+          setSelectedRow({ exId: ex.exerciseId, key: card.key });
           setFocusRow({ exId: ex.exerciseId, key: card.key, nonce: Date.now() });
         },
       onLiveOwn: () => {
@@ -952,6 +993,7 @@ export function useWorkoutSession() {
           setLiveManual(m => ({ ...m, [ex.exerciseId]: true }));
           setRows(r => ({ ...r, [ex.exerciseId]: clearLiveTarget(r[ex.exerciseId] ?? [], card.key) }));
           setPreferredExercise(ex.exerciseId);
+          setSelectedRow({ exId: ex.exerciseId, key: card.key });
           setFocusRow({ exId: ex.exerciseId, key: card.key, nonce: Date.now() });
         },
       onPickJump: kg => void persistCardLoads(ex, specWithJump(ex.equipment, kg, ex.loadSpec, findSpec(loaded.gym, ex.equipment))),
@@ -1081,7 +1123,7 @@ export function useWorkoutSession() {
     });
     setLoaded(prev => prev && prev !== "nogym" && prev.sessionId === sessionId ? { ...prev, info, comebackStage: null } : prev);
   }
-  return { phase: "ready",
+  return { phase: "ready", current, activeRow, activeCanLog, activeLog, jumpExercise, saveNote,
     timerOpen, timerRunning, restOver, restPermDenied, navigation, setHelpOpen,
     setRestOver, setTimerOpen, timer, finishing, askFinish,
     loaded, status, toggleDurationPause, summary, sets,

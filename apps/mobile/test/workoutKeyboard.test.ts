@@ -6,6 +6,10 @@ describe("logger input visibility above the keyboard and dock", () => {
     expect(inputScrollOffset(290, 48, 0, 180)).toBe(166);
     expect(inputScrollOffset(390, 64, 120, 140)).toBe(322);
   });
+  it("reduces the margin when large text leaves only one cell of viewport space", () => {
+    expect(inputScrollOffset(290, 48, 0, 53)).toBe(287.5);
+    expect(inputScrollOffset(290, 48, 0, 48)).toBe(290);
+  });
   it("does not move a fully visible input", () => {
     expect(inputScrollOffset(180, 48, 160, 180)).toBe(160);
   });

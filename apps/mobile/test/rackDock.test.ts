@@ -142,6 +142,8 @@ describe("RackDock render", () => {
     expect(byType(tree, "Svg")).toHaveLength(0);
     const btn = nodes(tree).find((x) => x.props.nativeID === "rack-dock-log")!;
     expect(btn.props.style({ pressed: false }).alignSelf).toBe("stretch");
+    const info = nodes(tree).find(n => n.props.accessibilityRole === "button" && n.props.accessibilityHint)!;
+    expect(info.props.style[0].flex).toBeUndefined();
   });
   it("short screens (≤667): one line, no caption row, ~84 dp", () => {
     settings.height = 667;

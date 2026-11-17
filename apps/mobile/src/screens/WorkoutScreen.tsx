@@ -122,6 +122,8 @@ export function WorkoutScreen() {
     statusKind, statusShort, rows,
   } = session;
   const warns = sessionLineWarns(statusKind);
+  const showStatusWarning = warns && !(largeText && keyboardUp && statusKind === "unsaved");
+  const plannedSets = Math.max(summary.sets, plannedWorkRows(rows, shown.map((e) => e.exerciseId)));
   const dockVisible = timerOpen || timerRunning || restOver;
   dockActions.current = {
     log: dockLog,
@@ -137,7 +139,7 @@ export function WorkoutScreen() {
       <View style={{ paddingTop: insets.top + space.xs, paddingBottom: space.xs, paddingHorizontal: space.xs, flexDirection: "row", alignItems: "center", gap: space.sm /* 8 dp between 48 dp header targets (L-14) */, backgroundColor: p.bg }}>
         <IconButton icon="chevron" back label={t("workout.collapse")} onPress={() => navigation.goBack()} />
         {/* The day name ("Upper A") confirms at a glance which session is open (L-13); the generic title is the fallback. */}
-        <AppText accessibilityRole="header" numberOfLines={1} style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{loaded.dayName || t("workout.header")}</AppText>
+        <AppText accessibilityRole="header" numberOfLines={2} style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{loaded.dayName || t("workout.header")}</AppText>
         <IconButton icon="more" label={t("workout.details")} onPress={() => setDetailsOpen(true)} />
         <Pressable
           accessibilityRole="button"
@@ -171,15 +173,15 @@ export function WorkoutScreen() {
           {largeText && !keyboardUp ? <View style={{ flexBasis: "100%", height: 0 }} /> : null}
           <View style={{ flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: space.xs }}>
             {(
-              <AppText numberOfLines={1} style={{ fontSize: ty.label, color: p.muted, fontVariant: ["tabular-nums"] }}>
-                {t("rack.setsOf", { x: summary.sets, y: Math.max(summary.sets, plannedWorkRows(rows, shown.map((e) => e.exerciseId))) })}
+              <AppText accessibilityLabel={t("rack.setsOf", { x: summary.sets, y: plannedSets })} numberOfLines={1} style={{ fontSize: ty.label, color: p.muted, fontVariant: ["tabular-nums"] }}>
+                {largeText && keyboardUp ? isolateLtr(`${summary.sets} / ${plannedSets}`) : t("rack.setsOf", { x: summary.sets, y: plannedSets })}
               </AppText>
             )}
 
           </View>
 
         </View>
-      {warns ? <InlineStatus kind="warn" text={statusShort} /> : null}
+      {showStatusWarning ? <InlineStatus kind="warn" text={statusShort} /> : null}
       <ScrollView ref={scrollRef} innerViewRef={contentRef} onLayout={event => { viewportHeight.current = event.nativeEvent.layout.height; requestAnimationFrame(revealInput); }} onScroll={event => { scrollY.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: space.lg + space.xxl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets={false}>
         <Profiler id="logger" onRender={onLoggerRender}>
 

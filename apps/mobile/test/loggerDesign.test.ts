@@ -55,7 +55,7 @@ describe("L-4 typed but unticked", () => {
     expect(row).toContain("pending={pending.reps}");
   });
   it("the save status line is 14/20 with a 16 dp icon (not the 13 compact size)", () => {
-    expect(screen).toContain('{warns ? <InlineStatus kind="warn" text={statusShort} /> : null}');
+    expect(screen).toContain('{showStatusWarning ? <InlineStatus kind="warn" text={statusShort} /> : null}');
   });
 });
 

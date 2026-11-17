@@ -264,7 +264,7 @@ function RackDockImpl({ model, name, logged, timer, restFor, saving, unit, actio
       onAccessibilityAction={canExpand ? expand : undefined}
       onPress={canExpand ? expand : undefined}
       hitSlop={{ top: 8, bottom: 8 }}
-      style={[{ flex: 1, minWidth: 0, minHeight: 48, justifyContent: "center", gap: 2 }, textDir]}
+      style={[{ flex: k15 ? undefined : 1, minWidth: 0, minHeight: 48, justifyContent: "center", gap: 2 }, textDir]}
     >
       <AppText numberOfLines={k15 ? 2 : 1} style={{ fontSize: 13, color: lp.muted }}>{set}</AppText>
       {number}

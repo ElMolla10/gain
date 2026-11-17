@@ -1,12 +1,13 @@
 import { useSheetAction } from "../hooks/useSheetAction";
 import { inputScrollOffset } from "../logic/workoutKeyboard";
-import { RackDock, type DockActions } from "../components/RackDock";
+import { CurrentExerciseSets } from "../components/CurrentExerciseSets";
+import { WorkoutSessionOverview } from "../components/WorkoutSessionOverview";
 import { Profiler, useCallback, useEffect, useRef, useState, type ProfilerOnRenderCallback } from "react";
 import { perfMark, perfMarks, perfNow } from "../perfMarks";
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "../components/Icon";
-import { ExerciseBlock } from "../components/WorkoutExerciseSection";
+import { WorkoutExerciseSection } from "../components/WorkoutExerciseSection";
 import { WorkoutDetailsPanel } from "../components/WorkoutDetailsPanel";
 import { RestClock, LiveDuration, Stat } from "../components/WorkoutStats";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
@@ -84,12 +85,10 @@ export function WorkoutScreen() {
     const hide = Keyboard.addListener("keyboardDidHide", () => { keyboardVisible.current = false; setKeyboardUpLocal(false); });
     return () => { show.remove(); hide.remove(); };
   }, []);
-  const selectedInputRow = session.phase === "ready" ? session.dock.rowKey : null;
+  const selectedInputRow = session.phase === "ready" ? session.current?.key : null;
   useEffect(() => { if (keyboardUp) requestAnimationFrame(revealInput); }, [keyboardUp, selectedInputRow, revealInput]);
   const syncKeyboard = session.phase === "ready" ? session.setKeyboardUp : null;
   useEffect(() => { syncKeyboard?.(keyboardUp); }, [keyboardUp, syncKeyboard]);
-  // Handlers reach the memoised dock through a ref, so a new closure each render never re-renders it.
-  const dockActions = useRef<DockActions>({ log: () => {}, finish: () => {}, adjustRest: () => {}, toggleRest: () => {}, expandInfo: () => null });
   useEffect(() => {
     if (session.phase !== "ready" || openMarked.current) return;
     openMarked.current = true;
@@ -118,20 +117,16 @@ export function WorkoutScreen() {
     summaryOpen, setSummaryOpen, readiness, changeReadiness,
     previousSource, choosePreviousSource, finishFailed, doFinish,
     shown, setReorderOpen, exerciseProps, setAddOpen, removedSlots,
-    restore, unlogged, restFor, setTimer, dock, dockName, dockLog, dockExpand, dockUnit, busy,
+    restore, unlogged, setTimer, busy, current, activeRow, activeCanLog, activeLog, jumpExercise,
     statusKind, statusShort, rows,
   } = session;
   const warns = sessionLineWarns(statusKind);
   const showStatusWarning = warns && !(largeText && keyboardUp && statusKind === "unsaved");
   const plannedSets = Math.max(summary.sets, plannedWorkRows(rows, shown.map((e) => e.exerciseId)));
   const dockVisible = timerOpen || timerRunning || restOver;
-  dockActions.current = {
-    log: dockLog,
-    finish: () => askFinish(loaded),
-    adjustRest: (d) => setTimer((tm) => adjustTimer(tm, d, Date.now())),
-    toggleRest: () => { setRestOver(false); setTimer((tm) => (tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm))); },
-    expandInfo: dockExpand,
-  };
+  const currentExercise = shown.find(ex => ex.exerciseId === current?.exId);
+  const currentProps = currentExercise ? exerciseProps(currentExercise, shown.indexOf(currentExercise)) : null;
+  const openDetails = () => { Keyboard.dismiss(); setDetailsOpen(true); };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: p.bg }}>
@@ -139,8 +134,10 @@ export function WorkoutScreen() {
       <View style={{ paddingTop: insets.top + space.xs, paddingBottom: space.xs, paddingHorizontal: space.xs, flexDirection: "row", alignItems: "center", gap: space.sm /* 8 dp between 48 dp header targets (L-14) */, backgroundColor: p.bg }}>
         <IconButton icon="chevron" back label={t("workout.collapse")} onPress={() => navigation.goBack()} />
         {/* The day name ("Upper A") confirms at a glance which session is open (L-13); the generic title is the fallback. */}
-        <AppText accessibilityRole="header" numberOfLines={keyboardUp ? 1 : 2} style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{loaded.dayName || t("workout.header")}</AppText>
-        <IconButton icon="more" label={t("workout.details")} onPress={() => setDetailsOpen(true)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={`${loaded.dayName || t("workout.header")}. ${t("workout.details")}`} onPress={openDetails} style={{ flex: 1, minHeight: 48, justifyContent: "center" }}>
+          <AppText accessibilityRole="header" numberOfLines={keyboardUp ? 1 : 2} style={{ fontSize: ty.body, fontWeight: "600" }}>{loaded.dayName || t("workout.header")}</AppText>
+          <AppText style={{ color: p.accent, fontSize: 13 }}>{t("workout.details")}</AppText>
+        </Pressable>
         {!keyboardUp || timerRunning ? <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("workout.restTimerBtn")}
@@ -194,12 +191,48 @@ export function WorkoutScreen() {
           </View>
         ) : null}
 
-        {shown.map((ex, i) => { const props = exerciseProps(ex, i); return props ? <ExerciseBlock key={ex.id} {...props} /> : null; })}
+        {currentProps ? <WorkoutExerciseSection key={currentProps.ex.exerciseId} {...currentProps}
+          setContent={<CurrentExerciseSets section={currentProps} currentKey={current?.key ?? null} />} /> : null}
 
-        <View style={{ paddingHorizontal: space.md, paddingTop: space.xl }}>
-          <BigButton variant="secondary" icon="plus" label={t("workout.add.button")} onPress={() => setAddOpen(true)} />
-        </View>
+        {!currentProps ? <View style={{ padding: space.lg }}><QuietAction label={t("workout.details")} onPress={openDetails} /></View> : null}
 
+        </Profiler>
+      </ScrollView>
+
+      {restOver ? <View style={{ paddingHorizontal: space.lg }}><QuietAction icon="timer" label={t("workout.rest.done")} onPress={() => { setRestOver(false); setTimerOpen(true); }} /></View> : null}
+      {restPermDenied ? <View style={{ paddingHorizontal: space.lg }}><InlineStatus kind="warn" text={t("rest.perm.denied")} /></View> : null}
+      <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm, borderTopWidth: 1, borderColor: p.line, backgroundColor: p.bg }}>
+        <BigButton icon="check" label={activeRow?.saved ? t("rack.update", { n: currentProps ? currentProps.list.indexOf(activeRow) + 1 : 1 }) : t("rack.log")}
+          accessibilityHint={activeRow?.saved ? t("workout.tickUpdate") : t("rack.log")} disabled={!activeCanLog} loading={busy != null && busy === current?.key} onPress={activeLog} />
+      </View>
+
+      <WorkoutSessionOverview visible={detailsOpen} activeId={current?.exId ?? null}
+        exercises={shown.map(ex => {
+          const list = (rows[ex.exerciseId] ?? []).filter(row => !row.warmup && !row.tags.includes("drop"));
+          return { id: ex.exerciseId, name: exerciseLabels(ex, lang).primary, done: list.filter(row => row.saved).length, total: list.length };
+        })}
+        onJump={id => detailsAction.dismissThen(() => jumpExercise(id))}
+        onRemove={id => detailsAction.dismissThen(() => { const ex = shown.find(ex => ex.exerciseId === id); if (ex) session.askRemove(ex, exerciseLabels(ex, lang).primary); })}
+        onAdd={() => detailsAction.dismissThen(() => setAddOpen(true))}
+        onReorder={() => detailsAction.dismissThen(() => setReorderOpen(true))}
+        onClose={() => setDetailsOpen(false)} onDismiss={detailsAction.onDismiss}>
+        <WorkoutDetailsPanel
+          open={detailsOpen}
+          readiness={readiness}
+          onReadiness={(next) => { void changeReadiness(next); }}
+          previousSource={previousSource}
+          onPreviousSource={source => void choosePreviousSource(source)}
+        >
+          <View style={{ paddingHorizontal: space.lg }}><QuietAction icon="why" label={t("workout.help.button")} onPress={() => detailsAction.dismissThen(() => setHelpOpen(true))} /></View>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
+            <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
+              <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
+            </Pressable>
+            {summaryOpen ? <Stat label={t("workout.stat.volume")}>
+              <AppText style={{ fontSize: 20, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(volumeText(summary.volumeKg, unit))} {unitText}</AppText>
+            </Stat> : null}
+          </View>
+        </WorkoutDetailsPanel>
         {removedSlots.length > 0 ? (
           <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl, gap: space.xs }}>
             <AppText style={{ color: p.muted, fontSize: 13, fontWeight: "600" }}>{t("workout.removed")}</AppText>
@@ -215,39 +248,13 @@ export function WorkoutScreen() {
         <View style={{ paddingHorizontal: space.lg, paddingTop: space.xl, gap: 4 }}>
           {unlogged > 0 ? <InlineStatus kind="warn" text={t("workout.unlogged", { n: unlogged })} /> : null}
         </View>
-        </Profiler>
-      </ScrollView>
-
-      {restPermDenied ? <View style={{ paddingHorizontal: space.lg }}><InlineStatus kind="warn" text={t("rest.perm.denied")} /></View> : null}
-      {/* The Rack Dock (logger spec §2) shows the same effective draft that the log action saves. */}
-      <RackDock model={dock} name={dockName} logged={sets.length} timer={timer} restFor={restFor} saving={busy !== null && busy === dock.rowKey} unit={dockUnit} actions={dockActions} />
-
-      <Sheet visible={detailsOpen} title={t("workout.details")} onClose={() => setDetailsOpen(false)} onDismiss={detailsAction.onDismiss}>
-        <WorkoutDetailsPanel
-          open={detailsOpen}
-          readiness={readiness}
-          onReadiness={(next) => { void changeReadiness(next); }}
-          previousSource={previousSource}
-          onPreviousSource={source => void choosePreviousSource(source)}
-          onReorder={shown.length > 1 ? () => detailsAction.dismissThen(() => setReorderOpen(true)) : undefined}
-        >
-          <View style={{ paddingHorizontal: space.lg }}><QuietAction icon="why" label={t("workout.help.button")} onPress={() => detailsAction.dismissThen(() => setHelpOpen(true))} /></View>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.xl, paddingHorizontal: space.lg, paddingBottom: space.xs }}>
-            <Pressable accessibilityRole="button" accessibilityState={{ expanded: summaryOpen }} onPress={() => setSummaryOpen(open => !open)} style={{ minHeight: 48, justifyContent: "center" }}>
-              <AppText style={{ color: p.muted }}>{t("workout.summary")}</AppText>
-            </Pressable>
-            {summaryOpen ? <Stat label={t("workout.stat.volume")}>
-              <AppText style={{ fontSize: 20, fontWeight: "600", fontVariant: ["tabular-nums"] }}>{isolateLtr(volumeText(summary.volumeKg, unit))} {unitText}</AppText>
-            </Stat> : null}
-          </View>
-        </WorkoutDetailsPanel>
         <InlineStatus kind={warns ? "warn" : "success"} text={statusShort} />
-      </Sheet>
+      </WorkoutSessionOverview>
       <Sheet visible={timerOpen} title={t("workout.restTimerBtn")} onClose={() => setTimerOpen(false)}>
         <RestClock timer={timer} style={{ color: p.accent, fontSize: 28, fontWeight: "600" }} />
         <View style={{ flexDirection: "row", gap: space.sm }}>
-          {[-15, 15].map(seconds => <QuietAction key={seconds} label={`${seconds > 0 ? "+" : "−"}${Math.abs(seconds)} ${t("qty.s")}`} onPress={() => dockActions.current.adjustRest(seconds)} />)}
-          <QuietAction label={timerRunning ? t("workout.rest.stop") : t("workout.rest.start")} onPress={() => dockActions.current.toggleRest()} />
+          {[-15, 15].map(seconds => <QuietAction key={seconds} label={`${seconds > 0 ? "+" : "−"}${Math.abs(seconds)} ${t("qty.s")}`} onPress={() => setTimer(tm => adjustTimer(tm, seconds, Date.now()))} />)}
+          <QuietAction label={timerRunning ? t("workout.rest.stop") : t("workout.rest.start")} onPress={() => { setRestOver(false); setTimer(tm => tm.endsAt === null ? startTimer(tm, Date.now()) : stopTimer(tm)); }} />
         </View>
       </Sheet>
       <WorkoutSessionSheets session={session} />

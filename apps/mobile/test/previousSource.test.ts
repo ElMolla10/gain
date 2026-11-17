@@ -26,6 +26,10 @@ describe("Previous display history", () => {
     expect(previous.any?.sets.map(s => [s.load, s.reps])).toEqual([[62.5, 7]]);
     expect(previous.routine?.sets.map(s => [s.load, s.reps])).toEqual([[60, 8]]);
     expect((await c.workout.previousPerformances("missing", day.id))).toEqual({ any: null, routine: null });
+    const comparable = { setup: ex.setup, gymId };
+    expect((await c.workout.previousPerformances(ex.exerciseId, day.id, comparable)).any?.sets[0]?.load).toBe(62.5);
+    expect(await c.workout.previousPerformances(ex.exerciseId, day.id, { ...comparable, gymId: "different-gym" })).toEqual({ any: null, routine: null });
+    expect(await c.workout.previousPerformances(ex.exerciseId, day.id, { ...comparable, setup: ex.setup === "free" ? "assisted" : "free" })).toEqual({ any: null, routine: null });
     await c.repos.setSetting("previous_source", "routine");
     expect(await c.repos.getSetting("previous_source")).toBe("routine");
   });

@@ -32,6 +32,10 @@ export function CellInput<T extends number>(props: {
   /** A typed value that is not saved yet (the row is not ticked): a 2 dp warn underline, because unticked rows are dropped at Finish. */
   pending?: boolean;
   style?: StyleProp<ViewStyle>;
+  prominent?: boolean;
+  invalid?: boolean;
+  fontSize?: number;
+  minHeight?: number;
   onFocus?: () => void;
   autoFocus?: boolean;
   focusNonce?: number;
@@ -53,7 +57,7 @@ export function CellInput<T extends number>(props: {
   useEffect(() => {
     if (props.autoFocus) inputRef.current?.focus();
   }, [props.autoFocus, props.focusNonce]);
-  const bad = text.trim() !== "" && props.parse(text, props.value) === null;
+  const bad = !!props.invalid || text.trim() !== "" && props.parse(text, props.value) === null;
   return (
     <View style={[{ flex: 1, gap: 2 }, props.style]}>
       {props.unitLabel ? <AppText style={{ color: p.muted, fontSize: 13, textAlign: "center" }}>{props.unitLabel}</AppText> : null}
@@ -71,13 +75,13 @@ export function CellInput<T extends number>(props: {
         keyboardType={props.decimal ? "decimal-pad" : "number-pad"}
         {...numberPadAccessory(t)}
         selectTextOnFocus
-        placeholder={props.placeholder ?? "—"}
-        placeholderTextColor={p.edge /* ghost targets are hints: quieter than a typed value (L-4) */}
+        placeholder={bad ? "—" : props.placeholder ?? "—"}
+        placeholderTextColor={props.prominent ? p.text : p.edge /* ghost targets are hints: quieter than a typed value (L-4) */}
         onFocus={() => { setFocused(true); props.onFocus?.(); }}
         onBlur={() => { setFocused(false); if (bad) AccessibilityInfo.announceForAccessibility(t("workout.input.invalid")); }}
         style={{
           ...font,
-          minHeight: INPUT_HEIGHT,
+          minHeight: props.minHeight ?? INPUT_HEIGHT,
           borderRadius: radius.input,
           borderWidth: bad || focused ? 2 : props.current ? 1.5 : 0,
           borderColor: bad ? p.warn : focused ? p.accent : p.edge,
@@ -85,7 +89,7 @@ export function CellInput<T extends number>(props: {
           paddingHorizontal: 4,
           paddingVertical: 0,
           // Typed weight and reps are the numbers read at arm's length: 20 semibold with tabular figures, so widths don't jump (L-1).
-          fontSize: ty.section,
+          fontSize: props.fontSize ?? ty.section,
           fontVariant: ["tabular-nums"],
           color: p.text,
           backgroundColor: props.done ? "transparent" : p.field,

@@ -37,6 +37,7 @@ export const shouldFold = (list: readonly SetRowDraft[], unconfirmed: number, ac
 
 export interface LiveCard { decision: Decision; key: string; performance: string; snapshot: string; starting?: boolean }
 export interface ExerciseSectionProps extends Pick<WorkoutSetRowProps, "onSelect" | "onPatch" | "onKind" | "onAskDelete" | "onDelete" | "onLog" | "onUntick"> {
+  setContent?: React.ReactNode;
   active?: boolean; selectedRowKey?: string | null; liveDetailsOpen?: boolean; onLiveDetails?: () => void;
   /** Rest is on in general (rest.auto); without it the rest chip moves into the ⋮ menu. */
   restGlobal?: boolean;
@@ -89,7 +90,7 @@ function ExerciseDemoButton({ seedKey, title, buttonLabel, buttonA11y, imageA11y
 }
 
 /** One exercise's presentation. Screen handlers own all database writes and draft changes. */
-export function WorkoutExerciseSection({ restGlobal = true, active = true, selectedRowKey, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onSelect, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId, unitOverride, onToggleUnit }: ExerciseSectionProps) {
+export function WorkoutExerciseSection({ restGlobal = true, active = true, setContent, selectedRowKey, liveDetailsOpen = false, onLiveDetails, suggestionOpen = false, onToggleSuggestion, loadsOpen = false, onToggleLoads, ex, position, info, list, st, gym, exSets, outliers, candidate, card, expanded, supersetLabel, afterExercise, readiness, restDurationMs, busy, warmOpen, warmDone, onOpenProgress, onToggleRest, onMenu, onWhy, onWhyLong, onLiveApply, onLiveOwn, onLiveReport, onLiveKeep, onPickJump, listText, onListChange, onSaveList, focusRow, onOutlierConfirm, onOutlierReject, onWarmConfirm, onWarmOpen, onWarmClose, onAddSet, onOpenTrend, onSelect, onPatch, onKind, onAskDelete, onDelete, onLog, onUntick, previousSource = "any", strengthPrSetId, unitOverride, onToggleUnit }: ExerciseSectionProps) {
   const { t, lang, unit: appUnit } = useI18n();
   const unit = unitOverride ?? appUnit;
   const unitText = unitLabel(unit, lang);
@@ -188,16 +189,18 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, selec
           ) : null}
           {onOpenTrend ? (
             <Pressable accessibilityRole="button" accessibilityLabel={labels.primary} onPress={onOpenTrend}>
-              <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
+              <AppText accessibilityRole="header" style={{ fontSize: setContent !== undefined ? 24 : ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
             </Pressable>
           ) : (
-            <AppText accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
+            <AppText accessibilityRole="header" style={{ fontSize: setContent !== undefined ? 24 : ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
           )}
           {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
         </Pressable>
         {demoImageId ? <ExerciseDemoButton seedKey={ex.seedKey!} title={labels.primary} buttonLabel={t("workout.demo")} buttonA11y={t("workout.demo.a11y", { exercise: labels.primary })} imageA11y={t("workout.demo.imageA11y", { exercise: labels.primary })} /> : null}
         <IconButton icon="more" label={`${t("workout.menu.title")}: ${labels.primary}`} color={p.muted} onPress={() => onMenu()} />
       </View>
+      {card?.decision.action === "stop" ? live : null}
+      {setContent !== undefined ? setContent : <>
       {/* Column heads, once per exercise. At large text Previous is a caption inside each row, so it has no column here (L-8).
           A head never runs past its column (AR "مجموعة" at 1.5x): one line, shrinks to fit (C-R2). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, marginTop: space.xs }}>
@@ -208,7 +211,6 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, selec
         <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
       </View>
 
-      {card?.decision.action === "stop" ? live : null}
       <View>
         {list.map((row, i) => (
           <React.Fragment key={row.key}>
@@ -222,6 +224,8 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, selec
           </React.Fragment>
         ))}
       </View>
+
+      </>}
 
       {pending.map((s) => {
         const expected = outliers[s.id]?.expected;

@@ -49,7 +49,7 @@ describe("L-4 typed but unticked", () => {
     expect(pendingInputs({ saved: true, dirty: false, load: 60, reps: 8 })).toEqual({ load: false, reps: false });
   });
   it("ghost text uses edge (quieter than typed text), pending boxes get a 2 dp warn underline", () => {
-    expect(parts).toContain("placeholderTextColor={p.edge");
+    expect(parts).toContain("placeholderTextColor={props.prominent ? p.text : p.edge");
     expect(parts).toContain("borderBottomWidth: 2, borderBottomColor: p.warn");
     expect(row).toContain("pending={pending.load}");
     expect(row).toContain("pending={pending.reps}");
@@ -61,7 +61,7 @@ describe("L-4 typed but unticked", () => {
 
 describe("L-1, L-5, L-6, L-15 set table", () => {
   it("L-1: typed values are 20 semibold with tabular figures; the set number is 16", () => {
-    expect(parts).toMatch(/fontSize: ty\.section,\s*fontVariant: \["tabular-nums"\]/);
+    expect(parts).toMatch(/fontSize: props\.fontSize \?\? ty\.section,\s*fontVariant: \["tabular-nums"\]/);
     expect(row).toContain('<AppText ltr style={{ fontWeight: "600", fontSize: ty.body');
   });
   it("L-5: 4 dp row padding and 8 dp column gap; Previous flex 1.1", () => {

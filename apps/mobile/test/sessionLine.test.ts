@@ -33,7 +33,8 @@ describe("session line (logger 10x §5)", () => {
   it("Pause never hides, the details panel stays reachable, large text wraps to two rows, one live region", () => {
     expect(screen).toContain('t("rack.setsOf"');
     expect(screen).not.toMatch(/warns \? null : <IconButton/);
-    expect(screen).toContain('<IconButton icon="more" label={t("workout.details")}');
+    expect(screen).toContain('{t("workout.details")}');
+    expect(screen).toContain("<WorkoutSessionOverview visible={detailsOpen}");
     expect(screen).toContain("<WorkoutDetailsPanel\n          open={detailsOpen}");
     expect(screen).toContain('flexWrap: largeText && !keyboardUp ? "wrap" : "nowrap"');
     expect(screen).toContain('text={statusShort}');

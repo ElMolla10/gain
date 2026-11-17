@@ -49,7 +49,7 @@ describe("continuing from imported workouts", () => {
       const target = await c.finish.getTargetForExercise(planned.sessionId, bench.id);
       expect(target?.load).toBe(proposal.load);
       expect(target?.lineId).toBe(lineId);
-      const previous = await c.workout.previousPerformances(bench.id, dayId!);
+      const previous = await c.workout.previousPerformances(bench.id, dayId!, { setup: bench.setup, gymId });
       const lastImported = history.at(-1)!.sets.filter(s => !s.warmup && !s.tags?.includes("drop"));
       expect(previous.any?.sets).toEqual(lastImported);
       expect(previous.routine?.sets).toEqual(lastImported);

@@ -1,5 +1,5 @@
 import { COLLECTION_TIERS } from "@gain/engine";
-import { MilestoneArt } from "./MilestoneArt";
+import { MilestoneArt } from "../MilestoneArt";
 import React, { useId } from "react";
 import { useWindowDimensions, View } from "react-native";
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop, Text as SvgText, TextPath } from "react-native-svg";

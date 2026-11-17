@@ -1,5 +1,5 @@
 import { COLLECTION_TIERS } from "@gain/engine";
-import { MilestoneArt } from "./MilestoneArt";
+import { MilestoneArt } from "../MilestoneArt";
 import React from "react";
 import { View } from "react-native";
 import { usePalette } from "../../theme";

@@ -1,5 +1,6 @@
+import { evaluateAchievements } from "@gain/engine";
+import { loadAchievementSessions } from "./achievementRepo";
 import { consistencyProgress, personalMilestone } from "../logic/personalProgress";
-import { strengthBreakthroughs, type BreakthroughInput } from "../logic/achievementProgress";
 import { findSpec, weekStartOf, isTimedMeasure, liftTrend, MAX_METRES, MAX_PLAUSIBLE_REPS, MAX_SECONDS, timedTrend, type HistorySession, type Measure, type LiftTrend, type LoggedSet, type OutlierStatus, type SetupType } from "@gain/engine";
 import { syncAchievements } from "./achievementRepo";
 import type { Db, Deps } from "./driver";
@@ -150,19 +151,16 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
 
   /** Recomputed from trusted saved sets. Corrections, exclusions and deleted workouts update achievements automatically. */
   async function getStrengthBreakthroughs(at = now()) {
-    const rows = await db.all<BreakthroughInput>(
-      `SELECT l.id AS lineId, e.id AS exerciseId, e.name_en AS nameEn, e.name_ar AS nameAr,
-              l.setup, s.id AS sessionId, s.finished_at AS at, ws.load
-         FROM workout_set ws JOIN session s ON s.id = ws.session_id
-         JOIN exercise_line l ON l.id = ws.line_id JOIN exercise e ON e.id = ws.exercise_id
-        WHERE s.status = 'finished' AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL AND s.finished_at <= ?
-          AND ws.deleted_at IS NULL AND ws.is_warmup = 0
-          AND ws.outlier_status NOT IN ('unconfirmed', 'rejected')
-          AND NOT EXISTS (SELECT 1 FROM json_each(ws.tags_json) WHERE value = 'drop')
-          AND CASE e.measure WHEN 'time' THEN ws.duration_s > 0 WHEN 'distance' THEN ws.distance_m > 0 ELSE ws.reps > 0 END
-        ORDER BY s.finished_at, s.rowid, ws.position, ws.rowid`, [at],
+    const events = evaluateAchievements((await loadAchievementSessions(db)).filter(s => s.finishedAtUtc <= at)).earned.filter(e => e.badgeId === "strength_pr_v2");
+    const info = await db.all<{ lineId: string; exerciseId: string; nameEn: string; nameAr: string; setup: string }>(
+      "SELECT l.id AS lineId, e.id AS exerciseId, e.name_en AS nameEn, e.name_ar AS nameAr, l.setup FROM exercise_line l JOIN exercise e ON e.id = l.exercise_id WHERE l.deleted_at IS NULL",
     );
-    return strengthBreakthroughs(rows, at);
+    return events.flatMap(event => {
+      const e = event.evidence;
+      if (e.kind !== "strength_pr") return [];
+      const line = info.find(l => l.exerciseId === e.identity.exerciseId && l.setup === e.identity.setup);
+      return line ? [{ ...line, at: event.earnedAtUtc, load: e.newBest.load, previous: e.previousBest.load, assisted: e.identity.setup === "assisted", sessionId: event.primarySessionId }] : [];
+    }).reverse();
   }
 
   async function countSessions(): Promise<number> {
@@ -259,8 +257,8 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
   async function getLiftTrend(lineId: string): Promise<{ lift: LiftItem; sessions: HistorySession[]; trend: LiftTrend } | null> {
     const lift = (await baseLifts()).find((l) => l.lineId === lineId);
     if (!lift) return null;
-    const rows = await db.all<{ sid: string; finished_at: number; imported: number; load: number; reps: number; duration_s: number | null; distance_m: number | null; rir: number | null; is_warmup: number; tags_json: string; outlier_status: OutlierStatus }>(
-      `SELECT s.id AS sid, s.finished_at, (s.import_key IS NOT NULL) AS imported, ws.load, ws.reps, ws.duration_s, ws.distance_m, ws.rir, ws.is_warmup, ws.tags_json, ws.outlier_status
+    const rows = await db.all<{ set_id: string; sid: string; finished_at: number; imported: number; load: number; reps: number; duration_s: number | null; distance_m: number | null; rir: number | null; is_warmup: number; tags_json: string; outlier_status: OutlierStatus }>(
+      `SELECT ws.id AS set_id, s.id AS sid, s.finished_at, (s.import_key IS NOT NULL) AS imported, ws.load, ws.reps, ws.duration_s, ws.distance_m, ws.rir, ws.is_warmup, ws.tags_json, ws.outlier_status
          FROM workout_set ws JOIN session s ON s.id = ws.session_id
         WHERE ws.line_id = ? AND s.status = 'finished' AND ws.deleted_at IS NULL AND s.deleted_at IS NULL AND s.finished_at IS NOT NULL
         ORDER BY s.finished_at, ws.position`,
@@ -276,7 +274,7 @@ export function createHistoryRepo(db: Db, deps: Deps, repos: Repos, finish: Fini
         bySession.set(r.sid, h);
         if (r.imported === 1) imported.add(r.finished_at);
       }
-      const set: LoggedSet = { load: r.load, reps: r.reps, ...(r.duration_s !== null ? { durationS: r.duration_s } : {}), ...(r.distance_m !== null ? { distanceM: r.distance_m } : {}), rir: r.rir, warmup: r.is_warmup === 1, tags: JSON.parse(r.tags_json) as string[], outlierStatus: r.outlier_status };
+      const set: LoggedSet = { id: r.set_id, load: r.load, reps: r.reps, ...(r.duration_s !== null ? { durationS: r.duration_s } : {}), ...(r.distance_m !== null ? { distanceM: r.distance_m } : {}), rir: r.rir, warmup: r.is_warmup === 1, tags: JSON.parse(r.tags_json) as string[], outlierStatus: r.outlier_status };
       h.sets.push(set);
     }
     const sessions = [...bySession.values()];

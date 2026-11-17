@@ -54,7 +54,7 @@ describe("achievement persistence", () => {
     await c.workout.finishSession(id);
     await c.achievements.sync();
     const badges = await c.achievements.listForSession(id);
-    const hero = badges.find(b => b.badgeId === "strength_pr")!;
+    const hero = badges.find(b => b.badgeId === "first_pr")!;
     expect(hero.primarySetId).toBe(stronger.id);
     expect(hero.celebratedAtUtc).toBeNull();
   });
@@ -66,12 +66,12 @@ describe("achievement persistence", () => {
     const first = await c.achievements.ensureBackfill();
     expect(first.inserted).toBeGreaterThan(0);
     const home = await c.achievements.getHome();
-    expect(home.bannerCount).toBe(first.inserted);
-    expect(home.earned.some((r) => r.badgeId === "first_session")).toBe(true);
+    expect(home.bannerCount).toBeNull();
+    expect(home.earned.some((r) => r.badgeId === "first_workout")).toBe(true);
     expect(home.earned.every((r) => r.isBackfilled)).toBe(true);
     const again = await c.achievements.ensureBackfill();
     expect(again.inserted).toBe(0);
-    expect(await c.achievements.getHome().then((h) => h.bannerCount)).toBe(first.inserted);
+    expect(await c.achievements.getHome().then((h) => h.bannerCount)).toBeNull();
     await c.achievements.dismissBanner();
     expect(await c.achievements.getHome().then((h) => h.bannerCount)).toBeNull();
   });
@@ -81,7 +81,7 @@ describe("achievement persistence", () => {
     await c.achievements.ensureBackfill();
     await c.train();
     await c.achievements.sync();
-    const first = (await c.achievements.listEarned()).find((r) => r.badgeId === "first_session");
+    const first = (await c.achievements.listEarned()).find((r) => r.badgeId === "first_workout");
     expect(first?.isBackfilled).toBe(false);
     expect(first?.status).toBe("earned");
   });
@@ -92,17 +92,17 @@ describe("achievement persistence", () => {
     c.deps.tick(DAY);
     const b = await c.train();
     await c.achievements.sync();
-    const before = (await c.achievements.listEarned()).find((r) => r.badgeId === "first_session")!;
+    const before = (await c.achievements.listEarned()).find((r) => r.badgeId === "first_workout")!;
     expect(before.primarySessionId).toBe(a.sessionId);
     await c.history.deleteWorkout(a.sessionId);
-    const reanchored = (await c.achievements.listEarned()).find((r) => r.badgeId === "first_session")!;
+    const reanchored = (await c.achievements.listEarned()).find((r) => r.badgeId === "first_workout")!;
     expect(reanchored.id).toBe(before.id);
     expect(reanchored.status).toBe("earned");
     expect(reanchored.primarySessionId).toBe(b.sessionId);
     const audits = await c.db.all<{ action: string }>("SELECT action FROM achievement_audit_log WHERE achievement_id = ? ORDER BY created_at", [before.id]);
     expect(audits.map((r) => r.action)).toContain("reanchored");
     await c.history.deleteWorkout(b.sessionId);
-    const gone = (await c.achievements.listEarned()).find((r) => r.badgeId === "first_session")!;
+    const gone = (await c.achievements.listEarned()).find((r) => r.badgeId === "first_workout")!;
     expect(gone.status).toBe("revoked_by_edit");
     expect(await c.db.get<{ action: string }>("SELECT action FROM achievement_audit_log WHERE achievement_id = ? AND action = 'revoked_by_edit'", [before.id])).not.toBeNull();
   });
@@ -118,12 +118,12 @@ describe("achievement persistence", () => {
     expect(home.nextUp.every((n) => n.target > n.current)).toBe(true);
     const live = await c.achievements.listForSession(sessionId);
     expect(live.every((r) => r.isBackfilled === false && r.primarySessionId === sessionId)).toBe(true);
-    expect(live.some((r) => r.badgeId === "first_session")).toBe(true);
+    expect(live.some((r) => r.badgeId === "first_workout")).toBe(true);
     await c.achievements.markCelebrated(live.map((r) => r.id));
     expect(await c.achievements.listForSession(sessionId)).toEqual([]);
     const cabinet = await c.achievements.listCabinet();
-    expect(cabinet.some((r) => r.badgeId === "first_session" && r.status === "earned")).toBe(true);
-    expect(cabinet.some((r) => r.badgeId === "qualified_weeks_4" && r.status === "in_progress")).toBe(true);
+    expect(cabinet.some((r) => r.badgeId === "first_workout" && r.status === "earned")).toBe(true);
+    expect(cabinet.some((r) => r.badgeId === "showing_up_4" && r.status === "in_progress")).toBe(true);
   });
 
   it("stamps an immutable local calendar date at finish time", async () => {
@@ -159,19 +159,20 @@ describe("achievement persistence", () => {
 
   it("pins a lift, shows progress in Next up, and awards Target reached from a trusted set", async () => {
     const c = await setup();
-    await c.achievements.setPin({ exerciseId: c.ex.exerciseId, equipment: c.ex.equipment, setup: c.ex.setup, load: 70, reps: 5 });
     await c.train({ load: 60, reps: 5 });
+    c.deps.tick(DAY);
+    await c.achievements.setPin({ exerciseId: c.ex.exerciseId, equipment: c.ex.equipment, setup: c.ex.setup, load: 70, reps: 5 });
     await c.achievements.sync();
     const home = await c.achievements.getHome();
     expect(home.nextUp.some((n) => n.badgeId.startsWith("pin_target"))).toBe(true);
     const toward = home.nextUp.find((n) => n.badgeId.startsWith("pin_target"))!;
     expect(toward.current).toBeGreaterThan(0);
     expect(toward.current).toBeLessThan(100);
-    expect((await c.achievements.listEarned()).some((r) => r.badgeId === "pin_target" && r.status === "earned")).toBe(false);
+    expect((await c.achievements.listEarned()).some((r) => r.badgeId === "called_it" && r.status === "earned")).toBe(false);
     c.deps.tick(DAY);
     await c.train({ load: 70, reps: 5 });
     await c.achievements.sync();
-    const earned = (await c.achievements.listEarned()).find((r) => r.badgeId === "pin_target");
+    const earned = (await c.achievements.listEarned()).find((r) => r.badgeId === "called_it");
     expect(earned?.status).toBe("earned");
     expect(earned?.evidence?.kind).toBe("pin_target");
     expect(await c.achievements.getPin(c.ex.exerciseId)).toBeNull();

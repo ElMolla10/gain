@@ -8,7 +8,7 @@ import { byType, expand, nodes, texts } from "./achievementRender";
 const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar", fontScale: 1, dark: true }));
 vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig()));
 vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale, width: 400, height: 800 }) }));
-vi.mock("react-native-svg", () => ({ default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
+vi.mock("react-native-svg", () => ({ SvgXml: "SvgXml", default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: settings.lang, unit: "kg", direction: settings.lang === "ar" ? "rtl" : "ltr", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(settings.lang, k, p) }) }));
 vi.mock("../src/theme", async () => {
   const pal = await import("../src/palettes");
@@ -37,100 +37,24 @@ beforeEach(() => {
   settings.dark = true;
 });
 
-describe("plate copy", () => {
-  it("EN: tier, days to the next plate, one spoken label", () => {
-    const c = plateCopy(412, false, "en", t("en"));
-    expect(c.numeral).toBe("412");
-    expect(c.label).toBe("training days");
-    expect(c.caption).toBe(`${iso("Yellow plate")} · ${iso("88")} days to ${iso("the blue plate")}`);
-    expect(c.a11y.startsWith(`${iso("412 training days")}, `)).toBe(true);
-    expect(plateCopy(1, false, "en", t("en")).label).toBe("training day");
-    expect(plateCopy(99, false, "en", t("en")).caption).toContain(`${iso("1")} day to`);
-  });
-  it("AR: Arabic count nouns, Arabic values never LTR-isolated, Western digits", () => {
-    const c = plateCopy(412, false, "ar", t("ar"));
-    expect(c.label).toBe("يوم تمرين");
-    expect(c.caption).toBe(`\u2068طارة صفرا${PDI} · فاضل ${iso("88")} يوم على \u2068الطارة الزرقا${PDI}`);
-    expect(c.caption).not.toContain(`${LRI}طارة`);
-    expect(plateCopy(5, false, "ar", t("ar")).label).toBe("أيام تمرين");
-    expect(plateCopy(95, false, "ar", t("ar")).caption).toContain(`فاضل ${iso("5")} أيام`);
-    expect(c.a11y).toContain("،");
-  });
-  it("the red plate has no next; the floor reads 1000+; zero is the empty state", () => {
-    expect(plateCopy(1043, false, "en", t("en")).caption).toBe(`${iso("Red plate")} · the top plate`);
-    expect(plateCopy(1000, true, "en", t("en")).numeral).toBe("1000+");
-    const empty = plateCopy(0, false, "en", t("en"));
-    expect([empty.empty, empty.caption, empty.body]).toEqual([true, "Your first plate is waiting", "A training day counts once you log 3 working sets."]);
-    expect(plateCopy(null, false, "ar", t("ar")).caption).toBe("أول طارة مستنياك");
-  });
-  it("sleeve and medals: Arabic uses من, never a slash", () => {
-    expect(sleeveCopy(1, 2, t("en")).line).toBe(`${iso("1")} of ${iso("2")} days loaded`);
-    expect(sleeveCopy(2, 2, t("en")).line).toBe("This week is qualified.");
-    expect(sleeveCopy(1, 2, t("ar")).line).toBe(`${iso("1")} من ${iso("2")} أيام على البار`);
-    expect(sleeveCopy(1, 2, t("ar")).a11y).toBe(`الأسبوع ده: ${iso("1")} من ${iso("2")} أيام`);
-    expect(medalsValue(11, 17, t("en"))).toBe(`${iso("11")}${NBSP}/${NBSP}${iso("17")}`);
-    const ar = medalsValue(11, 17, t("ar"));
-    expect(ar).toBe(`${iso("11")} من ${iso("17")}`);
-    expect(ar).not.toContain("/");
-  });
-});
-
-describe("LifetimePlate", () => {
-  it("is one accessibility element; the art is hidden; numeral and label are UI text in the collar", () => {
-    const tree = render(React.createElement(LifetimePlate, { days: 412, daysIsFloor: false }));
-    const root = nodes(tree)[0]!;
-    expect(root.props.accessible).toBe(true);
-    expect(root.props.accessibilityLabel).toBe(plateCopy(412, false, "en", t("en")).a11y);
-    const svg = byType(tree, "Svg")[0]!;
-    expect(svg.props.accessibilityElementsHidden).toBe(true);
-    expect(svg.props.width).toBe(PLATE_SIZE);
-    expect(svg.props.style).toEqual({ direction: "ltr" });
-    expect(texts(tree)).toEqual(["412", "training days", plateCopy(412, false, "en", t("en")).caption]);
-    // Numeral is pure digits, so it may be drawn ltr (S-1); the label is not.
-    const [numeral, label] = byType(tree, "AppText");
-    expect(numeral!.props.ltr).toBe(true);
-    expect(label!.props.ltr).toBeUndefined();
-  });
-  it("draws the yellow face and an arc in the NEXT plate's colour; engraving is Latin brand + numerals only", () => {
-    const tree = render(React.createElement(LifetimePlate, { days: 412 }));
-    const stops = byType(tree, "Stop").map((s) => s.props.stopColor);
-    expect(stops).toContain(PLATE_COLOURS.yellow.face);
-    const arc = byType(tree, "Circle").find((c) => c.props.strokeDasharray);
-    expect(arc!.props.stroke).toBe(PLATE_COLOURS.blue.arcDark);
-    const engraving = byType(tree, "TextPath")[0]!.props.children as string;
-    expect(engraving).toMatch(/^[A-Z0-9 ·]+$/);
-    expect(engraving).toContain("GAIN · 250");
-    settings.dark = false;
-    const light = render(React.createElement(LifetimePlate, { days: 412 }));
-    expect(byType(light, "Circle").find((c) => c.props.strokeDasharray)!.props.stroke).toBe(PLATE_COLOURS.blue.arcLight);
-  });
-  it("mono fallback and the red plate use the accent arc (olive on light, never lime: S-10)", () => {
-    const mono = render(React.createElement(LifetimePlate, { days: 412, variant: "mono" }));
-    expect(byType(mono, "Circle").find((c) => c.props.strokeDasharray)!.props.stroke).toBe(achievementArtDark.arcDone);
-    settings.dark = false;
-    const red = render(React.createElement(LifetimePlate, { days: 1043 }));
-    expect(byType(red, "Circle").find((c) => c.props.strokeDasharray)!.props.stroke).toBe(achievementArtLight.arcDone);
-    expect(achievementArtLight.arcDone).toBe("#3C5700");
-  });
-  it("empty: dashed outline, no arc, the first-plate copy", () => {
-    const tree = render(React.createElement(LifetimePlate, { days: 0 }));
-    expect(byType(tree, "Circle").some((c) => c.props.strokeDasharray === "6 5")).toBe(true);
-    expect(byType(tree, "Circle").some((c) => typeof c.props.strokeDasharray === "string" && c.props.strokeDasharray.includes(" 653"))).toBe(false);
-    expect(texts(tree)).toContain("Your first plate is waiting");
-  });
-  it("large text: the plate shrinks to 200 and the label moves under it", () => {
-    settings.fontScale = 1.5;
-    const tree = render(React.createElement(LifetimePlate, { days: 412 }));
-    expect(byType(tree, "Svg")[0]!.props.width).toBe(PLATE_SIZE_LARGE_TEXT);
-    expect(texts(tree)).toEqual(["412", "412 training days", plateCopy(412, false, "en", t("en")).caption]);
-  });
-  it("AR render: label in Arabic, numeral stays digits, the art does not mirror", () => {
-    settings.lang = "ar";
-    const tree = render(React.createElement(LifetimePlate, { days: 1043 }));
-    expect(texts(tree).slice(0, 2)).toEqual(["1043", "يوم تمرين"]);
-    expect(byType(tree, "Svg")[0]!.props.style).toEqual({ direction: "ltr" });
-    expect(nodes(tree).some((n) => JSON.stringify(n.props.style ?? {}).includes("scaleX"))).toBe(false);
-  });
+describe("collection plate presentation",()=>{
+ it.each(["en","ar"] as const)("%s speaks the current tier and remaining dates",lang=>{
+  const copy=plateCopy(76,false,lang,t(lang));expect(copy.empty).toBe(false);expect(copy.caption).toContain("24");expect(copy.a11y).toContain("76");
+  expect(plateCopy(9,false,lang,t(lang)).empty).toBe(true);
+ });
+ it("uses the actual engraved plate art with an open hub",()=>{
+  const tree=render(React.createElement(LifetimePlate,{days:76}));expect(byType(tree,"SvgXml")[0]!.props.xml).toContain('>50</text>');expect(byType(tree,"SvgXml")[0]!.props.xml).toContain('r="11.6"');
+  expect(nodes(tree)[0]!.props.accessibilityRole).toBe("image");
+ });
+ it("shrinks at accessibility text sizes without squeezing localized captions",()=>{
+  settings.fontScale=1.5;const tree=render(React.createElement(LifetimePlate,{days:76}));expect(byType(tree,"SvgXml")[0]!.props.width).toBe(PLATE_SIZE_LARGE_TEXT);
+ });
+ it("engraves the special 1K plate in lime",()=>{
+  const tree=render(React.createElement(LifetimePlate,{days:1000}));const xml=byType(tree,"SvgXml")[0]!.props.xml;expect(xml).toContain('>1K</text>');expect(xml).toContain('#b9d929');
+ });
+ it("keeps the medal denominator at 15 in both languages",()=>{
+  for(const lang of ["en","ar"] as const)expect(medalsValue(1,15,t(lang))).toContain("15");
+ });
 });
 
 describe("WeekSleeve", () => {

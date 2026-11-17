@@ -1,5 +1,5 @@
 import { preferUsedTwin } from "./library/equivalents";
-import { classifyTitle, findSpec, guessPattern, logicalTrainingDateFromMs, matchLibrary, MAX_METRES, MAX_SECONDS, roundToGymLoad, type EquipmentType, type GymFingerprint, type ImportedExercise, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type Measure, type SetupType } from "@gain/engine";
+import { classifyTitle, findSpec, guessPattern, logicalTrainingDate, matchLibrary, MAX_METRES, MAX_SECONDS, roundToGymLoad, type EquipmentType, type GymFingerprint, type ImportedExercise, type ImportParse, type ImportSource, type ImportedWorkout, type LibraryEntry, type Measure, type SetupType } from "@gain/engine";
 import type { Db, Deps } from "./driver";
 import type { FinishRepo } from "./finishRepo";
 import type { ProgrammeRepo } from "./programmeRepo";
@@ -396,7 +396,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
         await db.run(
           `INSERT INTO session (id, programme_version_id, programme_day_id, gym_id, status, started_at, finished_at, local_calendar_date, import_key, import_batch_id, created_at, updated_at)
            VALUES (?, ?, ?, ?, 'finished', ?, ?, ?, ?, ?, ?, ?)`,
-          [sessionId, versionId, dayId, gymId, start, end, logicalTrainingDateFromMs(end), w.key, batchId, t0, t0],
+          [sessionId, versionId, dayId, gymId, start, end, logicalTrainingDate({ year: Number((w.endTime ?? w.startTime).slice(0,4)), month: Number((w.endTime ?? w.startTime).slice(5,7)), day: Number((w.endTime ?? w.startTime).slice(8,10)), hour: Number((w.endTime ?? w.startTime).slice(11,13)), minute: Number((w.endTime ?? w.startTime).slice(14,16)) }), w.key, batchId, t0, t0],
         );
         const position = new Map<string, number>();
         for (const { e, ex, rows } of plan) {
@@ -414,6 +414,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'none', ?, ?)`,
                 [newId(), sessionId, ex.id, lineId, pos, snapImportedLoad(gymLoads, ex.equipment, ex.setup, s.load), s.reps, s.rir ?? null, s.warmup ? 1 : 0, JSON.stringify(s.tags ?? []), t0, t0],
               );
+              await db.run("UPDATE workout_set SET identity_reliable = ?, updated_at = ? WHERE session_id = ? AND exercise_id = ?", [input.mappings[e.title]?.kind === "existing" || !/^(press|row|curl|raise|extension|pull|push|squat|deadlift)$/i.test(e.title.trim()) ? 1 : 0, t0, sessionId, ex.id]);
               sets++;
             }
           } else {
@@ -426,6 +427,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
                  VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, NULL, ?, ?, 'none', ?, ?)`,
                 [newId(), sessionId, ex.id, lineId, pos, snapImportedLoad(gymLoads, ex.equipment, ex.setup, s.load), ex.measure === "time" ? Math.round(s.durationS!) : null, ex.measure === "distance" ? s.distanceM! : null, s.warmup ? 1 : 0, JSON.stringify(s.tags ?? []), t0, t0],
               );
+              await db.run("UPDATE workout_set SET identity_reliable = ?, updated_at = ? WHERE session_id = ? AND exercise_id = ?", [input.mappings[e.title]?.kind === "existing" || !/^(press|row|curl|raise|extension|pull|push|squat|deadlift)$/i.test(e.title.trim()) ? 1 : 0, t0, sessionId, ex.id]);
               sets++;
             }
           }
@@ -457,7 +459,7 @@ export function createImportRepo(db: Db, deps: Deps, repos: Repos, workout: Work
     const raw = await repos.getSetting("week_starts_on");
     const v = raw === null || raw === "" ? Number.NaN : Number(raw);
     const startsOn = Number.isInteger(v) && v >= 0 && v <= 6 ? v : 1;
-    await syncAchievements(db, deps, { weekStartsOn: startsOn, backfill: false, repos });
+    await syncAchievements(db, deps, { weekStartsOn: startsOn, backfill: true, repos });
   }
 
   /** Refresh derived data after COMMIT. Failures must not report that history changes were rolled back. */

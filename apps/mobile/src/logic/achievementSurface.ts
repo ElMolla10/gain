@@ -1,5 +1,6 @@
 import {
   ACHIEVEMENT_CATALOG,
+  COLLECTION_CATALOG, COLLECTION_IDS, LEGACY_ACHIEVEMENT_CATALOG, collectionDefinition,
   UNIQUE_BADGE_IDS,
   type AchievementEvidence,
   type AchievementFamily,
@@ -39,21 +40,7 @@ export interface NextUpBadge {
 }
 
 export interface EvidenceSheetContent {
-  ruleKey:
-    | "achv.rule.firstSession"
-    | "achv.rule.weeks"
-    | "achv.rule.pr"
-    | "achv.rule.comeback"
-    | "achv.rule.dedicated"
-    | "achv.rule.blockBuilder"
-    | "achv.rule.spectrum"
-    | "achv.rule.hold"
-    | "achv.rule.carry"
-    | "achv.rule.workhorse"
-    | "achv.rule.hundred"
-    | "achv.rule.years"
-    | "achv.rule.pin"
-    | "achv.rule.quest";
+  ruleKey: string;
   ruleParams: Record<string, string | number>;
   supportingSessionId: string | null;
   nextTier: { badgeId: string; i18nKey: string; current: number; target: number } | null;
@@ -117,7 +104,7 @@ const HERO_RANK: Record<string, number> = {
   strength_pr: 2,
 };
 
-const RULE_PARAMS: Record<EvidenceSheetContent["ruleKey"], Record<string, string | number>> = {
+const RULE_PARAMS: Record<string, Record<string, string | number>> = {
   "achv.rule.firstSession": { sets: 3 },
   "achv.rule.weeks": { days: 2, sets: 3 },
   "achv.rule.pr": { baseline: 2, min: 3, max: 15, step: 1, bandA: "3–5", bandB: "6–10", bandC: "11–15", pct: "2.5" },
@@ -167,7 +154,7 @@ export function buildCabinet(rows: SurfaceBadge[]): SurfaceBadge[] {
   const repeatable: SurfaceBadge[] = [];
   for (const r of rows) {
     if (r.status === "revoked_by_edit") continue;
-    if (UNIQUE_BADGE_IDS.has(r.badgeId)) {
+    if (COLLECTION_IDS.has(r.badgeId)) {
       if (r.status === "earned") earnedUnique.set(r.badgeId, r);
       else if (r.status === "in_progress") progressUnique.set(r.badgeId, r);
     } else if (r.status === "earned") {
@@ -176,7 +163,7 @@ export function buildCabinet(rows: SurfaceBadge[]): SurfaceBadge[] {
   }
   const items: SurfaceBadge[] = [];
   for (const def of ACHIEVEMENT_CATALOG) {
-    if (!UNIQUE_BADGE_IDS.has(def.id)) continue;
+    if (!COLLECTION_IDS.has(def.id)) continue;
     const earned = earnedUnique.get(def.id);
     if (earned) {
       items.push(earned);
@@ -222,7 +209,7 @@ export function pickNextUp(progress: { badgeId: string; current: number; target:
   const earned = new Set(earnedBadgeIds);
   const byId = new Map(progress.map((p) => [p.badgeId, p]));
   const candidates: (NextUpBadge & { ratio: number; index: number })[] = [];
-  ACHIEVEMENT_CATALOG.forEach((b, index) => {
+  COLLECTION_CATALOG.forEach((b, index) => {
     if (!UNIQUE_BADGE_IDS.has(b.id) || earned.has(b.id)) return;
     const p = byId.get(b.id);
     const current = p?.current ?? 0;
@@ -234,9 +221,11 @@ export function pickNextUp(progress: { badgeId: string; current: number; target:
   return candidates.slice(0, 2).map(({ badgeId, i18nKey, current, target }) => ({ badgeId, i18nKey, current, target }));
 }
 
+export const isLegacyAward = (badgeId: string): boolean => !badgeId.startsWith("quest_") && LEGACY_ACHIEVEMENT_CATALOG.some(d => d.id === badgeId);
+
 export function ledgerItems(earned: SurfaceBadge[]): SurfaceBadge[] {
   return earned
-    .filter((r) => r.status === "earned" && LEDGER_BADGE_IDS.has(r.badgeId))
+    .filter((r) => r.status === "earned" && (LEDGER_BADGE_IDS.has(r.badgeId) || COLLECTION_IDS.has(r.badgeId) || r.badgeId === "strength_pr_v2"))
     .sort((a, b) => (a.earnedAtUtc ?? 0) - (b.earnedAtUtc ?? 0) || catalogIndex(a.badgeId) - catalogIndex(b.badgeId) || a.id.localeCompare(b.id));
 }
 
@@ -246,6 +235,9 @@ export function evidenceSheetContent(args: {
   qualifiedWeeksLifetime: number;
   weeks12Earned: boolean;
 }): EvidenceSheetContent {
+  if (args.badgeId === "strength_pr_v2") return { ruleKey: "collection.rule.first_pr", ruleParams: {}, supportingSessionId: args.primarySessionId, nextTier: null };
+  const def = collectionDefinition(args.badgeId);
+  if (def) return { ruleKey: def.requirementKey, ruleParams: { n: def.tier }, supportingSessionId: args.primarySessionId, nextTier: null };
   const ruleKey: EvidenceSheetContent["ruleKey"] =
     args.badgeId === "first_session"
       ? "achv.rule.firstSession"
@@ -278,7 +270,7 @@ export function evidenceSheetContent(args: {
     args.badgeId === "qualified_weeks_4" && !args.weeks12Earned
       ? { badgeId: "qualified_weeks_12", i18nKey: "achv.weeks12", current: args.qualifiedWeeksLifetime, target: 12 }
       : null;
-  return { ruleKey, ruleParams: RULE_PARAMS[ruleKey], supportingSessionId: args.primarySessionId, nextTier };
+  return { ruleKey, ruleParams: RULE_PARAMS[ruleKey] ?? {}, supportingSessionId: args.primarySessionId, nextTier };
 }
 
 export function shareCardCopy(

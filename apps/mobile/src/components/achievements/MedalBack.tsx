@@ -1,3 +1,4 @@
+import { collectionDefinition } from "@gain/engine";
 import React, { useId } from "react";
 import { View } from "react-native";
 import Svg, { ClipPath, Defs, G, LinearGradient, Path, Stop } from "react-native-svg";
@@ -20,7 +21,10 @@ export function MedalBackFace({ badgeId, size, copy }: { badgeId: string; size: 
   const { lang } = useI18n();
   const uid = useId().replace(/[^A-Za-z0-9]/g, "");
   const mat = materialFor(badgeId);
-  const sil = (MEDAL_ART[badgeId] ?? MEDAL_ART.first_session!).sil;
+  const def = collectionDefinition(badgeId);
+  const legacy = MEDAL_ART[badgeId === "strength_pr_v2" ? "strength_pr" : badgeId];
+  if (!def && !legacy) return null;
+  const sil = def ? (def.category === "plate" ? "M50 4a46 46 0 1 1 0 92a46 46 0 1 1 0-92" : "M27 5H73L95 27V43Q85 50 95 57V73L73 95H27L5 73V57Q15 50 5 43V27Z") : legacy!.sil;
   const ink = { color: mat.engrave, textAlign: "center" as const };
   return (
     <View style={{ width: size, height: size }}>

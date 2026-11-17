@@ -57,7 +57,7 @@ export function AchievementEvidenceSheet(props: {
                 : t("achievements.locked")}
           </AppText>
           {row.status === "revoked_by_edit" ? <AppText style={{ color: p.muted }}>{t("achv.revoked")}</AppText> : null}
-          <AppText>{t(sheet.ruleKey, sheet.ruleParams)}</AppText>
+          <AppText>{t(sheet.ruleKey as StringKey, sheet.ruleParams)}</AppText>
           {sheet.nextTier ? (
             <AppText>
               {t("achv.cabinet.nextTier", {

@@ -10,7 +10,7 @@ vi.mock("react-native", () => ({
   Pressable: "Pressable",
   ScrollView: "ScrollView",
 }));
-vi.mock("react-native-svg", () => ({
+vi.mock("react-native-svg", () => ({ SvgXml: "SvgXml",
   default: "Svg",
   Svg: "Svg",
   Defs: "Defs",

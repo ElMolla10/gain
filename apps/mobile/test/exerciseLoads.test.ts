@@ -107,6 +107,7 @@ describe("migration 11: weights set per exercise (upgrade from schema 10 with re
     delete before.user_quest;
     delete before.lift_pin;
     before.exercise_line = (before.exercise_line as Record<string, unknown>[]).map(({ load_spec_json: _l, ...rest }) => rest);
+    before.workout_set = (before.workout_set as Record<string, unknown>[]).map(({ identity_reliable: _ir, ...rest }) => rest);
     before.session = (before.session as Record<string, unknown>[]).map(({ paused_ms: _p, paused_at: _a, local_calendar_date: _d, readiness: _r, feel: _f, health_uuid: _h, ...rest }) => rest);
     before.import_batch = (before.import_batch as Record<string, unknown>[]).map(({ source_kind: _s, ...rest }) => rest);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);

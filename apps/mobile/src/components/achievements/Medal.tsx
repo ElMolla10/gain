@@ -1,3 +1,5 @@
+import { collectionDefinition } from "@gain/engine";
+import { MilestoneArt } from "./MilestoneArt";
 import React, { useId } from "react";
 import { View } from "react-native";
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from "react-native-svg";
@@ -118,7 +120,9 @@ function Boss({ badgeId, mat, art, state, month, lod }: { badgeId: string; mat: 
 export function Medal({ badgeId, state, size, progress = 0, month, tilt, spec = 0.35, opacity }: MedalProps) {
   const art = useAchievementArt();
   const uid = useId().replace(/[^A-Za-z0-9]/g, "");
-  const master = MEDAL_ART[badgeId] ?? MEDAL_ART.first_session!;
+  const master = MEDAL_ART[badgeId === "strength_pr_v2" ? "strength_pr" : badgeId];
+  if (collectionDefinition(badgeId)) return <MilestoneArt badgeId={badgeId} state={state} size={size} />;
+  if (!master) return null;
   const lod = size <= MEDAL_LOD;
   const mat = materialFor(badgeId);
   const tx = tilt?.x ?? 0;

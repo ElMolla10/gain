@@ -509,6 +509,23 @@ ALTER TABLE session ADD COLUMN health_uuid TEXT;
   },
 ];
 
+MIGRATIONS.push({
+  version: 21,
+  name: "permanent collection and explicit target versions",
+  sql: `
+ALTER TABLE lift_pin ADD COLUMN explicit_target INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE workout_set ADD COLUMN identity_reliable INTEGER NOT NULL DEFAULT 1;
+-- A generic custom import title is not an exact exercise variation. It still contributes training dates.
+UPDATE workout_set SET identity_reliable = 0, updated_at = updated_at + 1
+ WHERE identity_reliable != 0 AND session_id IN (SELECT id FROM session WHERE import_key IS NOT NULL)
+ AND exercise_id IN (SELECT id FROM exercise WHERE seed_key IS NULL AND lower(trim(name_en)) IN ('press','row','curl','raise','extension','pull','push','squat','deadlift'));
+-- Old target timestamps do not prove intent. Only new explicit saves set this bit.
+-- Retain every old award, anchor and payload. Collection v2 replays into separate IDs.
+UPDATE user_achievements SET celebrated_at_utc = COALESCE(celebrated_at_utc, earned_at_utc, created_at)
+ WHERE rule_version < 2 AND status = 'earned';
+`,
+});
+
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
 
 /** The schema version the database is at and the one this app needs. `from` 0 = a brand-new database (nothing to protect). */

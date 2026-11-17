@@ -7,7 +7,7 @@ import { copyAtVersion, dumpAll, populatedWithRealHistory } from "./realData";
 describe("update over install: schema 9 -> latest in one run, real data (Mohamed's 70-workout Hevy export + own sessions)", () => {
   it("runs the pending migrations together, keeps every row, adds top_sets and load_spec_json as NULL, and a second run changes nothing", async () => {
     const cur = await populatedWithRealHistory();
-    expect(LATEST_VERSION).toBe(20);
+    expect(LATEST_VERSION).toBe(21);
     const before = await dumpAll(cur.db);
     expect((before.workout_set ?? []).length).toBeGreaterThan(1000);
     const old = await copyAtVersion(cur.db, 9);

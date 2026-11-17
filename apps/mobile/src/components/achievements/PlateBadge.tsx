@@ -1,9 +1,9 @@
-import React, { useId } from "react";
+import { COLLECTION_TIERS } from "@gain/engine";
+import { MilestoneArt } from "./MilestoneArt";
+import React from "react";
 import { View } from "react-native";
-import { plateProgress, plateTier } from "../../logic/achievementShowcase";
-import { useAchievementArt, useIsDark, usePalette } from "../../theme";
+import { usePalette } from "../../theme";
 import { Icon } from "../Icon";
-import { PlateArt } from "./LifetimePlate";
 
 /** Matches the compact Cabinet header badge. */
 export const PLATE_BADGE_SIZE = 36;
@@ -15,10 +15,7 @@ export const PLATE_BADGE_SIZE = 36;
  */
 export function PlateBadge({ days, size = PLATE_BADGE_SIZE }: { days: number | null; size?: number }) {
   const p = usePalette();
-  const art = useAchievementArt();
-  const dark = useIsDark();
-  const uid = useId().replace(/[^A-Za-z0-9]/g, "");
-  if (!days) {
+  if (days == null || days < 10) {
     return (
       <View accessible={false} importantForAccessibility="no" style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
         <Icon name="trophy" color={p.accent} size={24} />
@@ -27,7 +24,7 @@ export function PlateBadge({ days, size = PLATE_BADGE_SIZE }: { days: number | n
   }
   return (
     <View accessible={false} importantForAccessibility="no" style={{ width: size, height: size }}>
-      <PlateArt size={size} uid={uid} empty={false} tier={plateTier(days)} progress={plateProgress(days)} mono={false} art={art} dark={dark} />
+      <MilestoneArt size={size} badgeId={`lifetime_plate_${[...COLLECTION_TIERS.lifetime_plate].reverse().find(t => days >= t)}`} />
     </View>
   );
 }

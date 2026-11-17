@@ -89,3 +89,11 @@ describe("verified PR sets", () => {
     expect(isVerifiedPrSet([{ localDate: "2026-10-13", load: 80, reps: 5 }], at, { load: 80, reps: 5 })).toBe(false);
   });
 });
+
+describe("stable PR evidence",()=>{
+ it("matches the actual set across timezone changes and equal repeat sets",()=>{
+  const refs=[{setId:"winning-hold",localDate:"2026-01-01",load:20,reps:1}];
+  expect(isVerifiedPrSet(refs,Date.parse("2026-01-02T23:00:00Z"),{id:"winning-hold",load:20,reps:1})).toBe(true);
+  expect(isVerifiedPrSet(refs,Date.parse("2026-01-01T12:00:00Z"),{id:"equal-repeat",load:20,reps:1})).toBe(false);
+ });
+});

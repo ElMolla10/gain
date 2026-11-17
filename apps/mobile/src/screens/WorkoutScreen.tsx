@@ -139,9 +139,9 @@ export function WorkoutScreen() {
       <View style={{ paddingTop: insets.top + space.xs, paddingBottom: space.xs, paddingHorizontal: space.xs, flexDirection: "row", alignItems: "center", gap: space.sm /* 8 dp between 48 dp header targets (L-14) */, backgroundColor: p.bg }}>
         <IconButton icon="chevron" back label={t("workout.collapse")} onPress={() => navigation.goBack()} />
         {/* The day name ("Upper A") confirms at a glance which session is open (L-13); the generic title is the fallback. */}
-        <AppText accessibilityRole="header" numberOfLines={2} style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{loaded.dayName || t("workout.header")}</AppText>
+        <AppText accessibilityRole="header" numberOfLines={keyboardUp ? 1 : 2} style={{ flex: 1, fontSize: ty.body, fontWeight: "600" }}>{loaded.dayName || t("workout.header")}</AppText>
         <IconButton icon="more" label={t("workout.details")} onPress={() => setDetailsOpen(true)} />
-        <Pressable
+        {!keyboardUp || timerRunning ? <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("workout.restTimerBtn")}
           accessibilityState={{ expanded: dockVisible }}
@@ -153,7 +153,7 @@ export function WorkoutScreen() {
         >
           <Icon name="timer" color={timerRunning ? p.accent : p.text} size={24} />
           {timerRunning ? <RestClock timer={timer} style={{ color: p.accent, fontWeight: "600", fontSize: 14 }} /> : null}
-        </Pressable>
+        </Pressable> : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("workout.finishBtn")}
@@ -167,7 +167,7 @@ export function WorkoutScreen() {
 
       {/* Elapsed time, pause/resume and set progress stay visible above the table. */}
         <View style={{ flexDirection: "row", flexWrap: largeText && !keyboardUp ? "wrap" : "nowrap", alignItems: "center", columnGap: space.sm, paddingHorizontal: space.lg }}>
-          <LiveDuration startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} />
+          <LiveDuration compact startedAt={loaded.startedAt} pausedMs={loaded.pausedMs} pausedAt={loaded.pausedAt} color={p.accent} />
           {/* Pause / resume the whole workout: the duration freezes and Finish records active time only. The rest timer is separate. */}
           <IconButton icon={loaded.pausedAt != null ? "play" : "pause"} label={loaded.pausedAt != null ? t("workout.resume") : t("workout.pause")} onPress={() => void toggleDurationPause()} />
           {largeText && !keyboardUp ? <View style={{ flexBasis: "100%", height: 0 }} /> : null}

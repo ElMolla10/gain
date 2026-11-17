@@ -1,3 +1,4 @@
+import { enEquipment, arEquipment } from "./strings.equipment";
 import { enCollection, arCollection } from "./strings.collection";
 import { enProgress, arProgress } from "./strings.progress";
 /** UI strings. English is the default. Arabic is a first draft for the slice screens; needs native review. */
@@ -239,6 +240,7 @@ export const en = {
   ...enGym,
   ...enCoach,
   ...enCollection,
+  ...enEquipment,
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -450,4 +452,5 @@ export const ar: Record<StringKey, string> = {
   ...arGym,
   ...arCoach,
   ...arCollection,
+  ...arEquipment,
 };

@@ -14,7 +14,7 @@ import { byType, expand, nodes, texts } from "./achievementRender";
 const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar", fontScale: 1 }));
 vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig(), { useContext: () => null }));
 vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale, width: 400, height: 800 }) }));
-vi.mock("react-native-svg", () => ({ default: "Svg", Circle: "Circle", Defs: "Defs", Ellipse: "Ellipse", G: "G", Line: "Line", LinearGradient: "LinearGradient", Path: "Path", Polygon: "Polygon", Rect: "Rect", Stop: "Stop", Text: "SvgText" }));
+vi.mock("react-native-svg", () => ({ Image: "SvgImage", default: "Svg", Circle: "Circle", Defs: "Defs", Ellipse: "Ellipse", G: "G", Line: "Line", LinearGradient: "LinearGradient", Path: "Path", Polygon: "Polygon", Rect: "Rect", Stop: "Stop", Text: "SvgText" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: settings.lang, unit: "kg", direction: settings.lang === "ar" ? "rtl" : "ltr", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(settings.lang, k, p) }) }));
 vi.mock("../src/theme", () => ({
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
@@ -153,9 +153,9 @@ describe("TodayBar presentation (EN / AR)", () => {
     settings.fontScale = 1.5;
     expect(byType(render(hero(102.5)), "Svg")[0]!.props.height).toBe(96);
   });
-  it("the stack prints no number on the pin", () => {
+  it("the generic stack displays the target separately from its holes", () => {
     const tree = render(hero(50, { equipment: "cable" }), "Lat pulldown");
-    expect(byType(tree, "SvgText")).toHaveLength(0);
+    expect(byType(tree, "SvgText").map(n => n.props.children)).toEqual(["50"]);
   });
 });
 

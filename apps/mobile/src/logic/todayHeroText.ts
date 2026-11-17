@@ -12,7 +12,7 @@ import { unitLabel, weightText, type Unit } from "./units";
 
 type T = (key: StringKey, params?: Record<string, string | number>) => string;
 type Letters = { s: string; m: string };
-export type Shown = Exclude<TodayHero, { kind: "firstRun" }>;
+export type Shown = Exclude<TodayHero, { kind: "firstRun" | "unloaded" }>;
 
 export const MUL = `${NBSP}×${NBSP}`;
 
@@ -62,6 +62,7 @@ function spokenPlates(perSide: readonly number[], unit: Unit, lang: Lang): strin
 /** The hero's one accessibility label (spec §8). */
 export function heroA11yLabel(h: TodayHero, t: T, lang: Lang, unit: Unit, letters: Letters, name: string): string {
   if (h.kind === "firstRun") return t("today.emptyBar");
+  if (h.kind === "unloaded") return `${name}. ${t("today.noTargetsYet")}`;
   const u = t(unit === "lb" ? "today.unit.lb" : "today.unit.kg");
   const parts: string[] = [h.isGoal ? t("today.a11y.goal", { name }) : `${name}.`];
   const q = quantity(h);
@@ -78,7 +79,7 @@ export function heroA11yLabel(h: TodayHero, t: T, lang: Lang, unit: Unit, letter
       parts.push(t("today.a11y.stack", { load: w(h.load), unit: u, q: qText }));
       break;
     case "dumbbell":
-      parts.push(t("today.a11y.pair", { load: w(h.load), unit: u, q: qText }));
+      parts.push(h.count === 1 ? `${t("today.equipment.single", { load: formatLoad(h.load, lang, unit) })}. ${qText}.` : t("today.a11y.pair", { load: w(h.load), unit: u, q: qText }));
       break;
     case "horn":
       parts.push(t("today.a11y.horn", { load: w(h.load), unit: u, q: qText }));

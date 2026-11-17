@@ -60,6 +60,12 @@ export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, rack
       </View>
     );
   }
+  if (hero.kind === "unloaded") return <View accessible accessibilityLabel={label} style={{ gap: space.sm }}>
+    <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: p.muted }}>{name}</AppText>
+    <AppText style={{ fontSize: ty.display, fontWeight: "700", color: p.text }}>{"\u2014"}</AppText>
+    {hero.object === "dumbbell" ? <DumbbellPairArt load={null} count={hero.count} unit={unit} height={h}/> : <StackArt load={null} pinIndex={null} unit={unit} height={h}/>}
+    {compact ? <View style={{ minHeight: ty.label * 1.5 }} /> : null}
+  </View>;
   const parts = heroNumberParts(hero, lang, unit, letters);
   const eyebrow = eyebrowOverride ?? (hero.isGoal ? `${name} · ${t("today.goalTag")}` : name);
   const fmt = (kg: number) => formatLoad(kg, lang, unit);
@@ -75,15 +81,15 @@ export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, rack
       break;
     }
     case "dumbbell":
-      art = <DumbbellPairArt load={hero.load} unit={unit} height={h} />;
-      captions.push(t("today.pair", { load: fmt(hero.load) }));
+      art = <DumbbellPairArt load={hero.load} count={hero.count} unit={unit} height={h} />;
+      captions.push(t(hero.count === 1 ? "today.equipment.single" : "today.equipment.each", { load: fmt(hero.load) }));
       break;
     case "stack":
-      art = <StackArt pinIndex={hero.pinIndex} height={h} />;
+      art = <StackArt pinIndex={hero.pinIndex} rowCount={hero.rowCount} load={hero.load} unit={unit} height={h} />;
       captions.push(t("today.stack"));
       break;
     case "assisted":
-      art = <StackArt pinIndex={hero.pinIndex} height={h} />;
+      art = <StackArt pinIndex={hero.pinIndex} rowCount={hero.rowCount} load={hero.load} unit={unit} height={h} />;
       captions.push(t("today.assist", { load: fmt(hero.load) }));
       break;
     case "horn":
@@ -102,6 +108,8 @@ export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, rack
       break;
   }
   const warmups = hero.kind === "barbell" && hero.warmups.length > 0 && onOpenPath && !racked && !dim ? onOpenPath : null;
+  const captionText = captions.map((c, i) => typeof c === "string" ? <AppText key={i} style={{ fontSize: ty.label, color: p.muted }}>{c}</AppText> : c);
+  const objectCaption = compact && (hero.kind === "dumbbell" || hero.kind === "stack" || hero.kind === "assisted");
   return (
     <View style={{ gap: space.sm, opacity: dim ? 0.5 : 1 }}>
       <View accessible accessibilityLabel={label} style={{ gap: space.sm }}>
@@ -121,15 +129,7 @@ export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, rack
           </AppText>
         )}
         {art}
-        {compact ? null : captions.map((c, i) =>
-          typeof c === "string" ? (
-            <AppText key={i} style={{ fontSize: ty.label, color: p.muted }}>
-              {c}
-            </AppText>
-          ) : (
-            c
-          ),
-        )}
+        {objectCaption ? <View style={{ minHeight: ty.label * 1.5 }}>{hero.kind === "stack" ? null : captionText}</View> : compact ? null : captionText}
       </View>
       {!compact && warmups ? (
         <View style={{ alignItems: "flex-start" }}>

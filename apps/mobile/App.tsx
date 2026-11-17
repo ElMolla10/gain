@@ -1,3 +1,4 @@
+import { preloadEquipmentArt } from "./src/components/today/equipmentSources";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { DarkTheme, DefaultTheme, NavigationContainer, useNavigation } from "@react-navigation/native";
 import * as Crypto from "expo-crypto";
@@ -313,6 +314,7 @@ export default function App() {
       const repos = createRepos(db, deps);
       await repos.seedIfNeeded();
       await repos.topUpLibrary();
+      await preloadEquipmentArt().catch(e => diagnostics.record("warn", "equipment art preload", e));
       const workout = createWorkoutRepo(db, deps);
       const finish = createFinishRepo(db, deps, repos, workout);
       const gyms = createGymRepo(db, deps, repos, finish);

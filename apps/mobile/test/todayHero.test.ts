@@ -61,7 +61,8 @@ describe("todayHero: other equipment", () => {
     expect(as(hero(12.5, { equipment: "plate", setup: "bodyweight_plus_added" }), "belt").plates).toEqual([10, 2.5]);
   });
   it("stack: pin index from the grid (cable 50 → 10); unknown grid → null; assisted keeps its own variant", () => {
-    expect(as(hero(50, { equipment: "cable" }), "stack").pinIndex).toBe(10);
+    expect(as(hero(50, { equipment: "cable" }), "stack").pinIndex).toBeNull();
+    expect(as(hero(50, { equipment: "cable", stackSpec: {equipment:"cable",min:5,increment:5,max:100} }), "stack").pinIndex).toBe(10);
     expect(pinIndex({ equipment: "machine", increment: 5 }, 50)).toBeNull();
     expect(pinIndex({ equipment: "dumbbell", loads: [2, 4, 6] }, 4)).toBe(2);
     expect(hero(25, { equipment: "assisted", setup: "assisted" })?.kind).toBe("assisted");

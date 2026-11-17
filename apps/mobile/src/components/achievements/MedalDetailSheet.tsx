@@ -239,7 +239,7 @@ export function MedalDetailSheet(props: {
             </View>
           ) : null}
           {state === "earned" ? null : <AppText accessibilityRole="header" style={{ fontWeight: "600" }}>{t("achv.r2.detail.howTo")}</AppText>}
-          <AppText style={{ color: p.muted }}>{t(sheet.ruleKey, sheet.ruleParams)}</AppText>
+          <AppText style={{ color: p.muted }}>{t(sheet.ruleKey as StringKey, sheet.ruleParams)}</AppText>
         </>
       ) : null}
       {poster.host}

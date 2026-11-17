@@ -7,7 +7,7 @@ import { isolateLtr, NBSP, type Lang } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import type { AchievementEvidence } from "@gain/engine";
 import { arPluralKey, daysToNext, medalCount, medalOrdinal, nextPlate, plateTier, prDelta, prStair, type MedalState, type PlateTier } from "./achievementShowcase";
-import { formatSetEvidence } from "./achievementEvidence";
+import { formatSetEvidence, formatBenchmark } from "./achievementEvidence";
 import { unitLabel, weightText, type Unit } from "./units";
 import { prestigeForBadge, type SurfaceBadge } from "./achievementSurface";
 import { formatDay, formatDayFull } from "./dateText";
@@ -37,7 +37,7 @@ export function plateCopy(days: number | null, floor: boolean, lang: Lang, t: T)
   const n = days ?? 0;
   const numeral = floor ? `${n}+` : String(n);
   const label = t(countKey(n, lang, "achv.r2.plate.days.one", "achv.r2.plate.days.few"));
-  if (n <= 0) {
+  if (n < 10) {
     const caption = t("achv.r2.plate.first");
     return { numeral, label, caption, body: t("achv.r2.plate.firstBody"), empty: true, a11y: t("achv.r2.plate.a11y", { days: `${numeral} ${label}`, caption }) };
   }
@@ -135,8 +135,8 @@ export function prCopy(pr: PrRow, cabinet: readonly SurfaceBadge[], lang: Lang, 
   const n = Math.max(1, steps.length);
   // A short date stays on one line ("3\u00a0Mar").
   const since = formatDay(steps[0]?.localDate ?? e.newBest.localDate, lang, now, true).replace(/ /g, NBSP);
-  const before = formatSetEvidence(e.previousBest.load, e.previousBest.reps, lang, unit);
-  const after = formatSetEvidence(e.newBest.load, e.newBest.reps, lang, unit);
+  const before = formatBenchmark(e.previousBest, lang, unit);
+  const after = formatBenchmark(e.newBest, lang, unit);
   const delta = prDelta(e, lang, unit, t);
   const date = formatDay(pr.earnedLocalDate ?? e.newBest.localDate, lang, now);
   return {
@@ -153,6 +153,9 @@ export function prCopy(pr: PrRow, cabinet: readonly SurfaceBadge[], lang: Lang, 
 }
 
 const TIERED: Record<string, { track: string; unit: string }> = {
+  dedicated_days: { track: "dedicated", unit: "days" },
+  lifetime_plate: { track: "days", unit: "days" },
+  showing_up: { track: "weeks", unit: "weeks" },
   dedicated: { track: "dedicated", unit: "sessions" },
   hundred_club: { track: "days", unit: "days" },
   multi_year: { track: "years", unit: "years" },

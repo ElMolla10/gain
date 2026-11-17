@@ -44,7 +44,7 @@ export type PosterCopy =
   | { kind: "plate"; badgeId: string; eyebrow: string; days: number; floor: boolean; tier: PlateTier; tierName: string; since: string | null; weeks: string | null; footer: string };
 
 export function posterKind(row: Pick<SurfaceBadge, "badgeId" | "evidence">): PosterKind {
-  if (row.badgeId.startsWith("hundred_club_")) return "plate";
+  if (row.badgeId.startsWith("hundred_club_") || row.badgeId.startsWith("lifetime_plate_")) return "plate";
   if (row.evidence?.kind === "strength_pr") return "pr";
   return "medal";
 }
@@ -71,7 +71,7 @@ export function posterCopy(row: SurfaceBadge, ctx: PosterContext): PosterCopy {
     const days = ctx.days?.days ?? fromEvidence;
     const floor = ctx.days?.days != null ? ctx.days.floor : false;
     const tier = plateTier(days);
-    const first = ctx.cabinet?.find((r) => r.badgeId === "first_session" && r.status === "earned" && r.earnedLocalDate);
+    const first = ctx.cabinet?.find((r) => (r.badgeId === "first_session" || r.badgeId === "first_workout") && r.status === "earned" && r.earnedLocalDate);
     const weeks = ctx.qualifiedWeeks ?? null;
     return {
       kind,

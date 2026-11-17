@@ -43,7 +43,7 @@ export function pr(
   };
   return row({
     id,
-    badgeId: "strength_pr",
+    badgeId: "strength_pr_v2",
     earnedAtUtc: opts.at ?? 1,
     earnedLocalDate: date,
     primarySessionId: `${id}-s`,

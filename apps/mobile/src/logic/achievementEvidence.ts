@@ -1,4 +1,4 @@
-import type { AchievementEvidence } from "@gain/engine";
+import type { AchievementEvidence, StrengthSetEvidence } from "@gain/engine";
 import { formatLoad, isolateLtr, NBSP, type Lang } from "../i18n/format";
 import type { StringKey } from "../i18n/strings";
 import type { Unit } from "./units";
@@ -6,6 +6,12 @@ import type { Unit } from "./units";
 export function formatSetEvidence(load: number, reps: number, lang: Lang, unit: Unit): string {
   // Language order (S-1/F-2): the number is isolated, the unit word stays in the language; never LTR-isolate Arabic.
   return `${formatLoad(load, lang, unit)}${NBSP}×${NBSP}${isolateLtr(String(reps))}`;
+}
+
+export function formatBenchmark(set: StrengthSetEvidence, lang: Lang, unit: Unit): string {
+  const quantity = set.measure === "time" ? set.durationS : set.measure === "distance" ? set.distanceM : null;
+  if (quantity != null) return `${formatLoad(set.load, lang, unit)}${NBSP}\u00d7${NBSP}${isolateLtr(String(quantity))}${NBSP}${set.measure === "time" ? (lang === "ar" ? "\u062b" : "s") : (lang === "ar" ? "\u0645" : "m")}`;
+  return formatSetEvidence(set.load, set.reps, lang, unit);
 }
 
 export function evidenceLine(
@@ -22,9 +28,11 @@ export function evidenceLine(
     const key: StringKey = lang === "ar" ? (count === 1 ? "achv.evidence.weeks.one" : count === 2 ? "achv.evidence.weeks.dual" : "achv.evidence.weeks.many") : "achv.evidence.weeks";
     return t(key, { count, run: evidence.consecutiveRun });
   }
+  if (evidence.kind === "across_the_board") return t("collection.evidence.across", { n: evidence.identities.length });
+  if (evidence.kind === "comeback" && evidence.returnLocalDate) return t("collection.evidence.return", { date: evidence.returnLocalDate, second: evidence.secondLocalDate ?? evidence.returnLocalDate });
   if (evidence.kind === "comeback") return t("achv.evidence.comeback", { days: evidence.gapDays });
   const exercise = (lang === "ar" ? names.nameAr : names.nameEn) || names.nameEn || names.nameAr || "";
-  if (evidence.kind === "dedicated") return t("achv.evidence.dedicated", { exercise, n: evidence.sessions });
+  if (evidence.kind === "dedicated") return t(evidence.distinctDates ? "collection.evidence.dedicated" : "achv.evidence.dedicated", { exercise, n: evidence.sessions });
   if (evidence.kind === "block_builder") return t("achv.evidence.blockBuilder", { exercise, months: evidence.months.join(" · ") });
   if (evidence.kind === "full_spectrum") return t("achv.evidence.spectrum", { n: evidence.covered.length, weeks: evidence.tier });
   if (evidence.kind === "iron_hold") return t("achv.evidence.hold", { exercise, before: evidence.previous.durationS, after: evidence.next.durationS });
@@ -47,7 +55,7 @@ export function evidenceLine(
   const newBest = "newBest" in evidence && evidence.newBest ? evidence.newBest : null;
   return t("achv.evidence.pr", {
     exercise,
-    before: prevBest ? formatSetEvidence(prevBest.load, prevBest.reps, lang, unit) : "",
-    after: newBest ? formatSetEvidence(newBest.load, newBest.reps, lang, unit) : "",
+    before: prevBest ? formatBenchmark(prevBest, lang, unit) : "",
+    after: newBest ? formatBenchmark(newBest, lang, unit) : "",
   });
 }

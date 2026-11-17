@@ -14,8 +14,8 @@ export type EarnHaptic = "land" | "legacy" | "celebrate";
  * dedicated_50/100). D Plate tier-up: a hundred_club_* hero is the plate, not a medal.
  */
 export function earnVariant(hero: Pick<SurfaceBadge, "badgeId" | "evidence">): EarnVariant {
-  if (hero.badgeId.startsWith("hundred_club_")) return "plate";
-  if (hero.badgeId === "strength_pr" && hero.evidence?.kind === "strength_pr") return "pr";
+  if ((hero.badgeId.startsWith("hundred_club_") || hero.badgeId.startsWith("lifetime_plate_"))) return "plate";
+  if ((hero.badgeId === "strength_pr" || hero.badgeId === "strength_pr_v2") && hero.evidence?.kind === "strength_pr") return "pr";
   if (prestigeForBadge(hero.badgeId) === "legacy") return "legacy";
   return "standard";
 }
@@ -71,7 +71,7 @@ export function runSchedule(
 
 /** Plate tier-up: the plate before this tier (the one the arc completes and crossfades away from). */
 export function plateTierUp(hero: { evidence: AchievementEvidence | null; badgeId: string }): { days: number; from: PlateTier; to: PlateTier } {
-  const tier = Number(hero.badgeId.replace("hundred_club_", "")) || 100;
+  const tier = Number(hero.badgeId.replace(/^(hundred_club|lifetime_plate)_/, "")) || 100;
   const days = hero.evidence?.kind === "hundred_club" ? hero.evidence.days : tier;
   const to = plateTier(Math.max(days, tier));
   const from = PLATE_ORDER[Math.max(0, PLATE_ORDER.indexOf(to) - 1)]!;

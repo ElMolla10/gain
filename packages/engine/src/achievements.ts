@@ -5,8 +5,14 @@
 import { epley } from "./line";
 import { isTrustedWorkingSet } from "./outlier";
 import type { EquipmentType, OutlierStatus, SetupType } from "./types";
+import { isCollectionWorkingSet } from "./collection";
+import { COLLECTION_CATALOG, COLLECTION_IDS } from "./collectionCatalog";
+export { evaluateCollection as evaluateAchievements } from "./collection";
+export * from "./collectionCatalog";
+export { isCollectionWorkingSet } from "./collection";
 
-export const ACHIEVEMENT_RULE_VERSION = 1;
+export const ACHIEVEMENT_RULE_VERSION = 2;
+/** V1 tuning retained only for legacy replay and legacy requirement text. V2 reads collectionCatalog. */
 export const QUALIFIED_WORKING_SETS = 3;
 export const QUALIFIED_WEEK_DAYS = 2;
 export const PR_REP_MIN = 3;
@@ -43,6 +49,7 @@ export type AchievementFamily =
   | "hundred_club"
   | "multi_year"
   | "pin_target"
+  | "across_the_board"
   | "quest";
 export type AchievementStatus = "locked" | "in_progress" | "earned" | "revoked_by_edit";
 
@@ -54,37 +61,39 @@ export interface BadgeDefinition {
   i18nKey: string;
 }
 
-export const ACHIEVEMENT_CATALOG: readonly BadgeDefinition[] = [
-  { id: "first_session", version: ACHIEVEMENT_RULE_VERSION, family: "first_session", tier: 1, i18nKey: "achv.firstSession" },
-  { id: "qualified_weeks_4", version: ACHIEVEMENT_RULE_VERSION, family: "qualified_weeks", tier: 4, i18nKey: "achv.weeks4" },
-  { id: "qualified_weeks_12", version: ACHIEVEMENT_RULE_VERSION, family: "qualified_weeks", tier: 12, i18nKey: "achv.weeks12" },
-  { id: "strength_pr", version: ACHIEVEMENT_RULE_VERSION, family: "strength_pr", tier: 1, i18nKey: "achv.strengthPr" },
-  { id: "comeback", version: ACHIEVEMENT_RULE_VERSION, family: "comeback", tier: 1, i18nKey: "achv.comeback" },
-  { id: "dedicated_10", version: ACHIEVEMENT_RULE_VERSION, family: "dedicated", tier: 10, i18nKey: "achv.dedicated10" },
-  { id: "dedicated_25", version: ACHIEVEMENT_RULE_VERSION, family: "dedicated", tier: 25, i18nKey: "achv.dedicated25" },
-  { id: "dedicated_50", version: ACHIEVEMENT_RULE_VERSION, family: "dedicated", tier: 50, i18nKey: "achv.dedicated50" },
-  { id: "dedicated_100", version: ACHIEVEMENT_RULE_VERSION, family: "dedicated", tier: 100, i18nKey: "achv.dedicated100" },
-  { id: "block_builder", version: ACHIEVEMENT_RULE_VERSION, family: "block_builder", tier: 1, i18nKey: "achv.blockBuilder" },
-  { id: "full_spectrum_4", version: ACHIEVEMENT_RULE_VERSION, family: "full_spectrum", tier: 4, i18nKey: "achv.spectrum4" },
-  { id: "full_spectrum_12", version: ACHIEVEMENT_RULE_VERSION, family: "full_spectrum", tier: 12, i18nKey: "achv.spectrum12" },
-  { id: "iron_hold", version: ACHIEVEMENT_RULE_VERSION, family: "iron_hold", tier: 1, i18nKey: "achv.ironHold" },
-  { id: "iron_carry", version: ACHIEVEMENT_RULE_VERSION, family: "iron_carry", tier: 1, i18nKey: "achv.ironCarry" },
-  { id: "workhorse", version: ACHIEVEMENT_RULE_VERSION, family: "workhorse", tier: 1, i18nKey: "achv.workhorse" },
-  { id: "hundred_club_100", version: ACHIEVEMENT_RULE_VERSION, family: "hundred_club", tier: 100, i18nKey: "achv.hundred100" },
-  { id: "hundred_club_250", version: ACHIEVEMENT_RULE_VERSION, family: "hundred_club", tier: 250, i18nKey: "achv.hundred250" },
-  { id: "hundred_club_500", version: ACHIEVEMENT_RULE_VERSION, family: "hundred_club", tier: 500, i18nKey: "achv.hundred500" },
-  { id: "hundred_club_1000", version: ACHIEVEMENT_RULE_VERSION, family: "hundred_club", tier: 1000, i18nKey: "achv.hundred1000" },
-  { id: "multi_year_2", version: ACHIEVEMENT_RULE_VERSION, family: "multi_year", tier: 2, i18nKey: "achv.years2" },
-  { id: "multi_year_3", version: ACHIEVEMENT_RULE_VERSION, family: "multi_year", tier: 3, i18nKey: "achv.years3" },
-  { id: "multi_year_5", version: ACHIEVEMENT_RULE_VERSION, family: "multi_year", tier: 5, i18nKey: "achv.years5" },
-  { id: "pin_target", version: ACHIEVEMENT_RULE_VERSION, family: "pin_target", tier: 1, i18nKey: "achv.pinTarget" },
-  { id: "quest_rhythm", version: ACHIEVEMENT_RULE_VERSION, family: "quest", tier: 1, i18nKey: "quest.rhythm.title" },
-  { id: "quest_craft", version: ACHIEVEMENT_RULE_VERSION, family: "quest", tier: 1, i18nKey: "quest.craft.title" },
-  { id: "quest_balance", version: ACHIEVEMENT_RULE_VERSION, family: "quest", tier: 1, i18nKey: "quest.balance.title" },
-  { id: "quest_foundation", version: ACHIEVEMENT_RULE_VERSION, family: "quest", tier: 1, i18nKey: "quest.foundation.baselines" },
+export const LEGACY_ACHIEVEMENT_CATALOG: readonly BadgeDefinition[] = [
+  { id: "first_session", version: 1, family: "first_session", tier: 1, i18nKey: "achv.firstSession" },
+  { id: "qualified_weeks_4", version: 1, family: "qualified_weeks", tier: 4, i18nKey: "achv.weeks4" },
+  { id: "qualified_weeks_12", version: 1, family: "qualified_weeks", tier: 12, i18nKey: "achv.weeks12" },
+  { id: "strength_pr", version: 1, family: "strength_pr", tier: 1, i18nKey: "achv.strengthPr" },
+  { id: "comeback", version: 1, family: "comeback", tier: 1, i18nKey: "achv.comeback" },
+  { id: "dedicated_10", version: 1, family: "dedicated", tier: 10, i18nKey: "achv.dedicated10" },
+  { id: "dedicated_25", version: 1, family: "dedicated", tier: 25, i18nKey: "achv.dedicated25" },
+  { id: "dedicated_50", version: 1, family: "dedicated", tier: 50, i18nKey: "achv.dedicated50" },
+  { id: "dedicated_100", version: 1, family: "dedicated", tier: 100, i18nKey: "achv.dedicated100" },
+  { id: "block_builder", version: 1, family: "block_builder", tier: 1, i18nKey: "achv.blockBuilder" },
+  { id: "full_spectrum_4", version: 1, family: "full_spectrum", tier: 4, i18nKey: "achv.spectrum4" },
+  { id: "full_spectrum_12", version: 1, family: "full_spectrum", tier: 12, i18nKey: "achv.spectrum12" },
+  { id: "iron_hold", version: 1, family: "iron_hold", tier: 1, i18nKey: "achv.ironHold" },
+  { id: "iron_carry", version: 1, family: "iron_carry", tier: 1, i18nKey: "achv.ironCarry" },
+  { id: "workhorse", version: 1, family: "workhorse", tier: 1, i18nKey: "achv.workhorse" },
+  { id: "hundred_club_100", version: 1, family: "hundred_club", tier: 100, i18nKey: "achv.hundred100" },
+  { id: "hundred_club_250", version: 1, family: "hundred_club", tier: 250, i18nKey: "achv.hundred250" },
+  { id: "hundred_club_500", version: 1, family: "hundred_club", tier: 500, i18nKey: "achv.hundred500" },
+  { id: "hundred_club_1000", version: 1, family: "hundred_club", tier: 1000, i18nKey: "achv.hundred1000" },
+  { id: "multi_year_2", version: 1, family: "multi_year", tier: 2, i18nKey: "achv.years2" },
+  { id: "multi_year_3", version: 1, family: "multi_year", tier: 3, i18nKey: "achv.years3" },
+  { id: "multi_year_5", version: 1, family: "multi_year", tier: 5, i18nKey: "achv.years5" },
+  { id: "pin_target", version: 1, family: "pin_target", tier: 1, i18nKey: "achv.pinTarget" },
+  { id: "quest_rhythm", version: 1, family: "quest", tier: 1, i18nKey: "quest.rhythm.title" },
+  { id: "quest_craft", version: 1, family: "quest", tier: 1, i18nKey: "quest.craft.title" },
+  { id: "quest_balance", version: 1, family: "quest", tier: 1, i18nKey: "quest.balance.title" },
+  { id: "quest_foundation", version: 1, family: "quest", tier: 1, i18nKey: "quest.foundation.baselines" },
 ];
 
+export const ACHIEVEMENT_CATALOG: readonly BadgeDefinition[] = [...COLLECTION_CATALOG, ...LEGACY_ACHIEVEMENT_CATALOG];
 export const UNIQUE_BADGE_IDS = new Set([
+  ...COLLECTION_IDS,
   "first_session",
   "qualified_weeks_4",
   "qualified_weeks_12",
@@ -118,13 +127,17 @@ export interface AchievementSet {
   distanceM?: number | null;
   pattern?: string | null;
   measure?: "reps" | "time" | "distance";
+  /** False for unresolved imports; never infer an identity from a fuzzy title. */
+  identityReliable?: boolean;
 }
 
 export interface AchievementSession {
   id: string;
   finishedAtUtc: number;
+  startedAtUtc?: number;
   /** YYYY-MM-DD stamped at log time. Never recompute from the clock later. */
   localCalendarDate: string;
+  importKey?: string | null;
   sets: AchievementSet[];
 }
 
@@ -134,6 +147,9 @@ export interface StrengthSetEvidence {
   load: number;
   reps: number;
   localDate: string;
+  durationS?: number | null;
+  distanceM?: number | null;
+  measure?: "reps" | "time" | "distance";
 }
 
 export interface IdentityRef {
@@ -144,7 +160,7 @@ export interface IdentityRef {
 
 export type AchievementEvidence =
   | { kind: "first_session"; sessionId: string; trustedWorkingSets: number }
-  | { kind: "qualified_weeks"; tier: 4 | 12; lifetimeCount: number; consecutiveRun: number; weekStart: string; sessionId: string }
+  | { kind: "qualified_weeks"; tier: number; lifetimeCount: number; consecutiveRun: number; weekStart: string; sessionId: string }
   | {
       kind: "strength_pr";
       path: "A" | "B";
@@ -153,16 +169,17 @@ export type AchievementEvidence =
       newBest: StrengthSetEvidence;
       deltas: { load: number; reps: number; e1rmPct: number };
     }
-  | { kind: "comeback"; sessionId: string; gapDays: number; qualifiedWeeksBeforeGap: number; lastSessionId: string; lastLocalDate: string }
-  | { kind: "dedicated"; tier: 10 | 25 | 50 | 100; identity: IdentityRef; sessions: number }
+  | { kind: "comeback"; sessionId: string; gapDays: number; qualifiedWeeksBeforeGap: number; lastSessionId: string; lastLocalDate: string; returnSessionId?: string; returnLocalDate?: string; secondLocalDate?: string }
+  | { kind: "dedicated"; tier: 10 | 25 | 50 | 100; identity: IdentityRef; sessions: number; distinctDates?: boolean }
   | { kind: "block_builder"; identity: IdentityRef; months: [string, string, string] }
   | { kind: "full_spectrum"; tier: 4 | 12; patterns: string[]; covered: string[]; weekStart: string }
   | { kind: "iron_hold"; identity: IdentityRef; previous: StrengthSetEvidence & { durationS: number }; next: StrengthSetEvidence & { durationS: number } }
   | { kind: "iron_carry"; identity: IdentityRef; previous: StrengthSetEvidence & { distanceM: number }; next: StrengthSetEvidence & { distanceM: number } }
   | { kind: "workhorse"; identity: IdentityRef; previousBest: StrengthSetEvidence; newBest: StrengthSetEvidence }
-  | { kind: "hundred_club"; tier: 100 | 250 | 500 | 1000; days: number }
+  | { kind: "hundred_club"; tier: number; days: number }
+  | { kind: "across_the_board"; tier: number; identities: IdentityRef[]; prSetIds: string[] }
   | { kind: "multi_year"; tier: 2 | 3 | 5; years: number }
-  | { kind: "pin_target"; identity: IdentityRef; target: { load: number; reps: number }; achieved: StrengthSetEvidence }
+  | { kind: "pin_target"; identity: IdentityRef; target: { load: number; reps: number }; achieved: StrengthSetEvidence; targetVersionId?: string; targetSetAtUtc?: number; baseline?: StrengthSetEvidence }
   | { kind: "quest"; questKind: "rhythm" | "craft" | "balance" | "foundation"; month: string; current: number; target: number };
 
 export interface AchievementEvent {
@@ -205,6 +222,9 @@ export interface EvaluateAchievementsResult {
 }
 
 export interface LiftPin {
+  setAtUtc?: number;
+  endedAtUtc?: number;
+  explicit?: boolean;
   id?: string;
   exerciseId: string;
   equipment?: EquipmentType;
@@ -328,8 +348,12 @@ export function repBand(reps: number): "3-5" | "6-10" | "11-15" | null {
   return null;
 }
 
-export function isQualifyingSession(session: AchievementSession): boolean {
+function isLegacyQualifyingSession(session: AchievementSession): boolean {
   return session.sets.filter((s) => isTrustedWorkingSet(s)).length >= QUALIFIED_WORKING_SETS;
+}
+
+export function isQualifyingSession(session: AchievementSession): boolean {
+  return session.sets.some(isCollectionWorkingSet);
 }
 
 export function pinReached(pin: LiftPin, set: AchievementSet): boolean {
@@ -500,7 +524,7 @@ function isCoreIdentity(exerciseId: string, primaryIds: string[]): boolean {
   return primaryIds.length === 0 || primaryIds.includes(exerciseId);
 }
 
-export function evaluateAchievements(
+export function evaluateLegacyAchievements(
   sessions: readonly AchievementSession[],
   opts: EvaluateAchievementsOpts = {},
 ): EvaluateAchievementsResult {
@@ -801,7 +825,7 @@ export function evaluateAchievements(
       }
     }
 
-    if (!isQualifyingSession(session)) continue;
+    if (!isLegacyQualifyingSession(session)) continue;
 
     if (!firstSessionAwarded) {
       firstSessionAwarded = true;
@@ -873,7 +897,7 @@ export function evaluateAchievements(
       const covered = new Set<string>();
       let closer: AchievementSession | null = null;
       for (const s of ordered) {
-        if (!isQualifyingSession(s)) continue;
+        if (!isLegacyQualifyingSession(s)) continue;
         if (!want.has(weekStartOfLocalDate(s.localCalendarDate, weekStartsOn))) continue;
         closer = s;
         for (const set of s.sets) {
@@ -1019,7 +1043,7 @@ export function reconcileAchievements(existing: readonly StoredAchievement[], de
   };
 
   desired.forEach((event) => {
-    const min = UNIQUE_BADGE_IDS.has(event.badgeId) ? 1 : 2;
+    const min = UNIQUE_BADGE_IDS.has(event.badgeId) ? 1 : event.badgeId === "strength_pr_v2" ? 4 : 2;
     const row = takeBest(event, min);
     if (!row) {
       ops.push({ kind: "insert", event });

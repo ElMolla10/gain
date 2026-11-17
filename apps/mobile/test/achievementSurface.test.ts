@@ -93,75 +93,16 @@ describe("hero selection priority", () => {
   });
 });
 
-describe("cabinet filtering", () => {
-  const rows = [
-    badge({ id: "fs", badgeId: "first_session", status: "earned" }),
-    badge({ id: "w4", badgeId: "qualified_weeks_4", status: "in_progress", progressCurrent: 2, progressTarget: 4 }),
-    badge({ id: "pr1", badgeId: "strength_pr", status: "earned", earnedAtUtc: 20 }),
-    badge({ id: "pr0", badgeId: "strength_pr", status: "earned", earnedAtUtc: 10 }),
-  ];
-  const cabinet = buildCabinet(rows);
-
-  it("lists each unique badge once and every earned repeatable PR", () => {
-    expect(cabinet.map((c) => `${c.badgeId}:${c.status}`)).toEqual([
-      "first_session:earned",
-      "qualified_weeks_4:in_progress",
-      "qualified_weeks_12:locked",
-      "dedicated_10:locked",
-      "dedicated_25:locked",
-      "dedicated_50:locked",
-      "dedicated_100:locked",
-      "full_spectrum_4:locked",
-      "full_spectrum_12:locked",
-      "workhorse:locked",
-      "hundred_club_100:locked",
-      "hundred_club_250:locked",
-      "hundred_club_500:locked",
-      "hundred_club_1000:locked",
-      "multi_year_2:locked",
-      "multi_year_3:locked",
-      "multi_year_5:locked",
-      "strength_pr:earned",
-      "strength_pr:earned",
-    ]);
-    expect(cabinet.filter((c) => c.badgeId === "strength_pr").map((c) => c.id)).toEqual(["pr1", "pr0"]);
-  });
-
-  it("filters All / Earned / In Progress and by family", () => {
-    expect(filterCabinet(cabinet, "earned", "all").every((c) => c.status === "earned")).toBe(true);
-    expect(filterCabinet(cabinet, "in_progress", "all").map((c) => c.badgeId)).toEqual(["qualified_weeks_4"]);
-    expect(filterCabinet(cabinet, "all", "strength_pr").every((c) => c.family === "strength_pr")).toBe(true);
-    expect(filterCabinet(cabinet, "all", "first_session")).toHaveLength(1);
-    expect(filterCabinet(cabinet, "earned", "qualified_weeks")).toEqual([]);
-  });
-
-  it("assigns craft prestige with no rarity percentage", () => {
-    expect(prestigeForBadge("first_session")).toBe("foundation");
-    expect(prestigeForBadge("qualified_weeks_4")).toBe("forged");
-    expect(prestigeForBadge("strength_pr")).toBe("forged");
-    expect(prestigeForBadge("qualified_weeks_12")).toBe("masterwork");
-    expect(prestigeForBadge("comeback")).toBe("masterwork");
-  });
-});
-
-describe("next-up and ledger", () => {
-  it("picks the 1–2 unique badges closest to completion, catalog order on a tie", () => {
-    expect(pickNextUp([{ badgeId: "qualified_weeks_4", current: 2, target: 4 }, { badgeId: "qualified_weeks_12", current: 2, target: 12 }], ["first_session"]).map((n) => n.badgeId)).toEqual([
-      "qualified_weeks_4",
-      "qualified_weeks_12",
-    ]);
-    expect(pickNextUp([], []).map((n) => n.badgeId)).toEqual(["first_session"]);
-  });
-
-  it("orders the ledger chronologically and skips 12-week until a 100th-workout badge exists", () => {
-    const items = ledgerItems([
-      badge({ id: "w12", badgeId: "qualified_weeks_12", earnedAtUtc: 3 }),
-      badge({ id: "pr", badgeId: "strength_pr", earnedAtUtc: 4 }),
-      badge({ id: "fs", badgeId: "first_session", earnedAtUtc: 1 }),
-      badge({ id: "w4", badgeId: "qualified_weeks_4", earnedAtUtc: 2 }),
-    ]);
-    expect(items.map((i) => i.badgeId)).toEqual(["first_session", "qualified_weeks_4", "strength_pr"]);
-  });
+describe("collection Cabinet filtering",()=>{
+ it("provides exactly 21 permanent slots, keeps earned legacy and PR records, and hides retired locked goals",()=>{
+  const cab=buildCabinet([badge({id:"first",badgeId:"first_workout"}),badge({id:"legacy",badgeId:"workhorse"}),badge({id:"pr",badgeId:"strength_pr_v2"})]);
+  expect(cab).toHaveLength(23);expect(cab.filter(r=>r.status==="locked")).toHaveLength(20);
+  expect(filterCabinet(cab,"earned","all")).toHaveLength(3);
+  expect(cab.some(r=>r.badgeId==="multi_year_2")).toBe(false);
+ });
+ it("picks measured canonical milestones only",()=>{
+  expect(pickNextUp([{badgeId:"showing_up_4",current:2,target:4},{badgeId:"dedicated_days_10",current:4,target:10},{badgeId:"workhorse",current:2,target:3}],[]).map(x=>x.badgeId)).toEqual(["showing_up_4","dedicated_days_10"]);
+ });
 });
 
 describe("evidence-sheet content", () => {
@@ -242,4 +183,10 @@ describe("Arabic plurals and isolates", () => {
     expect(line).toContain(`${LRI}2${PDI}`);
     expect(line).toMatch(/[\u0600-\u06FF]/);
   });
+});
+
+describe("unknown achievement IDs",()=>{
+ it("does not claim the PR rule for an unknown award",()=>{
+  expect(evidenceSheetContent({badgeId:"unknown",primarySessionId:null,qualifiedWeeksLifetime:0,weeks12Earned:false}).ruleKey).toBe("collection.rule.unknown");
+ });
 });

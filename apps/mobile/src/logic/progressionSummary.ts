@@ -125,13 +125,14 @@ export function rangeStart(range: SummaryRange, now: number): number {
 
 /** A verified PR set (from the achievements cabinet): the lifter's local date + load + reps. */
 export interface PrSetRef {
+  setId?: string;
   localDate: string;
   load: number;
   reps: number;
 }
 
 /** True when the set logged at `at` matches a verified PR (same local day, load and reps). */
-export function isVerifiedPrSet(prSets: readonly PrSetRef[], at: number, set: Pick<LoggedSet, "load" | "reps">): boolean {
+export function isVerifiedPrSet(prSets: readonly PrSetRef[], at: number, set: Pick<LoggedSet, "id" | "load" | "reps">): boolean {
   const day = localDateText(at);
-  return prSets.some((r) => r.localDate === day && r.load === set.load && r.reps === set.reps);
+  return prSets.some((r) => r.setId != null && set.id != null ? r.setId === set.id : r.localDate === day && r.load === set.load && r.reps === set.reps);
 }

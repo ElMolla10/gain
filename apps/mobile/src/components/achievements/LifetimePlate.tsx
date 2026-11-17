@@ -1,3 +1,5 @@
+import { COLLECTION_TIERS } from "@gain/engine";
+import { MilestoneArt } from "../MilestoneArt";
 import React, { useId } from "react";
 import { useWindowDimensions, View } from "react-native";
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop, Text as SvgText, TextPath } from "react-native-svg";
@@ -61,14 +63,7 @@ export function LifetimePlate({ days, daysIsFloor = false, variant = "colour", t
           art={art}
           dark={dark}
         />
-        <View pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, start: 0, end: 0, alignItems: "center", justifyContent: "center" }}>
-          <View style={{ width: hole, alignItems: "center" }}>
-            <AppText ltr numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={{ fontSize: numeralSize, fontWeight: "600", color: copy.empty ? art.collarLabel : art.collarText }}>
-              {copy.numeral}
-            </AppText>
-            {large ? null : <AppText style={{ fontSize: ty.caption, fontWeight: "600", color: art.collarLabel, textAlign: "center" }}>{copy.label}</AppText>}
-          </View>
-        </View>
+
       </View>
       {large ? <AppText style={{ fontSize: ty.section, fontWeight: "600", textAlign: "center" }}>{`${copy.numeral} ${copy.label}`}</AppText> : null}
       {bare ? null : (
@@ -84,6 +79,7 @@ export function LifetimePlate({ days, daysIsFloor = false, variant = "colour", t
 /** The plate drawing alone (decorative; hidden from accessibility). Mirrors spec src/plate.py. */
 export function PlateArt(props: { size: number; uid: string; empty: boolean; tier: PlateTier; progress: number; mono: boolean; art: ReturnType<typeof useAchievementArt>; dark: boolean }) {
   const { size, uid, empty, tier, progress, mono, art, dark } = props;
+  if (!empty) return <MilestoneArt badgeId={`lifetime_plate_${COLLECTION_TIERS.lifetime_plate[PLATE_ORDER.indexOf(tier)]}`} size={size} />;
   const pl = PLATE_COLOURS[mono ? "steel" : tier];
   const next = PLATE_ORDER[PLATE_ORDER.indexOf(tier) + 1] ?? null;
   const arc = mono || !next ? art.arcDone : dark ? PLATE_COLOURS[next].arcDark : PLATE_COLOURS[next].arcLight;

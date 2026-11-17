@@ -5,12 +5,12 @@
  */
 import {
   ACHIEVEMENT_CATALOG,
+  COLLECTION_CATALOG, COLLECTION_IDS, COLLECTION_TIERS, MEDAL_IDS, collectionDefinition,
   DEDICATED_TIERS,
   HUNDRED_CLUB_TIERS,
   MULTI_YEAR_TIERS,
   QUALIFIED_WEEK_TIERS,
   SPECTRUM_TIERS,
-  UNIQUE_BADGE_IDS,
   identityKey,
   repBand,
   type AchievementEvidence,
@@ -32,8 +32,8 @@ const MINUS = "\u2212";
 
 // ── Training days and the Lifetime Plate ─────────────────────────────────────────────────────────────
 
-export type PlateTier = "steel" | "green" | "yellow" | "blue" | "red";
-export const PLATE_ORDER: readonly PlateTier[] = ["steel", "green", "yellow", "blue", "red"];
+export type PlateTier = "steel" | "green" | "yellow" | "blue" | "red" | "black";
+export const PLATE_ORDER: readonly PlateTier[] = ["steel", "green", "yellow", "blue", "red", "black"];
 
 export interface TrainingDays {
   days: number | null;
@@ -49,28 +49,29 @@ export interface TrainingDays {
 export function trainingDays(cabinet: readonly SurfaceBadge[], stats?: { qualifyingDays?: number | null } | null): TrainingDays {
   const passed = stats?.qualifyingDays;
   if (typeof passed === "number" && Number.isFinite(passed) && passed >= 0) return { days: passed, floor: false };
-  const club = cabinet.filter((r) => r.badgeId.startsWith("hundred_club_"));
+  const club = cabinet.filter((r) => r.badgeId.startsWith("lifetime_plate_"));
   const inProgress = club
     .filter((r) => r.status === "in_progress" && r.progressCurrent !== null)
     .sort((a, b) => (a.progressTarget ?? 0) - (b.progressTarget ?? 0));
   if (inProgress[0]) return { days: inProgress[0].progressCurrent, floor: false };
-  const top = HUNDRED_CLUB_TIERS[HUNDRED_CLUB_TIERS.length - 1]!;
-  if (HUNDRED_CLUB_TIERS.every((tier) => club.some((r) => r.badgeId === `hundred_club_${tier}` && r.status === "earned"))) {
+  const top = COLLECTION_TIERS.lifetime_plate[COLLECTION_TIERS.lifetime_plate.length - 1]!;
+  if (COLLECTION_TIERS.lifetime_plate.every((tier) => club.some((r) => r.badgeId === `lifetime_plate_${tier}` && r.status === "earned"))) {
     return { days: top, floor: true };
   }
   return { days: null, floor: false };
 }
 
-/** steel < 100 ≤ green < 250 ≤ yellow < 500 ≤ blue < 1000 ≤ red (thresholds from HUNDRED_CLUB_TIERS). */
+/** steel < 100 ≤ green < 250 ≤ yellow < 500 ≤ blue < 1000 ≤ red (thresholds from COLLECTION_TIERS.lifetime_plate). */
 export function plateTier(days: number | null): PlateTier {
   const d = days ?? 0;
   let i = 0;
-  for (const tier of HUNDRED_CLUB_TIERS) if (d >= tier) i++;
+  for (const tier of COLLECTION_TIERS.lifetime_plate.slice(1)) if (d >= tier) i++;
   return PLATE_ORDER[i]!;
 }
 
 /** The plate being worked toward, or null on the red plate. */
 export function nextPlate(days: number | null): PlateTier | null {
+  if ((days ?? 0) < 10) return "steel";
   const i = PLATE_ORDER.indexOf(plateTier(days));
   return PLATE_ORDER[i + 1] ?? null;
 }
@@ -78,23 +79,23 @@ export function nextPlate(days: number | null): PlateTier | null {
 /** Training days to the next plate, or null on the red plate. */
 export function daysToNext(days: number | null): number | null {
   const d = days ?? 0;
-  const next = HUNDRED_CLUB_TIERS.find((tier) => d < tier);
+  const next = COLLECTION_TIERS.lifetime_plate.find((tier) => d < tier);
   return next === undefined ? null : next - d;
 }
 
 /** 0..1 share of the way from this plate's threshold to the next one (1 on the red plate). Drives the rim arc. */
 export function plateProgress(days: number | null): number {
   const d = days ?? 0;
-  const next = HUNDRED_CLUB_TIERS.find((tier) => d < tier);
+  const next = COLLECTION_TIERS.lifetime_plate.find((tier) => d < tier);
   if (next === undefined) return 1;
-  const prev = [...HUNDRED_CLUB_TIERS].reverse().find((tier) => d >= tier) ?? 0;
+  const prev = [...COLLECTION_TIERS.lifetime_plate].reverse().find((tier) => d >= tier) ?? 0;
   return Math.max(0, Math.min(1, (d - prev) / (next - prev)));
 }
 
 // ── Strength PRs ─────────────────────────────────────────────────────────────────────────────────────
 
 const isPr = (r: SurfaceBadge): r is SurfaceBadge & { evidence: StrengthPrEvidence } =>
-  r.badgeId === "strength_pr" && r.status === "earned" && r.evidence?.kind === "strength_pr";
+  r.badgeId === "strength_pr_v2" && r.status === "earned" && r.evidence?.kind === "strength_pr";
 
 const newestFirst = (a: SurfaceBadge, b: SurfaceBadge) => (b.earnedAtUtc ?? 0) - (a.earnedAtUtc ?? 0) || a.id.localeCompare(b.id);
 
@@ -245,6 +246,11 @@ export function prDelta(evidence: StrengthPrEvidence, lang: Lang, unit: Unit, t:
     return t("achv.r2.delta.assist", { delta: `${isolateLtr(`${MINUS}${weightText(-raw, unit)}`)}${NBSP}${unitLabel(unit, lang)}` });
   }
   if (raw > LOAD_EPS) return `${isolateLtr(`+${weightText(raw, unit)}`)}${NBSP}${unitLabel(unit, lang)}`;
+  if (evidence.newBest.measure === "time" || evidence.newBest.measure === "distance") {
+    const timed = evidence.newBest.measure === "time";
+    const delta = timed ? (evidence.newBest.durationS ?? 0) - (evidence.previousBest.durationS ?? 0) : (evidence.newBest.distanceM ?? 0) - (evidence.previousBest.distanceM ?? 0);
+    return `${isolateLtr(`+${delta}`)}${NBSP}${t(timed ? "qty.s" : "qty.m")}`;
+  }
   const reps = Math.max(1, evidence.newBest.reps - evidence.previousBest.reps);
   const key: StringKey = lang === "ar" ? arPluralKey(reps, "achv.r2.delta.reps.one", "achv.r2.delta.reps.few") : reps === 1 ? "achv.r2.delta.reps.one" : "achv.r2.delta.reps.few";
   return t(key, { n: `+${reps}` });
@@ -252,11 +258,13 @@ export function prDelta(evidence: StrengthPrEvidence, lang: Lang, unit: Unit, t:
 
 // ── Medals, shelves and the ledger ───────────────────────────────────────────────────────────────────
 
-export type Shelf = "strength" | "consistency" | "lifetime" | "mastery";
+export type Shelf = "strength" | "consistency" | "lifetime" | "mastery" | "legacy";
 export const SHELF_ORDER: readonly Shelf[] = ["strength", "consistency", "lifetime", "mastery"];
 export type MedalState = "earned" | "in_progress" | "locked";
 
 export function shelfOf(badgeId: string): Shelf {
+  const def = collectionDefinition(badgeId);
+  if (def) return def.category === "plate" ? "lifetime" : def.artFamily === "dedicated_days" ? "mastery" : ["first_workout", "showing_up", "back_at_it"].includes(def.artFamily) ? "consistency" : "strength";
   if (badgeId.startsWith("hundred_club_") || badgeId.startsWith("multi_year_")) return "lifetime";
   if (badgeId.startsWith("dedicated_") || badgeId.startsWith("full_spectrum_")) return "mastery";
   if (badgeId === "first_session" || badgeId.startsWith("qualified_weeks_") || badgeId === "comeback" || badgeId.startsWith("quest_")) return "consistency";
@@ -301,32 +309,17 @@ const stateOf = (r: SurfaceBadge | null): MedalState => (r?.status === "earned" 
  * quest kinds share one "Monthly quests" slot at the end of Consistency (24 slots in all), as in the mockups.
  */
 export function shelves(cabinet: readonly SurfaceBadge[]): ShelfGroup[] {
-  const items: ShelfItem[] = [];
-  for (const def of ACHIEVEMENT_CATALOG) {
-    if (def.id.startsWith("quest_")) continue;
-    if (UNIQUE_BADGE_IDS.has(def.id)) {
-      const row = cabinet.find((r) => r.badgeId === def.id) ?? null;
-      items.push({ slot: def.id, badgeId: def.id, i18nKey: def.i18nKey, state: stateOf(row), row, count: row?.status === "earned" ? 1 : 0, repeatable: false });
-      continue;
-    }
-    const earned = cabinet.filter((r) => r.badgeId === def.id && r.status === "earned").sort(newestFirst);
-    items.push({ slot: def.id, badgeId: def.id, i18nKey: def.i18nKey, state: earned.length ? "earned" : "locked", row: earned[0] ?? null, count: earned.length, repeatable: true });
-  }
-  const quests = cabinet.filter((r) => r.badgeId.startsWith("quest_") && r.status === "earned").sort(newestFirst);
-  const at = items.findIndex((i) => i.slot === "comeback") + 1;
-  items.splice(at, 0, {
-    slot: QUEST_SLOT,
-    badgeId: quests[0]?.badgeId ?? "quest_rhythm",
-    i18nKey: "achv.r2.quests",
-    state: quests.length ? "earned" : "locked",
-    row: quests[0] ?? null,
-    count: quests.length,
-    repeatable: true,
+  const items: ShelfItem[] = COLLECTION_CATALOG.map(def => {
+    const row = cabinet.find(r => r.badgeId === def.id) ?? null;
+    return { slot: def.id, badgeId: def.id, i18nKey: def.i18nKey, state: stateOf(row), row, count: row?.status === "earned" ? 1 : 0, repeatable: false };
   });
-  return SHELF_ORDER.map((shelf) => {
-    const on = items.filter((i) => shelfOf(i.badgeId) === shelf).sort((a, b) => slotRank(a.slot) - slotRank(b.slot));
-    return { shelf, items: on, earned: on.filter((i) => i.state === "earned").length };
+  const groups: ShelfGroup[] = SHELF_ORDER.map(shelf => {
+    const on = items.filter(i => shelfOf(i.badgeId) === shelf);
+    return { shelf, items: on, earned: on.filter(i => i.state === "earned").length };
   });
+  const legacy = cabinet.filter(r => r.status === "earned" && !COLLECTION_IDS.has(r.badgeId) && r.badgeId !== "strength_pr_v2" && !r.badgeId.startsWith("quest_"));
+  if (legacy.length) groups.push({ shelf: "legacy", earned: legacy.length, items: legacy.map(r => ({ slot: r.id, badgeId: r.badgeId, i18nKey: r.i18nKey, row: r, state: "earned", count: 1, repeatable: false })) });
+  return groups;
 }
 
 /** The row a slot opens: its own row, or (a never-earned repeatable) a locked stand-in drawn from the catalog. Presentation only. */
@@ -406,7 +399,7 @@ export function collapseForPartial(items: readonly ShelfItem[]): { visible: Shel
 /** The 3 in-progress uniques closest to done. hundred_club_* (the plate shows it) and quest_* (the seal shows it) are left out. */
 export function almostThere(cabinet: readonly SurfaceBadge[]): SurfaceBadge[] {
   return cabinet
-    .filter((r) => r.status === "in_progress" && UNIQUE_BADGE_IDS.has(r.badgeId) && (r.progressTarget ?? 0) > 0)
+    .filter((r) => r.status === "in_progress" && COLLECTION_IDS.has(r.badgeId) && (r.progressTarget ?? 0) > 0)
     .filter((r) => !r.badgeId.startsWith("hundred_club_") && !r.badgeId.startsWith("quest_"))
     .sort((a, b) => ratio(b) - ratio(a) || catalogIndex(a.badgeId) - catalogIndex(b.badgeId))
     .slice(0, 3);
@@ -415,7 +408,7 @@ export function almostThere(cabinet: readonly SurfaceBadge[]): SurfaceBadge[] {
 /** Three closest unique medals with measured progress, including the lifetime tiers formerly represented by the plate. */
 export function nextMedals(cabinet: readonly SurfaceBadge[]): SurfaceBadge[] {
   return cabinet
-    .filter((r) => r.status === "in_progress" && UNIQUE_BADGE_IDS.has(r.badgeId) && (r.progressTarget ?? 0) > 0)
+    .filter((r) => r.status === "in_progress" && COLLECTION_IDS.has(r.badgeId) && (r.progressTarget ?? 0) > 0)
     .filter((r) => !r.badgeId.startsWith("quest_"))
     .sort((a, b) => ratio(b) - ratio(a) || catalogIndex(a.badgeId) - catalogIndex(b.badgeId))
     .slice(0, 3);
@@ -424,12 +417,12 @@ export function nextMedals(cabinet: readonly SurfaceBadge[]): SurfaceBadge[] {
 /** Earned uniques, oldest first: the order behind "Medal 10 of 17". */
 const earnedUniques = (cabinet: readonly SurfaceBadge[]) =>
   cabinet
-    .filter((r) => r.status === "earned" && UNIQUE_BADGE_IDS.has(r.badgeId))
+    .filter((r) => r.status === "earned" && MEDAL_IDS.has(r.badgeId))
     .sort((a, b) => (a.earnedAtUtc ?? 0) - (b.earnedAtUtc ?? 0) || catalogIndex(a.badgeId) - catalogIndex(b.badgeId) || a.id.localeCompare(b.id));
 
 /** "Medals x of 17": earned uniques over the unique catalog. */
 export function medalCount(cabinet: readonly SurfaceBadge[]): { earned: number; total: number } {
-  return { earned: earnedUniques(cabinet).length, total: UNIQUE_BADGE_IDS.size };
+  return { earned: earnedUniques(cabinet).length, total: MEDAL_IDS.size };
 }
 
 /** 1-based position of this row among earned uniques by earn time, or null for repeatables / unearned rows. */
@@ -457,6 +450,11 @@ export interface TrackStep {
 
 /** Every tier of this badge's family in order, each with its cabinet state. Empty for badges without tiers. */
 export function familyTrack(cabinet: readonly SurfaceBadge[], badgeId: string): TrackStep[] {
+  const def = collectionDefinition(badgeId);
+  if (def) return COLLECTION_CATALOG.filter(d => d.artFamily === def.artFamily).map(d => {
+    const row = cabinet.find(r => r.badgeId === d.id) ?? null;
+    return { badgeId: d.id, i18nKey: d.i18nKey, tier: d.tier, state: stateOf(row), current: row?.progressCurrent ?? null, target: row?.progressTarget ?? null };
+  });
   const family = Object.keys(TRACKS).find((f) => badgeId.startsWith(`${f}_`));
   if (!family) return [];
   return TRACKS[family]!.map((tier) => {

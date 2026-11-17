@@ -174,7 +174,7 @@ export const parseAppearance = (raw: string | null | undefined): Appearance => (
 // The art is decoration: every tier and state is also given in text (plate caption, medal state line), so none of these carry meaning
 // alone. Light-mode arcs and rings use `accent`-strength colours, never lime fill (S-10).
 
-export type PlateColourName = "steel" | "green" | "yellow" | "blue" | "red";
+export type PlateColourName = "steel" | "green" | "yellow" | "blue" | "red" | "black";
 export interface PlateColours {
   face: string;
   hi: string;
@@ -187,6 +187,7 @@ export interface PlateColours {
 
 /** Competition bumper colours at the hundred_club tiers. */
 export const PLATE_COLOURS: Record<PlateColourName, PlateColours> = {
+  black: { face: "#242729", hi: "#707578", lo: "#111315", lip: "#080909", arcDark: "#beef28", arcLight: "#526600" },
   steel: { face: "#5B6356", hi: "#8A9384", lo: "#2F342B", lip: "#252A21", arcDark: "#8A9580", arcLight: "#7A876E" },
   green: { face: "#2F8F55", hi: "#5FC285", lo: "#17542F", lip: "#123F23", arcDark: "#3FAE6A", arcLight: "#1F7A43" },
   yellow: { face: "#E3B52C", hi: "#F7DA7A", lo: "#94720F", lip: "#6E540A", arcDark: "#E3B52C", arcLight: "#8C6A00" },

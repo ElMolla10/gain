@@ -92,7 +92,7 @@ export function LiftTrendScreen() {
           if (!alive) return;
           setPrSets(verifiedPrs(rows)
             .filter((row) => row.evidence.identity.exerciseId === r.lift.exerciseId && row.evidence.identity.setup === r.lift.setup)
-            .map((row) => ({ localDate: row.evidence.newBest.localDate, load: row.evidence.newBest.load, reps: row.evidence.newBest.reps })));
+            .map((row) => ({ setId: row.evidence.newBest.setId, localDate: row.evidence.newBest.localDate, load: row.evidence.newBest.load, reps: row.evidence.newBest.reps })));
         }).catch((e) => diagnostics.record("warn", "lift PRs", e));
         void refreshLoads(r.lift.exerciseId);
         void (async () => {

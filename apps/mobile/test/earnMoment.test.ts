@@ -31,7 +31,7 @@ vi.mock("react-native", () => {
     useWindowDimensions: () => ({ fontScale: 1, width: 400, height: 800 }),
   };
 });
-vi.mock("react-native-svg", () => ({ default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
+vi.mock("react-native-svg", () => ({ SvgXml: "SvgXml", default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
 vi.mock("../src/haptics", () => ({ haptics: { land: () => fx.haptics.push("land"), legacy: () => fx.haptics.push("legacy"), celebrate: () => fx.haptics.push("celebrate") } }));
 vi.mock("../src/achievementTelemetry", () => ({ telemetry: { record: () => {} } }));
 vi.mock("../src/diagnostics", () => ({ diagnostics: { record: () => {} } }));
@@ -135,8 +135,8 @@ describe("odometer and plate tier-up", () => {
     expect(odometer(30, 20, 1)).toBe(20);
   });
   it("the plate completes the previous colour and becomes the new one", () => {
-    expect(plateTierUp({ badgeId: "hundred_club_100", evidence: { kind: "hundred_club", tier: 100, days: 100 } })).toEqual({ days: 100, from: "steel", to: "green" });
-    expect(plateTierUp({ badgeId: "hundred_club_1000", evidence: { kind: "hundred_club", tier: 1000, days: 1000 } }).to).toBe("red");
+    expect(plateTierUp({ badgeId: "hundred_club_100", evidence: { kind: "hundred_club", tier: 100, days: 100 } })).toEqual({ days: 100, from: "green", to: "yellow" });
+    expect(plateTierUp({ badgeId: "hundred_club_1000", evidence: { kind: "hundred_club", tier: 1000, days: 1000 } }).to).toBe("black");
   });
 });
 
@@ -161,7 +161,7 @@ describe("EarnMoment render", () => {
     const legacy = byType(render(earned("multi_year_2", 1)), "AnimatedView");
     expect(legacy.some((n) => n.props.style?.borderWidth === 3)).toBe(true);
     const plate = render(earned("hundred_club_100", 1, "2026-02-01", { kind: "hundred_club", tier: 100, days: 100 }));
-    expect(byType(plate, "Svg").length).toBe(2);
+    expect(byType(plate, "SvgXml").length).toBe(2);
   });
   it("AR announcement", () => {
     settings.lang = "ar";

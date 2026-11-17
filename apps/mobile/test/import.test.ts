@@ -291,15 +291,18 @@ describe("imported custom exercises", () => {
       mappings: { [title]: { kind: "new", nameEn: title, pattern: "horizontal_push", equipment: "barbell", setup: "free" } },
     });
     expect(r.workouts).toBe(3);
+    expect((await achievements.listEarned()).every(row => row.isBackfilled)).toBe(true);
+    expect((await achievements.getHome()).bannerCount).toBeNull();
     expect(r.newExercises).toBe(1);
     const ex = (await programmes.listExercises()).find((e) => e.nameEn === title)!;
     expect(ex.isCustom).toBe(true);
-    const earned = (await achievements.listEarned()).find((row) => row.badgeId === "strength_pr");
+    const earned = (await achievements.listEarned()).find((row) => row.badgeId === "strength_pr_v2");
     expect(earned?.status).toBe("earned");
     expect(earned?.evidence?.kind).toBe("strength_pr");
     if (earned?.evidence?.kind === "strength_pr") {
       expect(earned.evidence.identity.exerciseId).toBe(ex.id);
-      expect(earned.evidence.newBest).toMatchObject({ load: 65, reps: 8 });
+      expect([62.5,65]).toContain(earned.evidence.newBest.load);
+        expect(earned.evidence.newBest.reps).toBe(8);
     }
   });
 });

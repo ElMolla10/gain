@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import React from "react";
-import { ACHIEVEMENT_CATALOG } from "@gain/engine";
+import { ACHIEVEMENT_CATALOG, LEGACY_ACHIEVEMENT_CATALOG, COLLECTION_CATALOG } from "@gain/engine";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LRI, PDI, translate } from "../src/i18n/format";
 import { medalA11y, medalStateLine } from "../src/logic/achievementCopy";
@@ -14,7 +14,7 @@ const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar", fontScale: 1, da
 const services = vi.hoisted(() => ({ pickQuest: vi.fn(async () => {}) }));
 vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig(), { useContext: () => null }));
 vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", ScrollView: "ScrollView", useWindowDimensions: () => ({ fontScale: settings.fontScale, width: 400, height: 800 }) }));
-vi.mock("react-native-svg", () => ({ default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
+vi.mock("react-native-svg", () => ({ SvgXml: "SvgXml", default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: settings.lang, unit: "kg", direction: settings.lang === "ar" ? "rtl" : "ltr", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(settings.lang, k, p) }) }));
 vi.mock("../src/theme", async () => {
   const pal = await import("../src/palettes");
@@ -55,82 +55,9 @@ beforeEach(() => {
   settings.dark = true;
 });
 
-describe("compact Cabinet", () => {
-  it("shows only the three closest measurable medals and includes lifetime tiers", () => {
-    const cabinet = [progress("dedicated_50", 33, 50), progress("hundred_club_100", 76, 100), progress("qualified_weeks_4", 2, 4), progress("full_spectrum_4", 1, 4)];
-    expect(nextMedals(cabinet).map((r) => r.badgeId)).toEqual(["hundred_club_100", "dedicated_50", "qualified_weeks_4"]);
-    const tree = expand(React.createElement(NextMedals, { cabinet, onOpen: () => {} }));
-    expect(byType(tree, "Pressable")).toHaveLength(3);
-    expect(texts(tree)).toContain("Next up");
-    expect(texts(tree)).toContain(`${iso("33")} of ${iso("50")}`);
-  });
-  it.each(["en", "ar"] as const)("%s has four collapsed medal categories and a single Ledger path", (lang) => {
-    settings.lang = lang;
-    const tree = expand(React.createElement(CompactShelves, { groups: shelves(sampleCabinet()), quest: null, onOpen: () => {}, onQuestChanged: () => {} }));
-    const rows = byType(tree, "Pressable");
-    expect(rows).toHaveLength(4);
-    expect(rows.every((r) => r.props.accessibilityState.expanded === false)).toBe(true);
-    expect(texts(tree)).toContain(translate(lang, "achv.compact.medals"));
-  });
-  it("latest PR card opens the Ledger and shows one before/after line", () => {
-    const cabinet = sampleCabinet();
-    const open = vi.fn();
-    const tree = expand(React.createElement(LatestPrCard, { pr: latestPr(cabinet), cabinet, onOpenLedger: open }));
-    expect(texts(tree)).toContain("Latest PR");
-    const card = byType(tree, "Pressable")[0]!;
-    card.props.onPress();
-    expect(open).toHaveBeenCalledOnce();
-  });
-});
-
-describe("Cabinet header badge", () => {
-  const badge = (days: number | null) => expand(React.createElement(PlateBadge, { days }));
-  const fills = (tree: unknown) => byType(tree, "Circle").map((n) => String(n.props.fill ?? ""));
-  it("76 training days is the earned steel plate, never a locked medal", () => {
-    const tree = badge(76);
-    const root = nodes(tree)[0]!;
-    expect(root.props.accessible).toBe(false);
-    expect(root.props.importantForAccessibility).toBe("no");
-    expect(root.props.style).toEqual({ width: PLATE_BADGE_SIZE, height: PLATE_BADGE_SIZE });
-    expect(byType(tree, "Svg")[0]!.props.style.direction).toBe("ltr");
-    expect(fills(tree).some((f) => f.includes("url(#pf"))).toBe(true);
-    const stops = byType(tree, "Stop").filter((n) => ["#8A9384", "#5B6356", "#2F342B"].includes(n.props.stopColor));
-    expect(stops.length).toBeGreaterThan(0);
-    // Subtle rim toward the green plate (76 of 100).
-    const arc = byType(tree, "Circle").find((n) => n.props.stroke === PLATE_COLOURS.green.arcDark);
-    expect(arc).toBeDefined();
-    expect(byType(tree, "Circle").some((n) => n.props.strokeDasharray && String(n.props.strokeDasharray).startsWith("6"))).toBe(false);
-    expect(byType(tree, "Medal")).toHaveLength(0);
-    expect(byType(tree, "Icon")).toHaveLength(0);
-  });
-  it("100 days is the green plate; light theme uses the light next-arc colour", () => {
-    expect(fills(badge(100)).some((f) => f.includes("url(#pf"))).toBe(true);
-    expect(byType(badge(100), "Stop").map((n) => n.props.stopColor)).toContain(PLATE_COLOURS.green.face);
-    settings.dark = false;
-    const arc = byType(badge(76), "Circle").find((n) => n.props.stroke === PLATE_COLOURS.green.arcLight);
-    expect(arc).toBeDefined();
-  });
-  it("zero days and an unknown count fall back to the Cabinet trophy, not a dotted plate", () => {
-    for (const days of [0, null]) {
-      const tree = badge(days);
-      const icon = byType(tree, "Icon");
-      expect(icon).toHaveLength(1);
-      expect(icon[0]!.props).toMatchObject({ name: "trophy", color: "accent", size: 24 });
-      expect(byType(tree, "Circle").some((n) => n.props.strokeDasharray)).toBe(false);
-      expect(nodes(tree)[0]!.props.accessible).toBe(false);
-    }
-  });
-  it("the Cabinet header renders PlateBadge and never a locked hundred-club medal", () => {
-    const screen = readFileSync(join(__dirname, "..", "src", "screens", "AchievementsScreen.tsx"), "utf8");
-    expect(screen).toContain("<PlateBadge days={days.days} />");
-    expect(screen).not.toMatch(/<Medal badgeId="hundred_club_100"/);
-    expect(screen).not.toMatch(/state=\{days[^}]*locked/);
-  });
-});
-
 describe("medal art", () => {
   it("has a master for every catalog badge, and every LOD motif fits the ≤12-shape budget", () => {
-    for (const def of ACHIEVEMENT_CATALOG) {
+    for (const def of LEGACY_ACHIEVEMENT_CATALOG) {
       const m = MEDAL_ART[def.id];
       expect(m, def.id).toBeDefined();
       expect(m!.sil.startsWith("M"), def.id).toBe(true);
@@ -197,177 +124,43 @@ describe("medal art", () => {
   });
 });
 
-describe("medal words", () => {
-  const groups = () => shelves(sampleCabinet());
-  const slot = (id: string) => groups().flatMap((g) => g.items).find((i) => i.slot === id)!;
-  it("state lines: date (short), ×N as one isolated run, x of y, Locked", () => {
-    expect(medalStateLine(slot("first_session"), "en", t("en"), NOW)).toBe("9 Mar 2024");
-    expect(medalStateLine(slot("comeback"), "en", t("en"), NOW)).toBe(iso("\u00d72"));
-    expect(medalStateLine(slot("comeback"), "ar", t("ar"), NOW)).toBe(iso("\u00d72"));
-    expect(medalStateLine(slot("dedicated_50"), "en", t("en"), NOW)).toBe(`${iso("38")} of ${iso("50")}`);
-    expect(medalStateLine(slot("dedicated_50"), "ar", t("ar"), NOW)).toBe(`${iso("38")} من ${iso("50")}`);
-    expect(medalStateLine(slot("pin_target"), "en", t("en"), NOW)).toBe("Locked");
-    expect(medalStateLine(slot("pin_target"), "ar", t("ar"), NOW)).toBe("لسه");
-  });
-  it("each state's spoken label (spec §9)", () => {
-    expect(medalA11y(slot("first_session"), "First session", "en", t("en"), NOW)).toBe(`${iso("First session")}, ${iso("Foundation")}, earned ${iso("9 Mar 2024")}`);
-    expect(medalA11y(slot("comeback"), "Comeback", "en", t("en"), NOW)).toBe(`${iso("Comeback")}, ${iso("Masterwork")}, earned ${iso("2")} times, latest ${iso("20 Jan")}`);
-    expect(medalA11y(slot("dedicated_50"), "Dedicated · 50 sessions", "en", t("en"), NOW)).toBe(`${iso("Dedicated · 50 sessions")}, in progress, ${iso("38")} of ${iso("50")}`);
-    expect(medalA11y(slot("pin_target"), "Target reached", "en", t("en"), NOW)).toBe(`${iso("Target reached")}, locked`);
-    const ar = medalA11y(slot("dedicated_50"), "التزام · 50 تمرينة", "ar", t("ar"), NOW);
-    expect(ar).toBe(`\u2068التزام · 50 تمرينة${PDI}، جاري، ${iso("38")} من ${iso("50")}`);
-    expect(medalA11y(slot("pin_target"), "الهدف اتحقق", "ar", t("ar"), NOW)).toBe(`\u2068الهدف اتحقق${PDI}، لسه`);
-  });
-});
 
-describe("shelf grouping", () => {
-  it("Lifetime and Mastery split into tracks; Strength and Consistency are one run", () => {
-    const g = shelves(sampleCabinet());
-    expect(g[0]!.items.map((i) => i.slot)).toEqual(["strength_pr", "workhorse", "block_builder", "pin_target", "iron_hold", "iron_carry"]);
-    expect(g[1]!.items.map((i) => i.slot)).toEqual(["first_session", "qualified_weeks_4", "qualified_weeks_12", "comeback", "quest"]);
-    expect(shelfSections(g[0]!.items).map((s) => s.track)).toEqual([null]);
-    expect(shelfSections(g[1]!.items).map((s) => s.track)).toEqual([null]);
-    expect(shelfSections(g[2]!.items).map((s) => [s.track, s.items.length])).toEqual([["days", 4], ["years", 3]]);
-    expect(shelfSections(g[3]!.items).map((s) => [s.track, s.items.length])).toEqual([["dedicated", 4], ["spectrum", 2]]);
-  });
-  it("short slot names inside a track, the catalog name elsewhere", () => {
-    expect(slotNameKey({ badgeId: "hundred_club_500", i18nKey: "achv.hundred500" })).toBe("achv.r2.slot.days500");
-    expect(slotNameKey({ badgeId: "dedicated_10", i18nKey: "achv.dedicated10" })).toBe("achv.r2.slot.sessions10");
-    expect(slotNameKey({ badgeId: "full_spectrum_12", i18nKey: "achv.spectrum12" })).toBe("achv.r2.slot.weeks12");
-    expect(slotNameKey({ badgeId: "multi_year_2", i18nKey: "achv.years2" })).toBe("achv.r2.slot.years2");
-    expect(slotNameKey({ badgeId: "qualified_weeks_4", i18nKey: "achv.weeks4" })).toBe("achv.weeks4");
-    expect(translate("ar", "achv.r2.slot.years2")).toBe("سنتين");
-  });
-  it("the quest slot stacks every earned quest and shows the newest one's month", () => {
-    const cab = [...sampleCabinet(), earned("quest_craft", 400, "2026-09-30"), earned("quest_rhythm", 380, "2026-08-31")];
-    const q = shelves(cab)[1]!.items.find((i) => i.slot === "quest")!;
-    expect([q.badgeId, q.count, q.state, q.i18nKey]).toEqual(["quest_craft", 2, "earned", "achv.r2.quests"]);
-    expect(monthOf(q.row)).toBe(9);
-    // A never-earned repeatable opens a locked stand-in drawn from the catalog.
-    const pin = shelves(cab)[0]!.items.find((i) => i.slot === "pin_target")!;
-    expect([slotRow(pin).status, slotRow(pin).badgeId, slotRow(pin).family]).toEqual(["locked", "pin_target", "pin_target"]);
-  });
-  it("partial = 1–5 earned slots; nothing earned shows full (all locked) shelves", () => {
-    expect(isPartialCabinet(shelves(sampleCabinet()))).toBe(false);
-    expect(isPartialCabinet(shelves([earned("first_session", 1)]))).toBe(true);
-    expect(isPartialCabinet(shelves([]))).toBe(false);
-  });
-  it("4 / 3 / 2 columns by fontScale", () => {
-    expect([shelfColumns(1), shelfColumns(1.3), shelfColumns(1.31), shelfColumns(1.6), shelfColumns(1.61)]).toEqual([4, 4, 3, 3, 2]);
-  });
-});
-
-describe("CabinetShelf render", () => {
-  const strength = () => shelves(sampleCabinet())[0]!.items;
-  const slots = (tree: unknown) => byType(tree, "Pressable");
-  it("EN: name + state line per slot, ×N isolated, ghost medals behind a stack, ≥104 dp slots with a hint", () => {
-    const tree = expand(React.createElement(CabinetShelf, { shelf: "strength", items: strength(), onOpen: () => {} }));
-    const all = texts(tree);
-    expect(all).toContain("Strength");
-    expect(all).toContain(`${iso("1")} of ${iso("6")}`);
-    expect(all).toContain("Verified strength PR");
-    expect(all).toContain(iso("\u00d74"));
-    expect(all.filter((s) => s === "Locked")).toHaveLength(4);
-    const s = slots(tree);
-    expect(s).toHaveLength(6);
-    for (const p of s) {
-      expect(p.props.accessibilityHint).toBe("Opens details");
-      expect(p.props.style({ pressed: false }).minHeight).toBe(SLOT_MIN_HEIGHT);
-      expect(p.props.style({ pressed: false }).width).toBe("25%");
-    }
-    const pr = s.find((p) => String(p.props.accessibilityLabel).startsWith(iso("Verified strength PR")))!;
-    expect(byType(pr, "Svg")).toHaveLength(3);
-    expect(nodes(pr).filter((n) => n.props.style?.opacity === 0.4)).toHaveLength(1);
-    const wh = s.find((p) => String(p.props.accessibilityLabel).startsWith(iso("Workhorse")))!;
-    expect(wh.props.accessibilityValue).toEqual({ min: 0, max: 3, now: 2 });
-    expect(byType(tree, "Svg").every((n) => n.props.width === SHELF_MEDAL)).toBe(true);
-    // Ledge under each row of 4 (6 slots → 2 rows).
-    expect(nodes(tree).filter((n) => n.props.style?.height === 10)).toHaveLength(2);
-  });
-  it("AR: Arabic labels, ×N still one isolated LTR run, x من y", () => {
-    settings.lang = "ar";
-    const tree = expand(React.createElement(CabinetShelf, { shelf: "strength", items: strength(), onOpen: () => {} }));
-    const all = texts(tree);
-    expect(all).toContain("القوة");
-    expect(all).toContain(`${iso("1")} من ${iso("6")}`);
-    expect(all).toContain(iso("\u00d74"));
-    expect(all.join(" ")).not.toContain("4\u00d7");
-    expect(all.filter((s) => s === "لسه")).toHaveLength(4);
-  });
-  it("tracks get their labels; 3 columns at large text", () => {
-    settings.fontScale = 1.5;
-    const tree = expand(React.createElement(CabinetShelf, { shelf: "lifetime", items: shelves(sampleCabinet())[2]!.items, onOpen: () => {} }));
-    expect(texts(tree)).toEqual(expect.arrayContaining(["Training days", "Years", "100 days", "1000 days", "2 years"]));
-    expect(slots(tree)[0]!.props.style({ pressed: false }).width).toBe(`${100 / 3}%`);
-  });
-  it.each(["en", "ar"] as const)("%s: accessibility text gets full-width medal names", (lang) => {
-    settings.lang = lang;
-    settings.fontScale = 2.14;
-    const tree = expand(React.createElement(CabinetShelf, { shelf: "strength", items: strength(), onOpen: () => {} }));
-    expect(slots(tree)).toHaveLength(6);
-    expect(slots(tree).every((slot) => slot.props.style({ pressed: false }).width === "100%")).toBe(true);
-    expect(nodes(tree).filter((n) => n.props.style?.height === 10)).toHaveLength(6);
-  });
-  it("partial: earned + next 2 and a See all toggle", () => {
-    const items = shelves([earned("first_session", 1), progress("qualified_weeks_4", 1, 4), progress("qualified_weeks_12", 1, 12)])[1]!.items;
-    const tree = expand(React.createElement(CabinetShelf, { shelf: "consistency", items, partial: true, onOpen: () => {} }));
-    expect(slots(tree)).toHaveLength(3);
-    const toggle = byType(tree, "QuietAction")[0]!;
-    expect(toggle.props.label).toBe(`See all ${iso("5")}`);
-    expect(toggle.props.expanded).toBe(false);
-  });
-});
-
-describe("Almost there, month seal, ledger teaser", () => {
-  it("Almost there: 84 dp medals with a ring and progress values", () => {
-    const rows = [progress("dedicated_50", 38, 50), progress("multi_year_5", 3, 5)];
-    const tree = expand(React.createElement(AlmostThere, { rows, onOpen: () => {} }));
-    expect(byType(tree, "Svg").map((n) => n.props.width)).toEqual([ALMOST_MEDAL, ALMOST_MEDAL]);
-    expect(byType(tree, "Pressable")[0]!.props.accessibilityValue).toEqual({ min: 0, max: 50, now: 38 });
-    expect(expand(React.createElement(AlmostThere, { rows: [], onOpen: () => {} }))).toBeNull();
-  });
-  it("first-run: 'Your first medal' with how to get it", () => {
-    const first = row({ id: "locked:first_session", badgeId: "first_session", status: "locked", earnedAtUtc: null, earnedLocalDate: null });
-    const tree = expand(React.createElement(AlmostThere, { rows: [], first, onOpen: () => {} }));
-    expect(texts(tree)).toEqual(expect.arrayContaining(["First session", `${iso("0")} of ${iso("1")}`, "Finish one workout with 3 working sets."]));
-  });
-  const quest = (over: Record<string, unknown>) => ({
-    month: "2026-10",
-    status: "offered" as const,
-    offers: [
-      { kind: "rhythm" as const, titleKey: "quest.rhythm.title", target: 3, payload: { targetWeeks: 3 } },
-      { kind: "craft" as const, titleKey: "quest.craft.title", target: 1, payload: {} },
-    ],
-    picked: null,
-    canSwap: true,
-    progress: { current: 0, target: 3, complete: false },
-    ...over,
-  }) as never;
-  it("seal modes and the pick prompt (opens the offers)", () => {
-    expect(sealMode(null)).toBe("none");
-    expect(sealMode(quest({}))).toBe("pick");
-    const picked = { kind: "rhythm", titleKey: "quest.rhythm.title", target: 3, payload: { targetWeeks: 3 } };
-    expect(sealMode(quest({ status: "picked", picked }))).toBe("progress");
-    expect(sealMode(quest({ status: "completed", picked }))).toBe("done");
-    expect(questMonth(quest({}))).toBe(10);
-    const tree = expand(React.createElement(MonthSeal, { quest: quest({}), onChanged: () => {} }));
-    expect(byType(tree, "BigButton").map((b) => b.props.label)).toEqual(["Pick this month's quest", "Choose this quest", "Choose this quest"]);
-  });
-  it("seal in progress: ring, month numeral and spoken progress", () => {
-    const picked = { kind: "rhythm", titleKey: "quest.rhythm.title", target: 3, payload: { targetWeeks: 3 } };
-    const tree = expand(React.createElement(MonthSeal, { quest: quest({ status: "picked", picked, progress: { current: 2, target: 3, complete: false } }), onChanged: () => {} }));
-    const card = byType(tree, "Pressable")[0]!;
-    expect(card.props.accessibilityLabel).toBe(`This month's quest, ${iso("Hit 3 qualified weeks this month")}, ${iso("2")} of ${iso("3")}`);
-    expect(card.props.accessibilityValue).toEqual({ min: 0, max: 3, now: 2 });
-    expect(byType(tree, "SvgText").map((n) => n.props.children)).toEqual(["10"]);
-  });
-  it("ledger teaser: hidden when empty; summary + latest 3 newest first", () => {
-    expect(expand(React.createElement(LedgerTeaser, { earned: [], onOpenLedger: () => {}, onOpen: () => {} }))).toBeNull();
-    const rows = [earned("first_session", 10, "2024-03-09"), earned("qualified_weeks_4", 20, "2024-04-02"), earned("dedicated_10", 30, "2024-07-01"), earned("comeback", 40, "2025-08-01")];
-    const tree = expand(React.createElement(LedgerTeaser, { earned: rows, onOpenLedger: () => {}, onOpen: () => {} }));
-    const buttons = byType(tree, "Pressable");
-    expect(buttons).toHaveLength(4);
-    expect(String(buttons[0]!.props.accessibilityLabel)).toContain("Comeback");
-    expect(texts(tree)).toContain("Open the Ledger");
-  });
+import { collectionSvg } from "../src/components/achievements/collectionArt";
+import { buildCabinet } from "../src/logic/achievementSurface";
+describe("approved permanent Cabinet", () => {
+ it.each(["en", "ar"] as const)("%s keeps four collapsed collection categories", lang => {
+  settings.lang=lang;
+  const tree=expand(React.createElement(CompactShelves,{groups:shelves(buildCabinet([])),quest:null,onOpen:()=>{},onQuestChanged:()=>{}}));
+  expect(byType(tree,"Pressable")).toHaveLength(4);
+  expect(byType(tree,"Pressable").every(n=>n.props.accessibilityState.expanded===false)).toBe(true);
+ });
+ it("ranks three measured milestones including the next plate, excluding legacy and quests",()=>{
+  const cabinet=buildCabinet([progress("dedicated_days_50",33,50),progress("lifetime_plate_100",76,100),progress("showing_up_4",2,4),progress("workhorse",2,3),progress("quest_rhythm",2,3)]);
+  expect(nextMedals(cabinet).map(r=>r.badgeId)).toEqual(["lifetime_plate_100","dedicated_days_50","showing_up_4"]);
+  const tree=expand(React.createElement(NextMedals,{cabinet,onOpen:()=>{}}));expect(byType(tree,"Pressable")).toHaveLength(3);
+ });
+ it.each([null,0,1,9])("does not display an earned plate at %s days",days=>{
+  const tree=expand(React.createElement(PlateBadge,{days}));expect(byType(tree,"Icon")).toHaveLength(1);expect(byType(tree,"SvgXml")).toHaveLength(0);
+ });
+ it.each([[10,"10"],[76,"50"],[100,"100"],[1000,"1K"]])("displays the threshold plate at %i days",(days,numeral)=>{
+  const tree=expand(React.createElement(PlateBadge,{days:Number(days)}));expect(byType(tree,"SvgXml")[0]!.props.xml).toContain(`>${numeral}</text>`);
+ });
+ it.each(COLLECTION_CATALOG.map(d=>[d.id] as const))("renders the canonical artwork for %s at 32dp and detail size",id=>{
+  for(const size of [32,200]){
+   const tree=medal({badgeId:id,state:"earned",size});const svg=byType(tree,"SvgXml")[0]!;
+   expect(svg.props.width).toBe(size);expect(svg.props.xml).toContain('<svg');expect(svg.props.xml).not.toContain('undefined');
+  }
+ });
+ it("never substitutes another earned award for an unknown ID",()=>{
+  expect(collectionSvg("unknown")).toBeNull();expect(medal({badgeId:"unknown",state:"earned",size:32})).toBeNull();
+ });
+ it("tiered medals retain symbols and engrave the canonical number",()=>{
+  for(const d of COLLECTION_CATALOG.filter(d=>["showing_up","dedicated_days","across_the_board"].includes(d.artFamily))){
+   expect(collectionSvg(d.id)).toContain(`>${d.tier}</text>`);
+  }
+ });
+ it("keeps earned legacy awards in a separate existing-style shelf without locked legacy goals",()=>{
+  const groups=shelves(buildCabinet([earned("workhorse",1)]));expect(groups.at(-1)!.shelf).toBe("legacy");
+  expect(groups.at(-1)!.items.map(i=>i.badgeId)).toEqual(["workhorse"]);expect(groups.slice(0,4).flatMap(g=>g.items)).toHaveLength(21);
+ });
 });

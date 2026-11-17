@@ -44,6 +44,8 @@ export interface LineIdentity {
 }
 
 export interface LoggedSet {
+  /** Persisted set identity, when reading saved workout history. */
+  id?: string;
   /** Measure "time" sets: seconds held. `reps` is 1 for a timed or distance set (one hold / one carry), so reps-based code never divides by zero. */
   durationS?: number | null;
   /** Measure "distance" sets: metres. */

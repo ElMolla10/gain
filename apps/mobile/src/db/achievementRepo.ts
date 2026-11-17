@@ -25,8 +25,9 @@ import {
   type SetupType,
   type StoredAchievement,
   type WeekPulse,
-  isQualifyingSession,
-  QUALIFIED_WEEK_DAYS,
+  COLLECTION_IDS,
+  COLLECTION_VERSION,
+  isCollectionWorkingSet,
   weekStartOfLocalDate,
 } from "@gain/engine";
 import { buildCabinet, ledgerItems, pickNextUp, type NextUpBadge, type SurfaceBadge } from "../logic/achievementSurface";
@@ -98,6 +99,7 @@ interface SetRow {
   distance_m: number | null;
   pattern: string;
   measure: "reps" | "time" | "distance";
+  identity_reliable: number;
 }
 
 function parseEvidence(json: string | null): AchievementEvidence | null {
@@ -136,7 +138,7 @@ async function hydrateRows(db: Db, rows: StoredRow[]): Promise<EarnedAchievement
         ev.kind === "workhorse" ||
         ev.kind === "pin_target")
     ) {
-      exerciseIds.add(ev.identity.exerciseId);
+      if (ev.identity?.exerciseId) exerciseIds.add(ev.identity.exerciseId);
     }
   }
   const names = new Map<string, { nameEn: string; nameAr: string }>();
@@ -159,13 +161,13 @@ async function hydrateRows(db: Db, rows: StoredRow[]): Promise<EarnedAchievement
         evidence.kind === "iron_carry" ||
         evidence.kind === "workhorse" ||
         evidence.kind === "pin_target")
-        ? evidence.identity.exerciseId
+        ? evidence.identity?.exerciseId ?? null
         : null;
     const name = exId ? names.get(exId) : undefined;
     return {
       id: row.id,
       badgeId: row.badge_id,
-      i18nKey: def?.i18nKey ?? "achv.strengthPr",
+      i18nKey: def?.i18nKey ?? (row.badge_id === "strength_pr_v2" ? "achv.strengthPr" : "collection.unknown"),
       family: (def?.family ?? "strength_pr") as AchievementFamily,
       status: row.status,
       earnedAtUtc: row.earned_at_utc,
@@ -189,25 +191,12 @@ async function weekStartsOn(repos: Repos): Promise<number> {
   return Number.isInteger(v) && v >= 0 && v <= 6 ? v : 1;
 }
 
-async function stampMissingDates(db: Db, now: number): Promise<void> {
-  const rows = await db.all<{ id: string; finished_at: number }>(
-    "SELECT id, finished_at FROM session WHERE status = 'finished' AND deleted_at IS NULL AND finished_at IS NOT NULL AND local_calendar_date IS NULL",
-  );
-  for (const r of rows) {
-    await db.run("UPDATE session SET local_calendar_date = ?, updated_at = ? WHERE id = ? AND local_calendar_date IS NULL", [
-      logicalTrainingDateFromMs(r.finished_at),
-      now,
-      r.id,
-    ]);
-  }
-}
-
 /** getPulse reads only this far back: one week plus the 04:00 rollover margin. */
 const PULSE_WINDOW_MS = 9 * 86_400_000;
 
-async function loadSessions(db: Db, preview?: { sessionId: string; setId: string; now: number }): Promise<AchievementSession[]> {
-  const sessions = await db.all<{ id: string; finished_at: number; local_calendar_date: string | null }>(
-    `SELECT id, ${preview ? "COALESCE(finished_at, ?)" : "finished_at"} AS finished_at, local_calendar_date FROM session
+export async function loadAchievementSessions(db: Db, preview?: { sessionId: string; setId: string; now: number }): Promise<AchievementSession[]> {
+  const sessions = await db.all<{ id: string; finished_at: number; started_at: number | null; import_key: string | null; local_calendar_date: string | null }>(
+    `SELECT id, started_at, import_key, ${preview ? "COALESCE(finished_at, ?)" : "finished_at"} AS finished_at, local_calendar_date FROM session
      WHERE deleted_at IS NULL AND ((status = 'finished' AND finished_at IS NOT NULL)
        ${preview ? "OR (id = ? AND status = 'in_progress')" : ""}) ORDER BY finished_at, id`,
     preview ? [preview.now, preview.sessionId] : [],
@@ -231,16 +220,17 @@ async function loadRecentSessions(db: Db, sinceMs: number): Promise<AchievementS
 
 async function attachSets(
   db: Db,
-  sessions: { id: string; finished_at: number; local_calendar_date: string | null }[],
+  sessions: { id: string; finished_at: number; started_at?: number | null; import_key?: string | null; local_calendar_date: string | null }[],
   preview?: { sessionId: string; setId: string; now: number },
   onlyIds?: string[],
 ): Promise<AchievementSession[]> {
   const only = onlyIds ? `AND ws.session_id IN (${onlyIds.map(() => "?").join(",")})` : "";
   const sets = await db.all<SetRow>(
-    `SELECT ws.id, ws.session_id, ws.exercise_id, e.equipment, e.setup, ws.load, ws.reps, ws.is_warmup, ws.tags_json, ws.outlier_status,
-            ws.duration_s, ws.distance_m, e.pattern, e.measure
-       FROM workout_set ws JOIN exercise e ON e.id = ws.exercise_id
-      WHERE ws.deleted_at IS NULL AND e.deleted_at IS NULL ${only}
+    `SELECT ws.id, ws.session_id, ws.exercise_id, e.equipment, l.setup, ws.load, ws.reps, ws.is_warmup, ws.tags_json, ws.outlier_status,
+            ws.duration_s, ws.distance_m, e.pattern, e.measure,
+            ws.identity_reliable AS identity_reliable
+       FROM workout_set ws JOIN exercise e ON e.id = ws.exercise_id JOIN exercise_line l ON l.id = ws.line_id
+      WHERE ws.deleted_at IS NULL ${only}
       ${preview ? `AND ws.exercise_id = (SELECT exercise_id FROM workout_set WHERE id = ? AND session_id = ? AND deleted_at IS NULL)
         AND (ws.session_id != ? OR ws.id = ?)` : ""}`,
     [...(onlyIds ?? []), ...(preview ? [preview.setId, preview.sessionId, preview.sessionId, preview.setId] : [])],
@@ -262,13 +252,16 @@ async function attachSets(
       distanceM: s.distance_m,
       pattern: s.pattern,
       measure: s.measure,
+      identityReliable: s.identity_reliable !== 0,
     });
     bySession.set(s.session_id, list);
   }
   return sessions.map((s) => ({
     id: s.id,
     finishedAtUtc: s.finished_at,
-    localCalendarDate: s.local_calendar_date ?? logicalTrainingDateFromMs(s.finished_at),
+    startedAtUtc: s.started_at ?? undefined,
+    importKey: s.import_key,
+    localCalendarDate: s.local_calendar_date ?? (preview && s.id === preview.sessionId ? logicalTrainingDateFromMs(preview.now) : ""),
     sets: bySession.get(s.id) ?? [],
   }));
 }
@@ -389,6 +382,13 @@ async function loadPins(db: Db): Promise<LiftPin[]> {
   return rows.map(pinFromRow);
 }
 
+async function loadTargetVersions(db: Db): Promise<LiftPin[]> {
+  const rows = await db.all<{ id: string; exercise_id: string; equipment: EquipmentType | null; setup: SetupType | null; load: number; reps: number; weeks: number | null; started_week: string | null; created_at: number; deleted_at: number | null; explicit_target: number }>(
+    "SELECT id, exercise_id, equipment, setup, load, reps, weeks, started_week, created_at, deleted_at, explicit_target FROM lift_pin ORDER BY created_at, id",
+  );
+  return rows.map(r => ({ ...pinFromRow(r), setAtUtc: r.created_at, endedAtUtc: r.deleted_at ?? undefined, explicit: r.explicit_target === 1 }));
+}
+
 function parseOffers(json: string): QuestCard[] {
   try {
     const v = JSON.parse(json) as QuestCard[];
@@ -441,10 +441,9 @@ async function loadQuestEval(db: Db, sessions: AchievementSession[], nowLocalDat
 export async function syncAchievements(db: Db, deps: Deps, opts: { weekStartsOn: number; backfill: boolean; nowLocalDate?: string; repos?: Repos }): Promise<{ inserted: number; reanchored: number; revoked: number }> {
   const { newId, now } = deps;
   return db.transaction(async () => {
-    await stampMissingDates(db, now());
-    const sessions = await loadSessions(db);
+    const sessions = await loadAchievementSessions(db);
     const program = opts.repos ? await loadProgramContext(db, opts.repos) : { patterns: [] as string[], primaryIds: [] as string[] };
-    const pins = await loadPins(db);
+    const pins = await loadTargetVersions(db);
     const nowLocal = opts.nowLocalDate ?? sessions.at(-1)?.localCalendarDate ?? logicalTrainingDateFromMs(now());
     const quests = await loadQuestEval(db, sessions, nowLocal, opts.weekStartsOn);
     const result = evaluateAchievements(sessions, {
@@ -463,7 +462,7 @@ export async function syncAchievements(db: Db, deps: Deps, opts: { weekStartsOn:
       );
     }
     for (const e of result.earned) {
-      if (e.badgeId !== "pin_target" || e.evidence.kind !== "pin_target") continue;
+      if (e.badgeId !== "called_it" || e.evidence.kind !== "pin_target") continue;
       const t = now();
       await db.run(
         "UPDATE lift_pin SET reached_at_utc = ?, reached_session_id = ?, reached_set_id = ?, updated_at = ? WHERE exercise_id = ? AND load = ? AND reps = ? AND deleted_at IS NULL AND reached_at_utc IS NULL",
@@ -471,14 +470,14 @@ export async function syncAchievements(db: Db, deps: Deps, opts: { weekStartsOn:
       );
     }
     const stored = await loadStored(db);
-    const ops = reconcileAchievements(stored, result.earned);
+    const ops = reconcileAchievements(stored.filter(r => COLLECTION_IDS.has(r.badgeId) || r.badgeId === "strength_pr_v2" || r.badgeId.startsWith("quest_")), result.earned);
     const t = now();
     let inserted = 0;
     let reanchored = 0;
     let revoked = 0;
     for (const op of ops) {
       if (op.kind === "insert") {
-        const id = newId();
+        const id = COLLECTION_IDS.has(op.event.badgeId) ? `collection:v2:${op.event.badgeId}` : op.event.badgeId === "strength_pr_v2" ? `collection:v2:pr:${op.event.primarySessionId}:${op.event.primarySetId}` : newId();
         await db.run(
           `INSERT INTO user_achievements (id, badge_id, rule_version, status, progress_current, progress_target, earned_at_utc, earned_local_date, primary_session_id, primary_set_id, evidence_payload_json, is_backfilled, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -488,6 +487,7 @@ export async function syncAchievements(db: Db, deps: Deps, opts: { weekStartsOn:
         inserted++;
       } else if (op.kind === "update") {
         await applyEvent(db, op.id, op.event, t);
+        if (opts.backfill) await db.run("UPDATE user_achievements SET is_backfilled = 1, celebrated_at_utc = COALESCE(celebrated_at_utc, ?), updated_at = ? WHERE id = ?", [t, t, op.id]);
         await audit(db, deps, op.id, op.action === "restore" ? "restored" : op.action === "reanchor" ? "reanchored" : "earned", {
           badgeId: op.event.badgeId,
           sessionId: op.event.primarySessionId,
@@ -515,8 +515,8 @@ export async function syncAchievements(db: Db, deps: Deps, opts: { weekStartsOn:
       } else {
         await db.run(
           `INSERT INTO user_achievements (id, badge_id, rule_version, status, progress_current, progress_target, is_backfilled, created_at, updated_at)
-           VALUES (?, ?, 1, 'in_progress', ?, ?, 0, ?, ?)`,
-          [newId(), p.badgeId, p.current, p.target, t, t],
+           VALUES (?, ?, 2, 'in_progress', ?, ?, 0, ?, ?)`,
+          [COLLECTION_IDS.has(p.badgeId) ? `collection:v2:${p.badgeId}` : newId(), p.badgeId, p.current, p.target, t, t],
         );
       }
     }
@@ -557,11 +557,14 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
   async function ensureBackfill(): Promise<{ inserted: number; reanchored: number; revoked: number }> {
     const done = (await repos.getSetting(BACKFILL_DONE)) === "1";
     // Launch path: nothing the evaluation reads changed since the last sync, so the result would be identical.
-    if (done && (await repos.getSetting(ACHV_FINGERPRINT)) === (await achievementFingerprint(db, repos))) return { inserted: 0, reanchored: 0, revoked: 0 };
-    const result = await sync({ backfill: !done });
+    if (done && (await repos.getSetting("collection_rule_version")) === String(COLLECTION_VERSION) && (await repos.getSetting(ACHV_FINGERPRINT)) === (await achievementFingerprint(db, repos))) return { inserted: 0, reanchored: 0, revoked: 0 };
+    const collectionDone = await repos.getSetting("collection_rule_version");
+    const result = await sync({ backfill: !done || collectionDone !== String(COLLECTION_VERSION) });
+    await repos.setSetting("collection_rule_version", String(COLLECTION_VERSION));
+    if (collectionDone !== String(COLLECTION_VERSION)) await repos.setSetting(BACKFILL_COUNT, "0");
     if (!done) {
       await repos.setSetting(BACKFILL_DONE, "1");
-      await repos.setSetting(BACKFILL_COUNT, String(result.inserted));
+      await repos.setSetting(BACKFILL_COUNT, "0");
     }
     return result;
   }
@@ -600,7 +603,9 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
 
   async function listForSession(sessionId: string): Promise<EarnedAchievementRow[]> {
     return listStored(
-      "status = 'earned' AND primary_session_id = ? AND is_backfilled = 0 AND celebrated_at_utc IS NULL ORDER BY earned_at_utc DESC, id",
+      `status = 'earned' AND rule_version >= 2 AND primary_session_id = ? AND is_backfilled = 0 AND celebrated_at_utc IS NULL
+       AND NOT (badge_id = 'strength_pr_v2' AND EXISTS (SELECT 1 FROM user_achievements first_pr WHERE first_pr.badge_id = 'first_pr' AND first_pr.status = 'earned' AND first_pr.deleted_at IS NULL AND first_pr.primary_session_id = user_achievements.primary_session_id))
+       ORDER BY earned_at_utc DESC, id`,
       [sessionId],
     );
   }
@@ -654,11 +659,11 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
 
   async function getHome(): Promise<AchievementHome> {
     await ensureBackfill();
-    const sessions = await loadSessions(db);
+    const sessions = await loadAchievementSessions(db);
     const week = await weekStartsOn(repos);
     const localDate = await nowLocalDate();
     const program = await loadProgramContext(db, repos);
-    const pins = await loadPins(db);
+    const pins = await loadTargetVersions(db);
     const quests = await loadQuestEval(db, sessions, localDate, week);
     const evaluated = evaluateAchievements(sessions, {
       weekStartsOn: week,
@@ -707,9 +712,9 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
     const days = new Set<string>();
     for (const s of sessions) {
       if (weekStartOfLocalDate(s.localCalendarDate, week) !== thisWeek) continue;
-      if (isQualifyingSession(s)) days.add(s.localCalendarDate);
+      if (s.sets.some(isCollectionWorkingSet)) days.add(s.localCalendarDate);
     }
-    return { weekStart: thisWeek, qualifiedDays: days.size, dayTarget: QUALIFIED_WEEK_DAYS, qualified: days.size >= QUALIFIED_WEEK_DAYS };
+    return { weekStart: thisWeek, qualifiedDays: days.size, dayTarget: 1, qualified: days.size >= 1 };
   }
 
   async function pickQuest(kind: QuestCard["kind"]): Promise<void> {
@@ -744,6 +749,7 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
   }
 
   async function setPin(pin: LiftPin): Promise<void> {
+    return db.transaction(async () => {
     const t = deps.now();
     const others = await db.get<{ n: number }>(
       "SELECT COUNT(*) AS n FROM lift_pin WHERE deleted_at IS NULL AND reached_at_utc IS NULL AND exercise_id != ?",
@@ -753,16 +759,17 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
     const existing = await getPin(pin.exerciseId);
     const weeks = pin.weeks === 5 || pin.weeks === 6 ? pin.weeks : 4;
     const startedWeek = pin.startedWeek ?? existing?.startedWeek ?? weekStartOf(t, await weekStartsOn(repos));
-    await db.run("UPDATE lift_pin SET deleted_at = ?, updated_at = ? WHERE exercise_id = ? AND deleted_at IS NULL AND reached_at_utc IS NULL", [t, t, pin.exerciseId]);
+    await db.run("UPDATE lift_pin SET deleted_at = ?, updated_at = ? WHERE exercise_id = ? AND deleted_at IS NULL", [t, t, pin.exerciseId]);
     await db.run(
-      `INSERT INTO lift_pin (id, exercise_id, equipment, setup, gym_id, load, reps, weeks, started_week, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO lift_pin (id, exercise_id, equipment, setup, gym_id, load, reps, weeks, started_week, created_at, updated_at, explicit_target) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [deps.newId(), pin.exerciseId, pin.equipment ?? null, pin.setup ?? null, null, pin.load, pin.reps, weeks, startedWeek, t, t],
     );
+    });
   }
 
   async function clearPin(exerciseId: string): Promise<void> {
     const t = deps.now();
-    await db.run("UPDATE lift_pin SET deleted_at = ?, updated_at = ? WHERE exercise_id = ? AND deleted_at IS NULL AND reached_at_utc IS NULL", [t, t, exerciseId]);
+    await db.run("UPDATE lift_pin SET deleted_at = ?, updated_at = ? WHERE exercise_id = ? AND deleted_at IS NULL", [t, t, exerciseId]);
   }
 
   async function getById(id: string): Promise<EarnedAchievementRow | null> {
@@ -772,9 +779,9 @@ export function createAchievementRepo(db: Db, deps: Deps, repos: Repos) {
 
   /** Read-only check of this saved set using the finish evaluator. No award/celebration writes. */
   async function previewStrengthPr(sessionId: string, setId: string): Promise<boolean> {
-    const sessions = await loadSessions(db, { sessionId, setId, now: deps.now() });
+    const sessions = await loadAchievementSessions(db, { sessionId, setId, now: deps.now() });
     // Only the checked set participates today; a stronger set must not hide its qualifying PR.
-    return evaluateAchievements(sessions).earned.some(e => e.badgeId === "strength_pr" && e.primarySessionId === sessionId && e.primarySetId === setId);
+    return evaluateAchievements(sessions).earned.some(e => e.badgeId === "strength_pr_v2" && e.primarySessionId === sessionId && e.primarySetId === setId);
   }
 
   return { sync, ensureBackfill, dismissBanner, getPulse, listEarned, listCabinet, listLedger, listForSession, markCelebrated, getHome, getById, pickQuest, getPin, listPins, setPin, clearPin, previewStrengthPr };

@@ -37,7 +37,7 @@ vi.mock("react-native", () => {
     useWindowDimensions: () => ({ fontScale: 1, width: 400, height: 800 }),
   };
 });
-vi.mock("react-native-svg", () => ({ default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
+vi.mock("react-native-svg", () => ({ SvgXml: "SvgXml", default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: settings.lang, unit: "kg", direction: settings.lang === "ar" ? "rtl" : "ltr", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(settings.lang, k, p) }) }));
 vi.mock("../src/theme", async () => {
   const pal = await import("../src/palettes");
@@ -96,10 +96,10 @@ describe("medal detail sheet", () => {
     expect(all.some((s) => s.startsWith("A longer loaded carry"))).toBe(true);
   });
   it("in progress: no share or flip; the progress line and the family track with the current tier marked", () => {
-    const { tree, buttons } = sheet(progress("dedicated_50", 38, 50));
+    const { tree, buttons } = sheet(progress("dedicated_days_50", 38, 50));
     expect(buttons).toEqual([]);
     const all = texts(tree);
-    expect(all).toEqual(expect.arrayContaining(["Legacy", "In progress", `${iso("38")} of ${iso("50")}`, `${iso("Dedicated")} track`, "10", "25", `${iso("38")} of ${iso("100")}`]));
+    expect(all).toEqual(expect.arrayContaining(["In progress", `${iso("38")} of ${iso("50")}`]));
     const marked = nodes(tree).filter((n) => n.props.accessibilityState?.selected === true);
     expect(marked).toHaveLength(1);
     expect(marked[0]!.props.style.borderColor).toBe("accent");
@@ -135,7 +135,7 @@ describe("engraved back", () => {
     const r = cab.find((x) => x.badgeId === "dedicated_25")!;
     const copy = medalBack(r, cab, "ar", "kg", t("ar"));
     const tree = expand(React.createElement(MedalBackFace, { badgeId: r.badgeId, size: 200, copy }));
-    expect(texts(tree)).toEqual(["التزام", "25", "تمرينة", "1 مارس 2025", `ميدالية ${iso("8")} من ${iso("17")}`]);
+    expect(texts(tree)).toEqual(["التزام", "25", "تمرينة", "1 مارس 2025"]);
     // Pure-number value is the only LTR run; the Arabic lines are never forced LTR.
     expect(byType(tree, "AppText").filter((n) => n.props.ltr).map((n) => n.props.children)).toEqual(["25"]);
     // The art never mirrors.

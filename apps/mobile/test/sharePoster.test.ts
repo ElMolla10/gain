@@ -11,7 +11,7 @@ import { BENCH, earned, pr, row } from "./achievementFixtures";
 const settings = vi.hoisted(() => ({ lang: "en" as "en" | "ar" }));
 vi.mock("react", async (orig) => (await import("./achievementRender")).mockReactHooks(await orig(), { useContext: () => null }));
 vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", Share: { share: vi.fn() }, useWindowDimensions: () => ({ fontScale: 1, width: 400, height: 800 }) }));
-vi.mock("react-native-svg", () => ({ default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
+vi.mock("react-native-svg", () => ({ SvgXml: "SvgXml", default: "Svg", Circle: "Circle", ClipPath: "ClipPath", Defs: "Defs", Ellipse: "Ellipse", G: "G", LinearGradient: "LinearGradient", Path: "Path", RadialGradient: "RadialGradient", Rect: "Rect", Stop: "Stop", Text: "SvgText", TextPath: "TextPath" }));
 vi.mock("../src/diagnostics", () => ({ diagnostics: { record: () => {} } }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ lang: settings.lang, unit: "kg", direction: settings.lang === "ar" ? "rtl" : "ltr", t: (k: Parameters<typeof translate>[1], p?: Record<string, string | number>) => translate(settings.lang, k, p) }) }));
 vi.mock("../src/theme", async () => {
@@ -77,12 +77,12 @@ describe("poster copy", () => {
   it("plate: training days, the plate name, 'Training since' from first_session and qualified weeks (AR plural)", () => {
     const en = posterCopy(plate(), { ...ctx("en"), cabinet: [first(), plate()], qualifiedWeeks: 96 });
     if (en.kind !== "plate") throw new Error("kind");
-    expect([en.days, en.tier, en.tierName]).toEqual([412, "yellow", "Yellow plate"]);
+    expect([en.days, en.tier, en.tierName]).toEqual([412, "blue", "Blue plate"]);
     expect(en.since).toBe(`Training since ${iso("9 Mar 2024")}`);
     expect(en.weeks).toBe(`${iso("96")} qualified weeks`);
     const ar = posterCopy(plate(), { ...ctx("ar"), cabinet: [first(), plate()], qualifiedWeeks: 5 });
     if (ar.kind !== "plate") throw new Error("kind");
-    expect(ar.tierName).toBe("طارة صفرا");
+    expect(ar.tierName).toBe(translate("ar", "achv.r2.plate.blue"));
     expect(ar.weeks).toBe(`${iso("5")} أسابيع مؤهلة`);
     expect(ar.since).toContain("2024");
     // Without the cabinet (Finish) there is no "since" line and the evidence gives the days.
@@ -90,7 +90,7 @@ describe("poster copy", () => {
     expect(bare.kind === "plate" && [bare.days, bare.since, bare.weeks]).toEqual([412, null, null]);
     // The tab's count wins over the evidence.
     const tab = posterCopy(plate(), { ...ctx("en"), days: { days: 1043, floor: false } });
-    expect(tab.kind === "plate" && tab.tier).toBe("red");
+    expect(tab.kind === "plate" && tab.tier).toBe("black");
   });
   it("medal: '{prestige} medal', the name, the evidence line and the full date", () => {
     const c = posterCopy(earned("dedicated_25", 1, "2026-09-21"), ctx("en"));

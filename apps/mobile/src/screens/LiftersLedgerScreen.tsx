@@ -1,3 +1,4 @@
+import { isLegacyAward } from "../logic/achievementSurface";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import { AchievementEvidenceSheet } from "../components/AchievementEvidenceSheet";
@@ -59,7 +60,7 @@ export function LiftersLedgerScreen() {
           {items.map((row, i) => (
             <ListRow
               key={row.id}
-              title={t(row.i18nKey as StringKey)}
+              title={`${t(row.i18nKey as StringKey)}${isLegacyAward(row.badgeId) ? ` - ${t("achv.r2.shelf.legacy")}` : ""}`}
               note={`${row.earnedLocalDate ?? ""} · ${evidenceLine(row.evidence, t, lang, unit, { nameEn: row.exerciseNameEn, nameAr: row.exerciseNameAr })}`}
               last={i === items.length - 1}
               onPress={() => setDetail(row)}

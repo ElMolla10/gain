@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  evaluateAchievements,
+  evaluateLegacyAchievements as evaluateAchievements,
   logicalTrainingDate,
   reconcileAchievements,
   repBand,

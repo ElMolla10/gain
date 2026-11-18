@@ -9,7 +9,7 @@ import { space, type as ty, usePalette } from "../../theme";
 import { AppText, QuietAction } from "../../ui";
 import { BarArt } from "./BarArt";
 import { BarbellRunway } from "./BarbellRunway";
-import { BeltArt, DumbbellPairArt, HoldArt, HornArt, RackedArt, StackArt } from "./ObjectArt";
+import { BeltArt, DumbbellPairArt, HoldArt, HornArt, StackArt } from "./ObjectArt";
 import { PlateEngraving } from "./PlateEngraving";
 
 export const LARGE_TEXT = 1.3;
@@ -29,8 +29,6 @@ export interface TodayBarProps {
   onOpenPath?: () => void;
   /** In progress: the bar lifted (dp). */
   lifted?: number;
-  /** Done for today: the (next day's) bar sits on J-hooks, its plates on the floor. */
-  racked?: boolean;
   /** Another day is open: this day's bar at 50%. */
   dim?: boolean;
   /** Replaces the eyebrow (in progress: "Set 3 of 3 · Bench Press"). */
@@ -44,7 +42,7 @@ const FIRST_RUN_GHOST = [20];
  * "Today's Bar": eyebrow, the target as the biggest number (48 load, 20 muted unit, 36 "× reps"), the art for the lift's equipment and the
  * plate line. Everything above Warm-ups is ONE accessibility element; the art is hidden from screen readers and never mirrors.
  */
-export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, racked, dim, eyebrow: eyebrowOverride }: TodayBarProps) {
+export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, dim, eyebrow: eyebrowOverride }: TodayBarProps) {
   const { t, lang, unit } = useI18n();
   const p = usePalette();
   const { fontScale } = useWindowDimensions();
@@ -74,7 +72,7 @@ export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, rack
   switch (hero.kind) {
     case "barbell": {
       const activePerSide = runwayStep >= 0 && runwayStep < hero.warmups.length ? hero.warmups[runwayStep]!.perSide : hero.calc.perSide;
-      art = racked ? <RackedArt perSide={activePerSide} unit={unit} height={h} /> : <BarArt perSide={activePerSide} ghost={runwayStep >= 0 ? null : hero.ghost} unit={unit} height={h} lifted={lifted} />;
+      art = <BarArt perSide={activePerSide} ghost={runwayStep >= 0 ? null : hero.ghost} unit={unit} height={h} lifted={lifted} />;
       if (hero.calc.perSide.length === 0) captions.push(t("today.emptyBar"));
       else captions.push(<PlateEngraving key="eng" perSide={hero.calc.perSide} normalLoad={hero.normalLoad} />);
       if (!hero.calc.exact) captions.push(t("today.nearest", { load: fmt(hero.calc.load), target: fmt(hero.load) }));
@@ -107,7 +105,7 @@ export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, rack
     case "noGym":
       break;
   }
-  const warmups = hero.kind === "barbell" && hero.warmups.length > 0 && onOpenPath && !racked && !dim ? onOpenPath : null;
+  const warmups = hero.kind === "barbell" && hero.warmups.length > 0 && onOpenPath && !dim ? onOpenPath : null;
   const captionText = captions.map((c, i) => typeof c === "string" ? <AppText key={i} style={{ fontSize: ty.label, color: p.muted }}>{c}</AppText> : c);
   const objectCaption = compact && (hero.kind === "dumbbell" || hero.kind === "stack" || hero.kind === "assisted");
   return (
@@ -136,7 +134,7 @@ export function TodayBar({ hero, name, compact = false, onOpenPath, lifted, rack
           <QuietAction label={t("today.warmups")} onPress={warmups} />
         </View>
       ) : null}
-      {!compact && hero.kind === "barbell" && hero.warmups.length > 0 && !racked && !dim ? (
+      {!compact && hero.kind === "barbell" && hero.warmups.length > 0 && !dim ? (
         <BarbellRunway
           warmups={hero.warmups}
           topLoad={hero.load}

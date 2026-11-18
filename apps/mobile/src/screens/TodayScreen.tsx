@@ -458,7 +458,7 @@ export function TodayScreen() {
           ) : null}
           {/* Keep the lead lift's load art without the warm-up runway or strategy copy. */}
           <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: dragX }, { translateY: lift }] }}>
-            <TodayBar compact hero={hero} name={leadName} racked={mode === "done"} dim={mode === "openElsewhere"} />
+            <TodayBar compact hero={hero} name={leadName} dim={mode === "openElsewhere"} />
           </Animated.View>
           {lead?.targetId && mode !== "open" && mode !== "openElsewhere" ? <QuietAction icon="why" label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${leadName}`} onPress={() => navigation.navigate("Why", { targetId: lead.targetId! })} /> : null}
         </View>

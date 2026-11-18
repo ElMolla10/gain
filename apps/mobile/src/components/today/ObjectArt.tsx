@@ -44,7 +44,7 @@ export function HornArt({ perSide, unit, height }: { perSide: readonly number[];
   );
 }
 
-/** A face-on plate disc with its numeral and hub (belt, racked plates on the floor). */
+/** A face-on plate disc with its numeral and hub for belt loads. */
 export function FaceOnPlate({ cx, cy, kg, unit, r }: { cx: number; cy: number; kg: number; unit: Unit; r: number }) {
   const look = plateLook(kg, unit);
   const c = TODAY_PLATES[look.token];
@@ -92,25 +92,6 @@ export function HoldArt({ object, load, unit, height }: { object: "dumbbell" | "
       ) : null}
       <Circle cx={dialX} cy={HERO_H / 2} r={40} fill="none" stroke={p.edge} strokeWidth={2} />
       <Path d={`M ${dialX} ${HERO_H / 2 - 40} A 40 40 0 0 1 ${dialX + 40} ${HERO_H / 2}`} fill="none" stroke={p.text} strokeWidth={4} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-/** Done for today: the next day's bar on J-hooks; its plates stand face-on on the floor beside the right upright, not on the bar. */
-export function RackedArt({ perSide, unit, height }: { perSide: readonly number[]; unit: Unit; height: number }) {
-  const dark = useIsDark();
-  const o = dark ? TODAY_OBJECTS.dark : TODAY_OBJECTS.light;
-  const steel = dark ? BAR_STEEL.dark : BAR_STEEL.light;
-  const shown = perSide.slice(0, 3);
-  return (
-    <Svg width="100%" height={height} viewBox={VB} {...ART_HIDDEN}>
-      <Rect x={70} y={10} width={10} height={HERO_H - 14} fill={o.frame} />
-      <Rect x={HERO_W - 120} y={10} width={10} height={HERO_H - 14} fill={o.frame} />
-      <Path d={`M 80 40 h 10 v 8 h -10 M ${HERO_W - 110} 40 h 10 v 8 h -10`} fill="none" stroke={steel.lo} strokeWidth={3} />
-      <Rect x={30} y={36} width={HERO_W - 110} height={8} rx={3} fill={steel.base} />
-      {shown.map((kg, i) => (
-        <FaceOnPlate key={i} cx={HERO_W - 70 + i * 6} cy={HERO_H - 34 + i * 2} kg={kg} unit={unit} r={Math.max(14, plateLook(kg, unit).diameter * 0.25)} />
-      ))}
     </Svg>
   );
 }

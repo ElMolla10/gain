@@ -16,6 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       # Engine + mobile (the mobile DB-layer tests use Node's built-in SQLite, no device needed).
+      - run: python3 -m unittest discover -s scripts -p test_verify_testflight_ipa.py
+      - run: node --check scripts/testflight-verify.cjs
       - run: npm run typecheck
       - run: npm test
   # P28: the Android JS bundle must build (catches bad imports, missing assets and unresolved modules that tsc and vitest do not).

@@ -175,6 +175,9 @@ jobs:
           PY
           eas whoami
 
+      - name: Verify TestFlight inventory and internal group
+        run: node scripts/testflight-verify.cjs preflight
+
       # Remote credentials (distribution cert + provisioning profile) are downloaded
       # with EXPO_TOKEN. appVersionSource remote + autoIncrement on the extended
       # production profile sets the build number. Do not export GAIN_IOS_BUILD_NUMBER.
@@ -185,6 +188,9 @@ jobs:
           mkdir -p build
           eas build -p ios --profile testflight-live --local --non-interactive --output build/gain.ipa
           test -s build/gain.ipa
+
+      - name: Verify signed IPA versions
+        run: python3 scripts/verify-testflight-ipa.py
 
       - name: Upload the IPA
         uses: actions/upload-artifact@v4
@@ -200,6 +206,19 @@ jobs:
         run: |
           set -euo pipefail
           eas submit -p ios --profile testflight-live --path build/gain.ipa --non-interactive
+
+      - name: Verify Apple processing and Team (Expo) availability
+        if: ${{ !inputs.skip_submit }}
+        run: node scripts/testflight-verify.cjs verify
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-verification
+          path: apps/mobile/build/*verification.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Remove the API key file
         if: always()

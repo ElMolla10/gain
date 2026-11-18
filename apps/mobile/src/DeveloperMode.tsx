@@ -7,7 +7,7 @@ import { createDeveloperMode } from "./logic/developerMode";
 const Context = createContext<ReturnType<typeof createDeveloperMode> | null>(null);
 export function DeveloperModeProvider({ children }: { children: React.ReactNode }) {
   const { repos } = useServices();
-  const store = useMemo(() => createDeveloperMode(repos), [repos]);
+  const store = useMemo(() => createDeveloperMode(repos, __DEV__), [repos]);
   useEffect(() => { void store.load().catch(error => diagnostics.record("warn", "load developer mode", error)); }, [store]);
   // Timings are recorded only with Developer Mode on (decided once it has loaded).
   useEffect(() => {

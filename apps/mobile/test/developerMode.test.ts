@@ -6,6 +6,14 @@ function storage(value: string | null = null) {
   return { getSetting: vi.fn(async () => value), setSetting: vi.fn(async (_key: string, next: string) => { value = next; }) };
 }
 describe("local Developer Mode", () => {
+  it("ignores an enabled preference in release builds and cannot be switched on", async () => {
+    const db = storage("1"), mode = createDeveloperMode(db, false);
+    await mode.load();
+    await mode.setEnabled(true);
+    expect(mode.getSnapshot()).toEqual({ enabled: false, ready: true, saving: false });
+    expect(db.getSetting).not.toHaveBeenCalled();
+    expect(db.setSetting).not.toHaveBeenCalled();
+  });
   it("defaults hidden, persists explicit enable/disable and does not cloud-sync", async () => {
     const db = storage(), mode = createDeveloperMode(db);
     expect(mode.getSnapshot().enabled).toBe(false);

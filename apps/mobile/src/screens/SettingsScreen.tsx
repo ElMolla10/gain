@@ -12,7 +12,7 @@ import { useI18n } from "../i18n";
 import { space, type as ty, useAppearance, usePalette, setAppearance, APPEARANCES } from "../theme";
 import { AppText, Chip, InlineStatus, RadioGroup, RadioRow, Screen, Stepper } from "../ui";
 import { Block, Group, LinkRow, SelectRow, SwitchRow } from "../components/SettingsRows";
-import { SettingsGroupHero } from "../components/settings/SettingsGroupHero";
+import { SettingsSection } from "../components/settings/SettingsSection";
 import { unitLabel } from "../logic/units";
 import type { StringKey } from "../i18n/strings";
 import Constants from "expo-constants";
@@ -334,12 +334,8 @@ export function SettingsScreen() {
   useSilentRackSync();
   const nav = useNavigation<{ navigate: (n: "Setup" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
   return (
-    <Screen>
-      <SettingsGroupHero
-        version={Constants.expoConfig?.version ?? "1.0.0"}
-      />
-      {/* ST-1: Display first (language is the first row), then Workout, Program & gyms, Advanced, Data, About. Blocks are moved, not rewritten. */}
-      <Group title={t("settings.group.display")}>
+    <Screen contentStyle={{ gap: space.sm }}>
+      <SettingsSection title={t("settings.group.display")} note={t("settings.summary.display")} icon="phone">
         <SelectRow
           label={t("settings.language")}
           value={lang}
@@ -369,24 +365,6 @@ export function SettingsScreen() {
             void repos.setSetting("appearance", a);
           }}
         />
-      </Group>
-
-      <Group title={t("settings.group.workout")}>
-        <RestCard />
-        <ReminderCard />
-        <WeekStartCard />
-      </Group>
-
-      <Group title={t("settings.group.programGyms")}>
-        <LinkRow label={t("gyms.entry")} note={t("gyms.entryNote")} onPress={() => nav.navigate("Gyms")} />
-        <GymStepsCard />
-        <LinkRow label={t("coach.priority.entry")} note={t("coach.priority.note")} onPress={() => nav.navigate("MusclePriority")} />
-        <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
-        <LinkRow label={t("settings.setupAgain")} note={t("settings.setupAgainNote")} onPress={() => nav.navigate("Setup")} />
-      </Group>
-
-      <Group title={t("settings.group.advanced")}>
-        <CeilingsCard />
         {/* Three choices as radio rows (ST-9): readable at 1.5x, no wrapping segments. */}
         <View style={{ paddingVertical: space.md, gap: space.sm }}>
           <AppText style={{ fontSize: ty.body }}>{t("settings.direction")}</AppText>
@@ -402,35 +380,54 @@ export function SettingsScreen() {
           {needsRestart ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("settings.restartNote")}</AppText> : null}
         </View>
         <SwitchRow label={t("settings.secondName")} note={t("settings.secondNameNote")} value={showSecondName} onChange={setShowSecond} />
-        <PeriodizationSettings />
-      </Group>
+      </SettingsSection>
 
-      <Group title={t("settings.group.data")}>
+      <SettingsSection title={t("settings.group.workout")} note={t("settings.summary.workout")} icon="timer">
+        <RestCard />
+        <ReminderCard />
+        <WeekStartCard />
+      </SettingsSection>
+
+      <SettingsSection title={t("settings.group.programGyms")} note={t("settings.summary.programGyms")} icon="dumbbell">
+        <LinkRow label={t("gyms.entry")} note={t("gyms.entryNote")} onPress={() => nav.navigate("Gyms")} />
+        <GymStepsCard />
+        <LinkRow label={t("coach.priority.entry")} note={t("coach.priority.note")} onPress={() => nav.navigate("MusclePriority")} />
+        <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
+        <LinkRow label={t("settings.setupAgain")} note={t("settings.setupAgainNote")} onPress={() => nav.navigate("Setup")} />
+      </SettingsSection>
+
+      <SettingsSection title={t("settings.group.advanced")} note={t("settings.summary.advanced")} icon="settings">
+        <CeilingsCard />
+        <PeriodizationSettings />
+      </SettingsSection>
+
+      <SettingsSection title={t("settings.group.data")} note={t("settings.summary.data")} icon="cloud">
         <LinkRow label={t("data.entry")} onPress={() => nav.navigate("Data")} />
         <LinkRow label={t("sync.entry")} onPress={() => nav.navigate("Sync")} />
-      </Group>
+      </SettingsSection>
 
-      <Group title={t("settings.group.about")}>
+      <SettingsSection title={t("settings.group.about")} note={t("settings.summary.about")} icon="why">
         <LinkRow label={t("privacy.entry")} onPress={() => nav.navigate("Privacy")} />
         <LinkRow label={t("pilot.entry")} onPress={() => nav.navigate("PilotChecklist")} />
         <View style={{ paddingVertical: space.md, gap: space.sm }}>
-          <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.privacy")}</AppText>
           <HealthNote />
           {hasSelfUpdater(buildFlags, Platform.OS) ? <UpdateCard /> : null}
-          {__DEV__ ? <Pressable accessibilityRole="button" accessibilityLabel={t("settings.version", { v: version })}
-            accessibilityHint={t("settings.developer.unlock")}
-            accessibilityActions={[{ name: "enableDeveloperMode", label: t("settings.developer.enable") }]}
-            onAccessibilityAction={event => { if (event.nativeEvent.actionName === "enableDeveloperMode") void changeDeveloperMode(true); }}
-            disabled={!developer.ready || developer.saving}
-            onPress={() => { if (!developer.enabled && unlock(Date.now())) void changeDeveloperMode(true); }}
-            onLongPress={() => void changeDeveloperMode(true)}
-            style={{ minHeight: 48, justifyContent: "center" }}>
-            <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
-          </Pressable> : <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>}
-          {developerError ? <InlineStatus kind="error" text={t("settings.developer.error")} /> : null}
-          {buildFlags.pilotTemplateIds ? <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.pilotBuild")}</AppText> : null}
         </View>
-      </Group>
+      </SettingsSection>
+      <View style={{ alignItems: "center", paddingTop: space.md, gap: space.xs }}>
+        {__DEV__ ? <Pressable accessibilityRole="button" accessibilityLabel={t("settings.version", { v: version })}
+          accessibilityHint={t("settings.developer.unlock")}
+          accessibilityActions={[{ name: "enableDeveloperMode", label: t("settings.developer.enable") }]}
+          onAccessibilityAction={event => { if (event.nativeEvent.actionName === "enableDeveloperMode") void changeDeveloperMode(true); }}
+          disabled={!developer.ready || developer.saving}
+          onPress={() => { if (!developer.enabled && unlock(Date.now())) void changeDeveloperMode(true); }}
+          onLongPress={() => void changeDeveloperMode(true)}
+          style={{ minHeight: 48, justifyContent: "center" }}>
+          <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
+        </Pressable> : <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>}
+        {developerError ? <InlineStatus kind="error" text={t("settings.developer.error")} /> : null}
+        {buildFlags.pilotTemplateIds ? <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.pilotBuild")}</AppText> : null}
+      </View>
       {__DEV__ ? <DeveloperTools enabled={developer.enabled} saving={developer.saving}
         onChange={on => void changeDeveloperMode(on)} onNavigate={route => nav.navigate(route)} /> : null}
       {__DEV__ && !developer.enabled ? (

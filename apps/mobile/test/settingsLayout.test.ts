@@ -7,8 +7,8 @@ import { ar, en } from "../src/i18n/strings";
 const src = readFileSync(join(__dirname, "..", "src", "screens", "SettingsScreen.tsx"), "utf8");
 
 describe("Settings layout", () => {
-  it("is grouped Display → Workout → Program & gyms → Advanced → Data → About", () => {
-    const order = ["display", "workout", "programGyms", "advanced", "data", "about"].map((g) => {
+  it("is grouped Display → Workout → Gym equipment → Advanced → Data → About", () => {
+    const order = ["display", "workout", "gymEquipment", "advanced", "data", "about"].map((g) => {
       expect((en as Record<string, string>)[`settings.group.${g}`]).toBeTruthy();
       expect((ar as Record<string, string>)[`settings.group.${g}`]).toBeTruthy();
       return src.indexOf(`<SettingsSection title={t("settings.group.${g}")}`);
@@ -21,10 +21,11 @@ describe("Settings layout", () => {
   });
   it("every block and row still renders, in its new group", () => {
     const between = (a: string, b: string) => src.slice(src.indexOf(`settings.group.${a}")}`), src.indexOf(`settings.group.${b}")}`));
-    const display = between("display", "workout"), workout = between("workout", "programGyms"), program = between("programGyms", "advanced"), advanced = between("advanced", "data");
+    const display = between("display", "workout"), workout = between("workout", "gymEquipment"), equipment = between("gymEquipment", "advanced"), advanced = between("advanced", "data");
     for (const s of ['t("settings.language")', 't("settings.units")', 't("settings.appearance")', 't("settings.textSizeNote")', 't("settings.direction")', 't("settings.secondName")']) expect(display).toContain(s);
     for (const s of ["<RestCard />", "<ReminderCard />", "<WeekStartCard />"]) expect(workout).toContain(s);
-    for (const s of ['t("gyms.entry")', 't("coach.priority.entry")', 't("goals.entry")']) expect(program).toContain(s);
+    expect(equipment).toContain('t("gyms.entry")');
+    expect(src).not.toMatch(/coach\.priority\.entry|goals\.entry/);
     for (const s of ["<CeilingsCard />", "<PeriodizationSettings />"]) expect(advanced).toContain(s);
     for (const s of ['t("data.entry")', 't("sync.entry")', 't("privacy.entry")', "<HealthNote />", "<DeveloperTools"]) expect(src).toContain(s);
     expect(src).not.toMatch(/settings\.setupAgain|loads\.preset\.apply/);

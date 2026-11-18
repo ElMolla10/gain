@@ -313,7 +313,7 @@ export function SettingsScreen() {
     catch { setDeveloperError(true); }
   };
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
+  const nav = useNavigation<{ navigate: (n: "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "PilotChecklist") => void }>();
   return (
     <Screen contentStyle={{ gap: space.sm }}>
       <SettingsSection title={t("settings.group.display")} note={t("settings.summary.display")} icon="phone">
@@ -369,10 +369,8 @@ export function SettingsScreen() {
         <WeekStartCard />
       </SettingsSection>
 
-      <SettingsSection title={t("settings.group.programGyms")} note={t("settings.summary.programGyms")} icon="dumbbell">
+      <SettingsSection title={t("settings.group.gymEquipment")} note={t("settings.summary.gymEquipment")} icon="dumbbell">
         <LinkRow label={t("gyms.entry")} note={t("gyms.entryNote")} onPress={() => nav.navigate("Gyms")} />
-        <LinkRow label={t("coach.priority.entry")} note={t("coach.priority.note")} onPress={() => nav.navigate("MusclePriority")} />
-        <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
       </SettingsSection>
 
       <SettingsSection title={t("settings.group.advanced")} note={t("settings.summary.advanced")} icon="settings">

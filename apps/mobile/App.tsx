@@ -211,7 +211,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
           <Stack.Screen name="Sync" component={SyncScreen} options={{ title: t("sync.title") }} />
           <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: t("privacy.title") }} />
-          <Stack.Screen name="PilotChecklist" component={PilotChecklistScreen} options={{ title: t("pilot.title") }} />
+          {__DEV__ ? <Stack.Screen name="PilotChecklist" component={PilotChecklistScreen} options={{ title: t("pilot.title") }} /> : null}
           {developerMode ? <Stack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: t("diag.title") }} /> : null}
           {developerMode ? <Stack.Screen name="DecisionLog" component={DecisionLogScreen} options={{ title: t("dec.title") }} /> : null}
           <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: t("history.session.title") }} />

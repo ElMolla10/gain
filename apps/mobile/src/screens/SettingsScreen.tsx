@@ -31,25 +31,6 @@ import { DeveloperTools } from "../components/DeveloperTools";
 
 const KINDS: CeilingClass[] = ["upper", "lower", "lateral_raise"];
 
-function GymStepsCard() {
-  const { t } = useI18n();
-  const { gyms } = useServices();
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<"saved" | "failed" | null>(null);
-  return (
-    <Block title={t("loads.preset.title")} note={t("loads.preset.note")}>
-      <LinkRow label={t("loads.preset.apply")} onPress={() => {
-        if (busy) return;
-        setBusy(true);
-        setStatus(null);
-        void gyms.applyLoadStepPreset().then(() => setStatus("saved")).catch(() => setStatus("failed")).finally(() => setBusy(false));
-      }} />
-      {busy ? <InlineStatus kind="info" text={t("loads.preset.saving")} /> : null}
-      {status ? <InlineStatus kind={status === "saved" ? "success" : "error"} text={t(status === "saved" ? "loads.preset.saved" : "loads.preset.failed")} /> : null}
-    </Block>
-  );
-}
-
 /** The default rep ceilings (reps at which load goes up) per kind of lift. Per-lift overrides live on the program row. */
 function CeilingsCard() {
   const { t } = useI18n();
@@ -332,7 +313,7 @@ export function SettingsScreen() {
     catch { setDeveloperError(true); }
   };
   useSilentRackSync();
-  const nav = useNavigation<{ navigate: (n: "Setup" | "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
+  const nav = useNavigation<{ navigate: (n: "Goals" | "StoppedSuggestions" | "DecisionLog" | "Data" | "Sync" | "Diagnostics" | "Privacy" | "Gyms" | "MusclePriority" | "PilotChecklist") => void }>();
   return (
     <Screen contentStyle={{ gap: space.sm }}>
       <SettingsSection title={t("settings.group.display")} note={t("settings.summary.display")} icon="phone">
@@ -390,10 +371,8 @@ export function SettingsScreen() {
 
       <SettingsSection title={t("settings.group.programGyms")} note={t("settings.summary.programGyms")} icon="dumbbell">
         <LinkRow label={t("gyms.entry")} note={t("gyms.entryNote")} onPress={() => nav.navigate("Gyms")} />
-        <GymStepsCard />
         <LinkRow label={t("coach.priority.entry")} note={t("coach.priority.note")} onPress={() => nav.navigate("MusclePriority")} />
         <LinkRow label={t("goals.entry")} onPress={() => nav.navigate("Goals")} />
-        <LinkRow label={t("settings.setupAgain")} note={t("settings.setupAgainNote")} onPress={() => nav.navigate("Setup")} />
       </SettingsSection>
 
       <SettingsSection title={t("settings.group.advanced")} note={t("settings.summary.advanced")} icon="settings">
@@ -408,7 +387,7 @@ export function SettingsScreen() {
 
       <SettingsSection title={t("settings.group.about")} note={t("settings.summary.about")} icon="why">
         <LinkRow label={t("privacy.entry")} onPress={() => nav.navigate("Privacy")} />
-        <LinkRow label={t("pilot.entry")} onPress={() => nav.navigate("PilotChecklist")} />
+        {__DEV__ ? <LinkRow label={t("pilot.entry")} onPress={() => nav.navigate("PilotChecklist")} /> : null}
         <View style={{ paddingVertical: space.md, gap: space.sm }}>
           <HealthNote />
           {hasSelfUpdater(buildFlags, Platform.OS) ? <UpdateCard /> : null}

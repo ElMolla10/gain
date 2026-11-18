@@ -100,8 +100,6 @@ export const enOnboarding = {
   "ob.problem.bodyweight_required": "A bodyweight goal needs your bodyweight now.",
   "ob.problem.bodyweight_bad": "Bodyweight must be between {min} and {max}.",
   "ob.problem.height_bad": "Height must be between 100 and 250 cm.",
-  "settings.setupAgain": "Run setup again",
-  "settings.setupAgainNote": "Creates a new program. The old programs and all your history stay.",
 } as const;
 
 export const arOnboarding: Record<keyof typeof enOnboarding, string> = {
@@ -202,6 +200,4 @@ export const arOnboarding: Record<keyof typeof enOnboarding, string> = {
   "ob.problem.bodyweight_required": "هدف وزن الجسم محتاج وزنك دلوقتي.",
   "ob.problem.bodyweight_bad": "وزن الجسم لازم يكون بين {min} و{max}.",
   "ob.problem.height_bad": "الطول لازم يكون بين 100 و250 سم.",
-  "settings.setupAgain": "ابدأ الإعداد من جديد",
-  "settings.setupAgainNote": "بيعمل برنامج جديد. البرامج القديمة وكل سجلك بيفضلوا زي ما هم.",
 };

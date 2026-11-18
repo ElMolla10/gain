@@ -9,12 +9,39 @@ import { gymDisplayName } from "../logic/gymDisplayName";
 import { SAMPLE_GYM } from "../db/seedData";
 import { defaultGymLoads } from "../logic/defaultGym";
 import { radius, space, type as ty, usePalette } from "../theme";
-import { AppText, BigButton, Card, InlineStatus, LoadingState, Screen } from "../ui";
+import { AppText, BigButton, Card, CollapsibleCard, InlineStatus, LoadingState, Screen } from "../ui";
 import { RackGlyph, glyphFor } from "../components/today/RackRow";
 import { haptics } from "../haptics";
 import type { EquipmentType } from "@gain/engine";
 
 type Nav = { navigate: (name: "GymEdit" | "PlateCalc", params?: { gymId?: string }) => void };
+
+function GymWeightSteps({ onSaved }: { onSaved: () => void }) {
+  const { gyms } = useServices();
+  const { t } = useI18n();
+  const [status, setStatus] = useState<"saving" | "saved" | "failed" | null>(null);
+
+  const apply = async () => {
+    if (status === "saving") return;
+    setStatus("saving");
+    try {
+      await gyms.applyLoadStepPreset();
+      onSaved();
+      setStatus("saved");
+    } catch {
+      setStatus("failed");
+    }
+  };
+
+  return (
+    <CollapsibleCard title={t("loads.preset.title")}>
+      <AppText>{t("loads.preset.note")}</AppText>
+      <BigButton variant="secondary" label={t("loads.preset.apply")} loading={status === "saving"} onPress={() => void apply()} />
+      {status === "saved" ? <InlineStatus kind="success" text={t("loads.preset.saved")} /> : null}
+      {status === "failed" ? <InlineStatus kind="error" text={t("loads.preset.failed")} /> : null}
+    </CollapsibleCard>
+  );
+}
 
 export function GymsScreen() {
   const { gyms } = useServices();
@@ -31,6 +58,7 @@ export function GymsScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   if (!list) return <LoadingState />;
+  const activeGym = list.find((g) => g.isActive);
 
   const createFromPreset = async (presetKey: "commercial" | "powerlifting" | "garage") => {
     setCreatingPreset(true);
@@ -159,6 +187,8 @@ export function GymsScreen() {
           );
         })}
       </View>
+
+      {activeGym ? <GymWeightSteps key={activeGym.id} onSaved={load} /> : null}
 
       {note ? <InlineStatus kind="error" text={note} /> : null}
 

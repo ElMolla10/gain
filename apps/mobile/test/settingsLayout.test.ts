@@ -24,9 +24,11 @@ describe("Settings layout", () => {
     const display = between("display", "workout"), workout = between("workout", "programGyms"), program = between("programGyms", "advanced"), advanced = between("advanced", "data");
     for (const s of ['t("settings.language")', 't("settings.units")', 't("settings.appearance")', 't("settings.textSizeNote")', 't("settings.direction")', 't("settings.secondName")']) expect(display).toContain(s);
     for (const s of ["<RestCard />", "<ReminderCard />", "<WeekStartCard />"]) expect(workout).toContain(s);
-    for (const s of ['t("gyms.entry")', "<GymStepsCard />", 't("coach.priority.entry")', 't("goals.entry")', 't("settings.setupAgain")']) expect(program).toContain(s);
+    for (const s of ['t("gyms.entry")', 't("coach.priority.entry")', 't("goals.entry")']) expect(program).toContain(s);
     for (const s of ["<CeilingsCard />", "<PeriodizationSettings />"]) expect(advanced).toContain(s);
-    for (const s of ['t("data.entry")', 't("sync.entry")', 't("privacy.entry")', 't("pilot.entry")', "<HealthNote />", "<DeveloperTools"]) expect(src).toContain(s);
+    for (const s of ['t("data.entry")', 't("sync.entry")', 't("privacy.entry")', "<HealthNote />", "<DeveloperTools"]) expect(src).toContain(s);
+    expect(src).not.toMatch(/settings\.setupAgain|loads\.preset\.apply/);
+    expect(src).toContain('{__DEV__ ? <LinkRow label={t("pilot.entry")}');
     expect(src).not.toContain('t("import.entry")');
   });
   it("rest default is five segments on one line; layout direction is three radio rows", () => {

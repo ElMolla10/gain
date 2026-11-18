@@ -11,7 +11,7 @@ spec.loader.exec_module(verifier)
 class VersionTests(unittest.TestCase):
     def setUp(self):
         self.bundles = [{'CFBundleVersion': '53', 'CFBundleShortVersionString': '1.0.4'} for _ in range(2)]
-        self.inventory = {'numbers': ['51', '52'], 'next': 53}
+        self.inventory = {'numbers': ['51', '52'], 'selected': '53'}
 
     def test_matching_app_and_extension(self):
         self.assertEqual(verifier.validate(self.bundles, '1.0.4', self.inventory), '53')
@@ -30,6 +30,10 @@ class VersionTests(unittest.TestCase):
                 bundle['CFBundleVersion'] = number
             with self.assertRaises(ValueError):
                 verifier.validate(bundles, '1.0.4', self.inventory)
+
+    def test_reservation_can_be_ahead_of_apple_inventory(self):
+        inventory = {'numbers': ['51'], 'selected': '53'}
+        self.assertEqual(verifier.validate(self.bundles, '1.0.4', inventory), '53')
 
     def test_missing_extension(self):
         with self.assertRaises(ValueError):

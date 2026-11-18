@@ -178,9 +178,12 @@ jobs:
       - name: Verify TestFlight inventory and internal group
         run: node scripts/testflight-verify.cjs preflight
 
+      - name: Reconcile and reserve shared app and widget build number
+        run: node scripts/reserve-ios-build.cjs
+
       # Remote credentials (distribution cert + provisioning profile) are downloaded
-      # with EXPO_TOKEN. appVersionSource remote + autoIncrement on the extended
-      # production profile sets the build number. Do not export GAIN_IOS_BUILD_NUMBER.
+      # with EXPO_TOKEN. The testflight-live profile reads the reserved remote number
+      # with autoIncrement disabled; prebuild reads the same number from app.json.
       - name: Build the iOS app locally
         working-directory: apps/mobile
         run: |
@@ -216,7 +219,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: testflight-verification
-          path: apps/mobile/build/*verification.json
+          path: |
+            apps/mobile/build/*verification.json
+            apps/mobile/build/testflight-preflight.json
           if-no-files-found: warn
           retention-days: 14
 

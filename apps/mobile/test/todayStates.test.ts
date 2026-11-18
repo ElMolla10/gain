@@ -71,10 +71,11 @@ describe("state detection precedence (spec §4)", () => {
 });
 
 describe("state render trees (EN / AR)", () => {
-  it("done for today: racked bar (uprights, plates on the floor), no Warm-ups", () => {
-    const tree = render(bar, { racked: true });
+  it("compact next target: loaded plates on the bar, no Warm-ups", () => {
+    const tree = render(bar, { compact: true });
     expect(byType(tree, "QuietAction")).toHaveLength(0);
-    expect(byType(tree, "Circle").length).toBeGreaterThan(0);
+    expect(byType(tree, "Rect").filter((n) => String(n.props.fill).startsWith("url(#tb-")).length).toBeGreaterThan(0);
+    expect(byType(tree, "Circle")).toHaveLength(0);
   });
   it("another day open: the bar at 50%, no Warm-ups", () => {
     const tree = render(bar, { dim: true }) as { props: { style: { opacity: number } } };

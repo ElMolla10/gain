@@ -19,12 +19,12 @@ export function WorkoutSessionOverview({ visible, exercises, activeId, onJump, o
   return <Modal visible={visible} animationType="slide" onRequestClose={onClose} onDismiss={onDismiss}>
     <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top + space.sm }}>
       <View style={{ flexDirection: "row", alignItems: "center", paddingStart: space.lg, paddingEnd: space.xs, gap: space.sm }}>
-        <AppText accessibilityRole="header" style={{ flex: 1, fontSize: 28, fontWeight: "600" }}>{t("workout.details")}</AppText>
+        <AppText maxFontSizeMultiplier={1.3} accessibilityRole="header" style={{ flex: 1, fontSize: 28, fontWeight: "600" }}>{t("workout.details")}</AppText>
         <IconButton icon="close" label={t("workout.current.back")} onPress={onClose} />
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", paddingHorizontal: space.lg, columnGap: space.lg }}>
-        <QuietAction icon="plus" label={t("workout.add.button")} onPress={onAdd} />
-        {exercises.length > 1 ? <QuietAction icon="drag" label={t("workout.reorder.button")} onPress={onReorder} /> : null}
+        <QuietAction maxFontSizeMultiplier={1.3} icon="plus" label={t("workout.add.button")} onPress={onAdd} />
+        {exercises.length > 1 ? <QuietAction maxFontSizeMultiplier={1.3} icon="drag" label={t("workout.reorder.button")} onPress={onReorder} /> : null}
       </View>
       <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.sm }} keyboardShouldPersistTaps="handled">
         {exercises.map((ex, i) => <View key={ex.id} style={{ flexDirection: "row", alignItems: "center", borderRadius: radius.card, borderWidth: activeId === ex.id ? 2 : 1, borderColor: activeId === ex.id ? p.accent : p.line, backgroundColor: activeId === ex.id ? p.activeBg : p.card }}>
@@ -42,7 +42,7 @@ export function WorkoutSessionOverview({ visible, exercises, activeId, onJump, o
         {settings ? children : null}
       </ScrollView>
       <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: insets.bottom + space.sm }}>
-        <BigButton variant="secondary" label={t("workout.current.back")} onPress={onClose} />
+        <BigButton maxFontSizeMultiplier={1.5} variant="secondary" label={t("workout.current.back")} onPress={onClose} />
       </View>
     </View>
   </Modal>;

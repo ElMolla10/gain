@@ -55,14 +55,14 @@ describe("L-4 typed but unticked", () => {
     expect(row).toContain("pending={pending.reps}");
   });
   it("the save status line is 14/20 with a 16 dp icon (not the 13 compact size)", () => {
-    expect(screen).toContain('{showStatusWarning ? <InlineStatus kind="warn" text={statusShort} /> : null}');
+    expect(screen).toContain('{showStatusWarning ? <InlineStatus kind="warn" text={statusShort} maxFontSizeMultiplier={1.3} /> : null}');
   });
 });
 
 describe("L-1, L-5, L-6, L-15 set table", () => {
   it("L-1: typed values are 20 semibold with tabular figures; the set number is 16", () => {
     expect(parts).toMatch(/fontSize: props\.fontSize \?\? ty\.section,\s*fontVariant: \["tabular-nums"\]/);
-    expect(row).toContain('<AppText ltr style={{ fontWeight: "600", fontSize: ty.body');
+    expect(row).toContain('<AppText maxFontSizeMultiplier={1.3} ltr style={{ fontWeight: "600", fontSize: ty.body');
   });
   it("L-5: 4 dp row padding and 8 dp column gap; Previous flex 1.1", () => {
     expect(row).toContain("gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.xs");

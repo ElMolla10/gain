@@ -134,7 +134,7 @@ export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dang
  * `danger` = destructive, separated and outlined in the danger colour. `selected={false}` is the older spelling of `secondary`.
  * While `loading` the label is replaced by a labelled spinner and presses are ignored (no duplicates). Labels wrap; they never truncate.
  */
-export function BigButton(props: { label: string; onPress?: () => void; disabled?: boolean; selected?: boolean; variant?: ButtonVariant; loading?: boolean; icon?: IconName; accessibilityHint?: string; /** The one primary action on a screen: taller, larger label. */ hero?: boolean }) {
+export function BigButton(props: { label: string; onPress?: () => void; disabled?: boolean; selected?: boolean; variant?: ButtonVariant; loading?: boolean; icon?: IconName; accessibilityHint?: string; maxFontSizeMultiplier?: number; /** The one primary action on a screen: taller, larger label. */ hero?: boolean }) {
   const p = usePalette();
   const { t } = useI18n();
   // Inside a collapsible card (This week) a primary would compete with the screen's one primary action: draw it secondary (B-R2).
@@ -168,7 +168,7 @@ export function BigButton(props: { label: string; onPress?: () => void; disabled
       })}
     >
       {props.loading ? <ActivityIndicator color={fg} /> : props.icon ? <Icon name={props.icon} color={fg} size={20} mirror={props.icon === "chevron"} /> : null}
-      <AppText style={{ fontSize: props.hero ? ty.section : ty.body, fontWeight: "600", color: fg, textAlign: "center", flexShrink: 1 }}>{props.loading ? t("common.loading") : props.label}</AppText>
+      <AppText maxFontSizeMultiplier={props.maxFontSizeMultiplier} style={{ fontSize: props.hero ? ty.section : ty.body, fontWeight: "600", color: fg, textAlign: "center", flexShrink: 1 }}>{props.loading ? t("common.loading") : props.label}</AppText>
     </Pressable>
   );
 }
@@ -193,7 +193,7 @@ export function IconButton(props: { icon: IconName; label: string; onPress: () =
  * A quiet text action ("Why", "Change workout"): accent label with an optional icon, no fill and no outline, so it never competes with the
  * primary button. The touch area is always at least 48 x 48 dp whatever the text size; a long label wraps and is never cut off.
  */
-export function QuietAction(props: { label: string; onPress: () => void; onLongPress?: () => void; icon?: IconName; /** danger = a destructive text action (e.g. "Remove this day"); it still asks before it deletes. */ tone?: "danger"; /** Spoken label when it must say more than the visible one (e.g. "Why: Bench Press"). */ accessibilityLabel?: string; /** For a control that opens or closes something in place. */ expanded?: boolean }) {
+export function QuietAction(props: { label: string; onPress: () => void; onLongPress?: () => void; icon?: IconName; maxFontSizeMultiplier?: number; /** danger = a destructive text action (e.g. "Remove this day"); it still asks before it deletes. */ tone?: "danger"; /** Spoken label when it must say more than the visible one (e.g. "Why: Bench Press"). */ accessibilityLabel?: string; /** For a control that opens or closes something in place. */ expanded?: boolean }) {
   const p = usePalette();
   const color = props.tone === "danger" ? p.danger : p.accent;
   return (
@@ -206,7 +206,7 @@ export function QuietAction(props: { label: string; onPress: () => void; onLongP
       style={({ pressed }) => ({ minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.raised : "transparent" })}
     >
       {props.icon ? <Icon name={props.icon} color={color} size={props.tone === "danger" ? 20 : 18} /> : null}
-      <AppText style={{ fontSize: ty.label, fontWeight: "600", color, flexShrink: 1 }}>{props.label}</AppText>
+      <AppText maxFontSizeMultiplier={props.maxFontSizeMultiplier} style={{ fontSize: ty.label, fontWeight: "600", color, flexShrink: 1 }}>{props.label}</AppText>
     </Pressable>
   );
 }
@@ -399,14 +399,14 @@ export function Stepper(props: { label: string; value: number; onChange: (n: num
 }
 
 /** One line of status: icon + words, coloured by kind. Status is never colour alone. `compact` = caption size (a status that sits in a header). */
-export function InlineStatus({ kind, text, icon: iconOverride, compact }: { kind: "info" | "success" | "warn" | "error"; text: string; icon?: IconName; compact?: boolean }) {
+export function InlineStatus({ kind, text, icon: iconOverride, compact, maxFontSizeMultiplier }: { kind: "info" | "success" | "warn" | "error"; text: string; icon?: IconName; compact?: boolean; maxFontSizeMultiplier?: number }) {
   const p = usePalette();
   const color = kind === "error" ? p.danger : kind === "warn" ? p.warn : kind === "success" ? p.success : p.muted;
   const icon: IconName = iconOverride ?? (kind === "error" || kind === "warn" ? "alert" : kind === "success" ? "check" : "why");
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-start", gap: space.xs }}>
       <View style={{ paddingTop: 2 }}><Icon name={icon} color={color} size={compact ? 14 : 16} /></View>
-      <AppText style={{ color, fontSize: compact ? ty.caption : ty.label, flexShrink: 1 }}>{text}</AppText>
+      <AppText maxFontSizeMultiplier={maxFontSizeMultiplier} style={{ color, fontSize: compact ? ty.caption : ty.label, flexShrink: 1 }}>{text}</AppText>
     </View>
   );
 }

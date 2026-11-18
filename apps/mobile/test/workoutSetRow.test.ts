@@ -13,7 +13,15 @@ import { PreviousSourceToggle, parsePreviousSource, PREVIOUS_SOURCE_KEY } from "
 // Inspect the presentation tree and invoke its callbacks. Native keyboard/gesture delivery needs a phone.
 const settings = vi.hoisted(() => ({ unit: "kg" as "kg" | "lb", lang: "en" as "en" | "ar", fontScale: 1 }));
 vi.mock("../src/haptics", () => ({ haptics: { tick: () => {}, untick: () => {}, restOver: () => {}, celebrate: () => {} } }));
-vi.mock("react", async orig => (await import("./achievementRender")).mockReactHooks(await orig()));
+const rowHost = vi.hoisted(() => ({ enabled: false, index: 0, values: [] as any[] }));
+vi.mock("react", async orig => (await import("./achievementRender")).mockReactHooks(await orig(), {
+  useState: (initial: any) => {
+    if (!rowHost.enabled) return [initial, () => {}];
+    const i = rowHost.index++;
+    if (!(i in rowHost.values)) rowHost.values[i] = initial;
+    return [rowHost.values[i], (v: any) => { rowHost.values[i] = v; }];
+  },
+}));
 vi.mock("react-native", () => ({ Platform: { OS: "ios" }, View: "View", Alert: { alert: vi.fn() }, Pressable: "Pressable", useWindowDimensions: () => ({ fontScale: settings.fontScale }) }));
 vi.mock("../src/i18n", () => ({ useI18n: () => ({ ...settings, unitText: settings.unit, fmt: (kg: number) => `${kg} kg`, t: (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(settings.lang, key, params) }) }));
 vi.mock("../src/theme", () => ({ radius: { button: 8, card: 12, pill: 24 }, space: { xs: 4, sm: 8, md: 12, lg: 16 }, type: { section: 20, label: 13, load: 36, caption: 13 }, useLogPalette: () => ({ doneBg: "done", activeBg: "active", bg: "page", card: "card", line: "line", fill: "fill", accent: "accent", muted: "muted", danger: "danger", text: "text" }), usePalette: () => ({ muted: "muted", border: "border", text: "text", fill: "fill", onFill: "onFill", edge: "edge", danger: "danger" }) }));
@@ -39,8 +47,41 @@ function props(extra: Partial<WorkoutSetRowProps> = {}): WorkoutSetRowProps {
 const tick = (p: WorkoutSetRowProps) => nodes(WorkoutSetRow(p)).find(n => n.props.accessibilityRole === "checkbox")!;
 const inputs = (p: WorkoutSetRowProps) => nodes(WorkoutSetRow(p)).filter(n => n.type as unknown === "CellInput");
 
-beforeEach(() => { settings.unit = "kg"; settings.lang = "en"; settings.fontScale = 1; });
+beforeEach(() => { rowHost.enabled = false; rowHost.index = 0; rowHost.values = []; settings.unit = "kg"; settings.lang = "en"; settings.fontScale = 1; });
 describe("extracted workout row wiring", () => {
+  it("keeps restored invalid values visibly invalid in directly editable table cells", () => {
+    const p = props(); p.row = { ...p.row, invalidLoad: true, invalidReps: true };
+    expect(inputs(p)[0]!.props.invalid).toBe(true);
+    expect(inputs(p)[1]!.props.invalid).toBe(true);
+  });
+  it("retains bodyweight-only and assistance input semantics in the table", () => {
+    const p = props(); p.onSelect = vi.fn(); p.ex = { ...p.ex, setup: "bodyweight_plus_added", equipment: "plate" };
+    p.row = { ...p.row, ghostLoad: 0 };
+    expect(inputs(p)).toHaveLength(1);
+    const bw = nodes(WorkoutSetRow(p)).find(n => n.props.testID === "bodyweight-input")!;
+    bw.props.onPress(); expect(p.onSelect).toHaveBeenCalledWith(p.row.key);
+    p.row = { ...p.row, load: 10 }; expect(inputs(p)).toHaveLength(2);
+    p.ex = { ...p.ex, setup: "assisted", equipment: "assisted" };
+    expect(inputs(p)[0]!.props.a11y).toContain("Assistance");
+  });
+  it("consumes bodyweight input autofocus so layout changes cannot steal focus", () => {
+    rowHost.enabled = true;
+    const p = props(); p.ex = { ...p.ex, setup: "bodyweight_plus_added", equipment: "plate" }; p.row = { ...p.row, ghostLoad: 0 };
+    const render = () => { rowHost.index = 0; return nodes(WorkoutSetRow(p)); };
+    render().find(n => n.props.testID === "bodyweight-input")!.props.onPress();
+    const input = render().find(n => n.type as unknown === "CellInput")!;
+    expect(input.props.autoFocus).toBe(true);
+    input.props.onFocus();
+    p.stacked = true;
+    expect(render().find(n => n.type as unknown === "CellInput")!.props.autoFocus).toBeFalsy();
+  });
+  it.each(["time", "distance"] as const)("does not invent previous %s from a history row with no measured quantity", measure => {
+    const p = props(); p.ex = { ...p.ex, measure }; p.lastSets = [{ load: 60, reps: 1 }, { load: 60, reps: 1 }];
+    const previous = () => nodes(WorkoutSetRow(p)).find(n => n.type as unknown === "AppText" && n.props.style?.textAlign === "center")!.props.children;
+    expect(previous()).toBe("—");
+    p.lastSets[1] = { load: 60, reps: 1, ...(measure === "time" ? { durationS: 45 } : { distanceM: 25 }) };
+    expect(String(previous())).toContain(measure === "time" ? "45 s" : "25 m");
+  });
   it("shows a static, polite PR indicator only on a clean checked row", () => {
     const p = props({ strengthPr: true });
     const indicators = () => nodes(WorkoutSetRow(p)).filter(n => n.props.accessibilityLiveRegion === "polite");
@@ -255,7 +296,7 @@ describe("extracted exercise section wiring", () => {
     expect(suggestion).toBeGreaterThan(target);
     expect(tree.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
   });
-  it("the Next-set card is absent by default; the row keeps the ghost and a compact toggle opens the card", async () => {
+  it("suggestions stay behind Why while the table keeps the resolved ghost and log handler", async () => {
     const p = await sectionProps();
     const card = { key: p.list[0]!.key, performance: "observed", snapshot: "draft", decision: { action: "increase" as const, reason: "above_range" as const, predictedReps: 8, suggestedWeightKg: 62.5, suggestedReps: 8 } };
     p.list = [{ ...p.list[0]!, ghostLoad: 62.5, ghostReps: 8 }, ...p.list.slice(1)];
@@ -273,14 +314,14 @@ describe("extracted exercise section wiring", () => {
       expect(row.props.onLog).toBe(p.onLog); // one-tap confirm is unchanged
       expect(tree.some(n => n.type as unknown === "TargetLine")).toBe(false);
       const target = nodes(WorkoutExerciseSection({ ...p, card, onToggleSuggestion, expanded: true })).find(n => n.type as unknown === "TargetLine")!;
-      expect(target.props.moreLabel).toBe(translate(lang, "workout.nextSetDetails"));
-      expect(target.props.moreExpanded).toBe(false);
-      target.props.onMore();
+      expect(target.props.moreLabel).toBeUndefined();
+      expect(target.props.onMore).toBeUndefined();
+      target.props.onWhy();
     }
-    expect(onToggleSuggestion).toHaveBeenCalledTimes(2);
+    expect(p.onWhy).toHaveBeenCalledTimes(2);
     const open = nodes(WorkoutExerciseSection({ ...p, card, onToggleSuggestion, suggestionOpen: true }));
     expect(open.filter(n => n.type === LiveSuggestion)).toHaveLength(1);
-    expect(open.find(n => (n.type as unknown) === "TargetLine")!.props.moreExpanded).toBe(true);
+    expect(open.find(n => (n.type as unknown) === "TargetLine")!.props.moreLabel).toBeUndefined();
   });
   it("a stop warning still shows without opening anything", async () => {
     const p = await sectionProps();

@@ -35,6 +35,7 @@ export function CellInput<T extends number>(props: {
   prominent?: boolean;
   invalid?: boolean;
   fontSize?: number;
+  maxFontSizeMultiplier?: number;
   minHeight?: number;
   onFocus?: () => void;
   autoFocus?: boolean;
@@ -47,13 +48,16 @@ export function CellInput<T extends number>(props: {
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState(props.value === null ? "" : props.format(props.value));
   const seen = useRef<T | null>(props.value);
+  const formatted = props.value === null ? "" : props.format(props.value);
+  const seenFormat = useRef(formatted);
   useEffect(() => {
-    if (props.value !== seen.current) {
+    if (props.value !== seen.current || formatted !== seenFormat.current) {
       seen.current = props.value;
-      if (props.value !== props.parse(text, props.value)) setText(props.value === null ? "" : props.format(props.value));
+      seenFormat.current = formatted;
+      if (props.value !== props.parse(text, props.value)) setText(formatted);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.value]);
+  }, [props.value, formatted]);
   useEffect(() => {
     if (props.autoFocus) inputRef.current?.focus();
   }, [props.autoFocus, props.focusNonce]);
@@ -63,6 +67,7 @@ export function CellInput<T extends number>(props: {
       {props.unitLabel ? <AppText style={{ color: p.muted, fontSize: 13, textAlign: "center" }}>{props.unitLabel}</AppText> : null}
       <TextInput
         ref={inputRef}
+        maxFontSizeMultiplier={props.maxFontSizeMultiplier}
         accessibilityLabel={props.a11y}
         accessibilityHint={bad ? t("workout.input.invalid") : props.placeholder ? t("workout.input.target", { value: props.placeholder }) : undefined}
         value={text}

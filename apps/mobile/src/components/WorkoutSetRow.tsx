@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, View } from "react-native";
 import type { LoggedSet } from "@gain/engine";
 import type { Disp } from "../logic/workoutTypes";
@@ -6,10 +6,11 @@ import { useI18n } from "../i18n";
 import { exerciseLabels, isolateLtr } from "../i18n/format";
 import { unitLabel, weightText, type Unit } from "../logic/units";
 import { isTimed, parseQuantityInput, setQuantity } from "../logic/quantity";
+import { loadInputMode, previousForRow } from "../logic/currentSet";
 import { beatLast } from "../logic/beatLast";
 import { previousCellText } from "../logic/bidiText";
 import { parseLoadInput, parseRepsInput } from "../logic/setInput";
-import { kindOf, rowCanLog, type SetRowDraft, type editRow } from "../logic/workoutRows";
+import { effectiveOf, kindOf, rowCanLog, type SetRowDraft, type editRow } from "../logic/workoutRows";
 import { pendingInputs, tickState } from "../logic/setRowState";
 import { radius, space, type as ty, useLogPalette } from "../theme";
 import { AppText } from "../ui";
@@ -52,6 +53,10 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
   const colSet = { width: 48, alignItems: "center" as const };
   const colTick = { width: 48, alignItems: "center" as const };
 
+  const [addedWeight, setAddedWeight] = useState(false);
+  const [focusAddedWeight, setFocusAddedWeight] = useState(false);
+  const loadMode = loadInputMode(ex, effectiveOf(row).load);
+  const loadLabel = t(loadMode === "assistance" ? "workout.current.assistance" : ex.setup === "bodyweight_plus_added" ? "workout.current.addedWeight" : "workout.load");
   const done = row.saved && !row.dirty;
   const canTick = rowCanLog(row);
   const state = tickState(row, canTick);
@@ -73,7 +78,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         onAccessibilityAction={event => { if (event.nativeEvent.actionName === "delete") onAskDelete(row); }}
         style={({ pressed }) => ({ width: 48, height: 48, borderRadius: radius.button, backgroundColor: p.field, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 })}
       >
-        <AppText ltr style={{ fontWeight: "600", fontSize: ty.body, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.accent }}>{label}</AppText>
+        <AppText maxFontSizeMultiplier={1.3} ltr style={{ fontWeight: "600", fontSize: ty.body, color: row.warmup ? p.warn : kindOf(row) === "normal" ? p.text : p.accent }}>{label}</AppText>
       </Pressable>
     </View>
   );
@@ -81,18 +86,26 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
   // Latin digits, so ltr is safe here (L-3). At large text it is a 13 caption above the kg box instead of a column (L-8).
   // "↑" + text 600 when this logged set beat the same set last time (logger spec §4; plain comparison, no colour, no "best").
   const lastSet = lastSets && workingIndex !== null ? lastSets[workingIndex] ?? null : null;
-  const beat = !!lastSet && row.saved && !row.dirty && row.load !== null && row.reps !== null
+  const comparablePrevious = previousForRow(lastSets, workingIndex, ex.measure);
+  const beat = !!comparablePrevious && !!lastSet && row.saved && !row.dirty && row.load !== null && row.reps !== null
     && beatLast({ load: row.load, reps: row.reps, warmup: row.warmup, tags: row.tags }, { load: lastSet.load, reps: setQuantity(lastSet, ex.measure) }, ex.measure);
-  const previousValue = `${beat ? "↑ " : ""}${previousCellText(lastSets, workingIndex, ex.measure, unit, qUnits)}`;
+  const previousValue = comparablePrevious ? `${beat ? "↑ " : ""}${previousCellText(lastSets, workingIndex, ex.measure, unit, qUnits)}` : "—";
   const previousA11y = beat ? `${previousValue}, ${t("rack.beatLast")}` : undefined;
   const previous = (
     <View style={{ flex: 1.1 }}>
-      <AppText ltr accessibilityLabel={previousA11y} style={{ color: beat ? p.text : p.muted, fontWeight: beat ? "600" : undefined, fontSize: ty.label, textAlign: "center" }}>{previousValue}</AppText>
+      <AppText maxFontSizeMultiplier={1.3} ltr accessibilityLabel={previousA11y} style={{ color: beat ? p.text : p.muted, fontWeight: beat ? "600" : undefined, fontSize: ty.label, textAlign: "center" }}>{previousValue}</AppText>
     </View>
   );
-  const loadCell = (
+  const loadCell = loadMode === "bodyweight" && !addedWeight && !row.invalidLoad ? (
+    <Pressable testID="bodyweight-input" accessibilityRole="button" accessibilityLabel={`${t("workout.current.addWeight")}. ${ctx}`}
+      onPress={() => { setAddedWeight(true); setFocusAddedWeight(true); onSelect?.(row.key); }} style={{ flex: 1, minHeight: 48, borderRadius: radius.input, backgroundColor: p.field, justifyContent: "center", alignItems: "center" }}>
+      <AppText maxFontSizeMultiplier={1.3} style={{ fontSize: ty.label }}>{t("workout.bodyweightShort")}</AppText>
+    </Pressable>
+  ) : (
     <CellInput<number>
-      a11y={`${t("workout.load")} (${unitText}). ${ctx}`}
+      a11y={`${loadLabel} (${unitText}). ${ctx}`}
+      maxFontSizeMultiplier={1.5}
+      invalid={row.invalidLoad}
       value={row.load}
       format={(v) => weightText(v, unit)}
       parse={(txt, cur) => parseLoadInput(txt, unit, cur)}
@@ -102,14 +115,16 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
       decimal
       done={done}
       current={current}
-      onFocus={() => onSelect?.(row.key)}
-      autoFocus={autoFocus}
+      onFocus={() => { setFocusAddedWeight(false); onSelect?.(row.key); }}
+      autoFocus={autoFocus || focusAddedWeight}
       focusNonce={focusNonce}
     />
   );
   const repsCell = (
     <CellInput<number>
       a11y={`${timed ? (ex.measure === "time" ? t("workout.seconds") : t("workout.metres")) : t("workout.reps")}. ${ctx}`}
+      maxFontSizeMultiplier={1.5}
+      invalid={row.invalidReps}
       value={row.reps}
       format={(v) => String(v)}
       parse={(txt) => (timed ? parseQuantityInput(txt, ex.measure) : parseRepsInput(txt))}
@@ -152,11 +167,8 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
         // The caption sits directly on its own row (no gap) and rows are divided, so it never reads as the row above's (C-R3).
         <View style={{ gap: 0, paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.xs, borderBottomWidth: 1, borderColor: p.line }}>
           {bar}
-          <View style={{ flexDirection: "row", gap: space.sm }}>
-            <View style={{ width: 48 }} />
-            <View style={{ flex: 1 }}><AppText ltr accessibilityLabel={previousA11y} style={{ color: beat ? p.text : p.muted, fontWeight: beat ? "600" : undefined, fontSize: ty.caption, textAlign: "center" }}>{previousValue}</AppText></View>
-            <View style={{ flex: 1 }} />
-            <View style={{ width: 48 }} />
+          <View style={{ paddingStart: 48 + space.sm, paddingEnd: space.sm }}>
+            <AppText maxFontSizeMultiplier={1.3} accessibilityLabel={previousA11y} style={{ color: beat ? p.text : p.muted, fontWeight: beat ? "600" : undefined, fontSize: ty.caption }}>{t("workout.col.prev")}: {previousValue}</AppText>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
             {setButton}
@@ -182,7 +194,7 @@ export function WorkoutSetRow({ ex, row, label, workingIndex, lastSets, current,
 }
 
 /** The row's view of the exercise: only these fields are read, so a fresh `ex` object with the same values is the same row. */
-const sameEx = (a: Disp, b: Disp) => a === b || (a.exerciseId === b.exerciseId && a.nameEn === b.nameEn && a.nameAr === b.nameAr && a.measure === b.measure && a.trackEffort === b.trackEffort);
+const sameEx = (a: Disp, b: Disp) => a === b || (a.exerciseId === b.exerciseId && a.nameEn === b.nameEn && a.nameAr === b.nameAr && a.measure === b.measure && a.setup === b.setup && a.equipment === b.equipment && a.trackEffort === b.trackEffort);
 
 /** Shallow compare, except `ex` (rebuilt each logger render) by the fields above. Handlers must be stable (WorkoutExerciseSection passes ref-backed ones). */
 export function sameRowProps(a: WorkoutSetRowProps, b: WorkoutSetRowProps): boolean {

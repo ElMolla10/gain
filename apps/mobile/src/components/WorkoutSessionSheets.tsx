@@ -67,8 +67,6 @@ export function WorkoutSessionSheets({ session }: { session: WorkoutSession }) {
             ? [
                 ...(menuProps ? [
                   { label: t("workout.whyShort"), onPress: () => menuProps.onWhyLong() },
-                  { label: t("workout.nextSetDetails"), onPress: () => menuProps.onToggleSuggestion?.() },
-                  { label: t("workout.exerciseDetails"), onPress: () => menuProps.onWhyLong() },
                   { label: t("workout.unitToggle.a11y", { exercise: exerciseLabels(menuEx, lang).primary, unit: unitLabel(menuProps.unitOverride ?? session.unit, lang), other: unitLabel((menuProps.unitOverride ?? session.unit) === "kg" ? "lb" : "kg", lang) }), onPress: () => menuProps.onToggleUnit?.() },
                 ] : []),
                 ...(reportPain ? [{ label: t("rack.menu.pain"), onPress: reportPain }] : []),

@@ -1,7 +1,6 @@
 import { useSheetAction } from "../hooks/useSheetAction";
 import { canEditLoadsFor } from "../logic/setRowState";
 import { loadTargetText } from "../logic/bidiText";
-import { PersonalMilestoneLine } from "./PersonalMilestoneLine";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, View, useWindowDimensions } from "react-native";
 import { allowsZero, findSpec, renderReason, type GymFingerprint, type OutlierResult, type Decision } from "@gain/engine";
@@ -80,7 +79,7 @@ function ExerciseDemoButton({ seedKey, title, buttonLabel, buttonA11y, imageA11y
         onPress={() => setVisible(true)}
         style={({ pressed }) => ({ alignSelf: "flex-start", minHeight: 48, minWidth: 48, flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.sm, borderRadius: radius.button, backgroundColor: pressed ? p.field : "transparent" })}
       >
-        <AppText style={{ color: p.accent, fontSize: ty.caption, fontWeight: "600" }}>{buttonLabel}</AppText>
+        <AppText maxFontSizeMultiplier={1.3} style={{ color: p.accent, fontSize: ty.caption, fontWeight: "600" }}>{buttonLabel}</AppText>
       </Pressable>
       <Sheet visible={visible} title={title} onClose={() => setVisible(false)}>
         <ExerciseDemoIllustration source={image} seedKey={seedKey} accessibilityLabel={imageA11y} backgroundColor={p.card} />
@@ -180,7 +179,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, setCo
     onApply={() => leaveDetails(onLiveApply)} onOwn={() => leaveDetails(onLiveOwn)} onKeep={() => leaveDetails(onLiveKeep)} whySentence={whySentence} /> : null;
 
   return (
-    <View key={ex.id} style={{ paddingTop: space.md, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
+    <View key={ex.id} style={{ paddingTop: space.sm, borderStartWidth: supersetLabel ? 4 : 0, borderStartColor: p.fill }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.xs, paddingStart: space.lg, paddingEnd: space.xs }}>
         <Pressable accessibilityRole="button" accessibilityLabel={t("workout.openProgress", { exercise: labels.primary })}
           onPress={onOpenProgress} style={{ flex: 1, minHeight: 48, justifyContent: "center" }}>
@@ -189,10 +188,10 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, setCo
           ) : null}
           {onOpenTrend ? (
             <Pressable accessibilityRole="button" accessibilityLabel={labels.primary} onPress={onOpenTrend}>
-              <AppText accessibilityRole="header" style={{ fontSize: setContent !== undefined ? 24 : ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
+              <AppText maxFontSizeMultiplier={1.5} accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
             </Pressable>
           ) : (
-            <AppText accessibilityRole="header" style={{ fontSize: setContent !== undefined ? 24 : ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
+            <AppText maxFontSizeMultiplier={1.5} accessibilityRole="header" style={{ fontSize: ty.section, fontWeight: "600" }}>{labels.primary}</AppText>
           )}
           {labels.secondary ? <AppText style={{ color: p.muted, fontSize: 13 }}>{labels.secondary}</AppText> : null}
         </Pressable>
@@ -204,10 +203,10 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, setCo
       {/* Column heads, once per exercise. At large text Previous is a caption inside each row, so it has no column here (L-8).
           A head never runs past its column (AR "مجموعة" at 1.5x): one line, shrinks to fit (C-R2). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, marginTop: space.xs }}>
-        <View style={colSet}><AppText numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
-        {stacked ? null : <View style={{ flex: 1.1 }}><AppText style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>}
-        <View style={{ flex: 1 }}><AppText style={head}>{unitText.toUpperCase()}</AppText></View>
-        <View style={{ flex: 1 }}><AppText style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
+        <View style={colSet}><AppText maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={head}>{t("workout.col.set").toUpperCase()}</AppText></View>
+        {stacked ? null : <View style={{ flex: 1.1 }}><AppText maxFontSizeMultiplier={1.3} style={head}>{t("workout.col.prev").toUpperCase()}</AppText></View>}
+        <View style={{ flex: 1 }}><AppText maxFontSizeMultiplier={1.3} style={head}>{unitText.toUpperCase()}</AppText></View>
+        <View style={{ flex: 1 }}><AppText maxFontSizeMultiplier={1.3} style={head}>{(timed ? (ex.measure === "time" ? t("workout.col.sec") : t("workout.col.metres")) : t("workout.col.reps")).toUpperCase()}</AppText></View>
         <View style={colTick}><Icon name="check" color={p.muted} size={16} /></View>
       </View>
 
@@ -260,7 +259,7 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, setCo
 
       {/* "+ Set" is a quiet 48 dp text action (logger spec §4); the dock carries the primary action. */}
       <View style={{ paddingHorizontal: space.md, alignItems: "flex-start" }}>
-        <QuietAction icon="plus" label={t("workout.addSet")} accessibilityLabel={`${t("workout.addSet")}: ${labels.primary}`} onPress={() => onAddSet()} />
+        <QuietAction maxFontSizeMultiplier={1.3} icon="plus" label={t("workout.addSet")} accessibilityLabel={`${t("workout.addSet")}: ${labels.primary}`} onPress={() => onAddSet()} />
       </View>
       <Sheet visible={detailsVisible} title={labels.primary} onClose={closeDetails} onDismiss={detailsAction.onDismiss}>
       {detailsVisible ? <>
@@ -278,7 +277,6 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, setCo
       <View style={{ paddingHorizontal: space.lg }}>
         {targetNone && showNextHint ? (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
-            <QuietAction label={t("workout.nextSetDetails")} expanded={suggestionOpen} onPress={() => onToggleSuggestion?.()} />
             <QuietAction label={t("workout.whyShort")} accessibilityLabel={`${t("workout.whyShort")}: ${labels.primary}`} expanded={suggestionOpen} onPress={() => onToggleSuggestion?.()} onLongPress={() => onToggleSuggestion?.()} />
           </View>
         ) : <TargetLine
@@ -290,16 +288,11 @@ export function WorkoutExerciseSection({ restGlobal = true, active = true, setCo
           reason={reasonText}
           onWhy={() => info.stored ? leaveDetails(onWhy) : onWhy()}
           onWhyLong={() => onWhyLong()}
-          moreLabel={card && card.decision.action !== "stop" && onToggleSuggestion ? t("workout.nextSetDetails") : undefined}
-          moreA11y={`${t("workout.nextSetDetails")}: ${labels.primary}`}
-          moreExpanded={suggestionOpen}
-          onMore={() => onToggleSuggestion?.()}
         />}
         {!why && afterExercise ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("why.weight.afterExercise", { exercise: afterExercise })}</AppText> : null}
         {!why && readiness ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t(readiness === "fatigued" ? "why.weight.fatigued" : "why.weight.returning")}</AppText> : null}
         {info.prefill.estimated && exSets.length === 0 ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("coach.start.estimate")}</AppText> : null}
         {info.stored && expanded ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{reasonText}</AppText> : null}
-        <PersonalMilestoneLine unit={unit} onOpen={() => leaveDetails(onOpenProgress)} history={info.personalHistory ?? []} today={exSets} spec={spec} measure={ex.measure} repMin={ex.repMin} repMax={ex.repMax} setup={ex.setup} />
         {ex.topSets && !timed ? <AppText style={{ fontSize: ty.label, color: p.muted }}>{t("workout.topset.note", { n: ex.topSets })}</AppText> : null}
       </View>
 

@@ -12,8 +12,8 @@ def validate(bundles, expected_version, inventory):
     if len(bundles) < 2:
         raise ValueError('Expected app and Live Activity extension')
     build = bundles[0]['CFBundleVersion']
-    if not str(build).isdigit() or int(build) != inventory['next']:
-        raise ValueError('Build is not the next unused Apple build number')
+    if not str(build).isdigit() or str(build) != str(inventory['selected']):
+        raise ValueError('Build does not match the reconciled reservation')
     if str(build) in inventory['numbers']:
         raise ValueError('Build number already used')
     for bundle in bundles:

@@ -17,6 +17,7 @@ jobs:
       - run: npm ci
       # Engine + mobile (the mobile DB-layer tests use Node's built-in SQLite, no device needed).
       - run: python3 -m unittest discover -s scripts -p test_verify_testflight_ipa.py
+      - run: node --test scripts/reserve-ios-build.test.cjs
       - run: node --check scripts/testflight-verify.cjs
       - run: npm run typecheck
       - run: npm test
@@ -72,4 +73,18 @@ jobs:
           assert privacy["NSPrivacyTrackingDomains"] == []
           for entry in expected["NSPrivacyCollectedDataTypes"]:
               assert entry in privacy["NSPrivacyCollectedDataTypes"], entry
+          PYTHON
+
+      - name: Verify app and widget versions before signing
+        working-directory: apps/mobile
+        run: |
+          GAIN_IOS_LIVE_ACTIVITY=1 GAIN_IOS_BUILD_NUMBER=54 CI=1 npx expo prebuild --platform ios --no-install
+          python3 - <<'PYTHON'
+          import json, plistlib
+          from pathlib import Path
+          expected = json.loads(Path("app.json").read_text())["expo"]["version"]
+          for name in ['GAIN', 'ExpoWidgetsTarget']:
+              info = plistlib.loads(Path(f'ios/{name}/Info.plist').read_bytes())
+              assert info['CFBundleVersion'] == '54', (name, info)
+              assert info['CFBundleShortVersionString'] == expected, (name, info)
           PYTHON

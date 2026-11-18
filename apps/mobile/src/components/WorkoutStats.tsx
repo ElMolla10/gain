@@ -11,7 +11,7 @@ import { AppText } from "../ui";
  * The rest-timer readout. It ticks every 250 ms on its own (P27), so the logger screen is not re-rendered four times a second while a
  * rest counts down. The timer value (an end time) is owned by the screen; this only reads it.
  */
-export const RestClock = memo(function RestClock({ timer, style }: { timer: RestTimer; style: TextStyle }) {
+export const RestClock = memo(function RestClock({ timer, style, maxFontSizeMultiplier }: { timer: RestTimer; style: TextStyle; maxFontSizeMultiplier?: number }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (timer.endsAt === null) return;
@@ -20,7 +20,7 @@ export const RestClock = memo(function RestClock({ timer, style }: { timer: Rest
     return () => clearInterval(h);
   }, [timer.endsAt]);
   return (
-    <AppText ltr accessibilityRole="timer" style={style}>
+    <AppText ltr accessibilityRole="timer" maxFontSizeMultiplier={maxFontSizeMultiplier} style={style}>
       {formatClock(remainingMs(timer, now))}
     </AppText>
   );
@@ -34,6 +34,7 @@ export function LiveDuration({
   color,
   onToggle,
   compact = false,
+  maxFontSizeMultiplier,
 }: {
   startedAt: number;
   pausedMs?: number;
@@ -41,6 +42,7 @@ export function LiveDuration({
   color: string;
   onToggle?: () => void;
   compact?: boolean;
+  maxFontSizeMultiplier?: number;
 }) {
   const { t } = useI18n();
   const paused = pausedAt != null;
@@ -67,10 +69,10 @@ export function LiveDuration({
       style={{ minHeight: MIN_TOUCH, justifyContent: "center" }}
     >
       {/* "12 د 30 ث" holds Arabic unit letters: language direction (the formatter isolates the numbers), tabular figures. */}
-      <AppText style={{ fontSize: compact ? 14 : 20, fontWeight: "600", color, fontVariant: ["tabular-nums"] }}>
+      <AppText maxFontSizeMultiplier={maxFontSizeMultiplier} style={{ fontSize: compact ? 14 : 20, fontWeight: "600", color, fontVariant: ["tabular-nums"] }}>
         {text}
       </AppText>
-      {paused ? <AppText style={{ fontSize: 13, color }}>{t("workout.stat.paused")}</AppText> : null}
+      {paused ? <AppText maxFontSizeMultiplier={maxFontSizeMultiplier} style={{ fontSize: 13, color }}>{t("workout.stat.paused")}</AppText> : null}
     </Pressable>
   );
 }

@@ -30,13 +30,14 @@ describe("session line (logger 10x §5)", () => {
     expect(plain(translate("en", "rack.savedShort", { time: "06:31" }))).toBe("Saved 06:31");
     expect(plain(translate("ar", "rack.savedShort", { time: "06:31" }))).toBe("اتحفظ 06:31");
   });
-  it("Pause never hides, the details panel stays reachable, large text wraps to two rows, one live region", () => {
+  it("Pause never hides, the details panel stays reachable, large text keeps compact controls, one live region", () => {
     expect(screen).toContain('t("rack.setsOf"');
     expect(screen).not.toMatch(/warns \? null : <IconButton/);
     expect(screen).toContain('{t("workout.details")}');
     expect(screen).toContain("<WorkoutSessionOverview visible={detailsOpen}");
     expect(screen).toContain("<WorkoutDetailsPanel\n          open={detailsOpen}");
-    expect(screen).toContain('flexWrap: largeText && !keyboardUp ? "wrap" : "nowrap"');
+    expect(screen).toContain('<LiveDuration compact maxFontSizeMultiplier={1.3}');
+    expect(screen).not.toContain('flexBasis: "100%"');
     expect(screen).toContain('text={statusShort}');
     expect(screen).not.toContain("<InlineStatus kind={status.kind}");
   });

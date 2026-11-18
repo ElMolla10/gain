@@ -55,7 +55,7 @@ describe("done tick: muted green, not lime (shared palette tokens)", () => {
 
 describe("logger spacing uses the shared tokens", () => {
   it("exercise block, target line and set table sit tighter, with only token values", () => {
-    expect(section).toContain("paddingTop: space.md, borderStartWidth");
+    expect(section).toContain("paddingTop: space.sm, borderStartWidth");
     expect(section).toMatch(/marginTop: space\.xs }}>\s*<View style=\{colSet\}>/);
     expect(section).not.toContain("gap: space.xs, paddingTop: space.lg, borderStartWidth");
   });

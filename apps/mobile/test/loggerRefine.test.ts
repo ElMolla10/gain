@@ -36,7 +36,7 @@ describe("logger save status (pure)", () => {
     expect(screen).not.toContain("{loaded.resumed ?"); // no permanent resumed line in the scroll
   });
   it("the status lives in the header (always visible), is announced politely, and a failed save sets it", () => {
-    expect(screen).toContain('{showStatusWarning ? <InlineStatus kind="warn" text={statusShort} /> : null}');
+    expect(screen).toContain('{showStatusWarning ? <InlineStatus kind="warn" text={statusShort} maxFontSizeMultiplier={1.3} /> : null}');
     expect(screen).toContain("setSaveError(true)");
     expect(screen).toContain("setSaveError(false)");
     expect(screen).toContain('t("workout.saveFailed.title")'); // the alert is still shown too

@@ -1,5 +1,7 @@
 # Current-set workout logger verification
 
+Historical PR #372 captures. The current compact table presentation and verification are documented in [compact-workout-table](../compact-workout-table/README.md).
+
 Base: `d14d314c6144b53be35aa520f26b0ff303914456` (current `origin/main` when work began).
 
 The real React Native logger now presents one editable set, compact completed/upcoming rows, and one pinned Log set action. Workout details lists the complete active session with jump, add, remove, and the existing drag reorderer. Recommendation, repository logging, rest timers, and Finish remain the existing implementations. Exercise changes are session-only; the explicit replacement “Update program” choice remains separate.

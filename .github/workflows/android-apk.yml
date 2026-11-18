@@ -1,0 +1,121 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      signing:
+        description: Preview installs alongside GAIN; release updates existing sideload installs
+        type: choice
+        options:
+          - preview
+          - release
+        default: preview
+      version_code:
+        description: Android versionCode (required for release; must exceed the last distributed APK)
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SIGNING_MODE: ${{ inputs.signing }}
+      GAIN_ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Check build inputs
+        env:
+          RELEASE_KEYSTORE: ${{ secrets.GAIN_ANDROID_KEYSTORE_BASE64 }}
+          RELEASE_PASSWORD: ${{ secrets.GAIN_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$GAIN_ANDROID_VERSION_CODE" ]]; then
+            if [[ ! "$GAIN_ANDROID_VERSION_CODE" =~ ^[1-9][0-9]{0,9}$ ]] || (( GAIN_ANDROID_VERSION_CODE > 2100000000 )); then
+              echo "::error::Enter a whole versionCode between 1 and 2100000000."
+              exit 1
+            fi
+          fi
+          if [[ "$SIGNING_MODE" == release ]]; then
+            if [[ "$GITHUB_REF" != refs/heads/main || -z "$GAIN_ANDROID_VERSION_CODE" ]]; then
+              echo "::error::Release signing requires main and an explicit versionCode."
+              exit 1
+            fi
+            if [[ -z "$RELEASE_KEYSTORE" || -z "$RELEASE_PASSWORD" ]]; then
+              echo "::error::Release signing requires the existing GAIN Android keystore and password as GitHub Actions secrets."
+              exit 1
+            fi
+          else
+            echo 'GAIN_ANDROID_PREVIEW=1' >> "$GITHUB_ENV"
+            echo 'GAIN_DISTRIBUTION=play' >> "$GITHUB_ENV"
+          fi
+
+      - run: npm ci
+
+      - name: Generate the Android project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Build a standalone arm64 APK
+        working-directory: apps/mobile/android
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - name: Sign and verify the APK
+        env:
+          RELEASE_KEYSTORE: ${{ secrets.GAIN_ANDROID_KEYSTORE_BASE64 }}
+          RELEASE_PASSWORD: ${{ secrets.GAIN_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          src=apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          version="$(node -p "require('./apps/mobile/app.json').expo.version")"
+          code="${GAIN_ANDROID_VERSION_CODE:-$(node -p "require('./apps/mobile/app.json').expo.android.versionCode")}"
+          package="$(node -p "require('./apps/mobile/app.json').expo.android.package")"
+          name="gain-v${version}-arm64.apk"
+          mkdir -p dist/android-apk
+          if [[ "$SIGNING_MODE" == release ]]; then
+            umask 077
+            signing_dir="$(mktemp -d)"
+            trap 'rm -rf "$signing_dir"' EXIT
+            printf '%s' "$RELEASE_KEYSTORE" | base64 --decode > "$signing_dir/release.jks"
+            "$tools/zipalign" -f -P 16 4 "$src" "$signing_dir/aligned.apk"
+            "$tools/apksigner" sign --ks "$signing_dir/release.jks" --ks-key-alias gain \
+              --ks-pass env:RELEASE_PASSWORD --v4-signing-enabled false \
+              --out "dist/android-apk/$name" "$signing_dir/aligned.apk"
+          else
+            package="$package.preview"
+            name="gain-preview-v${version}-arm64.apk"
+            cp "$src" "dist/android-apk/$name"
+          fi
+          cd dist/android-apk
+          signature="$("$tools/apksigner" verify --print-certs "$name")"
+          if [[ "$SIGNING_MODE" == release ]]; then
+            grep -Fx 'Signer #1 certificate SHA-256 digest: 571bc5a8ce699054ae7bffe0fc912fd1faf9de7dfd3d3eb962b1b8578315c5b2' <<< "$signature"
+          fi
+          metadata="$("$tools/aapt2" dump badging "$name")"
+          grep -F "package: name='$package' versionCode='$code' versionName='$version'" <<< "$metadata"
+          grep -Fx "native-code: 'arm64-v8a'" <<< "$metadata"
+          sha256sum "$name" > SHA256SUMS.txt
+          {
+            printf '### Android APK (%s)\n\n' "$SIGNING_MODE"
+            printf -- '- File: %s\n- App: %s\n- Version: %s (%s)\n- Commit: %s\n' "$name" "$package" "$version" "$code" "$GITHUB_SHA"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attach APK and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: gain-android-${{ inputs.signing }}-arm64
+          path: dist/android-apk/
+          if-no-files-found: error
+          retention-days: 14

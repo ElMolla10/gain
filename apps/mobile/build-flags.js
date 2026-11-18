@@ -8,7 +8,8 @@
 //   GAIN_IOS_BUNDLE_ID=<id>              iOS only (docs/IOS.md): the bundle id for a personal free-Apple-ID build. Apple refuses an id that another team already holds, so pick your own, e.g. com.yourname.gain.
 //   GAIN_IOS_TEAM_ID=<10 characters>     iOS only: your Apple Team ID, so Xcode signs without you picking the team by hand.
 //   GAIN_IOS_SCENES=1                    iOS only: adopt the UIKit scene lifecycle that Xcode 27 / the iOS 27 SDK requires (Expo SDK 57 opt-in, expo-build-properties).
-// None of the three touches the Android section. Anything else in the distribution / pilot variables is an error, so a typo cannot silently produce the wrong build.
+//   GAIN_ANDROID_PREVIEW=1               Android only: use a separate app ID and data directory for CI previews.
+//   GAIN_ANDROID_VERSION_CODE=<number>   Android only: override the version code for this APK.
 const PILOT_TEMPLATE_IDS = ["full_body_2", "full_body_3", "ppl_3", "upper_lower_4", "mix_4", "ppl_6"];
 const INSTALL_PERMISSION = "REQUEST_INSTALL_PACKAGES";
 
@@ -20,6 +21,19 @@ function applyBuildFlags(config, env) {
   const emailRaw = env.GAIN_EMAIL_SIGNIN === undefined || env.GAIN_EMAIL_SIGNIN === "" ? "0" : env.GAIN_EMAIL_SIGNIN;
   if (emailRaw !== "0" && emailRaw !== "1") throw new Error(`GAIN_EMAIL_SIGNIN must be "1" or "0", got "${emailRaw}"`);
   const android = { ...(config.android || {}) };
+  const preview = env.GAIN_ANDROID_PREVIEW;
+  if (preview && preview !== "0" && preview !== "1") throw new Error("GAIN_ANDROID_PREVIEW must be 0 or 1");
+  if (preview === "1") {
+    if (!android.package) throw new Error("Android preview requires a package name");
+    android.package += ".preview";
+  }
+  const versionCode = env.GAIN_ANDROID_VERSION_CODE;
+  if (versionCode) {
+    if (!/^[1-9][0-9]{0,9}$/.test(versionCode) || Number(versionCode) > 2100000000) {
+      throw new Error("GAIN_ANDROID_VERSION_CODE must be an integer from 1 through 2100000000");
+    }
+    android.versionCode = Number(versionCode);
+  }
   if (dist === "play") {
     android.permissions = (android.permissions || []).filter((p) => p !== INSTALL_PERMISSION && p !== `android.permission.${INSTALL_PERMISSION}`);
     const blocked = new Set(android.blockedPermissions || []);
@@ -48,6 +62,7 @@ function applyBuildFlags(config, env) {
   const plugins = scenesRaw === "1" ? [...(config.plugins || []), ["expo-build-properties", { ios: { enableSceneSupport: true } }]] : config.plugins;
   const out = {
     ...config,
+    ...(preview === "1" ? { name: `${config.name} Preview` } : {}),
     android,
     extra: { ...(config.extra || {}), distribution: dist, emailSignIn: emailRaw === "1", pilotTemplateIds: pilotRaw === "1" ? [...PILOT_TEMPLATE_IDS] : null },
   };

@@ -80,7 +80,6 @@ export function ProgrammeShareScreen() {
 
   return (
     <Screen>
-      <AppText style={{ color: p.muted }}>{t("prog.share.note")}</AppText>
       {json ? (
         <Card>
           <BigButton label={t("prog.share.send")} onPress={() => void Share.share({ message: json })} />

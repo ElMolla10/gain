@@ -207,7 +207,7 @@ function Shell(props: { needsOnboarding: boolean; onOnboarded: () => void }) {
           <Stack.Screen name="Setup" component={SetupRoute} options={{ title: t("ob.welcome") }} />
           <Stack.Screen name="Import" component={ImportScreen} options={{ title: t("import.title") }} />
           <Stack.Screen name="Goals" component={GoalsScreen} options={{ title: t("goals.title") }} />
-          <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title") }} />
+          <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), headerBackButtonDisplayMode: "minimal" }} />
           <Stack.Screen name="Data" component={DataScreen} options={{ title: t("data.title") }} />
           <Stack.Screen name="Sync" component={SyncScreen} options={{ title: t("sync.title") }} />
           <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: t("privacy.title") }} />

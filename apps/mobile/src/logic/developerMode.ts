@@ -5,8 +5,8 @@ interface Storage {
 }
 
 /** Local UI preference, not an authorization boundary. A failed read keeps tools hidden. */
-export function createDeveloperMode(storage: Storage) {
-  let snapshot = { enabled: false, ready: false, saving: false };
+export function createDeveloperMode(storage: Storage, available = true) {
+  let snapshot = { enabled: false, ready: !available, saving: false };
   let revision = 0;
   const listeners = new Set<() => void>();
   const publish = (patch: Partial<typeof snapshot>) => {
@@ -17,6 +17,7 @@ export function createDeveloperMode(storage: Storage) {
     getSnapshot: () => snapshot,
     subscribe: (notify: () => void) => { listeners.add(notify); return () => { listeners.delete(notify); }; },
     async load() {
+      if (!available) return;
       const started = revision;
       try {
         const value = await storage.getSetting(DEVELOPER_MODE_KEY);
@@ -27,7 +28,7 @@ export function createDeveloperMode(storage: Storage) {
       }
     },
     async setEnabled(enabled: boolean) {
-      if (snapshot.saving) return;
+      if (!available || snapshot.saving) return;
       revision++;
       publish({ saving: true });
       try {

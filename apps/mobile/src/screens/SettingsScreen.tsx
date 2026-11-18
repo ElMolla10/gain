@@ -417,7 +417,7 @@ export function SettingsScreen() {
           <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.privacy")}</AppText>
           <HealthNote />
           {hasSelfUpdater(buildFlags, Platform.OS) ? <UpdateCard /> : null}
-          <Pressable accessibilityRole="button" accessibilityLabel={t("settings.version", { v: version })}
+          {__DEV__ ? <Pressable accessibilityRole="button" accessibilityLabel={t("settings.version", { v: version })}
             accessibilityHint={t("settings.developer.unlock")}
             accessibilityActions={[{ name: "enableDeveloperMode", label: t("settings.developer.enable") }]}
             onAccessibilityAction={event => { if (event.nativeEvent.actionName === "enableDeveloperMode") void changeDeveloperMode(true); }}
@@ -426,19 +426,18 @@ export function SettingsScreen() {
             onLongPress={() => void changeDeveloperMode(true)}
             style={{ minHeight: 48, justifyContent: "center" }}>
             <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>
-          </Pressable>
+          </Pressable> : <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.version", { v: version })}</AppText>}
           {developerError ? <InlineStatus kind="error" text={t("settings.developer.error")} /> : null}
           {buildFlags.pilotTemplateIds ? <AppText style={{ color: p.muted, fontSize: ty.secondary }}>{t("settings.pilotBuild")}</AppText> : null}
         </View>
       </Group>
-      <DeveloperTools enabled={developer.enabled} saving={developer.saving}
-        onChange={on => void changeDeveloperMode(on)} onNavigate={route => nav.navigate(route)} />
-      {/* Visible shortcut while the app is pre-release; the version-text gesture still works. */}
-      {developer.enabled ? null : (
+      {__DEV__ ? <DeveloperTools enabled={developer.enabled} saving={developer.saving}
+        onChange={on => void changeDeveloperMode(on)} onNavigate={route => nav.navigate(route)} /> : null}
+      {__DEV__ && !developer.enabled ? (
         <Group title={t("settings.developer.title")}>
           <LinkRow label={t("settings.developer.enable")} note={t("settings.developer.note")} onPress={() => { if (developer.ready && !developer.saving) void changeDeveloperMode(true); }} />
         </Group>
-      )}
+      ) : null}
     </Screen>
   );
 }

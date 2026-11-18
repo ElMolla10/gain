@@ -42,7 +42,7 @@ export function PrivacyScreen() {
         onToggleCrashLog={(v) => { diagnostics.setEnabled(v); setCrashLog(v); }}
         onToggleNotesOn={(v) => { telemetry.setOptedIn(v); setNotesOn(v); }}
         onOpenData={() => nav.navigate("Data")}
-        onOpenDiagnostics={() => nav.navigate("Diagnostics")}
+        onOpenDiagnostics={developerMode ? () => nav.navigate("Diagnostics") : undefined}
       />
       <Notice kind="warn">{t("privacy.draft")}</Notice>
       {block("privacy.local.title", ["privacy.local.body", "privacy.ai.body"])}

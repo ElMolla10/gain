@@ -11,7 +11,7 @@ interface PrivacyPledgeCardProps {
   onToggleCrashLog: (val: boolean) => void;
   onToggleNotesOn: (val: boolean) => void;
   onOpenData: () => void;
-  onOpenDiagnostics: () => void;
+  onOpenDiagnostics?: () => void;
 }
 
 export function PrivacyPledgeCard({
@@ -61,11 +61,11 @@ export function PrivacyPledgeCard({
             variant="secondary"
             onPress={onOpenData}
           />
-          <BigButton
+          {onOpenDiagnostics ? <BigButton
             label={t("privacy.openDiag")}
             variant="secondary"
             onPress={onOpenDiagnostics}
-          />
+          /> : null}
         </View>
       </Card>
     </View>
